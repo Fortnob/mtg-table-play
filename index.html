@@ -876,7 +876,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .deck-entry .nm-col .nm { flex: none; }
 .illegal-why { font-size: 10.5px; font-weight: 700; line-height: 1.25; color: #ffc2c4; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
 :root[data-theme="light"] .illegal-why { color: #b3141f; text-shadow: none; }
-.card-slot.illegal .illegal-veil {
+.card-slot.illegal .illegal-veil, .col-img.illegal .illegal-veil {
   position: absolute; inset: 0; z-index: 3; border-radius: 5% / 3.6%; pointer-events: none;
   background: rgba(200,36,48,.36); box-shadow: inset 0 0 0 2px #e5484d;
 }
@@ -10380,7 +10380,124 @@ MTG.setGameSpeed = function (id) {
   const ANTE = new Set(['Amulet of Quoz', 'Bronze Tablet', 'Contract from Below', 'Darkpact', 'Demonic Attorney',
     'Jeweled Bird', 'Rebirth', 'Tempest Efreet', 'Timmerian Fiends']);
   const isAnte = (c) => !!c && (ANTE.has(c.name) || /\bplaying for ante\b/i.test(c.oracle_text || ''));
-  const noAnte = (cards) => (cards || []).filter(c => !isAnte(c));
+
+  /* ---------------- joke and playtest cards ----------------
+     Not part of this game: the Un-sets and every other card made as a
+     joke or a playtest. None of them is found, offered, opened, drafted,
+     bought, suggested, generated or played. A deck or a collection that
+     already holds one keeps it, marked as not in the game
+     (MTG.formats.validate), and it cannot be added again.
+
+     A printing is a joke's (jokePrint) when Scryfall says so: its set is
+     of the "funny" kind (Unglued, Unhinged, Unstable, Unsanctioned,
+     Unfinity and its sticker sheets, Unknown Event, the Mystery Booster
+     playtest cards, The List's Unfinity Foil Edition, the Heroes of the
+     Realm, holiday and convention jokes) or one of those sets' own token
+     and promo sets; or it has the acorn stamp, a silver border, or the
+     "playtest" promo type (Mystery Booster 2's playtest cards, MagicFest's).
+     A card is out when it has no printing but those, or none but those
+     and reprint lists, Secret Lairs and oversized prizes (OUT_ELSEWHERE:
+     Space Beleren on The List, Comet, Stellar Pup in Mystery Booster 2,
+     Clown Car…). A card printed for real too stays, without its joke
+     printings (STAYS: the shock lands, Saw in Half in Bloomburrow
+     Commander, Steamflogger Boss from Future Sight).
+
+     The one exception: Unfinity's full-art galaxy basic lands stay, as art
+     to choose for the basics. Both lists were worked out from Scryfall
+     (all printings of every card ever printed in such a set, October 2026);
+     tools/cardtests/52-no-jokes.js checks them against the bulk file.
+     The card database (src/02a-carddb.js) works the same out of every
+     printing it has. */
+  const JOKE_SETS = new Set(['ugl', 'unh', 'ust', 'und', 'unf', 'sunf', 'ulst', 'unk', 'punk', 'cmb1', 'cmb2',
+    'h17', 'hho', 'ptg', 'phtr', 'ph17', 'ph18', 'ph19', 'ph20', 'ph21', 'ph22', 'ph23',
+    // the joke sets' own tokens and promos
+    'tugl', 'punh', 'tust', 'pust', 'tund', 'tunf']);
+  const UNFINITY = new Set(['unf', 'sunf', 'tunf', 'ulst']);
+  // printings that do not make a joke card a real one: reprint lists, Secret Lairs, Astral cards (and oversized prizes, by set type)
+  const REPRINT_ONLY = new Set(['plst', 'plist', 'mb1', 'mb2', 'fmb1', 'sld', 'slc', 'sld2', 'slz', 'pz1', 'pz2', 'past']);
+  // out though printed outside the joke sets: on reprint lists, in Secret Lairs, as oversized prizes
+  const OUT_ELSEWHERE = new Map([
+    ['89e90361-822f-42b6-9ed9-d94e6d24fb95', ['unf', 'Attempted Murder']],     // The List
+    ['41dd29b9-f08d-4ccc-8dc0-da11d2d456e9', ['ugl', 'Blacker Lotus']],     // Secret Lair, oversized
+    ['252ff28e-3ea7-4e2c-a30c-3cb80aa278d0', ['mb2', 'Call from the Grave']],     // playtest; Astral
+    ['e0a6947f-3d52-45e0-8fd7-0bc07cc8c784', ['unf', 'Clown Car']],     // The List, The Zeta Set
+    ['e7c67480-1816-4071-9eab-a1d1b535a344', ['unf', 'Comet, Stellar Pup']],     // Mystery Booster 2
+    ['a55ef412-257b-4ecd-9440-4545521be938', ['unf', 'Exchange of Words']],     // The List
+    ['35caa378-440d-41a1-8ce4-174bfb7c16ac', ['ugl', 'Incoming!']],     // oversized
+    ['e88f6b45-0cde-4fd4-80f0-f252f6fd59fa', ['ugl', 'Infernal Spawn of Evil']],     // oversized
+    ['f0ba392b-fd12-441c-a68b-a53dffe27f7f', ['ugl', 'Mirror Mirror']],     // oversized
+    ['cfca44cb-8ca5-4ebb-bd5c-b621eca41944', ['unf', 'Space Beleren']],     // The List
+    ['8673cc01-7d5d-41ee-aede-f21efc74216c', ['ugl', 'Squirrel Farm']],     // oversized
+  ]);
+  // printed in a joke set and for real too: in the game, without the joke printings
+  const STAYS = new Map([
+    ['43985bbc-a0f6-4812-984e-392bc8562633', 'Blood Crypt'], ['20283c4a-f1f0-42f0-bc08-6da87474426b', 'Breeding Pool'],
+    ['73864fcc-1bde-4bc0-831e-2b93e546e417', 'Godless Shrine'], ['f1750962-a87c-49f6-b731-02ae971ac6ea', 'Hallowed Fountain'],
+    ['975ec9a3-6f20-4177-8211-82526e092538', 'Overgrown Tomb'], ['45181cb8-2090-4471-ba90-e5a8f04d525f', 'Sacred Foundry'],
+    ['17039058-822d-409f-938c-b727a366ba63', 'Steam Vents'], ['16052b52-ade1-406f-a06b-ce7ea607fb63', 'Stomping Ground'],
+    ['f413a83d-a40d-434c-b20a-4c707c0527fa', 'Temple Garden'], ['fc9ec820-4245-4a96-b009-5308a818ca58', 'Watery Grave'],
+    ['eea18c55-8695-4ba1-9b38-3e7638692f5f', 'Saw in Half'], ['4d614c79-7934-4662-9ce1-22b57d5137f7', 'Steamflogger Boss'],
+  ]);
+  // the same by name, for what is known by name and set only (a collection's entries)
+  const OUT_NAMES = new Map([...OUT_ELSEWHERE.values()].map(([set, name]) => [name, set]));
+  const STAY_NAMES = new Set(STAYS.values());
+  // what Scryfall is asked along with every search: no joke printing, but Unfinity's basics
+  const JOKE_QUERY = '-((is:funny or st:funny or e:tugl or e:punh or e:tust or e:pust or e:tund or e:tunf) -(e:unf t:basic))';
+  // words that set how Scryfall shows what it found, which it will not take inside brackets
+  const DISPLAY_RE = /(^|\s)(?:unique|order|dir|direction|display|prefer|include):\S+/gi;
+  const setOf = (c) => String((c && c.set) || '').toLowerCase();
+  const BASIC_NAME = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/;
+  const isBasic = (c) => /\bBasic\b/.test(String(c.type_line || ((c.card_faces || [])[0] || {}).type_line || '').split('//')[0]);
+  const isToken = (c) => /token|emblem/.test(c.layout || '') || /^Token\b/.test(c.type_line || '');
+  const oracleOf = (c) => c.oracle_id || ((c.card_faces || [])[0] || {}).oracle_id || '';
+  /** Whether this printing is a joke's: by its set, its stamp, its border or its promo type. */
+  const jokePrint = (c) => !!c && (JOKE_SETS.has(setOf(c)) || c.set_type === 'funny' || c.security_stamp === 'acorn' ||
+    c.border_color === 'silver' || (c.promo_types || []).includes('playtest'));
+  const J = MTG.jokes = {
+    SETS: JOKE_SETS,
+    QUERY: JOKE_QUERY,
+    /** Whether this set is a joke set (or one of their token and promo sets). */
+    isSet: (code) => JOKE_SETS.has(String(code || '').toLowerCase()),
+    isPrint: jokePrint,
+    REPRINT_ONLY,
+    /** Out whatever printing (OUT_ELSEWHERE), in whatever printing (STAYS): by oracle id. */
+    outId: (oid) => OUT_ELSEWHERE.has(oid),
+    staysId: (oid) => STAYS.has(oid),
+    /**
+     * Whether this card, whichever printing of it this is, is out of the
+     * game. A joke printing says so of its card, unless the card was
+     * printed for real too (STAYS, a basic land); the acorn stamp alone
+     * does not (Mystery Booster Commander stamps Alchemy's cards with it).
+     */
+    isCard(c) {
+      if (!c) return false;
+      const oid = oracleOf(c);
+      if (oid ? OUT_ELSEWHERE.has(oid) : OUT_NAMES.has(c.name)) return true;
+      if (!jokePrint(c) || (oid ? STAYS.has(oid) : STAY_NAMES.has(c.name)) || isBasic(c) || BASIC_NAME.test(c.name || '')) return false;
+      if (isToken(c)) return true;
+      return JOKE_SETS.has(setOf(c)) || c.set_type === 'funny' || c.border_color === 'silver' || (c.promo_types || []).includes('playtest');
+    },
+    /** Whether this printing may be shown: not a joke's, or one of Unfinity's basics. */
+    printOk: (c) => !!c && (!jokePrint(c) || (setOf(c) === 'unf' && isBasic(c))),
+    /** In the card pool: not a joke card, nor a joke printing of a real one. */
+    inPool: (c) => !!c && !J.isCard(c) && J.printOk(c),
+    /** A Scryfall query with the jokes left out (the words that say how to show it kept outside the brackets). */
+    query(q) {
+      q = String(q || '').trim();
+      if (q.includes(JOKE_QUERY)) return q;
+      const shows = (q.match(DISPLAY_RE) || []).map(s => s.trim());
+      const rest = q.replace(DISPLAY_RE, ' ').trim();
+      return [rest ? '(' + rest + ')' : '', JOKE_QUERY].concat(shows).filter(Boolean).join(' ');
+    },
+    /** Why a card held from before is not played, in a few words. */
+    why(c) {
+      const from = (OUT_ELSEWHERE.get(oracleOf(c)) || [OUT_NAMES.get(c && c.name)])[0] || setOf(c);
+      return UNFINITY.has(from) ? 'Unfinity cards aren’t in this game' : 'Joke and playtest cards aren’t in this game';
+    },
+  };
+  /** In the card pool: neither an ante card nor a joke (MTG.jokes). */
+  const inPool = (c) => !!c && !isAnte(c) && J.inPool(c);
+  const poolOnly = (cards) => (cards || []).filter(inPool);
 
   /* ---------------- the client ---------------- */
   class Scryfall {
@@ -10478,6 +10595,8 @@ MTG.setGameSpeed = function (id) {
         rarity: c.rarity, released_at: c.released_at, digital: c.digital, games: c.games,
         border_color: c.border_color, frame: c.frame, frame_effects: c.frame_effects,
         promo_types: c.promo_types, finishes: c.finishes, full_art: c.full_art, textless: c.textless,
+        // the acorn stamp: a joke card's (MTG.jokes)
+        security_stamp: c.security_stamp === 'acorn' ? 'acorn' : undefined,
         artist: c.artist, illustration_id: c.illustration_id, flavor_text: c.flavor_text,
         scryfall_uri: c.scryfall_uri, edhrec_rank: c.edhrec_rank, penny_rank: c.penny_rank,
         hand_modifier: c.hand_modifier, life_modifier: c.life_modifier,
@@ -10664,14 +10783,14 @@ MTG.setGameSpeed = function (id) {
       const max = opts.max || 175;
       const local = await this._localDb(opts);
       if (local && local.answers(query, opts)) {
-        try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); }
+        try { const cards = local.search(query, opts); this.stats.local++; return poolOnly(cards); }
         catch (e) { if (!(e instanceof local.Unsupported)) throw e; /* beyond the local engine: Scryfall it is */ }
       }
-      try { return noAnte(await this._liveSearch(query, opts, max)); }
+      try { return poolOnly(await this._liveSearch(query, opts, max)); }
       catch (e) {
         if (e && e.stale) throw e;
         // offline with a database that could not answer exactly: its best is better than nothing
-        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); } catch (e2) {} }
+        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return poolOnly(cards); } catch (e2) {} }
         throw e;
       }
     }
@@ -10717,7 +10836,7 @@ MTG.setGameSpeed = function (id) {
             const out = [];
             while (out.length < per && at < ids.length) {
               const c = local.idx.card(ids[at++]);
-              if (c && !isAnte(c)) out.push(c);
+              if (inPool(c)) out.push(c);
             }
             if (at >= ids.length) p.done = true;
             return out;
@@ -10725,7 +10844,7 @@ MTG.setGameSpeed = function (id) {
           while (buf.length < per && gi < GROUPS.length) {
             if (!url) {
               const g = GROUPS[gi];
-              const params = new URLSearchParams({ q: g ? `(${query}) ${g}` : query, unique: opts.unique,
+              const params = new URLSearchParams({ q: MTG.jokes.query(g ? `(${query}) ${g}` : query), unique: opts.unique,
                 order: colourWise ? 'cmc' : (opts.order || 'name') });
               if (opts.dir) params.set('dir', opts.dir);
               url = '/cards/search?' + params.toString();
@@ -10734,7 +10853,7 @@ MTG.setGameSpeed = function (id) {
             const groupDone = () => { gi++; url = null; buf.push(...held); held = []; };
             // nothing in this colour (Scryfall says so with a 404): on to the next
             if (!data) { groupDone(); continue; }
-            for (const c of noAnte(await self._store(data.data || []))) {
+            for (const c of poolOnly(await self._store(data.data || []))) {
               if (seen.has(c.id)) continue;
               seen.add(c.id);
               (colourWise && MTG.mana.hasX(c) ? held : buf).push(c);
@@ -10751,7 +10870,7 @@ MTG.setGameSpeed = function (id) {
     }
 
     async _liveSearch(query, opts, max) {
-      const params = new URLSearchParams({ q: query });
+      const params = new URLSearchParams({ q: MTG.jokes.query(query) });
       if (opts.unique) params.set('unique', opts.unique);
       if (opts.order) params.set('order', opts.order);
       if (opts.dir) params.set('dir', opts.dir);
@@ -10789,9 +10908,12 @@ MTG.setGameSpeed = function (id) {
       if (!q || q.length < 2) return [];
       const local = await this._localDb();
       if (local) return local.idx.autocomplete(q, 20).filter(n => !ANTE.has(n));
+      /* Scryfall's own autocomplete knows nothing of what is left out of the
+         pool (MTG.jokes), so the names come from a search that does */
       try {
-        const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q), { signal: opts && opts.signal });
-        return ((d && d.data) || []).filter(n => !ANTE.has(n));
+        const params = new URLSearchParams({ q: MTG.jokes.query('name:"' + String(q).replace(/"/g, '') + '"'), order: 'edhrec' });
+        const d = await this._fetch('/cards/search?' + params.toString(), { signal: opts && opts.signal });
+        return ((d && d.data) || []).filter(inPool).map(c => c.name).slice(0, 20);
       } catch (e) { return []; }
     }
 
@@ -10802,14 +10924,14 @@ MTG.setGameSpeed = function (id) {
           const ids = local.idx.query(query || '-t:basic', {});
           for (let tries = 0; ids.length && tries < 8; tries++) {
             const c = local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
-            if (!isAnte(c)) return c;
+            if (inPool(c)) return c;
           }
         } catch (e) { /* Scryfall can */ }
       }
       for (let tries = 0; tries < 4; tries++) {
-        const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
+        const c = await this._fetch('/cards/random?q=' + encodeURIComponent(MTG.jokes.query(query)));
         if (!c) return null;
-        if (!isAnte(c)) return (await this._store([c]))[0];
+        if (inPool(c)) return (await this._store([c]))[0];
       }
       return null;
     }
@@ -10825,6 +10947,8 @@ MTG.setGameSpeed = function (id) {
       /* A printing whose words play differently from the card's today is
          left out, unless the card has no other (src/02d-oldprints.js). */
       const current = (list) => {
+        // no joke printing, but Unfinity's basics (MTG.jokes)
+        list = list.filter(c => MTG.jokes.printOk(c) || c.id === card.id);
         const ok = MTG.oldPrints ? list.filter(c => !MTG.oldPrints.isOld(c)) : list;
         return ok.length ? ok : list;
       };
@@ -10861,7 +10985,12 @@ MTG.setGameSpeed = function (id) {
 
     /* ================= sets ================= */
 
+    /** Scryfall's sets, the joke sets left out (nothing of them is drafted, opened or sold). */
     async sets(opts) {
+      const all = await this._sets(opts);
+      return all.filter(s => s.set_type !== 'funny' && !MTG.jokes.isSet(s.code) && !MTG.jokes.isSet(s.parent_set_code));
+    }
+    async _sets(opts) {
       opts = opts || {};
       const hit = await this.db.get(STORES.meta, 'setlist');
       if (hit && !opts.force && Date.now() - hit._t < SET_TTL) return hit.sets;
@@ -11161,7 +11290,7 @@ MTG.setGameSpeed = function (id) {
     }
 
     _bucket(cards) {
-      cards = noAnte(cards);
+      cards = poolOnly(cards);
       const b = {
         all: cards, playable: [], common: [], uncommon: [], rare: [], mythic: [],
         special: [], bonus: [], basics: [], nonbasicLands: [],
@@ -11286,6 +11415,8 @@ MTG.setGameSpeed = function (id) {
   MTG.scry = new Scryfall();
   /** Whether a card is one of the ante cards, left out of the card pool. */
   MTG.scry.isAnte = isAnte;
+  /** Whether a card is in the card pool: not an ante card, nor a joke (MTG.jokes). */
+  MTG.scry.inPool = inPool;
 
   /* ---------------- a game in progress ----------------
      Kept in IndexedDB rather than localStorage: a snapshot carries whole
@@ -11726,6 +11857,7 @@ MTG.setGameSpeed = function (id) {
         this.R[oi] = r;
         this.byOracle.set(o[O.oracle_id], oi);
       }
+      this._leaveOutJokes();
       // each card's printings, the one to show first at the front
       for (const r of this.R) {
         if (r.prints.length < 2) continue;
@@ -11740,6 +11872,36 @@ MTG.setGameSpeed = function (id) {
           if ((pass === 0) === r.extra) continue;
           for (const k of [r.nameL, ...r.faceNames]) if (k && !this.names.has(k)) this.names.set(k, r.oi);
         }
+      }
+    }
+
+    /* The joke and playtest cards are not in the game (MTG.jokes): marked,
+       and no search, list or name suggestion turns one up, though a deck
+       that holds one still finds it by id or name. A card with a printing
+       that is not a joke's, outside the reprint lists, is a real card and
+       stays, without its joke printings (Unfinity's basics aside, kept as
+       art). A token is out only when every printing of it is a joke's. */
+    _leaveOutJokes() {
+      const J = MTG.jokes;
+      if (!J) return;
+      const P_ = this.P, S = this.setTable;
+      const joke = (pi) => {
+        const p = P_[pi];
+        return J.isPrint({ set: p[P.set], set_type: (S[p[P.set]] || [])[1], border_color: p[P.border_color],
+          security_stamp: p[P.flags] & FLAG.acorn ? 'acorn' : null, promo_types: p[P.promo_types] });
+      };
+      const real = (pi) => !joke(pi) && !J.REPRINT_ONLY.has(P_[pi][P.set]) && (S[P_[pi][P.set]] || [])[1] !== 'memorabilia';
+      const keepArt = (pi) => P_[pi][P.set] === 'unf' && /\bbasic\b/.test(this.R[P_[pi][P.oracle]].type);
+      for (const r of this.R) {
+        const oid = this.O[r.oi][O.oracle_id];
+        if (J.outId(oid)) { r.joke = true; continue; }
+        if (!r.prints.some(joke)) continue;
+        const stays = J.staysId(oid) || /\bbasic\b/.test(r.type) || (r.extra ? !r.prints.every(joke) : r.prints.some(real));
+        // the one printing known, joke only by its acorn stamp (Mystery Booster Commander's Alchemy cards): not a joke card
+        const acornOnly = r.prints.length === 1 && !r.extra && !J.isCard(this.card(r.prints[0]));
+        if (!stays && !acornOnly) { r.joke = true; continue; }
+        const keep = r.prints.filter(pi => !joke(pi) || keepArt(pi));
+        if (keep.length) r.prints = keep;
       }
     }
 
@@ -11794,6 +11956,7 @@ MTG.setGameSpeed = function (id) {
         rarity: p[P.rarity], released_at: p[P.released_at], digital: !!(flags & FLAG.digital), games: unbits(p[P.games], GAMES),
         border_color: p[P.border_color] || 'black', frame: nu(p[P.frame]), frame_effects: nu(p[P.frame_effects]),
         promo_types: nu(p[P.promo_types]), finishes: unbits(p[P.finishes], FINISHES),
+        security_stamp: flags & FLAG.acorn ? 'acorn' : undefined,
         full_art: !!(flags & FLAG.full_art), textless: !!(flags & FLAG.textless),
         artist: nu(p[P.artist]), illustration_id: nu(p[P.illustration_id]), flavor_text: nu(p[P.flavor_text]),
         scryfall_uri: `https://scryfall.com/card/${p[P.set]}/${encodeURIComponent(p[P.collector_number])}/${slugOf(o[O.name])}`,
@@ -11882,7 +12045,7 @@ MTG.setGameSpeed = function (id) {
       if (k.length < 2) return [];
       const starts = [], within = [];
       for (const r of this.R) {
-        if (r.extra) continue;
+        if (r.extra || r.joke) continue;
         if (r.nameL.startsWith(k)) starts.push(r);
         else if (within.length < 40 && r.nameL.includes(k)) within.push(r);
       }
@@ -11890,7 +12053,7 @@ MTG.setGameSpeed = function (id) {
       return starts.sort(by).concat(within.sort(by)).slice(0, n || 20).map(r => r.name);
     }
     setList() {
-      return Object.entries(this.setTable).map(([code, s]) => ({
+      return Object.entries(this.setTable).filter(([code, s]) => !(MTG.jokes && MTG.jokes.isSet(code)) && s[1] !== 'funny').map(([code, s]) => ({
         code, name: s[0], set_type: s[1], released_at: s[2], card_count: s[3],
         digital: s[3] > 0 && s[4] === s[3], booster: s[5] > 0,
         icon_svg_uri: `https://svgs.scryfall.io/sets/${code}.svg`, parent_set_code: null, block: null, block_code: null,
@@ -11925,7 +12088,7 @@ MTG.setGameSpeed = function (id) {
       // unique:art keeps each picture once, from the printing it first appeared in, as Scryfall does
       const seenArt = unique === 'art' ? new Map() : null;
       for (const r of this.R) {
-        if (r.extra && !extras) continue;
+        if ((r.extra && !extras) || r.joke) continue;
         let ok = true;
         for (const f of oF) if (!f(r, null)) { ok = false; break; }
         if (!ok) continue;
@@ -12889,7 +13052,7 @@ MTG.setGameSpeed = function (id) {
    When nothing matches, there is no picture: the table draws the token
    (tokenFrame in 12-ui-table.js) rather than show a different one.
 
-   The first matching picture is kept on this device (tokenArt.v2, keyed by
+   The first matching picture is kept on this device (tokenArt.v3, keyed by
    everything compared). A player may choose another of the matching
    printings for each kind of token (tokenArtChoice.v1, this device only,
    never sent to anyone); it is shown for every such token on their table.
@@ -12897,7 +13060,8 @@ MTG.setGameSpeed = function (id) {
 'use strict';
 (function (MTG) {
   const U = MTG.util;
-  const CACHE_KEY = 'tokenArt.v2';
+  // v3: chosen again without the joke sets' tokens (MTG.jokes)
+  const CACHE_KEY = 'tokenArt.v3';
   const CHOICE_KEY = 'tokenArtChoice.v1';
   const CACHE_MAX = 400;
 
@@ -13001,6 +13165,8 @@ MTG.setGameSpeed = function (id) {
     const seen = { exact: new Set(), size: new Set() };
     for (const c of list || []) {
       if (!c || c.digital || c.layout === 'art_series') continue;
+      // never a joke set's token (Unfinity's, Unstable's): they are not in the game (MTG.jokes)
+      if (MTG.jokes && !MTG.jokes.printOk(c)) continue;
       for (const f of printedFaces(c)) {
         const how = compare(want, f.facts);
         if (!how || !f.img || !f.img.normal) continue;
@@ -13871,7 +14037,7 @@ MTG.setGameSpeed = function (id) {
   const MANA = MTG.mana;
 
   /* ---------------- type line ---------------- */
-  const SUPERTYPES = ['Basic', 'Legendary', 'Ongoing', 'Snow', 'World', 'Host', 'Elite'];
+  const SUPERTYPES = ['Basic', 'Legendary', 'Ongoing', 'Snow', 'World', 'Elite'];
   const CARD_TYPES = ['Artifact', 'Battle', 'Conspiracy', 'Creature', 'Dungeon', 'Enchantment',
     'Instant', 'Kindred', 'Tribal', 'Land', 'Phenomenon', 'Plane', 'Planeswalker',
     'Scheme', 'Sorcery', 'Vanguard', 'Emblem', 'Token'];
@@ -14248,6 +14414,8 @@ MTG.setGameSpeed = function (id) {
         cost.evidence = num(m[2]); cost.evidenceFilter = m[1].toLowerCase();
         cost.evidenceSymbol = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[3].toLowerCase()]; continue;
       }
+      // The Dominion Bracelet: "Exile The Dominion Bracelet" in the equipped creature's hands (exileGranter)
+      if (/^Exile the granting Equipment$/i.test(p)) { cost.exileGranter = true; continue; }
       if ((m = p.match(/^Exile (.+)$/i))) {
         /* The exile costs the table can pay by itself: the card doing the
            asking, or a few cards out of the graveyard. Anything else stays
@@ -14650,8 +14818,8 @@ MTG.setGameSpeed = function (id) {
   function granterWords(scope, text) {
     // (Grothama, All-Devouring: 'Other creatures have "… you may have it fight Grothama, All-Devouring."' — the granter)
     if (scope && !scope.attached && /\bfight CARDNAME\.?$/.test(text || '')) return String(text).replace(/\bfight CARDNAME\b/, 'fight the granting creature');
-    // (Toggo, Goblin Weaponsmith's Rock: "{1}, {T}, Sacrifice Rock: …")
-    if (!scope || !scope.attached || !/\b(?:Unattach|Sacrifice) CARDNAME\b/.test(text || '')) return text;
+    // (Toggo, Goblin Weaponsmith's Rock: "{1}, {T}, Sacrifice Rock: …"; The Dominion Bracelet: "{15}, Exile The Dominion Bracelet: …")
+    if (!scope || !scope.attached || !/\b(?:Unattach|Sacrifice|Exile) CARDNAME\b/.test(text || '')) return text;
     return String(text).replace(/\bCARDNAME\b/g, 'the granting Equipment');
   }
 
@@ -19295,10 +19463,29 @@ MTG.setGameSpeed = function (id) {
     { re: /^Target player takes (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     /* Mindslaver, Worst Fears, Sorin Markov: "You control target player during that player's next turn."; Emrakul, the
        Promised End: "you gain control of target opponent during that player's next turn." (controlPlayer; CR 722) */
-    { re: /^You (?:gain )?control (?:of )?target (player|opponent) during that player'?s next turn\.?$/i,
-      make: (m) => ({ op: 'controlPlayer', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
+    /* (Construct a Cosmic Cube, The Dominion Bracelet: "you control target opponent during their next turn"; Secret of
+       Bloodbending: "You control target opponent during their next combat phase." — a combat phase only: span) */
+    { re: /^You (?:gain )?control (?:of )?target (player|opponent) during (?:that player'?s|their) next (turn|combat phase)\.?$/i,
+      make: (m) => Object.assign({ op: 'controlPlayer', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] },
+        /combat/i.test(m[2]) ? { span: 'combat' } : {}) },
     // Emrakul, the Promised End: "After that turn, that player takes an extra turn." — the turn just controlled (extraAfter)
     { re: /^After that turn, that player takes an extra turn\.?$/i, make: () => ({ op: 'manual', controlExtraRider: true }) },
+    // Secret of Bloodbending: "If this spell's additional cost was paid, you control that player during their next turn instead." (spanIfKicked)
+    { re: /^If this spell'?s additional cost was paid, you control that player during their next turn instead\.?$/i,
+      make: () => ({ op: 'manual', controlTurnIfPaidRider: true }) },
+    /* Word of Command: "You control that player until Word of Command finishes resolving." — the player whose hand was
+       looked at, for as long as this resolves (controlWhileResolving; CR 722) */
+    { re: /^You control that player until CARDNAME finishes resolving\.?$/i, make: () => ({ op: 'controlWhileResolving' }) },
+    // Word of Command: "The player plays that card if able." — the card chosen from their hand, played now as they (commandPlay)
+    { re: /^(?:The|That) player plays that card if able\.?$/i, make: () => ({ op: 'commandPlay' }) },
+    /* Word of Command: "While doing so, the player can activate mana abilities only if they're from lands that player
+       controls and only if mana they produce is spent to activate other mana abilities of lands the player controls
+       and/or to play that card." (landsOnly) — and "If the chosen card is cast as a spell, you control the player while
+       that spell is resolving." (controlSpell): both said of the play before them */
+    { re: /^While doing so, the player can activate mana abilities only if they'?re from lands that player controls and only if mana they produce is spent to activate other mana abilities of lands the player controls and\/or to play that card\.?$/i,
+      make: () => ({ op: 'manual', commandRider: 'landsOnly' }) },
+    { re: /^If the chosen card is cast as a spell, you control the player while that spell is resolving\.?$/i,
+      make: () => ({ op: 'manual', commandRider: 'controlSpell' }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
     { re: /^Shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
@@ -22065,7 +22252,8 @@ MTG.setGameSpeed = function (id) {
     { re: /^This ability costs \{X\} less to activate, where X is (.+?)\.?$/i,
       make: (m) => {
         const k = amountOf(m[1]);
-        return k && typeof k === 'object' && (k.greatestPower || k.scope || k.countersAmong || k.domain) && !k.plus ? { op: 'noop', abilityDiscount: { amount: 1, per: k } } : null;
+        // (The Dominion Bracelet, handed out: "where X is this creature's power" — ofSelf)
+        return k && typeof k === 'object' && (k.greatestPower || k.scope || k.countersAmong || k.domain || k.ofSelf === 'power') && !k.plus ? { op: 'noop', abilityDiscount: { amount: 1, per: k } } : null;
       } },
     /* Grishnákh, Brash Instigator: "When you do, until end of turn, gain control of target nonlegendary creature an
        opponent controls with power less than or equal to the amassed Army's power." — the Army as it is now (maxPowerAmassed) */
@@ -23667,8 +23855,8 @@ MTG.setGameSpeed = function (id) {
     if ((m = p.match(/^graveyards? with (\w+) or more cards in it$/i)) && typeof num(m[1]) === 'number') return { graveyardsWithAtLeast: num(m[1]), mult: k };
     // Korvold, Gleeful Glutton: "for each card type among permanents you've sacrificed this turn" (sacrificedTypesThisTurn)
     if (/^card types? among permanents you'?ve sacrificed this turn$/i.test(p)) return { sacrificedTypesThisTurn: true, mult: k };
-    /* Gingerbehemoth: "for each Food you've sacrificed this turn"; Dargo, the Shipwrecker: "for each other artifact
-       or creature you've sacrificed this turn" (sacrificedThisTurn: the type words, any one of them) */
+    /* Dargo, the Shipwrecker: "for each other artifact or creature you've sacrificed this turn"
+       (sacrificedThisTurn: the type words, any one of them) */
     if ((m = p.match(/^(?:other )?([A-Za-z]+(?: or [A-Za-z]+)?) you'?ve sacrificed this turn$/i)))
       return { sacrificedThisTurn: m[1].toLowerCase().replace(/s\b/g, ''), mult: k };
     // Zedruu the Greathearted: "the number of permanents you own that your opponents control" (ownedOppControlled)
@@ -25247,11 +25435,6 @@ MTG.setGameSpeed = function (id) {
     // Balduvian Shaman: '… That enchantment gains "Cumulative upkeep {1}."' — for as long as the text change lasts
     { re: /^(Change the text of .+?)\. That (?:enchantment|permanent|creature) gains "([^"]+?)\.?"\.?$/i,
       make: (m) => { const e = textChangeEffect(m[1]); return e ? [Object.assign(e, { grantText: m[2] })] : null; } },
-    /* Exchange of Words: "choose two target creatures. For as long as this enchantment remains on the
-       battlefield, exchange the text boxes of those creatures." (layer 3) */
-    { re: /^choose two target creatures\. For as long as (?:this enchantment|CARDNAME) remains on the battlefield, exchange the text boxes of those creatures\.?$/i,
-      make: () => [{ op: 'exchangeText', whileSource: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' },
-        { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] }] },
     /* Hans Eriksson: "reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped
        and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand. When you
        put a creature card onto the battlefield this way, it fights Hans Eriksson." (revealTopAttacking, ifPut) */
@@ -28779,13 +28962,13 @@ MTG.setGameSpeed = function (id) {
     'imprint', 'inspired', 'join forces', 'kinship', 'landfall', 'lieutenant', 'magecraft',
     'metalcraft', 'morbid', 'pack tactics', 'paradox', 'parley', 'radiance', 'raid', 'rally',
     'revolt', 'secret council', 'spell mastery', 'strive', 'survival', 'sweep', 'tempting offer',
-    'threshold', 'undergrowth', 'underdog', 'valiant', 'void', 'will of the council',
+    'threshold', 'undergrowth', 'valiant', 'void', 'will of the council',
     'will of the planeswalkers']);
   /* Labels that look like ability words but change how the ability works:
      an exhaust ability is used once, a boast only after attacking, a
      channel ability from the hand. They stay on the line. */
   const NOT_ABILITY_WORDS = new Set(['boast', 'exhaust', 'power-up', 'max speed', 'channel', 'companion', 'forecast', 'renew',
-    'to solve', 'solved', 'visit', 'prize', 'eminence', 'mono eminence', 'bloodrush', 'spree', 'level up']);
+    'to solve', 'solved', 'eminence', 'bloodrush', 'spree', 'level up']);
   function noReminderText(t) { return String(t || '').replace(/\([^)]*\)/g, ''); }
   function stripAbilityWord(line) {
     // (Michelangelo, the Heart: "Raid (the Fridge) — …" — words in brackets inside the label: labelWords)
@@ -28884,6 +29067,23 @@ MTG.setGameSpeed = function (id) {
         if (prevE && prevE.op === 'controlPlayer' && !prevE.extraAfter) { prevE.extraAfter = true; continue; }
         out.push({ op: 'manual', text: e.text || '' });
         continue;
+      }
+      // (Secret of Bloodbending: "If this spell's additional cost was paid, you control that player during their next turn instead.")
+      if (e && e.controlTurnIfPaidRider) {
+        if (prevE && prevE.op === 'controlPlayer' && prevE.span === 'combat' && !prevE.spanIfPaid) { prevE.spanIfPaid = 'turn'; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // (Word of Command: what the play before it is held to — lands' mana only, control while the spell resolves)
+      if (e && e.commandRider) {
+        if (prevE && prevE.op === 'commandPlay' && !prevE[e.commandRider]) { prevE[e.commandRider] = true; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // (Word of Command: the card chosen from the hand is the one to be played — said to whoever chooses it: forPlay)
+      if (e && e.op === 'commandPlay') {
+        const ch = out.slice().reverse().find(x => x && x.op === 'chooseFromHand');
+        if (ch) ch.forPlay = true;
       }
       // (Kang the Conqueror: "During that turn, power-up abilities can't be activated." — the extra turn before it)
       if (e && e.noPowerUpRider) {
@@ -29864,8 +30064,6 @@ MTG.setGameSpeed = function (id) {
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
     [/^you were the starting player$/i, () => ({ kind: 'not', cond: { kind: 'notStartingPlayer' } })],
-    // Fetching Garden: "if it was played from your hand" (a land drop from the hand, not put onto the battlefield)
-    [/^it was played from your hand$/i, () => ({ kind: 'playedFromHand' })],
     // Feywild Caretaker: "you have the initiative"
     [/^you have the initiative$/i, () => ({ kind: 'hasInitiative' })],
     // Ordeal of Nylea: "it has three or more +1/+1 counters on it" — the creature the trigger is about, or the one this is on
@@ -30884,7 +31082,7 @@ MTG.setGameSpeed = function (id) {
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
 
     /* --- one ability, two ways to set it off --- */
-    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role|Attraction|Contraption))\s+enters(?: the battlefield)?(?:,| )/i,
+    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role))\s+enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
     { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
@@ -33725,7 +33923,7 @@ MTG.setGameSpeed = function (id) {
     if (out.keywordSet.has('improvise')) out.costReduction.improvise = true;
     if (out.keywordSet.has('delve')) out.costReduction.delve = true;
     /* the keyword on its own line, not "Spells you cast have affinity for …" handed to other spells
-       (Tezzeret, Master of the Bridge; Memnarchitect) (affinityWords) */
+       (Tezzeret, Master of the Bridge) (affinityWords) */
     const aff = text.match(/(?:^|\n)Affinity for ([A-Za-z ]+?)\s*(?:\(|\n|$)/);
     if (aff) out.costReduction.affinity = aff[1].trim().toLowerCase();
     const less = text.match(/(?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each ([^.]+)\./i);
@@ -34447,7 +34645,7 @@ MTG.setGameSpeed = function (id) {
       if (lw === 'commander') { sc.commander = sc.who === 'you' ? 'control' : true; continue; }
       /* Guardians of Oboro: "modified creatures"; Kor Blademaster: "equipped
          creatures"; Swarm Surge: "colorless creatures"; Bothersome Quasit:
-         "goaded creatures"; Evil Boros Charm: "unblocked attacking creatures" */
+         "goaded creatures"; "unblocked attacking creatures" */
       if (/^(?:modified|equipped|enchanted|colorless|monocolored|goaded|unblocked)$/.test(lw)) { sc[lw] = true; continue; }
       if (lw === 'tapped' || lw === 'untapped' || lw === 'attacking' || lw === 'blocking') sc[lw] = true;
       else if (lw === 'nontoken') sc.nontoken = true;
@@ -36186,7 +36384,7 @@ MTG.setGameSpeed = function (id) {
         make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), times: /twice/i.test(m[2]) ? 2 : 3 }), auto: true },
       { re: /^(?:CARDNAME|This (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)? tapped unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: c } : { op: 'manual' }; }, auto: true },
-      // Eddymurk Crab: "This creature enters tapped if it's not your turn."; Fetching Garden: "…if it was played from your hand."
+      // Eddymurk Crab: "This creature enters tapped if it's not your turn."
       { re: /^(?:CARDNAME|This (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)? tapped if (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: { kind: 'not', cond: c } } : { op: 'manual' }; }, auto: true },
       // Rising Chicane: "If you were the starting player, this land enters tapped."
@@ -38538,6 +38736,9 @@ MTG.setGameSpeed = function (id) {
     return /A deck can have any number of cards named/i.test(t);
   }
 
+  /** A joke or playtest card, which this game does not have (MTG.jokes): why not, or null. */
+  function jokeWhy(card) { return card && MTG.jokes && MTG.jokes.isCard(card) ? MTG.jokes.why(card) : null; }
+
   function legalityOf(card, fmt) {
     const key = fmt.scryKey;
     if (!key) return 'legal';                        // limited: anything in the pool
@@ -38674,6 +38875,8 @@ MTG.setGameSpeed = function (id) {
    */
   function cardProblem(card, fmt, ci, whose) {
     if (!card || !fmt) return null;
+    const joke = jokeWhy(card);
+    if (joke) return joke;
     if (fmt.scryKey) {
       const l = legalityOf(card, fmt);
       if (l === 'banned') return `Banned in ${fmt.name}`;
@@ -38842,9 +39045,28 @@ MTG.setGameSpeed = function (id) {
       }
     }
 
+    /* --- joke and playtest cards (Unfinity and the other Un-sets, the playtest cards) ---
+       Not in this game (src/02-scryfall.js, MTG.jokes), whatever the
+       format: a deck saved with one keeps it, marked, and is not played
+       until it is taken out. */
+    const jokes = new Set();
+    for (const [k, e] of byName) {
+      const why = jokeWhy(e.card);
+      if (!why) continue;
+      jokes.add(k);
+      errors.push(`${e.card.name}: ${why}.`);
+      flag(e.card, why);
+    }
+    const compWhy = jokeWhy(deck.companion);
+    if (compWhy) {
+      errors.push(`${deck.companion.name}: ${compWhy}.`);
+      flag(deck.companion, compWhy);
+    }
+
     /* --- legality --- */
     if (fmt.scryKey) {
-      for (const [, e] of byName) {
+      for (const [k, e] of byName) {
+        if (jokes.has(k)) continue;
         const l = legalityOf(e.card, fmt);
         if (l === 'banned') { errors.push(`${e.card.name} is banned in ${fmt.name}.`); flag(e.card, `Banned in ${fmt.name}`); }
         else if (l === 'restricted' && e.qty > 1) { errors.push(`${e.card.name} is restricted in ${fmt.name} (max 1).`); flag(e.card, `Restricted in ${fmt.name}: only 1 copy allowed`); }
@@ -39235,7 +39457,7 @@ MTG.setGameSpeed = function (id) {
     [/^(companion)\b[: ]*$/i, 'companion'],
     [/^(maybe ?board|considering|acquire)\b[: ]*$/i, 'maybeboard'],
     [/^(tokens?)\b[: ]*$/i, 'tokens'],
-    [/^(planes?|scheme|contraption|attractions?)\b[: ]*$/i, 'other'],
+    [/^(planes?|scheme)\b[: ]*$/i, 'other'],
     [/^(lands?|creatures?|instants?|sorceries|artifacts?|enchantments?|planeswalkers?|battles?|spells?|ramp|removal|draw|utility|other)\s*\(?\d*\)?[: ]*$/i, null], // category header inside main
   ];
 
@@ -39380,10 +39602,18 @@ MTG.setGameSpeed = function (id) {
 
     const res = { main: [], sideboard: [], commanders: [], maybeboard: [], companion: null, missing: [], warnings: [] };
     const needPref = [];
+    const jokes = [];
 
     for (let i = 0; i < flat.length; i++) {
       const { key, entry } = flat[i];
       let card = cards[i];
+      // a joke or playtest card (Unfinity's, say) is not in this game: not found, like any card that is not (MTG.jokes)
+      if (card && MTG.jokes.isCard(card)) { jokes.push(MTG.jokes.why(card)); card = null; }
+      // a real card asked for in a joke set's printing (Unhinged's Plains): its usual printing instead
+      if (card && !MTG.jokes.printOk(card)) {
+        const usual = await MTG.scry.byName(card.name).catch(() => null);
+        if (usual && MTG.jokes.printOk(usual)) card = usual;
+      }
       if (!card) { res.missing.push({ name: entry.name, qty: entry.qty }); continue; }
       // apply saved art preference unless the list pinned a specific printing
       if (!entry.collector_number && card.oracle_id && prefs[card.oracle_id] && prefs[card.oracle_id] !== card.id)
@@ -39399,7 +39629,8 @@ MTG.setGameSpeed = function (id) {
       const { cards: prefCards } = await MTG.scry.collection(needPref.map(p => ({ id: p.wantId })));
       needPref.forEach((p, k) => {
         const pc = prefCards[k];
-        if (!pc) return;
+        // (a joke printing, chosen before they left the game, is not used: MTG.jokes)
+        if (!pc || !MTG.jokes.printOk(pc)) return;
         const list = p.key === 'companion' ? [res.companion] : res[p.key];
         const item = list.find(x => x && x.requested === p.entry);
         if (item) item.card = pc;
@@ -39422,6 +39653,7 @@ MTG.setGameSpeed = function (id) {
 
     if (res.missing.length)
       res.warnings.push(`${res.missing.length} card${res.missing.length === 1 ? '' : 's'} could not be found on Scryfall.`);
+    for (const why of new Set(jokes)) res.warnings.push(`${why}: ${jokes.filter(w => w === why).length} of them could not be added.`);
     if (parsed.unparsed.length)
       res.warnings.push(`${parsed.unparsed.length} line${parsed.unparsed.length === 1 ? '' : 's'} were not understood and were skipped.`);
     return res;
@@ -39576,7 +39808,7 @@ MTG.setGameSpeed = function (id) {
     const missing = [];
     for (let i = 0; i < entries.length; i++) {
       const c = cards[i];
-      if (!c) { missing.push(entries[i].name); continue; }
+      if (!c || MTG.jokes.isCard(c)) { missing.push(entries[i].name); continue; }
       for (let k = 0; k < (entries[i].qty || 1); k++) out.push(c);
     }
     return { cards: out, missing };
@@ -39877,8 +40109,9 @@ MTG.setGameSpeed = function (id) {
     };
     const missing = [];
     flat.forEach(({ key, e }, i) => {
-      const card = cards[i];
-      if (!card) { missing.push({ name: e.name || `${String(e.set).toUpperCase()} #${e.cn}`, qty: e.qty }); return; }
+      // a joke or playtest card is not in this game: not found, like any card that is not (MTG.jokes)
+      const card = cards[i] && !MTG.jokes.isCard(cards[i]) ? cards[i] : null;
+      if (!card) { missing.push({ name: (cards[i] && cards[i].name) || e.name || `${String(e.set).toUpperCase()} #${e.cn}`, qty: e.qty }); return; }
       if (key === 'commanders') deck.commanders.push(card);
       else if (key === 'companion') deck.companion = card;
       else {
@@ -40104,7 +40337,7 @@ MTG.setGameSpeed = function (id) {
   const LAND_TYPES = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Desert', 'Gate', 'Lair', 'Locus',
     'Mine', 'Power-Plant', 'Tower', "Urza's", 'Cave', 'Sphere', 'Town', 'Planet']);
   const ARTIFACT_TYPES = new Set(['Equipment', 'Vehicle', 'Food', 'Treasure', 'Clue', 'Blood', 'Gold', 'Powerstone',
-    'Fortification', 'Contraption', 'Map', 'Incubator', 'Attraction', 'Bobblehead', 'Junk', 'Lander', 'Spacecraft', 'Infinity', 'Stone']);
+    'Fortification', 'Map', 'Incubator', 'Bobblehead', 'Junk', 'Lander', 'Spacecraft', 'Infinity', 'Stone']);
   const ENCHANTMENT_TYPES = new Set(['Aura', 'Saga', 'Class', 'Shrine', 'Curse', 'Cartouche', 'Rune', 'Room',
     'Background', 'Case', 'Role', 'Shard']);
   const EMPTY_SET = new Set();
@@ -40874,6 +41107,8 @@ MTG.setGameSpeed = function (id) {
       const endingTurnOf = this.turn > 0 ? this.activePlayer : null;
       // Mindslaver, Emrakul, the Promised End: a controlled turn is over, and Emrakul's extra turn comes next (CR 722)
       if (endingTurnOf) this._controlTurnEnds(endingTurnOf);
+      // (Word of Command: a hold on a spell that never got to resolve goes with it)
+      this._controlResSweep();
       // (Medomai the Ageless: "during extra turns" — extraTurnNow)
       this.isExtraTurn = false;
       // extra turns first
@@ -40989,7 +41224,11 @@ MTG.setGameSpeed = function (id) {
     _advanceStep() {
       if (this.over) return;
       this.holdFor = null;          // holding priority lasts for one step only
-      if (this.phase && this.phase.id === 'combat' && this.step === 'endCombat') this._endCombat();
+      if (this.phase && this.phase.id === 'combat' && this.step === 'endCombat') {
+        this._endCombat();
+        // Secret of Bloodbending: "during their next combat phase" — that phase is over
+        if (this.activePlayer && this.activePlayer.controlCombat) this._controlCombatEnds(this.activePlayer);
+      }
       if (this.step === 'upkeep') this._expireAtUpkeep(true);
       // clear mana pools between steps and phases (CR 500.4)
       for (const p of this.players) {
@@ -41162,6 +41401,8 @@ MTG.setGameSpeed = function (id) {
           // "if it's the first combat phase of the turn"
           this.combatsThisTurn = this._combatTurn === this.turn ? (this.combatsThisTurn || 0) + 1 : 1;
           this._combatTurn = this.turn;
+          // Secret of Bloodbending: "during their next combat phase" — this one, if it is theirs (_controlCombatBegins)
+          this._controlCombatBegins(this.activePlayer);
           this._fire('yourCombatBegin', this.activePlayer.id);
           // (Sentinel of the Eternal Watch: "that player" is the one whose combat it is)
           this._fire('eachCombatBegin', null, { playerId: this.activePlayer.id });
@@ -42513,6 +42754,8 @@ MTG.setGameSpeed = function (id) {
           else this.moveObject(item.obj, item.obj.isCommander && MTG.settings.commanderToZone !== false ? 'command'
             : item.exileIfCountered ? 'exile' : 'graveyard');
         }
+        // (Word of Command: a spell countered never resolves — no control while it does)
+        this._controlResDone(item.id);
         this.checkStateBasedActions();
         this._resetPriority();
         return;
@@ -42537,11 +42780,23 @@ MTG.setGameSpeed = function (id) {
         item.resolvedTargets = legal;
       } else item.resolvedTargets = [];
 
-      if (item.kind === 'spell') this._resolveSpell(item);
-      else this._resolveAbility(item);
+      // (Word of Command: what lasts "while that spell is resolving" knows which one is — _controlResLive)
+      const wasRes = this.__resItem;
+      this.__resItem = item.id;
+      for (const p of this.players) {
+        const w = (p.controlRes || []).find(x => x.stackId === item.id);
+        const c = w && this._controlNow(p.id);
+        if (c && c.span === 'resolve' && c.by === w.by) this.logEvent('rules', `${this.player(c.by).name} controls ${p.name} while ${item.name} resolves.`);
+      }
+      try {
+        if (item.kind === 'spell') this._resolveSpell(item);
+        else this._resolveAbility(item);
+      } finally { this.__resItem = wasRes; }
     }
 
     _afterResolve(item) {
+      // Word of Command: control that lasted while this resolved is over
+      this._controlResDone(item.id);
       // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
       if (item.finalChapter && item.obj) this._fire('finalChapterResolved', item.controller, { object: item.obj, objController: item.controller });
       // Time Stop, Sundial of the Infinite: the turn ends as this finishes resolving
@@ -42783,7 +43038,7 @@ MTG.setGameSpeed = function (id) {
       if (a && a.keywordSet && a.keywordSet.has('cipher') && !item.isCopy) effects = effects.concat([{ op: 'cipher' }]);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
-    _afterResolveNoGrave(item) { this.checkStateBasedActions(); this._resetPriority(); }
+    _afterResolveNoGrave(item) { this._controlResDone(item.id); this.checkStateBasedActions(); this._resetPriority(); }
 
     /** What a clone entering could copy ("any creature", "an artifact or creature you control"). */
     _clonePool(src, e, controller) {
@@ -43595,7 +43850,7 @@ MTG.setGameSpeed = function (id) {
 
     /** Targets for a spell cast in the middle of a resolution: asked for now; null if it has none it could take.
         A modal spell's modes are asked first, and kept for the cast that follows (_askedModes). */
-    _askSpellTargets(pid, c, key) {
+    _askSpellTargets(pid, c, key, opts) {
       const ca = c && c.analysis();
       this._askedModes = null;
       let specs = null, aimedBy = null;
@@ -43630,6 +43885,13 @@ MTG.setGameSpeed = function (id) {
       // an Aura's target is what it will enchant (Surging Might rippled, an Aura discovered), as castSpell reads it
       if (!specs) specs = ca ? (ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca)) : [];
       if (!specs.length) return [];
+      /* (Word of Command: what each target is for, so whoever answers — a bot controlling the caster, say — reads
+         it as the spell's own words: aim) */
+      if (!aimedBy && opts && opts.aim && ca && !(ca.isAura && ca.auraSpec)) {
+        const list = [];
+        for (const f of cardSpellEffects(ca)) for (let k = 0; k < (f.targets || []).length; k++) list.push({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
+        if (list.length === specs.length) aimedBy = list;
+      }
       this._castingSpell = c.id;
       const options = specs.map(spec => this._legalTargetsFor(spec, pid, c.id));
       this._castingSpell = null;
@@ -44043,11 +44305,9 @@ MTG.setGameSpeed = function (id) {
       // Spider-Man 2099: "played a land … from anywhere other than your hand" (Sen Triplets: another player's hand is that)
       const ownHand = fromZone === 'hand' && o.owner === playerId;
       if (!ownHand) p.landNotFromHandTurn = this.turn;
-      o._playedFromHand = ownHand;
       this.moveObject(o, 'battlefield', Object.assign({ asLand: true, controller: playerId }, extra || {}));
       // (Kaldring, the Rimestaff: "it enters tapped")
       if (extra && extra.tapped && o.zone === 'battlefield' && !o._keepUntapped) o.tapped = true;
-      o._playedFromHand = false;
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
       this._fire('youPlayLand', playerId, { object: o, fromZone });
@@ -50950,6 +51210,14 @@ MTG.setGameSpeed = function (id) {
         const eq = this.obj(item.grantedBy);
         if (eq && eq.zone === 'battlefield' && eq.controller === pid) this._sacrificeNow(pid, [eq], item);
       }
+      // The Dominion Bracelet: "Exile The Dominion Bracelet" — the Equipment that handed the ability out (exileGranter)
+      if (cost.exileGranter && item && item.grantedBy) {
+        const eq = this.obj(item.grantedBy);
+        if (eq && eq.zone === 'battlefield' && eq.controller === pid) {
+          this.moveObject(eq, 'exile');
+          this.logEvent('exile', `${this.player(pid).name} exiles ${eq.name}.`);
+        }
+      }
       // "Pay {E}{E}"
       if (cost.energy) {
         const pe = this.player(pid);
@@ -51613,6 +51881,8 @@ MTG.setGameSpeed = function (id) {
       if (o.controller !== playerId) return this.fail('Not yours.');
       // Sen Triplets: "can't … activate abilities" — mana abilities too
       if (this._abilityLocked(playerId)) return this.fail("You can't activate abilities this turn.");
+      // Word of Command: "only if they're from lands that player controls" (landsOnly)
+      if (this._landManaOnly(playerId) && !this._matchesCategory(o, 'land')) return this.fail("Only lands' mana abilities can be activated while that card is being played.");
       const c = this.characteristics(o);
       if (c && c.setMana && !c.abilitiesLost) {
         // its type line has been rewritten, so it makes that mana instead
@@ -51957,8 +52227,10 @@ MTG.setGameSpeed = function (id) {
     _autoTapSources(playerId) {
       // (Sen Triplets: nothing to tap while that player can't activate abilities)
       if (this._abilityLocked(playerId)) return [];
+      // Word of Command: "can activate mana abilities only if they're from lands that player controls" (landsOnly)
+      const landsOnly = this._landManaOnly(playerId);
       return this.battlefield.filter(o =>
-        o.controller === playerId && !o.tapped && !o.phasedOut &&
+        o.controller === playerId && !o.tapped && !o.phasedOut && (!landsOnly || this._matchesCategory(o, 'land')) &&
         this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)));
     }
 
@@ -52372,7 +52644,8 @@ MTG.setGameSpeed = function (id) {
     _handManaGuides(playerId, opts) {
       const p = this.player(playerId);
       const z = this.zones[playerId];
-      if (!p || p.isBot || !z || this._abilityLocked(playerId)) return [];
+      // (Word of Command: lands' mana only — landsOnly)
+      if (!p || p.isBot || !z || this._abilityLocked(playerId) || this._landManaOnly(playerId)) return [];
       const self = opts ? (opts.forSpell || opts.forAbility || null) : null;
       return z.hand.filter(o => {
         if (o === self || o.controller !== playerId) return false;
@@ -55814,8 +56087,6 @@ MTG.setGameSpeed = function (id) {
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
-        // Fetching Garden: played as a land from its owner's hand (set by playLand while it moves)
-        case 'playedFromHand': return !!(ctx && ctx.obj && ctx.obj._playedFromHand);
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
         // Liliana, Heretical Healer: "If you do" — it came back transformed
         case 'selfTransformed': return !!(src && src.zone === 'battlefield' && (src.face || 0) === 1);
@@ -60227,6 +60498,12 @@ MTG.setGameSpeed = function (id) {
         alive: (id) => typeof id !== 'string' || !!this.player(id) || (!!this.obj(id) && !!this.obj(id).zone),
         // a card name typed in: what the card must be, when it is known (_nameProblem)
         nameProblem: (nm, want) => this._nameProblem(nm, want),
+        // Word of Command: can these of the player's mana sources (tapped as they would be) pay `cost`? ('pays')
+        paysWith: (ids, cost, forObj) => {
+          const srcs = (ids || []).map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === playerId && !o.tapped);
+          if (srcs.length !== (ids || []).length) return false;
+          return !!this._planAutoTap(playerId, srcs, cost, { forSpell: forObj ? this.obj(forObj) : null });
+        },
       };
     }
 
@@ -68138,7 +68415,7 @@ MTG.setGameSpeed = function (id) {
         // Aetheric Amplifier: every kind of counter a player has, doubled
         case 'doublePlayerCounters': {
           if ((me.poison || 0) > 0) this.addPoison(me, me.poison, null);
-          for (const k of ['energy', 'experience', 'rad', 'ticket']) if ((Number(me[k]) || 0) > 0) me[k] = Number(me[k]) * 2;
+          for (const k of ['energy', 'experience', 'rad']) if ((Number(me[k]) || 0) > 0) me[k] = Number(me[k]) * 2;
           this.logEvent('counters', `${me.name} doubles their counters.`);
           break;
         }
@@ -71063,10 +71340,12 @@ MTG.setGameSpeed = function (id) {
           // (the hand was revealed, cards named, by the sentence before)
           if (!hand.length) break;
           // (Vendilion Clique: "You may choose a nonland card from it." — one pick that may be left empty: optional)
+          // (Word of Command: the card that player will be made to play — forPlay)
           const picked = this._ask(Object.assign({ type: 'pickCard', playerId: ctx.controller, count: 1,
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: e.optional ? `You may choose a ${words === 'any' ? '' : words + ' '}card from ${victim.name}'s hand.` : `Choose a card from ${victim.name}'s hand.` },
-            e.optional ? { optional: true } : {}));
+            prompt: e.forPlay ? `Choose a card from ${victim.name}'s hand. ${victim.name} plays it if able, with you making every choice for ${victim.name}.`
+              : e.optional ? `You may choose a ${words === 'any' ? '' : words + ' '}card from ${victim.name}'s hand.` : `Choose a card from ${victim.name}'s hand.` },
+            e.optional ? { optional: true } : {}, e.forPlay ? { purpose: 'commandCard' } : {}));
           if (picked === SUSPEND) return SUSPEND;
           this._chosenCard = (picked || [])[0] || null;
           break;
@@ -76637,15 +76916,6 @@ MTG.setGameSpeed = function (id) {
           this.logEvent('rules', `The text of ${x.name} now says “${w(r.kind, r.to)}” where it said “${w(r.kind, r.from)}”${e.duration === 'eot' ? ' until end of turn' : ''}.`);
           break;
         }
-        /* Exchange of Words: "For as long as this enchantment remains on the
-           battlefield, exchange the text boxes of those creatures." */
-        case 'exchangeText': {
-          const objs = targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
-          if (objs.length < 2 || objs[0] === objs[1]) break;
-          if (e.whileSource && !(src && src.zone === 'battlefield')) break;
-          this._exchangeText(objs[0], objs[1], e.whileSource && src ? src.id : null);
-          break;
-        }
         /* Mirrorweave: "Each other creature becomes a copy of target
            nonlegendary creature until end of turn." A copy effect (layer 1):
            what each was is kept, and comes back as the turn ends. */
@@ -76706,10 +76976,27 @@ MTG.setGameSpeed = function (id) {
         }
         /* Mindslaver: "You control target player during that player's next turn." Emrakul, the Promised End: "…
            After that turn, that player takes an extra turn." (extraAfter; CR 722) */
+        /* Secret of Bloodbending: "You control target opponent during their next combat phase. If this spell's additional
+           cost was paid, you control that player during their next turn instead." (span, spanIfPaid) */
         case 'controlPlayer': {
           const who = firstPlayer();
           if (!who || who.hasLost) break;
-          this._controlNextTurn(me.id, who.id, src ? src.name : null, !!e.extraAfter);
+          const span = e.spanIfPaid && this._condMet({ kind: 'kicked', n: 1 }, ctx) ? e.spanIfPaid : (e.span || 'turn');
+          this._controlNextTurn(me.id, who.id, src ? src.name : (ctx.name || null), !!e.extraAfter, span);
+          break;
+        }
+        /* Word of Command: "You control that player until Word of Command finishes resolving." — the player it targets,
+           from now until it has resolved (controlWhileResolving; CR 722) */
+        case 'controlWhileResolving': {
+          const who = firstPlayer();
+          if (!who || who.hasLost || this._doneHere('ctlRes')) break;
+          this._controlWhileResolving(me.id, who.id, ctx.name || (src && src.name) || null, ctx.id);
+          break;
+        }
+        // Word of Command: "The player plays that card if able." (commandPlay)
+        case 'commandPlay': {
+          const got = this._commandPlay(e, ctx);
+          if (got === SUSPEND) return SUSPEND;
           break;
         }
         // "You gain hexproof until end of turn."
@@ -76910,7 +77197,7 @@ MTG.setGameSpeed = function (id) {
       if (sc.monocolored && (oa.colors || []).length !== 1) return false;
       // Bothersome Quasit: "goaded creatures"
       if (sc.goaded && !this._goaders(o).length) return false;
-      // Evil Boros Charm: "unblocked attacking creatures", once blockers are declared
+      // "unblocked attacking creatures", once blockers are declared
       if (sc.unblocked && !this._unblockedAttackers(o.controller).includes(o)) return false;
       if (sc.equipped || sc.enchanted || sc.modified) {
         const on = (o.attachments || []).map(id => this.obj(id)).filter(Boolean);
@@ -78557,33 +78844,62 @@ MTG.setGameSpeed = function (id) {
        player's next turn". The controlled player is still the one acting — their spells, their mana, their cards —
        but every choice and decision they would make is made by the player controlling them, who sees everything
        they could see. Kept as plain data on the controlled player: controlNext, the effects waiting for their next
-       turn ({ by, src, extra }), and controlledBy, the one running now ({ by, turn, src, extra }). */
+       turn or combat phase ({ by, src, extra, at, span }); controlledBy, the turn running now ({ by, turn, src, extra,
+       at }); controlCombat, the combat phase running now (Secret of Bloodbending: { by, turn, src, at }); and
+       controlRes, those that last while a spell resolves (Word of Command: { by, src, stackId, at, landsOnly }).
+       Of those in force, the newest (`at`) is the one that counts (CR 722.5). */
+    /** Who controls this player right now, for how long and why: { by, span ('turn', 'combat', 'resolve'), src }, or null. */
+    _controlNow(pid) {
+      const p = this.player(pid);
+      // (asked all the time — every isBot — and nearly always of nobody controlled: said at once)
+      if (!p || !(p.controlledBy || p.controlCombat || (p.controlRes && p.controlRes.length)) || p.hasLost || this.over) return null;
+      let best = null;
+      const take = (r, span) => {
+        const c = r && this.player(r.by);
+        // (a controller who has left the game controls nobody: CR 800.4a)
+        if (!c || c.hasLost) return;
+        if (!best || (r.at || 0) >= (best.r.at || 0)) best = { r, span };
+      };
+      if (p.controlledBy && p.controlledBy.turn === this.turn) take(p.controlledBy, 'turn');
+      // (that combat phase only: not another one later in the turn, n)
+      if (p.controlCombat && p.controlCombat.turn === this.turn && this.phase && this.phase.id === 'combat' && p.controlCombat.n === this.combatsThisTurn) take(p.controlCombat, 'combat');
+      for (const w of p.controlRes || []) if (this._controlResLive(w)) take(w, 'resolve');
+      // (gaining control of yourself does nothing — and, being the newest, ends the rest: Mindslaver's ruling)
+      if (!best || best.r.by === pid) return null;
+      return { by: best.r.by, span: best.span, src: best.r.src || null };
+    }
     /** The player making this player's decisions right now, or null when they make their own. */
     playerController(pid) {
-      const p = this.player(pid);
-      const r = p && p.controlledBy;
-      if (!r || r.turn !== this.turn || p.hasLost || this.over) return null;
-      const c = this.player(r.by);
-      // (gaining control of yourself does nothing; a controller who has left the game controls nobody: CR 800.4a)
-      if (!c || c.id === pid || c.hasLost) return null;
-      return c.id;
+      const c = this._controlNow(pid);
+      return c ? c.by : null;
     }
     /** Who decides for this player: whoever controls them, else they themselves. */
     deciderOf(pid) { return this.playerController(pid) || pid; }
     /** The players this one is controlling right now. */
     controlledPlayers(pid) { return this.players.filter(p => p.id !== pid && this.playerController(p.id) === pid).map(p => p.id); }
-    /** "You control target player during that player's next turn" — the last such effect is the one that counts. */
-    _controlNextTurn(byId, pid, src, extra) {
+    /** How long the control over this player lasts, for a sentence: "this turn", "during this combat", "while X resolves". */
+    _controlSpanWords(pid) {
+      const c = this._controlNow(pid);
+      if (!c) return '';
+      return c.span === 'combat' ? 'during this combat' : c.span === 'resolve' ? `while ${c.src || 'that'} resolves` : 'this turn';
+    }
+    _controlStamp() { return (this._ctlSeq = (this._ctlSeq || 0) + 1); }
+    /** "You control target player during that player's next turn" (Secret of Bloodbending: "next combat phase", span) —
+        the last such effect is the one that counts. */
+    _controlNextTurn(byId, pid, src, extra, span) {
       const p = this.player(pid), by = this.player(byId);
       if (!p || !by || p.hasLost) return;
-      (p.controlNext = p.controlNext || []).push({ by: by.id, src: src || null, extra: extra ? 1 : 0 });
-      if (by.id !== p.id) this.logEvent('rules', `${by.name} will control ${p.name} during ${p.name}'s next turn.`);
+      const combat = span === 'combat';
+      (p.controlNext = p.controlNext || []).push(Object.assign({ by: by.id, src: src || null, extra: extra ? 1 : 0, at: this._controlStamp() }, combat ? { span: 'combat' } : {}));
+      if (by.id !== p.id) this.logEvent('rules', `${by.name} will control ${p.name} during ${p.name}'s next ${combat ? 'combat phase' : 'turn'}.`);
       if (extra) this.logEvent('rules', `${p.name} takes an extra turn after that one.`);
     }
     /* A turn begins: what was waiting for this player's next turn takes hold (the newest one; each Emrakul's extra turn
        still counts), and a turn that ends lets go, with the extra turn Emrakul promised coming straight after it — unless
-       that player has left the game (Emrakul's ruling). */
+       that player has left the game (Emrakul's ruling). What waits for their next combat phase waits on for it. */
     _controlTurnEnds(p) {
+      // (a turn ended with its combat cut short: Secret of Bloodbending's hold is over too)
+      if (p && p.controlCombat) this._controlCombatEnds(p);
       const r = p && p.controlledBy;
       if (!r) return;
       p.controlledBy = null;
@@ -78592,13 +78908,187 @@ MTG.setGameSpeed = function (id) {
       if (!p.hasLost) for (let k = 0; k < (r.extra || 0); k++) this.extraTurnsQueue.unshift(p.id);
     }
     _controlTurnBegins(p) {
-      const recs = p.controlNext;
-      if (!recs || !recs.length) return;
-      p.controlNext = null;
+      const all = p.controlNext;
+      if (!all || !all.length) return;
+      const recs = all.filter(r => r.span !== 'combat');
+      const wait = all.filter(r => r.span === 'combat');
+      p.controlNext = wait.length ? wait : null;
+      if (!recs.length) return;
       const last = recs[recs.length - 1];
-      p.controlledBy = { by: last.by, turn: this.turn, src: last.src, extra: recs.reduce((t, r) => t + (r.extra || 0), 0) };
+      p.controlledBy = { by: last.by, turn: this.turn, src: last.src, extra: recs.reduce((t, r) => t + (r.extra || 0), 0), at: last.at || 0 };
       const by = this.playerController(p.id);
       if (by) this.logEvent('rules', `${this.player(by).name} controls ${p.name} during this turn${last.src ? ` (${last.src})` : ''}.`);
+    }
+    /* Secret of Bloodbending: "You control target opponent during their next combat phase." — the next one that player
+       actually takes (its ruling): from the beginning of combat to the end of combat of their turn. */
+    _controlCombatBegins(ap) {
+      const all = (ap && ap.controlNext) || [];
+      const recs = all.filter(r => r.span === 'combat');
+      if (!recs.length) return;
+      const rest = all.filter(r => r.span !== 'combat');
+      ap.controlNext = rest.length ? rest : null;
+      const last = recs[recs.length - 1];
+      ap.controlCombat = { by: last.by, turn: this.turn, n: this.combatsThisTurn, src: last.src, at: last.at || 0 };
+      const c = this._controlNow(ap.id);
+      if (c && c.span === 'combat') this.logEvent('rules', `${this.player(c.by).name} controls ${ap.name} during this combat${last.src ? ` (${last.src})` : ''}.`);
+    }
+    _controlCombatEnds(p) {
+      const r = p && p.controlCombat;
+      if (!r) return;
+      const was = this.playerController(p.id);
+      p.controlCombat = null;
+      if (was && was === r.by && !this.playerController(p.id)) this.logEvent('rules', `${this.player(was).name} no longer controls ${p.name}.`);
+    }
+    /* Word of Command: "You control that player until Word of Command finishes resolving." "If the chosen card is cast as
+       a spell, you control the player while that spell is resolving." — in force while that stack item is resolving
+       (its effects running, or a question it waits on as it arrives), gone once it has resolved. */
+    _controlResLive(w) {
+      const id = w && w.stackId;
+      if (!id) return false;
+      const r = this.resolving;
+      return !!((r && r.ctx && r.ctx.id === id) || this.__resItem === id || (this._cloneWait && this._cloneWait.id === id) || (this._enterWait && this._enterWait.id === id));
+    }
+    /** Control `pid` while the stack item `stackId` resolves (from now, if it is the one resolving). */
+    _controlWhileResolving(byId, pid, src, stackId) {
+      const p = this.player(pid), by = this.player(byId);
+      if (!p || !by || p.hasLost || !stackId) return null;
+      const w = { by: by.id, src: src || null, stackId, at: this._controlStamp() };
+      (p.controlRes = p.controlRes || []).push(w);
+      if (by.id !== p.id && this._controlResLive(w)) this.logEvent('rules', `${by.name} controls ${p.name} until ${src || 'it'} finishes resolving.`);
+      return w;
+    }
+    /** A stack item is done resolving (or gone): the control that lasted while it resolved ends. */
+    _controlResDone(itemId) {
+      for (const p of this.players) {
+        const list = p.controlRes;
+        const gone = (list || []).filter(w => w.stackId === itemId);
+        if (!gone.length) continue;
+        const keep = list.filter(w => w.stackId !== itemId);
+        p.controlRes = keep.length ? keep : null;
+        const by = this.player(gone[gone.length - 1].by);
+        if (by && by.id !== p.id && this.playerController(p.id) !== by.id) this.logEvent('rules', `${by.name} no longer controls ${p.name}.`);
+      }
+    }
+    /** What waits on a stack item no longer there is dropped (one exiled as a turn was ended, say). */
+    _controlResSweep() {
+      for (const p of this.players) {
+        if (!p.controlRes || !p.controlRes.length) continue;
+        const keep = p.controlRes.filter(w => this.stack.some(x => x.id === w.stackId) || this._controlResLive(w));
+        if (keep.length !== p.controlRes.length) p.controlRes = keep.length ? keep : null;
+      }
+    }
+    /** Word of Command: only lands' mana for this player while doing what it says (landsOnly)? */
+    _landManaOnly(pid) {
+      const p = this.player(pid);
+      return !!(p && (p.controlRes || []).some(w => w.landsOnly && this._controlResLive(w)));
+    }
+    /** Could this player play this card from their hand now, as an effect says they must (Word of Command), with the
+        mana of their lands alone? A land if they may play one; a spell if it could be cast, paid for and aimed. */
+    _commandPlayable(pid, o) {
+      const p = this.player(pid);
+      const a = o && o.analysis();
+      if (!p || !a || o.zone !== 'hand' || o.owner !== pid) return false;
+      if (a.isLand) return this._landPlayLeft(p);
+      if (!this.canCast(pid, o.id, 'resolution').ok) return false;
+      const lands = this._autoTapSources(pid).filter(x => this._matchesCategory(x, 'land'));
+      const cost = String(this.castCost(o, {}, pid) || '').replace(/\{X\}/g, '');
+      if (cost && !p.pool.canPay(cost, {}) && !this._planAutoTap(pid, lands, cost, { forSpell: o })) return false;
+      const specs = a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a);
+      this._castingSpell = o.id;
+      try { return specs.every(sp => !sp || sp.upTo || this._legalTargetsFor(sp, pid, o.id).length > 0); } finally { this._castingSpell = null; }
+    }
+    /**
+     * Word of Command: "The player plays that card if able. While doing so, the player can activate mana abilities only if
+     * they're from lands that player controls … If the chosen card is cast as a spell, you control the player while that
+     * spell is resolving." The card chosen from their hand (by the sentence before) is played now, as its owner, timing
+     * aside (CR 608.2g) — a land only on their turn with a land play left (CR 305.2–3, the card's ruling). Every choice
+     * casting it calls for — X, its modes and targets, an extra cost, which of their lands pay — is the owner's, and so
+     * asked of whoever controls them now (the player who cast Word of Command); only their lands' mana pays (landsOnly).
+     */
+    _commandPlay(e, ctx) {
+      const r = this.resolving;
+      const marks = r ? (r.marks = r.marks || {}) : {};
+      const mk = (r ? r.index : 0) + ':cmd';
+      // the card chosen (chooseFromHand), kept for this effect however often it stops to ask
+      if (!(mk + 'card' in marks)) marks[mk + 'card'] = this._chosenCard || null;
+      const o = this.obj(marks[mk + 'card']);
+      if (!o || o.zone !== 'hand') return null;
+      const who = this.player(o.owner);
+      if (!who || who.hasLost) return null;
+      const a = o.analysis();
+      if (!a) return null;
+      if (e.landsOnly) for (const w of who.controlRes || []) if (this._controlResLive(w)) w.landsOnly = true;
+      const cant = (why) => { if (!this._doneHere('cmdCant')) this.logEvent('rules', `${who.name} can't play ${o.name}${why ? ` (${why})` : ''}.`); return null; };
+      if (a.isLand) {
+        if (!this._landPlayLeft(who)) return cant(this.activePlayer && this.activePlayer.id === who.id ? 'no land play left this turn' : "it isn't their turn");
+        if (this._doneHere('cmdLand')) return null;
+        this._landPlayed(who, o, null);
+        return null;
+      }
+      if (!this.canCast(who.id, o.id, 'resolution').ok) return cant(this.canCast(who.id, o.id, 'resolution').reason.replace(/\.$/, ''));
+      const lands = () => this._autoTapSources(who.id).filter(x => this._matchesCategory(x, 'land'));
+      // (what the pool and their lands can pay, as the payment will: _payPlanNow, lands only while landsOnly holds)
+      const payable = (cost) => !cost || !MANA.cmc(cost) || !!this._payPlanNow(who.id, cost, { forSpell: o });
+      const base = String(this.castCost(o, {}, who.id) || '');
+      // X (CR 601.2b): as much as their lands could pay for, or none
+      let x = 0;
+      if (/\{X\}/.test(base)) {
+        let most = -1;
+        for (let k = 0; k <= 30 && payable(base.replace(/\{X\}/g, '{' + k + '}')); k++) most = k;
+        if (most < 0) return cant("their lands can't pay for it");
+        const got = this._choose({ playerId: who.id, purpose: 'commandX', kind: 'number', number: { min: 0, max: most }, sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+          prompt: `${o.name}: choose X (${who.name} casts it; their lands can pay for X up to ${most}).` }, 'cmdX');
+        if (got === SUSPEND) return SUSPEND;
+        x = Math.max(0, Math.min(most, (got && got.number) || 0));
+      }
+      const costNow = base.replace(/\{X\}/g, '{' + x + '}');
+      if (!payable(costNow)) return cant("their lands can't pay for it");
+      // its modes and targets (CR 601.2b–c)
+      this._specX = x;
+      const tg = this._askSpellTargets(who.id, o, 'cmdT', { aim: true });
+      this._specX = null;
+      if (tg === SUSPEND) return SUSPEND;
+      if (tg === null) return cant('nothing it could target');
+      // an optional extra cost (kicker, "you may … as an additional cost") — paid or not, as the controller says
+      const extra = {};
+      const add = a.additionalCost;
+      if (add && add.optional && !add.choice && !(add.mana && !payable(this._addGeneric(costNow, MANA.cmc(add.mana))))) {
+        const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'commandExtra', sourceId: o.id,
+          prompt: `${o.name}: pay its additional cost${add.label ? ` (${add.label})` : add.mana ? ` (${add.waterbend ? 'waterbend ' : ''}${add.mana})` : ''}?` }, 'cmdAdd');
+        if (yes === SUSPEND) return SUSPEND;
+        extra.payAdditional = !!yes;
+      } else if (add && add.optional && !add.choice) extra.payAdditional = false;
+      const kick = this.extraCostsFor(o.id, who.id).find(k => k.kind === 'kicker' && k.cost && !k.costs);
+      let kicked = false;
+      if (kick && payable(costNow + kick.cost)) {
+        const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'commandExtra', sourceId: o.id, prompt: `${o.name}: kick it (${kick.cost})?` }, 'cmdKick');
+        if (yes === SUSPEND) return SUSPEND;
+        if (yes) { extra.kick = 1; kicked = true; }
+      }
+      // which of their lands pay (the card's ruling: "You do get to choose which lands get tapped")
+      const need = costNow + (kicked ? kick.cost : '') + (extra.payAdditional && add.mana ? add.mana : '');
+      const plan = this._payPlanNow(who.id, need, { forSpell: o });
+      const srcs = lands();
+      if (Array.isArray(plan)) {
+        const used = [...new Set(plan.map(s => s.obj && s.obj.id).filter(Boolean))];
+        if (used.length && srcs.length > used.length) {
+          // (the lands paying would tap first in the list: the first legal answer anyone without the engine finds)
+          const order = srcs.filter(x => used.includes(x.id)).concat(srcs.filter(x => !used.includes(x.id)));
+          const got = this._choose({ playerId: who.id, purpose: 'commandLands', kind: 'objects', items: this._chooseItems(order), min: used.length, max: used.length,
+            constraints: [{ kind: 'pays', cost: need, forObj: o.id, reason: `Those lands can't pay ${need}.` }],
+            sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+            prompt: `${o.name}: choose the ${used.length === 1 ? 'land' : used.length + ' lands'} ${who.name} taps to pay ${need}.` }, 'cmdLands');
+          if (got === SUSPEND) return SUSPEND;
+          if (got && (got.picks || []).length) extra.tapIds = got.picks.slice();
+        }
+      }
+      if (this._doneHere('cmdCast')) return null;
+      const ok = this.castSpell(who.id, o.id, Object.assign({ alternative: 'resolution', targets: tg, x, auto: true, autoCost: true }, extra));
+      const item = ok && this.stack.find(st => st.objId === o.id && st.kind === 'spell');
+      if (!item) return cant(this.lastError ? String(this.lastError).replace(/\.$/, '') : '');
+      // "If the chosen card is cast as a spell, you control the player while that spell is resolving."
+      if (e.controlSpell) this._controlWhileResolving(ctx.controller, who.id, o.name, item.id);
+      return null;
     }
     /**
      * Who an intent from `senderId` acts as, or null when it is refused (the reason said through fail). An intent
@@ -78616,7 +79106,7 @@ MTG.setGameSpeed = function (id) {
         return as;
       }
       const by = this.playerController(senderId);
-      if (by && !['chat', 'concede', 'leave', 'autoPass'].includes(kind)) return this.fail(`${this.player(by).name} is controlling you this turn.`) || null;
+      if (by && !['chat', 'concede', 'leave', 'autoPass'].includes(kind)) return this.fail(`${this.player(by).name} is controlling you ${this._controlSpanWords(senderId)}.`) || null;
       return senderId;
     }
 
@@ -81440,6 +81930,10 @@ MTG.setGameSpeed = function (id) {
           botPersonality: p.botPersonality || null,
           // Mindslaver: who is controlling them this turn, for everyone to see (said only of a controlled player)
           controlledBy: this.playerController(p.id) || undefined,
+          /* …and for how long (Secret of Bloodbending: 'combat'; Word of Command: 'resolve', while controlSrc resolves),
+             and what it is (controlSrc) */
+          controlSpan: (this._controlNow(p.id) || {}).span || undefined,
+          controlSrc: (this._controlNow(p.id) || {}).src || undefined,
           life: p.life, poison: p.poison, energy: p.energy, experience: p.experience,
           pool: p.pool.snapshot(), landsPlayed: p.landsPlayed, maxLands: this.landAllowance(p),
           hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, lossFrom: p.lossFrom || null, connected: p.connected,
@@ -82060,6 +82554,13 @@ MTG.setGameSpeed = function (id) {
           if (!hooks || !hooks.canPay) break;
           const cost = (c.base || '') + entries.map(e => (e && e[c.key || 'cost']) || '').join('');
           if (cost && !hooks.canPay(cost)) return c.reason || 'You cannot pay for all of that.';
+          break;
+        }
+        /* Word of Command: the lands chosen to be tapped have to be able to pay `cost` between them (with what is
+           already in the pool). Only the engine can say (hooks.paysWith); without it, taken on trust. */
+        case 'pays': {
+          if (!final || !hooks || !hooks.paysWith || !c.cost) break;
+          if (!hooks.paysWith(entries.map(e => e && e.id).filter(Boolean), c.cost, c.forObj || null)) return c.reason || `Those can't pay ${c.cost}.`;
           break;
         }
         default: break;
@@ -83588,7 +84089,7 @@ MTG.setGameSpeed = function (id) {
 
   /* Draft text that is not one of the cards above. Only words that can
      only mean the draft itself count: a card that opens a booster during
-     a game (Booster Tutor) is not a draft card. */
+     a game is not a draft card. */
   const DRAFT_WORDS = /\bas you draft\b|\bas you drafted\b|\bdraft (?:this card|CARDNAME) face up\b|\bduring the draft\b|\bafter the draft\b|\bthis draft round\b|\bfrom the draft\b|\bto the draft\b/i;
 
   /** Anything that talks about the draft, whether or not we can run it. */
@@ -86771,6 +87272,8 @@ MTG.setGameSpeed = function (id) {
         if (who === 'each' || who === 'all') return 0.2;
         return 0.9 * n;
       case 'discardChosen': case 'exileChosen': return 1.3;
+      // Word of Command: a card of theirs spent as we say, as they would hate it
+      case 'commandPlay': return 1.5;
       case 'handAttack': return 1.0;
       case 'mill': return who === 'you' ? 0.1 * n : 0.08 * n;
       case 'tutor': return e.to === 'battlefield' ? 2.0 : 1.4;
@@ -87061,8 +87564,10 @@ MTG.setGameSpeed = function (id) {
       if (l !== 'legal' && l !== 'restricted') return false;
     }
     if (colors && (card.color_identity || []).some(c => !colors.includes(c))) return false;
-    // Attractions, stickers and the like need pieces the table does not have
-    if (/\b(Attraction|sticker|Contraption|dungeon)\b/i.test(card.oracle_text || '')) return false;
+    // nothing outside the card pool (a joke or playtest card, an ante card: MTG.scry.inPool)
+    if (MTG.scry && MTG.scry.inPool && !MTG.scry.inPool(card)) return false;
+    // a dungeon is a piece the table does not have
+    if (/\bdungeon\b/i.test(card.oracle_text || '')) return false;
     return true;
   }
 
@@ -87933,6 +88438,10 @@ MTG.setGameSpeed = function (id) {
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Word of Command: X for the spell its owner is made to cast — as much as their lands pay for, their mana wasted
+       (commandX); and which of their lands pay — those the engine would tap, listed first (commandLands) */
+    commandX(s) { return { picks: [], number: s.number.max }; },
+    commandLands(s) { return { picks: (s.items || []).slice(0, s.min).map(it => it.id) }; },
     /* Harold and Bob, First Numens: the Forest of ours it enchants as it returns — an untapped one, so its new mana
        ability is there to use this turn, and one with nothing else on it */
     auraHostEnter(s) {
@@ -89759,6 +90268,20 @@ MTG.setGameSpeed = function (id) {
       if (ch.purpose === 'discardFromHand' || ch.purpose === 'exileFromHand') worst = false;
       // Tomorrow, Azami's Familiar: the card we would most like to draw of the ones looked at (drawLook)
       if (ch.purpose === 'drawLook') return cards.sort((x, y) => this.drawValue(y) - this.drawValue(x)).slice(0, 1).map(o => o.id);
+      /* Word of Command: the card its owner will be made to play, with this bot choosing everything for them — a
+         spell that hurts whatever it is aimed at (aimed at their own things), else their best spell spent at the
+         wrong time; a land only when nothing else can be played (commandCard) */
+      if (ch.purpose === 'commandCard') {
+        const harm = new Set(['damage', 'destroy', 'exile', 'bounce', 'tapTarget', 'counter', 'sacrificeTarget', 'loseLife', 'discard', 'mill', 'pump']);
+        const v = (o) => {
+          const a = o.analysis() || {};
+          if (!g._commandPlayable(o.owner, o)) return -1;
+          if (a.isLand) return 0.5;
+          const aims = (a.abilities || []).some(ab => ab.kind === 'spell' && (ab.effects || []).some(e => e && (e.targets || []).length && harm.has(e.op)));
+          return this.rating(o) + (aims ? 5 : 1);
+        };
+        return cards.sort((x, y) => v(y) - v(x)).slice(0, want).map(o => o.id);
+      }
       // Eladamri, Korvecdal: the best creature on offer, which then goes onto the battlefield free (revealHandOrTop)
       if (ch.purpose === 'revealHandOrTop') {
         const fits = cards.filter(o => g._cardFitsWords(o, (e && e.filter) || 'creature'));
@@ -94546,7 +95069,7 @@ MTG.setGameSpeed = function (id) {
     for (const name of Object.keys(col)) {
       const e = col[name];
       const owned = Math.min(PLAYSET, e.n || 0);
-      if (!owned || isBasic(name)) continue;
+      if (!owned || isBasic(name) || joke(name, e.s)) continue;
       const n = owned - (held.get(name) || 0);
       if (n <= 0) continue;
       const need = needs && needs.get(name);
@@ -94562,13 +95085,15 @@ MTG.setGameSpeed = function (id) {
       if (!Array.isArray(row)) continue;
       const name = cleanCardName(row[0]);
       const n = count(row[1], 1, PLAYSET);
-      if (!name || !n || cards.has(name) || isBasic(name)) continue;
+      if (!name || !n || cards.has(name) || isBasic(name) || joke(name, cleanSet(row[4]))) continue;
       cards.set(name, { name, n, keep: count(row[2], 0, PLAYSET) || 0, r: cleanRarity(row[3]), s: cleanSet(row[4]), id: cleanId(row[5]) });
     }
     const wants = new Set();
     for (const w of Array.isArray(msg.wants) ? msg.wants.slice(0, MAX_WISH) : []) { const n = cleanCardName(w); if (n) wants.add(n); }
     return { cards, wants };
   }
+  /** A joke or playtest card (MTG.jokes), by its name and the set it came from: kept in a collection that had it, never traded. */
+  const joke = (name, set) => !!(MTG.jokes && MTG.jokes.isCard({ name, set }));
   /** One half of a deal as it arrives: a Map name -> copies, or null. */
   function readHalf(v) {
     if (!Array.isArray(v) || v.length > MAX_SIDE) return null;
@@ -98175,7 +98700,7 @@ MTG.setGameSpeed = function (id) {
         const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
         wanted.forEach((pick, i) => {
           const card = cards[i];
-          if (!card || MTG.formats.isBasicLand(card)) return;
+          if (!MTG.scry.inPool(card) || MTG.formats.isBasicLand(card)) return;
           if (owned.has(U.normName(U.frontName(card.name)))) return;
           if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
           if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
@@ -98192,7 +98717,7 @@ MTG.setGameSpeed = function (id) {
           const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
           wanted.forEach((rec, i) => {
             const card = cards[i];
-            if (!card || MTG.formats.isBasicLand(card)) return;
+            if (!MTG.scry.inPool(card) || MTG.formats.isBasicLand(card)) return;
             if (owned.has(U.normName(U.frontName(card.name)))) return;
             if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
             if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
@@ -98268,7 +98793,7 @@ MTG.setGameSpeed = function (id) {
           const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
           wanted.forEach((rec, i) => {
             const card = cards[i];
-            if (!card || MTG.formats.isBasicLand(card)) return;
+            if (!MTG.scry.inPool(card) || MTG.formats.isBasicLand(card)) return;
             if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
             if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
             const cur = pool.get(card.id) || { card, hits: [], bestRank: 999 };
@@ -98402,7 +98927,7 @@ MTG.setGameSpeed = function (id) {
       cards = r.cards;
     } catch (e) { return []; }
     const byName = new Map();
-    names.forEach((n, i) => { if (cards[i]) byName.set(U.normName(n), cards[i]); });
+    names.forEach((n, i) => { if (MTG.scry.inPool(cards[i])) byName.set(U.normName(n), cards[i]); });
 
     const out = [];
     const seen = new Set();
@@ -103694,7 +104219,6 @@ MTG.setGameSpeed = function (id) {
     ["Adapt","a","If this permanent has no +1/+1 counters on it, put N +1/+1 counters on it."],
     ["Addendum","w","Marks extra effects that happen only if you cast this spell during your main phase."],
     ["Affinity","k","\"Affinity for [quality]\" means this spell costs {1} less to cast for each [quality] you control."],
-    ["Affinitycycling","k","[Cost], Discard this card: Search your library for a card with affinity, reveal it, put it into your hand, then shuffle."],
     ["Afflict","k","Whenever this creature becomes blocked, defending player loses N life."],
     ["Afterlife","k","When this creature dies, create N 1/1 white and black Spirit creature tokens with flying."],
     ["Aftermath","k","Cast this half of the split card only from your graveyard. Then exile it."],
@@ -103704,10 +104228,8 @@ MTG.setGameSpeed = function (id) {
     ["Amplify","k","As this creature enters, reveal any number of cards from your hand that share a creature type with it. It enters with N +1/+1 counters on it for each card revealed."],
     ["Annihilator","k","Whenever this creature attacks, defending player sacrifices N permanents."],
     ["Ascend","k","If you control ten or more permanents, you get the city's blessing for the rest of the game."],
-    ["Assemble","a","An Unstable (Un-set) action: put the top card of your Contraption deck face up onto one of your sprockets."],
     ["Assimilate","a","Put the card onto the battlefield under your control with a +1/+1 counter. It's a Borg artifact creature and loses all other creature types."],
     ["Assist","k","Another player can help pay the generic mana of this spell's cost."],
-    ["Augment","k","[cost], Reveal this card from your hand: Combine it with target host creature, making one creature with both cards' abilities. Augment only as a sorcery."],
     ["Aura Swap","k","[cost]: You may exchange this Aura with an Aura card in your hand."],
     ["Awaken","k","If you cast this spell for its awaken cost, also put N +1/+1 counters on target land you control. That land becomes a 0/0 Elemental creature with haste and is still a land."],
     ["Backup","k","When this creature enters, put N +1/+1 counters on target creature. If that's another creature, it gains this creature's abilities listed after backup until end of turn."],
@@ -103890,14 +104412,11 @@ MTG.setGameSpeed = function (id) {
     ["Jump-start","k","You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card."],
     ["Junk","t","An artifact token with \"{T}, Sacrifice this token: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery.\""],
     ["Kicker","k","You may pay an additional [cost] as you cast this spell."],
-    ["Kinfall","w","A playtest-card ability word marking abilities that trigger whenever a creature enters under your control, if it shares a creature type with this creature."],
     ["Kinship","w","Marks abilities that let you look at the top card of your library at the beginning of your upkeep and reveal it for a bonus if it shares a creature type with this creature."],
     ["Landcycling","k","[Cost], Discard this card: Search your library for a land card of the stated type, reveal it, put it into your hand, then shuffle. It counts as cycling."],
     ["Landfall","w","Marks abilities that trigger whenever a land you control enters."],
-    ["Landship","w","A playtest-card ability word marking abilities that let you look at the top card of your library at the beginning of your upkeep and reveal it for a bonus if it's a land."],
     ["Landwalk","k","This creature can't be blocked as long as defending player controls a land of the stated type."],
     ["Learn","a","You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card."],
-    ["Legacy","w","A playtest-card ability word marking abilities that have you physically write on or mark the card itself, so the change stays with the card."],
     ["Legend rule","g","If you control two or more legendary permanents with the same name, you choose one and put the rest into their owners' graveyards."],
     ["Legendary landwalk","k","This creature can't be blocked as long as defending player controls a legendary land."],
     ["Level Up","k","[cost]: Put a level counter on this; level up only as a sorcery. Its level ranges grant stats and abilities based on how many level counters it has."],
@@ -103940,7 +104459,6 @@ MTG.setGameSpeed = function (id) {
     ["Offering","k","You may cast this any time you could cast an instant by sacrificing a permanent of the named type and paying the difference in mana costs. Mana cost includes color."],
     ["Offspring","k","You may pay an additional [cost] as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it."],
     ["Oil counter","g","A counter with no rules meaning of its own. Cards put oil counters on permanents and use them, often removing them to pay costs."],
-    ["Open an Attraction","a","Put the top card of your Attraction deck onto the battlefield face up under your control."],
     ["Opus","w","Marks abilities that trigger whenever you cast an instant or sorcery spell, with a stronger effect if five or more mana was spent to cast it."],
     ["Outlast","k","[cost], {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery."],
     ["Overload","k","You may cast this spell for its overload cost [cost]. If you do, change its text by replacing all instances of \"target\" with \"each.\""],
@@ -103992,7 +104510,6 @@ MTG.setGameSpeed = function (id) {
     ["Riot","k","This creature enters with your choice of a +1/+1 counter or haste."],
     ["Ripple","k","When you cast this spell, you may reveal the top N cards of your library, cast any with the same name as this spell without paying their mana costs, and put the rest on the bottom."],
     ["Role","t","An Aura enchantment token that enchants a creature and changes it, usually for the better. A creature can have only one Role of yours at a time; a newer one replaces it."],
-    ["Roll to Visit Your Attractions","a","Roll a six-sided die. Each Attraction you control with that number lit up is visited, and its visit ability triggers."],
     ["Royal Role","t","Enchanted creature gets +1/+1 and has ward {1}. A creature can have only one Role of yours at a time; a newer one replaces it."],
     ["Saddle","k","Tap any number of other untapped creatures you control with total power N or more: This becomes saddled until end of turn. Saddle only as a sorcery."],
     ["Scavenge","k","[cost], Exile this card from your graveyard: Put a number of +1/+1 counters equal to this card's power on target creature. Scavenge only as a sorcery."],
@@ -104053,7 +104570,6 @@ MTG.setGameSpeed = function (id) {
     ["Typecycling","k","[Cost], Discard this card: Search your library for a card of the stated type, reveal it, put it into your hand, then shuffle. It counts as cycling."],
     ["Umbra armor","k","If the enchanted permanent would be destroyed, instead remove all damage from it and destroy this Aura."],
     ["Undaunted","k","This spell costs {1} less to cast for each opponent you have."],
-    ["Underdog","w","A playtest-card ability word marking abilities that work only if you've lost a game this match."],
     ["Undergrowth","w","Marks abilities that count the number of creature cards in your graveyard."],
     ["Undying","k","When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it."],
     ["Unearth","k","[Cost]: Return this card from your graveyard to the battlefield with haste. Exile it at the next end step or if it would leave the battlefield; unearth only as a sorcery."],
@@ -104269,7 +104785,12 @@ MTG.setGameSpeed = function (id) {
       .map(({ term, granted }) => Object.assign({}, term, granted ? { granted: true } : null));
   }
 
-  MTG.glossary = { find, lookup, get size() { return TERMS.length; } };
+  /* Keywords Scryfall lists that only joke and playtest cards have, which
+     are not in this game (MTG.jokes): left without an explanation on purpose. */
+  const LEFT_OUT = ['Assemble', 'Augment', 'Open an Attraction', 'Roll to Visit Your Attractions',
+    'Affinitycycling', 'Kinfall', 'Landship', 'Legacy', 'Underdog'];
+
+  MTG.glossary = { find, lookup, LEFT_OUT, get size() { return TERMS.length; } };
 
   /* ---- the tokens a card makes ---- */
 
@@ -105337,12 +105858,13 @@ MTG.setGameSpeed = function (id) {
     { id: 'art-omnath', name: 'Omnath', kind: 'art', card: 'Omnath, Locus of Creation', print: ['znr', '232'], rim: '#9fe0c0' },
     { id: 'art-ragavan', name: 'Ragavan', kind: 'art', card: 'Ragavan, Nimble Pilferer', print: ['mh2', '138'], at: '72% 40%', rim: '#ff8a3a' },
     { id: 'art-onering', name: 'The One Ring', kind: 'art', card: 'The One Ring', print: ['ltr', '246'], at: '55% 50%', rim: '#f3d27a' },
-    // the basic lands: John Avon's full art (Unhinged), and Wastes in its own
-    { id: 'art-plains', name: 'Plains', kind: 'art', card: 'Plains', print: ['unh', '136'], rim: '#f1e2b0' },
-    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', print: ['unh', '137'], rim: '#7fc4ff' },
-    { id: 'art-swamp', name: 'Swamp', kind: 'art', card: 'Swamp', print: ['unh', '138'], rim: '#a77ad8' },
-    { id: 'art-mountain', name: 'Mountain', kind: 'art', card: 'Mountain', print: ['unh', '139'], rim: '#ff8a3a' },
-    { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['unh', '140'], rim: '#8fd46a' },
+    /* the basic lands: John Avon's full art, as Double Masters reprinted it (first in Unhinged, a joke set, which
+       is not in the game: MTG.jokes), and Wastes in its own */
+    { id: 'art-plains', name: 'Plains', kind: 'art', card: 'Plains', print: ['2xm', '373'], rim: '#f1e2b0' },
+    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', print: ['2xm', '375'], rim: '#7fc4ff' },
+    { id: 'art-swamp', name: 'Swamp', kind: 'art', card: 'Swamp', print: ['2xm', '377'], rim: '#a77ad8' },
+    { id: 'art-mountain', name: 'Mountain', kind: 'art', card: 'Mountain', print: ['2xm', '379'], rim: '#ff8a3a' },
+    { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['2xm', '381'], rim: '#8fd46a' },
     { id: 'art-wastes', name: 'Wastes', kind: 'art', card: 'Wastes', print: ['ogw', '183'], rim: '#c8c0b0' },
     // your own picture
     { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
@@ -105455,6 +105977,8 @@ MTG.setGameSpeed = function (id) {
   }
 
   /* ---------------- the collection ---------------- */
+  /** A joke or playtest card, which this game does not have (MTG.jokes). */
+  const isJoke = (c) => !!c && !!MTG.jokes && MTG.jokes.isCard(c);
   function owned(name) {
     if (isBasic(name)) return Infinity;
     load();
@@ -105469,7 +105993,8 @@ MTG.setGameSpeed = function (id) {
     load();
     n = n || 1;
     const name = nameOf(card);
-    if (!name || isBasic(name)) return { isNew: false, shards: 0 };
+    // no joke or playtest card comes in (MTG.jokes); one held from before stays
+    if (!name || isBasic(name) || isJoke(card)) return { isNew: false, shards: 0 };
     const e = state.col[name] || (state.col[name] = { n: 0 });
     const isNew = e.n === 0;
     if (card.id && !e.id) e.id = card.id;
@@ -105501,7 +106026,7 @@ MTG.setGameSpeed = function (id) {
     load();
     const need = new Map();
     for (const c of (cards || [])) {
-      if (!c || !c.name || isBasic(c.name)) continue;
+      if (!c || !c.name || isBasic(c.name) || isJoke(c)) continue;
       const e = need.get(c.name) || { r: rarityOf(c), want: 0 };
       e.want = Math.min(PLAYSET, e.want + (c.qty || 1));
       need.set(c.name, e);
@@ -105552,6 +106077,7 @@ MTG.setGameSpeed = function (id) {
   /** A missing copy, made with a wildcard of the card's rarity. */
   function craft(card) {
     load();
+    if (isJoke(card)) return { ok: false, why: MTG.jokes.why(card) + '.' };
     const r = rarityOf(card);
     if (owned(nameOf(card)) >= PLAYSET) return { ok: false, why: 'You already have four.' };
     if (!useWildcard(r)) return { ok: false, why: `You have no ${r} wildcards.` };
@@ -105837,7 +106363,8 @@ MTG.setGameSpeed = function (id) {
   function missingFor(deck) {
     const want = new Map();
     const add = (c, n) => {
-      if (!c || isBasic(c.name)) return;
+      // a joke card held from before is not one to craft: the deck is not played with it (MTG.formats.validate)
+      if (!c || isBasic(c.name) || isJoke(c)) return;
       const w = want.get(c.name) || { n: 0, card: c };
       w.n += n;
       want.set(c.name, w);
@@ -106227,8 +106754,6 @@ MTG.setGameSpeed = function (id) {
     "clu": "4fedf84e55ca4334a2c16e991112bb6802abcf4cdf81568bc66a49c6bd487df98ea00117e610a633634f6f70347e436fabf94a573472e2c8678932798d4ebe8b8d2f4534994ee387f23cbe1d2f71e0c8323e9430b87c4b029adec4c65343147befd07d7abe77b98add79477c8ab27ebf5637a89e78e60fbd",
     "cm2": "fc048207502a478c91955e20382652af6ea0873033a33b4c2f3c4f74aa5bec6eb73ee4e7c3d94e2b250d4c03b3504cd09e52d5fcdd228ed3783de6675b623b8b0758435dbc3588035d6960f7da266adb01c4a294d8b54237af09f592029c917a6e5da7c8ad5b8a3c8c754af4975b031e39d69da31ae67981",
     "cma": "1c6835b023674130bf38bee89a05f9cd44a1164a7bfc7d302c7c496b98b0b8a166c7348aa508e337ed7405c009cf47a397af516c16ec552c506fb9087123ca13e5b94667a4c839da1a12137774becbdcf18ee3bf9c224ff0856ee76024b06fe459b801e860d695b3b02b42c6bf1b9d97a8d82eaed381625f",
-    "cmb1": "a9a6cf9c3560435cb0ec8653a9dc7776e6efd1dee84a1c2f482a42f987e935a381cad403985e6a4fbfaa83d76b4a40a9a90b7afe1765eccb3b87e65f8b710ff31ed94be399b7d90c513ed1f516cdf045d2f4752c85c24f30b8810b63d5f308709f959209368c71ba9ccd4b0c9490aa88029ee2e63317b414",
-    "cmb2": "a7f9b11f1b3745b18e4df469b89ab6fbe6efd1de1ad27492be404417a275a76fe974d350985e6a4ffd2861c3bab3452c8e7187475339a8503b87e65fc763192acdb64f98bbc23bb964cb4b3d16cdf0450e0855fe55b44bba93131aac558ccb979f95920916d94065cb6140f39565c2545d872f5d3317b414",
     "cmd": "042431bc0b214920802f6dd02e4c8721c3d94e2b1e2e09bfe7c84f13bceef9c8cbc579936565f15ddcad68460b354193b64716e597357f9b98e56fff371ceb58f4984616a7f0eb118fe2e4ff41b9c15f714cd47b88f6448d9242481935565250f54436e0cb073d5b9515492d9b2d0f64e85f1da899c11f64",
     "cmm": "71991921a86044fe9005bf604c723167c7845e154a4d851b1fa94f5da8f66967b1ee5b5020bdba44f5b7d3df4e9b422ba88c43650a67a9c617e4c588bbe9d9910abb47c1810dfa44c182006316e8bac34424b9ec70d84b32931ffac1516f84726647546a33f3ee0c1e7342b6841d0a878a80002a9f2073c9",
     "cmr": "e6b4d78faf3e42108886231a40a6bd98f7b5938bd0e65d757fe148048cfad7a42bacacaeac46da34f520601fc0924f839c2166e999a01c16273d4079086f97e98b6244f3b467149c2ac5ca784bafb864d607b0036b48429ca7fd45b8dd1bb4f90caa1404af5105ee09e24344ab3900f0e9034c47f2ab3d75",
@@ -106402,15 +106927,9 @@ MTG.setGameSpeed = function (id) {
     "tsp": "580cb5befa594eb988087d2943fb64135f07e5bf9f89f1e44d5548b8bf8154cfd34f4aa0f4a3963014ca7425a4994864b955369ef2577849bbd77c73911d2271899841939d1a1768c5dfaaad53adbd9d4bc2151bacec42378f6fed97055f3bb916556aa1109f93ac86e942f19fbafec8bcd521b0fb1724d9",
     "tsr": "1ed4c0bbb71044a1b8bc6bd11c27b8b86323e279941b65dab9b34e15bab5bcbfd20dbe05fd1da4f86f880de58fc54e4ea4bbcc3e61a7697b6ac23636950ee61d0bc14d7bba68157061aa98eb8e53667fe78e39ea20be4196992c7ed2cb8150c1e325c8fac08dabd1c0434bcfafa8271225a099e19a93f94a",
     "uds": "bdf96c2cb3d64d849572fb115a795bedabc89ce2c4f5a9d880b94765adb210d53baaacb02542cadfd0f3c78e16c04fbc8ef4fbf610f9d4646b269e3455e7633309594572a1cad77f76da1279535df3a17fd2fe13bbc042b7bc423b51910ce118c922d4012050d41471c74c42a1ff4c04068ba7f2b8614de3",
-    "ugl": "d420010f53894aa2a5f8d9631249679aabc41fe7a9f9c279e3824feb9575196e7cf5d7dc604f7df7d15c63752e4e47f788e1d90794e7f724c85bd9c94c85d097e87b41ee93c60e54ec41b1743dc53f7643417d07725e4c3d99d2bbbfbdeee770fe700ba717ed4800dc0f46819ae674bd0018e8dc66d3677d",
     "ulg": "9ddc9fe117c84e1daeb8c4214e8812809b7cd24d77d23045905b44cb9af9cc6ad717477ddfdacb369e93381f627f41b6b1b645d712a44d8e5ae64cb84913a54ff4d0483aa181716007f65658a20cbb104e2fc29c02234b03864feb9149abc921d8a435e96171e13611674329acb26853d3a814e59290e288",
-    "ulst": "e488eeec5a9d4c4d8c20fffe9f37e1019027e19f1b23f58788154134b7ea30bdd6fb382c8e2f32e3e8e6757d10c54b08965cf01bb2f02c479c0fa379990faeaac8244cbc9463f9b43dab2840645224174964656c3c3a49caaed714c1174820c7c3f5108aa1808ba3b68041e5adae09ad24a9a4a630680d2f",
     "uma": "04fc99dcbfbe4567b7916b1db96471ec056027163bdbc23153164abd9d8dd87cff2c984738139ff0cfdf9706acdb48fc89db93bc50b3b9ad581c4a94c01c947490a14c2ebd90471ff4fd04e5589b606a3c66c54bb2d1494dae10a950c184a52f8e970942d66f864bb1bb459693b83b4bfe6b13320bab568f",
-    "und": "e9c37a833d5e4019b18088e2bc106dd09027e19fa1572109df704335aac21670fe99be548e2f32e37e41ecd988754765a9a9372f948b5ad7154d1b30747788b442ab4e3ebdbeeb5040432db15ea2de82abce5940e84f4f9f89a913da1cd7fd43c11700a45e3b1317f0244e3489ad538fc148cd5cc947602f",
-    "unf": "05e6a7bca35a4e6899a0be264553b5debdf00fd6c6667e4ff0f64416940ad03bed75f5a79a02e4ea0f25e571402b4caaafd8562dff0ef341889bb060360668f0c76c4fb394cedfab9969f6d3f8da93181aa7b481933241409a4611e4e384d8f1cfca752f8c28cebff84943539dd1c62f05c15d0ff59d4a98",
-    "unh": "3002ffee28ec4aa48433a009273a4adab8babcc684f2c8f58e114639b7de00e4a2cbabeebe49af2a0464a50720e542d58aca12504a869f21dbfca4a60fee7b1fe300411a957d5253300c36cf9c056a836f834c86cd3840bf9aadb4098895de8621a18aff9b13248b5abb4246b6391a8a6681a15718a80f62",
     "usg": "25b0b816058344aa9dc5f3ff48993a519f6702610ee0f16073394d988a8cf08889ee52f5f3026c422f09e451024645a28bfd07d3c65ddfe629037e8b12befd352dc64852a15375b553042643bf2a50a9d07dc95d82a84a588ea2d4513bd7316d9e0a7b11f6d051fabd3a4c94ae4134d89a7bb77d4be12219",
-    "ust": "bd8b82877af44c5b8d767f865bd602c09c0fa379add4f168c69e4045972547208ef6993564522417d17892f55c4a41498d5eba9df013866ec3f5108a19d31d5c6d4d4bd8b69cb44c5b7f089ff7c82a81c4927de569a444619ebeb243e9cf00c4cedc578babd5cc2934904e35b7ef5cd07eb43bf763732e2b",
     "vis": "0a07cba32e8d48eca6f84d2edfcd833d1ffab6040845f0b094134ddd861d9607636bebc69329945e747161eacb65496084dda05bfe5f3ba0c67be7ce1377dab4b81446cca09724a3cf8d0f8fcc784be67ff965dd54b44f21a52f81c0dd1e691e68352c6bfcddbea7302547b1a5972d2b2711fb81dd17a336",
     "vma": "842c3df843c94555901c67cdbfd26348146aaae4e4d98ed3e3e14abfa683429c92e47011c3d94e2b6daf6ed54f554ba299a29a50ea36888f679c0fdabaa06b39cb1e4166b9dca6f54d5fe04be9bc7ac98bd2b3b1933e40b9a86aeb3130796abf1ffab604cc9a04dcafee419480f5fb1d9c906de7ca175dbc",
     "voc": "7f0b1400060847fd9c73b7730bcf6b7f818d430798893cc1f5024ca6b6c1e09fa1f4ef7a42f6539f431711c5c04f4d3497c95199cfbf9da90e59c284a81b1492ef704d8d9458c25a084107a74ede0115598bf48299ce4b39a9697685752382edcd3fbaa6e649110b9ede47d89fe49ef0dd17b19d09b2e79f",
@@ -106435,7 +106954,7 @@ MTG.setGameSpeed = function (id) {
   MTG.artFocus = {"54436824":[66,52],"d20eda7b":[75,56]};
   /* The sets with special printings enough to fill a Collector Booster
      (15 or more borderless, showcase, extended or full-art cards). */
-  MTG.collectorSets = new Set("2x2,2xm,acr,afc,afr,big,blb,blc,brc,bro,c21,clb,clu,cmm,cmr,dft,dmc,dmr,dmu,drc,dsc,dsk,ecc,ecl,eld,eoc,eoe,fdn,fic,fin,fra,frc,hob,hoc,iko,inr,khm,lcc,lci,ltc,ltr,m21,m3c,mat,mh2,mh3,mic,mid,mkc,mkm,moc,mom,msc,msh,ncc,nec,neo,onc,one,otc,otj,pip,plst,rvr,snc,soc,sos,spm,stx,tdc,tdm,thb,tla,tle,tmc,tmt,unf,ust,voc,vow,who,woc,woe,znr".split(','));
+  MTG.collectorSets = new Set("2x2,2xm,acr,afc,afr,big,blb,blc,brc,bro,c21,clb,clu,cmm,cmr,dft,dmc,dmr,dmu,drc,dsc,dsk,ecc,ecl,eld,eoc,eoe,fdn,fic,fin,fra,frc,hob,hoc,iko,inr,khm,lcc,lci,ltc,ltr,m21,m3c,mat,mh2,mh3,mic,mid,mkc,mkm,moc,mom,msc,msh,ncc,nec,neo,onc,one,otc,otj,pip,plst,rvr,snc,soc,sos,spm,stx,tdc,tdm,thb,tla,tle,tmc,tmt,voc,vow,who,woc,woe,znr".split(','));
 })(window.MTG);
 /* ===== 10d1-packfocus.js ===== */
 /* ============================================================
@@ -108430,8 +108949,12 @@ MTG.setGameSpeed = function (id) {
     }
     return out;
   }
+  /** A card of an MTGJSON deck file, as much of it as tells a joke card (MTG.jokes): Saw in Half stays, Clown Car does not. */
+  const preconCard = (c) => ({ name: c.name, set: String(c.setCode || '').toLowerCase(), border_color: c.borderColor,
+    security_stamp: c.securityStamp, promo_types: c.promoTypes, oracle_id: c.identifiers && c.identifiers.scryfallOracleId });
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
+    .filter(c => !(c && MTG.jokes.isCard(preconCard(c))))
     .map(c => ({ name: c.name, rarity: c.rarity, qty: Math.max(1, c.count || 1) }));
   /**
    * What a tile shows: a picture of its own (its commander's, or failing
@@ -108444,7 +108967,7 @@ MTG.setGameSpeed = function (id) {
     const rest = (d.mainBoard || []).filter(c => !/\bLand\b/.test(c.type || ''))
       .sort((a, b) => (RANK[b.rarity] || 0) - (RANK[a.rarity] || 0));
     const pick = [].concat(d.commander || [], d.displayCommander || [], rest).map((c) => {
-      const id = c && c.identifiers && c.identifiers.scryfallId;
+      const id = c && !MTG.jokes.isCard(preconCard(c)) && c.identifiers && c.identifiers.scryfallId;
       return id ? { url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: c.name, ill: c.identifiers.scryfallIllustrationId || null } : null;
     });
     const art = claimArt('deck:' + p.file, pick);
@@ -108461,7 +108984,8 @@ MTG.setGameSpeed = function (id) {
     const commanders = [], main = [], all = [];
     rows.forEach(({ c, cmd }, i) => {
       const card = found[i];
-      if (!card) return;
+      // a card not in the pool (a joke card's reprint, Clown Car in a Secret Lair deck, say) is not sold with the deck
+      if (!card || !MTG.scry.inPool(card)) return;
       const qty = Math.max(1, c.count || 1);
       all.push({ card, qty });
       if (cmd) commanders.push(card); else main.push({ card, qty });
@@ -110367,8 +110891,11 @@ MTG.setGameSpeed = function (id) {
     const n = Math.min(4, S.owned(c.name));
     // its price, while prices are shown, in the bar under it with the copies (clear of a card not owned, which is greyed)
     const price = MTG.settings.showCardPrices ? U.priceOf(c) : undefined;
+    // a joke or playtest card held from before: kept, and marked as not in the game (MTG.jokes)
+    const pic = cardPic(c, 'col-img');
+    if (MTG.jokes.isCard(c) && UI.markIllegal) UI.markIllegal(pic, [MTG.jokes.why(c)]);
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
-      cardPic(c, 'col-img'),
+      pic,
       el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' })).concat(price === undefined ? []
         : [el('span', { class: 'col-price' + (price == null ? ' none' : ''), text: price == null ? 'No price' : U.money(price),
           title: price == null ? 'Scryfall has no price for this card' : 'Its price on Scryfall' })])),
@@ -110393,6 +110920,7 @@ MTG.setGameSpeed = function (id) {
         cardPic(c, 'col-detail-img'),
         el('div', {}, [
           el('p', { text: `${RAR_NAME[r]} · you own ${Math.min(4, have)} of 4.` }),
+          MTG.jokes.isCard(c) ? el('p', { style: { color: 'var(--warn)' }, text: `${MTG.jokes.why(c)}: kept in your collection, but not played, crafted or traded.` }) : null,
           el('p', { class: 'dim' }, [document.createTextNode('Crafting takes one '), wcIcon(r, null), document.createTextNode(` ${r} wildcard. You have ${wc}.`)]),
           UI.cardStyles(c, reopen),
           UI.wishButton ? UI.wishButton(c) : null,
@@ -110400,8 +110928,8 @@ MTG.setGameSpeed = function (id) {
       ]),
       buttons: [
         { label: 'Close', onClick: (mm) => mm.close() },
-        { label: have >= 4 ? 'You have a playset' : `Craft (${RAR_NAME[r]} wildcard)`, class: 'primary', onClick: (mm) => {
-          if (have >= 4) return mm.close();
+        { label: MTG.jokes.isCard(c) ? 'Not in this game' : have >= 4 ? 'You have a playset' : `Craft (${RAR_NAME[r]} wildcard)`, class: 'primary', onClick: (mm) => {
+          if (have >= 4 || MTG.jokes.isCard(c)) return mm.close();
           const res = S.craft(c);
           if (!res.ok) { MTG.sfx('reject'); return UI.error(res.why); }
           MTG.sfx('wildcard');
@@ -114110,8 +114638,8 @@ MTG.setGameSpeed = function (id) {
   const decks = MTG.decks = {
     /** How a deck's picture is chosen (UI.keyCard); a picture worked out the old way is worked out again. 2: no legendary creature for a deck with no commander. */
     ART_V: 2,
-    /** How the formats a deck is legal in are worked out (legalIn); a deck worked out the old way, or never, is worked out again. */
-    LEGAL_V: 1,
+    /** How the formats a deck is legal in are worked out (legalIn); a deck worked out the old way, or never, is worked out again. 2: a joke or playtest card is legal nowhere. */
+    LEGAL_V: 2,
     /**
      * Every format the deck can be played in as it is: its cards, its size
      * and its commanders all as that format asks (MTG.formats.validate). A
@@ -114197,6 +114725,13 @@ MTG.setGameSpeed = function (id) {
       const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
       const byId = new Map();
       ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
+      /* A real card saved in a joke set's printing (Unhinged's Plains, Unfinity's shock lands) is shown in its
+         usual printing now; a joke card itself stays as it was, marked (MTG.jokes, MTG.formats.validate) */
+      for (const [i, c] of byId) {
+        if (MTG.jokes.printOk(c) || MTG.jokes.isCard(c)) continue;
+        const usual = await MTG.scry.byName(c.name).catch(() => null);
+        if (usual && MTG.jokes.printOk(usual)) byId.set(i, usual);
+      }
       const hydrate = (list) => list.map(e => ({ card: byId.get(e.id), qty: e.q })).filter(e => e.card);
       return {
         id: slim.id, name: slim.name, format: slim.format,
@@ -114868,6 +115403,7 @@ Sideboard
      */
     const oathbreaker = () => !!(MTG.formats.get(deck.format) || {}).oathbreaker;
     function setCommander(card) {
+      if (MTG.jokes.isCard(card)) { UI.error(`${card.name}: ${MTG.jokes.why(card)}.`); return; }
       // an Oathbreaker's Signature Spell stays where it is when the planeswalker changes
       const sigs = oathbreaker() ? MTG.formats.commandParts(deck).signatures : [];
       const had = deck.commanders.filter(c => !sigs.includes(c));
@@ -115191,6 +115727,8 @@ Sideboard
        and should stay put when it has not. */
     function addCardObj(card, qty) {
       if (!card) return false;
+      // a joke or playtest card already in the deck stays there, marked; another is not added (MTG.jokes)
+      if (MTG.jokes.isCard(card)) { UI.error(`${card.name}: ${MTG.jokes.why(card)}.`); return false; }
       const fmt = MTG.formats.get(deck.format);
       const e = deck.main.find(x => x.card.id === card.id);
       // one of each in a singleton deck (basics aside), and one of a card Vintage restricts
@@ -115210,7 +115748,7 @@ Sideboard
     async function addByName(name) {
       try {
         const c = await MTG.scry.byName(name);
-        if (!c) return UI.error('No card called "' + name + '".');
+        if (!c || MTG.jokes.isCard(c)) return UI.error('No card called "' + name + '".');
         addCardObj(c, 1);
       } catch (err) { UI.error(err.message); }
     }
@@ -116149,7 +116687,7 @@ Sideboard
             if (mine !== token) return;
             // a name Scryfall's search could not read: the card of that name, if there is one
             if (!shownN && !got && lastText) {
-              try { const c = await MTG.scry.byName(lastText); if (c) got += draw([c]); } catch (e2) {}
+              try { const c = await MTG.scry.byName(lastText); if (MTG.scry.inPool(c)) got += draw([c]); } catch (e2) {}
             }
             pager.done = true;
             if (!shownN && !got) status.textContent = e && e.message ? e.message : 'The search did not work.';
@@ -117486,6 +118024,17 @@ Sideboard
       const me = v.players.find(p => p.id === this.ownId);
       return me && me.controlledBy ? (v.players.find(p => p.id === me.controlledBy) || { id: me.controlledBy, name: 'Another player' }) : null;
     }
+    /** For how long a player is controlled (CR 722), in words: the whole turn (Mindslaver), this combat (Secret of
+        Bloodbending), or while a spell resolves (Word of Command) — { now: 'this turn', until: 'until the turn ends' }. */
+    _ctlSpan(pid) {
+      const p = this.view && this.view.players.find(x => x.id === pid);
+      const src = (p && p.controlSrc) || 'that spell';
+      switch (p && p.controlSpan) {
+        case 'combat': return { now: 'during this combat', until: 'until combat ends' };
+        case 'resolve': return { now: `while ${src} resolves`, until: `until ${src} finishes resolving` };
+        default: return { now: 'this turn', until: 'until the turn ends' };
+      }
+    }
     /** The bar across the top while anyone at this table is being controlled by, or controlling, this player. */
     renderControl() {
       const v = this.view;
@@ -117505,25 +118054,28 @@ Sideboard
       this.arena.classList.toggle('acting-for', !!this._actAs);
       this.arena.classList.toggle('controlled', !!by);
       const acting = this._actAs && ctl.find(c => c.id === this._actAs);
-      const sig = by ? 'by:' + by.id : (acting ? 'as:' + acting.id : 'own') + '|' + ctl.map(c => c.id + ':' + c.name).join(',');
+      const span = (pid) => this._ctlSpan(pid);
+      const sig = (by ? 'by:' + by.id + ':' + span(this.ownId).now : (acting ? 'as:' + acting.id : 'own') + '|' + ctl.map(c => c.id + ':' + c.name + ':' + span(c.id).now).join(','));
       if (bar._sig === sig) return;
       bar._sig = sig;
       bar.innerHTML = '';
       if (by) {
         bar.className = 'ctl-bar controlled';
         bar.append(el('div', { class: 'ctl-text' }, [
-          el('b', { text: `${by.name} is controlling you this turn.` }),
-          el('span', { text: ` ${by.name} makes all your decisions until the turn ends. You can still concede.` }),
+          el('b', { text: `${by.name} is controlling you ${span(this.ownId).now}.` }),
+          el('span', { text: ` ${by.name} makes all your decisions ${span(this.ownId).until}. You can still concede.` }),
         ]));
         return;
       }
       bar.className = 'ctl-bar' + (acting ? ' acting' : '');
-      const names = ctl.map(c => c.name);
+      // (each for as long as theirs lasts; said once when it is the same for all)
+      const spans = ctl.map(c => span(c.id).now);
+      const names = spans.every(x => x === spans[0]) ? ctl.map(c => c.name).join(' and ') + ' ' + spans[0] : ctl.map((c, i) => `${c.name} ${spans[i]}`).join(' and ');
       bar.append(el('div', { class: 'ctl-text' }, acting ? [
-        el('b', { text: `You are controlling ${acting.name} this turn.` }),
+        el('b', { text: `You are controlling ${acting.name} ${span(acting.id).now}.` }),
         el('span', { text: ` This is ${possessive(acting.name)} seat: what you do here, ${acting.name} does, with ${possessive(acting.name)} cards and mana.` }),
       ] : [
-        el('b', { text: `You are controlling ${names.join(' and ')} this turn.` }),
+        el('b', { text: `You are controlling ${names}.` }),
         el('span', { text: ' You make their decisions; the table moves to their seat when one is theirs to make.' }),
       ]));
       const btns = el('div', { class: 'ctl-btns' });
@@ -131607,7 +132159,7 @@ Sideboard
     commander: "Atraxa, Praetors' Voice", brawl: 'Kenrith, the Returned King', oathbreaker: 'Chandra, Torch of Defiance',
     booster: 'Cogwork Librarian', picktwo: 'Fact or Fiction', chaos: 'Possibility Storm',
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
-    sealed: 'Booster Tutor', jumpstart: 'Inspiring Overseer',
+    sealed: 'Pack Rat', jumpstart: 'Inspiring Overseer',
   };
   const TILE_ART = { home: 'Command Tower', formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe',
     profile: 'Jace, the Mind Sculptor' };
@@ -134729,7 +135281,8 @@ Sideboard
       const { cards } = await MTG.scry.collection(ids.map(id => ({ id })));
       ids.forEach((id, i) => {
         const print = cards[i];
-        if (!print) return;
+        // (a joke printing, chosen before they left the game, is not shown: MTG.jokes)
+        if (!print || !MTG.jokes.printOk(print)) return;
         for (const o of wanted.get(id)) o.card = print;
       });
     } catch (e) { /* the default printing is a fine fallback */ }
