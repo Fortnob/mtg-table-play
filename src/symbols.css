@@ -41,6 +41,8 @@
 :root[data-real-symbols] .pip:is(.pip-tap, .pip-c, .pip-num):not(.pip-hybrid):not(.pip-n) {
   background: var(--rsym) center / 100% 100% no-repeat !important; color: transparent !important; font-size: 0 !important;
   box-shadow: none !important; clip-path: none !important; border-radius: 50% !important; text-shadow: none !important;
+  /* on the same centre line as the coloured symbols: with no text left in it, it would otherwise sit on the baseline */
+  vertical-align: middle;
 }
 .pip-tap { --rsym: url("https://svgs.scryfall.io/card-symbols/T.svg"); }
 .pip-untap { --rsym: url("https://svgs.scryfall.io/card-symbols/Q.svg"); }
