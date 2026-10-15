@@ -121,6 +121,10 @@ declare namespace MTG {
     keywords: string[];
     /** Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
     manaExtra?: Array<{ i: number; label: string }> | null;
+    /** Kibo's Banana, Birds of Paradise: for its controller, each mana ability (by the index the mana intent
+        takes) that lets them choose what it adds — each option the key sent as the intent's `choice` ('R', a
+        bundle such as 'WW'), and the mana it adds ('{R}', '{W}{W}') */
+    manaChoices?: Array<{ i: number; options: Array<{ key: string; mana: string }> }> | null;
     /** Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, for its controller; each by
         the index activateAbility takes, and where its own activated abilities start */
     gained?: { manaBase: number; list: Array<{ i: number; mana?: boolean; ability: any }> } | null;

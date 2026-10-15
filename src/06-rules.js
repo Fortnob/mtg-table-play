@@ -1783,6 +1783,143 @@
       return { produces, any, amount: Math.max(amount, (produces.size || any) ? 1 : 0) };
     }
 
+    /** The colours "one mana of any color" may be right now: all five, or only those of the commander's identity,
+        or the ones the card allows (Omnath, Locus of All: allowedColors). The addManaAny op and the choice offered
+        to a person both read it here. */
+    _manaAnyPool(e, pid) {
+      const allowed = e.allowedColors ? e.allowedColors.filter(c => MANA.COLORS.includes(c))
+        : e.commanderIdentity ? MANA.COLORS.filter(c => this._commanderColors(pid).has(c)) : MANA.COLORS;
+      return allowed.length ? allowed : MANA.COLORS.slice();
+    }
+
+    /** Which of "Add {W}{W}, {W}{U}, or {U}{U}" a manaChoice asks for: a whole bundle by its letters ('WU'), else
+        the first that has the colour named ('U'), else the first. */
+    _manaChoiceBundle(e, want) {
+      const choices = e.choices || [];
+      const letters = (ch) => ch.map(s => MANA.COLORS.concat('C').find(x => s.includes(x)) || 'C').join('');
+      if (want) {
+        const exact = choices.find(ch => letters(ch) === want);
+        if (exact) return exact;
+        if (want.length === 1) { const hit = choices.find(ch => ch.some(s => s.includes(want))); if (hit) return hit; }
+      }
+      return choices[0] || [];
+    }
+
+    /**
+     * What a person tapping this mana ability by hand gets to choose between, as one choice that goes with the
+     * tap (a mana ability can't stop to ask): each option a key the engine takes as the manaChoice ('R'; a whole
+     * bundle such as 'WW' or 'UB'), and the mana it adds. Empty when there is nothing to choose: one option only,
+     * or mana chosen another way (a colour for each of several: manaSplit). Read off the same helpers the
+     * addMana ops use, so what is offered is what they accept.
+     */
+    manaChoicesFor(pid, o, ab) {
+      if (!ab || !o) return [];
+      const L = MANA.COLORS.concat('C');
+      const letter = (s) => L.find(x => String(s).includes(x)) || 'C';
+      const sym = (c, k) => ('{' + c + '}').repeat(Math.max(1, k || 1));
+      const amountOf = (v) => (typeof v === 'number' ? v : v && typeof v === 'object' ? Math.max(0, this._countValue(v, pid, o)) : 1);
+      const out = [];
+      const add = (key, mana) => { if (key && !out.some(x => x.key === key)) out.push({ key, mana }); };
+      let effects = [];
+      const walk = (list) => {
+        for (const e of (list || [])) {
+          if (!e) continue;
+          if (e.op === 'ifCond') { walk(this._condMet(e.cond, { controller: pid, obj: o }) ? (e.then || []) : (e.otherwise || [])); continue; }
+          if (e.op === 'sequence') { walk(e.list); continue; }
+          effects.push(e);
+        }
+      };
+      walk(ab.effects);
+      // "Add two mana in any combination of {U}, {B}, and/or {R}" (Relic of Sauron): one effect a mana — each
+      // combination a bundle, the k-th effect taking the k-th letter
+      const singles = effects.filter(e => e.op === 'addManaChoice' && e.n == null && (e.choices || []).every(ch => ch.length === 1));
+      if (singles.length > 1 && singles.length <= 5 && singles.every(e => JSON.stringify(e.choices) === JSON.stringify(singles[0].choices))) {
+        const opts = singles[0].choices.map(ch => letter(ch[0]));
+        const combos = (from, left) => (left === 0 ? [''] : [].concat(...opts.slice(from).map((c, k) => combos(from + k, left - 1).map(r => c + r))));
+        for (const k of combos(0, singles.length)) add(k, k.split('').map(c => sym(c)).join(''));
+        return out.length > 1 ? out : [];
+      }
+      // "Choose a color. Add an amount of mana of that color equal to your devotion to that color." (Nykthos): the
+      // mana it adds says more of what is worth choosing than the bare colour
+      const ranked = effects.filter(e => e.op !== 'chooseColor').concat(effects.filter(e => e.op === 'chooseColor'));
+      for (const e of ranked) {
+        let got = null;
+        if (e.op === 'addManaAny') {
+          if (e.who === 'target' || e.distinct) continue;
+          const amt = e.amount === 'X' ? null : amountOf(e.amount);
+          // "three mana in any combination of colors": a colour for each, sent as a split
+          if (amt == null || (amt > 1 && !e.sameColor)) continue;
+          if (amt <= 0) return [];
+          got = this._manaAnyPool(e, pid).map(c => [c, sym(c, amt)]);
+        } else if (e.op === 'addManaAmong') {
+          const amt = e.ifCounter && (Number((o.counters || {})[e.ifCounter.counter]) || 0) > 0 ? e.ifCounter.amount : (Number(e.amount) || 1);
+          got = this._manaAmong(e, o, pid).map(c => [c, sym(c, amt)]);
+        } else if (e.op === 'addManaChoice') {
+          if (e.n != null) {
+            // Brigid, Doun's Mind: "X {G} or X {W}" — all of one; any other split is a number sent with it
+            if (!e.oneColor) continue;
+            const k = e.n === 'X' ? 1 : amountOf(e.n);
+            // (no mana to make: nothing to choose)
+            if (k <= 0) return [];
+            got = e.choices.map(ch => [letter(ch[0]), sym(letter(ch[0]), k)]);
+          } else got = e.choices.map(ch => { const ls = ch.map(letter); return [ls.join(''), ls.map(c => sym(c)).join('')]; });
+        } else if (e.op === 'addManaX' && !e.symbol) {
+          // (Food Chain: as much as the creature exiled to pay is worth, not known yet — the colour is still asked)
+          const later = e.amount === 'triggerAmount' || !!(e.amount && e.amount.ofExiledCost);
+          const k = later ? 1 : this._manaXValue(e, o, pid);
+          if (k <= 0) return [];
+          got = MANA.COLORS.map(c => [c, sym(c, k)]);
+        } else if (e.op === 'addManaDevotion') {
+          got = MANA.COLORS.map(c => [c, this.devotionOf(pid, c)]).filter(x => x[1] > 0).map(([c, k]) => [c, sym(c, k)]);
+        } else if (e.op === 'addManaChosen' && e.orSymbol) {
+          const col = o.chosenColor;
+          got = [[e.orSymbol, sym(e.orSymbol, e.n)]].concat(col && col !== e.orSymbol ? [[col, sym(col, e.n)]] : []);
+        } else if (e.op === 'chooseColor') {
+          got = MANA.COLORS.map(c => [c, sym(c)]);
+        }
+        if (!got) continue;
+        for (const [key, mana] of got) add(key, mana);
+        // one choice goes with a tap: the first effect that offers one
+        break;
+      }
+      return out.length > 1 ? out : [];
+    }
+
+    /** manaChoicesFor, by the index tapForMana takes (the printed mana abilities, then the ones it was given). */
+    manaChoicesAt(pid, o, index) {
+      const c = this.characteristics(o);
+      if (c && c.setMana && !c.abilitiesLost) return [];
+      return this.manaChoicesFor(pid, o, this.manaAbilitiesOf(o)[index || 0]);
+    }
+
+    /** A manaChoice is legal when it is one of those offered, or, the way the auto-tapper and bots name it, a
+        colour one of them has; anything else is ignored (the engine chooses as it would have). */
+    _legalManaChoice(pid, o, ab, want) {
+      if (want == null || want === '') return undefined;
+      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}$/.test(want)) return undefined;
+      const opts = this.manaChoicesFor(pid, o, ab);
+      if (!opts.length) return want;
+      if (opts.some(x => x.key === want)) return want;
+      if (want.length === 1 && opts.some(x => x.key.includes(want))) return want;
+      return undefined;
+    }
+
+    /* The table's view of a permanent's mana choices, for its controller only: each mana ability (by
+       tapForMana's index) that would ask, with what it offers */
+    _manaChoicesView(o, playerId) {
+      if (o.zone !== 'battlefield' || o.controller !== playerId) return null;
+      const list = this.manaAbilitiesOf(o);
+      if (!list.length) return null;
+      const CHOOSY = /^(addManaAny|addManaAmong|addManaChoice|addManaX|addManaDevotion|addManaChosen|chooseColor|ifCond|sequence)$/;
+      const out = [];
+      list.forEach((ab, i) => {
+        if (!(ab.effects || []).some(e => e && CHOOSY.test(e.op))) return;
+        const options = this.manaChoicesAt(playerId, o, i);
+        if (options.length > 1) out.push({ i, options });
+      });
+      return out.length ? out : null;
+    }
+
     /**
      * Times this player has cast a commander from the command zone. An
      * Oathbreaker's Signature Spell keeps its tax in the same tally, but it
@@ -8873,6 +9010,8 @@
 
       if (isMana) {
         // mana abilities do not use the stack (CR 605.3a)
+        // (the colour sent with it, kept only when it is one this ability offers)
+        if (opts.manaChoice != null) opts = Object.assign({}, opts, { manaChoice: this._legalManaChoice(playerId, o, ab, opts.manaChoice) });
         /* Food Chain: the creature exiled to pay is what the mana is counted
            from, so that price is paid first and remembered */
         if (ab.cost && ab.cost.exileOwn) {
@@ -10202,6 +10341,8 @@
         return true;
       }
       const a = o.analysis();
+      // the colour (or bundle) sent with the tap, kept only when it is one this ability offers
+      manaChoice = this._legalManaChoice(playerId, o, this.manaAbilitiesOf(o)[abilityIndex || 0], manaChoice);
       /* A land that only taps for mana because something else says so — an
          Urborg, a Chromatic Lantern — has nothing printed to activate, so
          the mana it was handed is used directly. */
@@ -18628,9 +18769,7 @@
           const amt = n(e.amount);
           /* "any color in your commander's color identity" is only those */
           // (Omnath, Locus of All: "in any combination of its colors" — allowedColors)
-          const allowed = e.allowedColors ? e.allowedColors.filter(c => MANA.COLORS.includes(c))
-            : e.commanderIdentity ? Array.from(this._commanderColors(ctx.controller)) : MANA.COLORS;
-          const pool = allowed.length ? allowed : MANA.COLORS;
+          const pool = this._manaAnyPool(e, ctx.controller);
           /* The Warring Triad: "Target player adds one mana of any color" —
              into that player's pool, in a colour the ability's controller
              picks as it resolves (a bot: the one that player wants most) */
@@ -18779,12 +18918,16 @@
             this.logEvent('mana', `${me.name} adds ${k} mana.`);
             break;
           }
-          const want = ctx.manaChoice;
-          let choice = e.choices[0];
-          if (want) {
-            const hit = e.choices.find(ch => ch.some(s => s.includes(want)));
-            if (hit) choice = hit;
+          /* the choice sent with the tap: a bundle by its letters ('WU' of "{W}{W}, {W}{U}, or {U}{U}"), a colour
+             ('R' of "{R} or {G}"), or — "two mana in any combination of {U}, {B}, and/or {R}", one effect a
+             mana — a letter for each of them in turn ('UB') */
+          let want = typeof ctx.manaChoice === 'string' ? ctx.manaChoice : null;
+          if (want && want.length > 1 && !(e.choices || []).some(ch => ch.length > 1)) {
+            const k = ctx._manaSeq || 0;
+            ctx._manaSeq = k + 1;
+            want = want[k % want.length];
           }
+          const choice = this._manaChoiceBundle(e, want);
           for (const s of choice) {
             const c = MANA.COLORS.concat('C').find(x => s.includes(x));
             me.pool.add(c || 'C');
@@ -35732,6 +35875,9 @@
         keywords: blank(o) ? [] : this._viewKeywords(o),
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
+        /* Kibo's Banana, Birds of Paradise, Arcane Signet: what tapping it by hand lets its controller choose (the
+           colour goes with the tap), by tapForMana's index — said to its controller only */
+        manaChoices: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._manaChoicesView(o, playerId) : null,
         // Marvin, Drana and Linvala, an Equipment's "has '{T}: …'": abilities it has beyond its printed ones, for its controller to use
         gained: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._gainedAbilitiesView(o) : null,
       };

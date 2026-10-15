@@ -129,6 +129,8 @@ const ObjectView = obj({
   band: opt(maybe(str)),
   /* Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
   manaExtra: opt(maybe(arr(obj({ i: nat, label: str })))),
+  /* Kibo's Banana, Birds of Paradise: what tapping it by hand lets its controller choose, by the mana intent's index */
+  manaChoices: opt(maybe(arr(obj({ i: nat, options: arr(obj({ key: str, mana: str }, { closed: true })) }, { closed: true })))),
   /* Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, by the index activateAbility takes */
   gained: opt(maybe(obj({ manaBase: nat, list: arr(obj({ i: nat, mana: opt(bool), ability: S.plainObj })) }))),
   /* a card in a hand or on top of a library: who besides its owner knows it — 'all' when it was revealed (or the
@@ -499,6 +501,9 @@ function checkView(view, viewer, game) {
       bad('view.privacy', `${where} ${oid}`, `face down in ${o.zone}, but ${viewer}'s view says what it is like (${o.power}/${o.toughness} ${(o.keywords || []).join(' ')})`);
     // (and what it costs to turn face up says what it is)
     if (o.upCost != null && o.controller !== viewer) bad('view.privacy', `${where} ${oid}`, `${viewer}'s view says what turning another player's face-down card up costs`);
+    // (what tapping a permanent for mana lets one choose is its controller's to know, and only of what they can see)
+    if (o.manaChoices && (o.controller !== viewer || o.zone !== 'battlefield' || (o.faceDown && o.card && o.card.id === '__facedown__')))
+      bad('view.privacy', `${where} ${oid}`, `${viewer}'s view says what mana another player's (or a hidden) permanent lets them choose`);
   }
   for (const s of view.stack || []) {
     const src = s.objId && game && game.obj ? game.obj(s.objId) : null;
