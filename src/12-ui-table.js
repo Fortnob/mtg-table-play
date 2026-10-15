@@ -656,7 +656,8 @@
         const c = o.chosen;
         const COLOUR = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
         const bits = [c.name && `Named: ${c.name}`, c.player && `Player: ${c.player}`, c.type && c.type,
-          c.color && (COLOUR[c.color] || c.color), c.cardType && c.cardType, c.number != null && `Number: ${c.number}`].filter(Boolean);
+          c.color && (COLOUR[c.color] || c.color), c.cardType && c.cardType, c.number != null && `Number: ${c.number}`,
+          c.parity && (c.parity === 'odd' ? 'Odd' : 'Even')].filter(Boolean);
         if (bits.length) n.appendChild(el('div', { class: 'cv-mark cv-chosen', text: bits.join(' \u00b7 '), title: 'Chosen as it entered: ' + bits.join(', ') }));
       }
       // banding: attacking as one band with the others that share its label

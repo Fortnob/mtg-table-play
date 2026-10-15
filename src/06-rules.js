@@ -9025,6 +9025,16 @@
         }
         const best = values.slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0))[0];
         values = [best].concat(values.filter(v => v !== best)); labels = values.map(String);
+      } else if (rule.what === 'parity') {
+        // Gollum, Riddle Master: odd or even — the likelier first, by the opponents' cards (chosenParity)
+        field = 'chosenParity';
+        let odd = 0, even = 0;
+        for (const q of this.opponentsOf(p.id)) for (const c of ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))) {
+          if ((c.analysis() || {}).isLand) continue;
+          if (((c.card && c.card.cmc) || 0) % 2) odd++; else even++;
+        }
+        values = odd > even ? ['odd', 'even'] : ['even', 'odd'];
+        labels = values.map(v => U.titleCase(v));
       } else if (rule.what === 'cardType') {
         field = 'chosenCardType';
         /* the likeliest answer first: a discount wants the type most common in
@@ -9058,7 +9068,7 @@
       this.logEvent('rules', `${o.name}: ${labels[0]} is chosen.`);
       if (!p.isBot && values.length > 1) {
         this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseValue', objId: o.id, field, values,
-          options: labels.map((label, i) => ({ i, label })), prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : rule.what === 'cardType' ? 'a card type' : 'a player'}.` });
+          options: labels.map((label, i) => ({ i, label })), prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : rule.what === 'parity' ? 'odd or even' : rule.what === 'cardType' ? 'a card type' : 'a player'}.` });
       }
     }
     _chooseColorFor(o) {
@@ -10558,8 +10568,8 @@
           if (!top) return this.fail('Your library is empty.');
           this.moveObject(top, 'exile');
         } else {
-          let yard = ex.anyGraveyard ? this._exileCostPool(playerId, ex, o) : ((this.zones[playerId] || {}).graveyard || [])
-            .filter(c => c.id !== o.id && (ex.filter === 'card' || this._matchesFilter(c, ex.filter)));
+          // (Tawnos, Solemn Survivor: "an artifact or creature card" — read as the price's check reads it: _exileCostPool)
+          let yard = this._exileCostPool(playerId, ex, o);
           // Thelon of Havenwood: the card the player named, from any graveyard (anyGraveyard)
           if (ex.anyGraveyard) { const named = ((opts && opts.exileIds) || []).map(id => yard.find(c => c.id === id)).filter(Boolean); yard = named.concat(yard.filter(c => !named.includes(c))); }
           // Osgir, the Reconstructor: "with mana value X" — the X paid; the card the player named first (mvX)
@@ -27526,7 +27536,9 @@
           // (Stolen Goods: "that card" — the card the digging stopped at, not every card it went past: thatCard)
           // (Lobelia, Defender of Bag End: "a card exiled with Lobelia" — whichever it turns out to be: exiledWith)
           // (Quintorius, Loremaster: "Choose target card exiled with Quintorius. You may cast that card …" — ofTarget)
-          const ids = (e.ofTarget ? targets.filter(t => t && t.kind === 'object').map(t => t.id) : e.exiledWith ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
+          // (Lara Croft, Tomb Raider: "a card from exile with a discovery counter on it" — any of them, one: withCounter, oneOf)
+          const ids = (e.withCounter ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => Number((c.counters || {})[e.withCounter]) > 0).map(c => c.id)
+            : e.ofTarget ? targets.filter(t => t && t.kind === 'object').map(t => t.id) : e.exiledWith ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
             : e.thatCard && this._exileUntil ? this._exileUntil.hits.slice(-1)
             : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i);
@@ -36095,7 +36107,8 @@
       // Pollywog Prodigy: "mana value less than this creature's power"
       if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;
       // Soundwave, Superior Captain: "a spell with an odd (even) mana value" — X and all (mvParity)
-      if (f.mvParity && (((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) % 2 === 0) !== (f.mvParity === 'even'))) return false;
+      // (Gollum, Riddle Master: "of the chosen quality" — chosenParity)
+      if (f.mvParity && (((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) % 2 === 0) !== ((f.mvParity === 'chosen' ? src && src.chosenParity : f.mvParity) === 'even'))) return false;
       // (one that has died is judged by the keywords it had as it went — _lastKeywords)
       const kwOf = (k) => (gone && x._lastKeywords ? x._lastKeywords.includes(k) : this.hasKw(x, k));
       if (f.keyword && !kwOf(f.keyword)) return false;
@@ -37558,6 +37571,8 @@
           if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
           if (o.chosenNumber != null) c.number = o.chosenNumber;
           if (o.chosenCardType) c.cardType = o.chosenCardType;
+          // Gollum, Riddle Master: odd or even
+          if (o.chosenParity) c.parity = o.chosenParity;
           return Object.keys(c).length ? c : null;
         })(),
         // Alchemy: what has been done to the card perpetually, added up for the table

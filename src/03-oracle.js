@@ -371,7 +371,8 @@
           ex = { what: 'self' };
           if (/from your graveyard$/i.test(what)) ex.fromGraveyard = true;
         }
-        else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s*([-a-z' ]*?)\s*cards? from your graveyard$/i)))
+        // (Tawnos, Solemn Survivor: "an artifact or creature card" — "an", not "a" and "n artifact")
+        else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s+([-a-z' ]*?)\s*cards? from your graveyard$/i)))
           ex = { what: 'graveyard', n: WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
         // Araumi of the Dead Tide: "Exile cards from your graveyard equal to the number of opponents you have" (n 'opponents')
         else if (/^cards from your graveyard equal to the number of opponents you have$/i.test(what)) ex = { what: 'graveyard', n: 'opponents', filter: 'card' };
@@ -1767,6 +1768,9 @@
     { re: /^Put (a|an|one|two|three|\d+) ([+\-0-9/a-z]+) counters? and (a|an|one|two) ([a-z ]+?) counters? on (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), targets: [targetSpec(m[5])] },
         { op: 'counters', kind: m[4].toLowerCase(), n: num(m[3]), scope: 'lastTarget' }] }) },
+    // Captain Marvel, Earth's Protector: "Put a +1/+1 counter and an indestructible counter on Captain Marvel." — itself
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-0-9/a-z]+) counters? and (a|an|one|two) ([a-z ]+?) counters? on (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => [{ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), scope: 'self' }, { op: 'counters', kind: m[4].toLowerCase(), n: num(m[3]), scope: 'self' }] },
     // Children of Korlis: "You gain life equal to the life you've lost this turn."
     { re: /^You gain life equal to the life you'?ve lost this turn\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: { lifeLostThisTurn: 'you' } }) },
     // Wall of Reverence: "gain life equal to the power of target creature you control"
@@ -2402,6 +2406,12 @@
     /* Aragorn, Company Leader: "put your choice of a counter from among first strike, vigilance, deathtouch, and lifelink
        on Aragorn" — one counter, of the kind picked as it resolves (kindChoice) */
     { re: /^Put your choice of a counter from among ((?:[+\-0-9/a-z ]+?, )+)and ([+\-0-9/a-z ]+?) on (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => {
+        const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
+        return kinds.every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, scope: 'self' } : null;
+      } },
+    // Me, the Immortal: "put your choice of a +1/+1, first strike, vigilance, or menace counter on Me" (kindChoice)
+    { re: /^Put your choice of an? ((?:[+\-0-9/a-z ]+?, )+)or ([+\-0-9/a-z ]+?) counter on (?:CARDNAME|this creature)\.?$/i,
       make: (m) => {
         const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
         return kinds.every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, scope: 'self' } : null;
@@ -6810,6 +6820,9 @@
       make: (m) => ({ op: 'suspendSelf', n: num(m[1]) }) },
     // Rory Williams: "exile it with three time counters on it. It gains suspend." — suspendSelf has suspended it already
     { re: /^It gains suspend\.?$/i, make: () => ({ op: 'noop' }) },
+    // Lara Croft, Tomb Raider: "You may play a card from exile with a discovery counter on it this turn." — any one of them (withCounter, oneOf)
+    { re: /^You may play a card from exile with an? ([a-z]+) counter on it this turn\.?$/i,
+      make: (m) => ({ op: 'mayPlayExiled', withCounter: m[1].toLowerCase(), oneOf: true, duration: 'eot' }) },
     { re: /^Attach (CARDNAME|it) to (target creature you control|target creature)\.?$/i,
       make: (m) => Object.assign({ op: 'attachSelf', targets: [targetSpec(m[2])] }, /^it$/i.test(m[1]) ? { attachIt: true } : {}) },
     { re: /^If that (?:creature|permanent)(?: or planeswalker)? would die this turn, exile it instead\.?$/i,
@@ -8292,8 +8305,10 @@
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
     // Osgir, the Reconstructor: "Create two tokens that are copies of the exiled card." — the card exiled to pay (costExiled)
-    { re: /^Create (two|three|a) tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of the exiled card\.?$/i,
-      make: (m) => ({ op: 'copyPermanent', n: /^a$/i.test(m[1]) ? 1 : num(m[1].toLowerCase()), grant: [], of: 'costExiled' }) },
+    // (Tawnos, Solemn Survivor: "…, except it's an artifact in addition to its other types" — addTypes)
+    { re: /^Create (two|three|a) tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of the exiled card(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
+      make: (m) => Object.assign({ op: 'copyPermanent', n: /^a$/i.test(m[1]) ? 1 : num(m[1].toLowerCase()), grant: [], of: 'costExiled' },
+        m[2] ? { addTypes: [U.titleCase(m[2])] } : {}) },
     // Feldon of the Third Path: "…a copy of target creature card in your graveyard, except it's an artifact in addition to its other types."
     { re: /^Create a token that'?s a copy of target (creature|artifact|permanent|creature or artifact) card in your graveyard(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [],
@@ -14895,6 +14910,8 @@
     // Soundwave, Superior Captain: "a spell with an odd mana value" (mvParity)
     const par = String(mv || '').match(/with an? (odd|even) mana value/i);
     if (par) f.mvParity = par[1].toLowerCase();
+    // Gollum, Riddle Master: "with mana value of the chosen quality" — odd or even, as chosen (mvParity 'chosen')
+    if (/with mana value of the chosen quality/i.test(String(mv || ''))) f.mvParity = 'chosen';
     return f;
   }
 
@@ -15479,7 +15496,7 @@
     // Dragonlord Kolaghan: "Whenever an opponent casts a creature or planeswalker spell with the same name as a card in their graveyard" (sameNameInGraveyard)
     { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell with the same name as a card in their graveyard, /i,
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1]), extra: { sameNameInGraveyard: true } },
-    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
+    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power)| with mana value of the chosen quality)?, /i,
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
@@ -20403,6 +20420,9 @@
         make: (m) => ({ op: 'chooseOnEnter', what: 'name', nonland: !!m[1] }), auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose (a player|an opponent)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: /opponent/i.test(m[1]) ? 'opponent' : 'player' }), auto: true },
+      // Gollum, Riddle Master: "As Gollum enters, choose odd or even." (chosenParity)
+      { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose odd or even\.?$/i,
+        eff: { op: 'chooseOnEnter', what: 'parity' }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number between (\d+) and (\d+)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'number', min: +m[1], max: +m[2] }), auto: true },
       /* Cloud Key, Stenn, Umori, Serra's Emissary, Arachne: a card type, chosen as it enters */

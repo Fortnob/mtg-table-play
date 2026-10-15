@@ -92,7 +92,7 @@ declare namespace MTG {
     /** a hidden agenda of the viewer's that has not been turned face up */
     agenda?: boolean;
     /** what it chose as it entered */
-    chosen?: { type?: string; color?: string; name?: string; player?: string; number?: number; cardType?: string } | null;
+    chosen?: { type?: string; color?: string; name?: string; player?: string; number?: number; cardType?: string; parity?: string } | null;
     /** Alchemy: what has been done to the card perpetually, added up; null when nothing has */
     perpetual?: {
       pt: [number, number]; keywords: string[]; costDelta: number; text: string[];
