@@ -126,13 +126,21 @@ class Table {
     const g = this.g = new M.rules.Game({
       formatId: opts.format || 'commander', startingLife: opts.life || 20, startingHand: 0,
       commanderDamage: null, maxPlayers: 4, seed: opts.seed || 7, firstPlayerDraws: false,
+      // Planechase (src/06f-planechase.js): each player's planar deck by name, opts.planar[pid], in this order, top first
+      planechase: !!opts.planechase,
     });
     const names = opts.players || ['A', 'B'];
     for (const id of names) g.addPlayer({ id, name: id });
     if (CONTRACTS) watched.push(CONTRACTS.watch(g, M, { calls: false, net: false, label: opts.label || Table.label || '' }));
     const filler = opts.library || ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
     for (const id of names) {
-      g.loadDeck(id, { main: filler.map(n => ({ qty: opts.libraryEach || 4, card: card(n) })) });
+      g.loadDeck(id, { main: filler.map(n => ({ qty: opts.libraryEach || 4, card: card(n) })),
+        planar: ((opts.planar || {})[id] || []).map(n => card(n)) });
+      // (in the order given, not shuffled)
+      if (opts.planechase && (opts.planar || {})[id]) {
+        const want = opts.planar[id];
+        g.zones[id].planar.sort((x, y) => want.indexOf(x.card.name) - want.indexOf(y.card.name));
+      }
     }
     g.start();
     g.turnOrder = names.slice();

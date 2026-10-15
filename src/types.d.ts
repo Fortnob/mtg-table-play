@@ -241,6 +241,8 @@ declare namespace MTG {
     group: number;
     of: number;
     secret?: true;
+    /** the planar die (Planechase): the face it showed — its number then means nothing (CR 901.9d) */
+    planar?: PlanarFace;
     hidden?: true;
     source: Id | null;
     sourceName: string | null;
@@ -306,6 +308,37 @@ declare namespace MTG {
   }
 
   /** What Game.viewFor(playerId) returns: one player's redacted picture of the game. */
+  /**
+   * A Planechase game as everybody sees it (src/06f-planechase.js): the face-up planes and phenomena (each an object
+   * in its owner's command zone, controlled by the planar controller, `phenomenon` said of a phenomenon), how many cards
+   * each planar deck has, and how many times anybody has planeswalked. To the player whose turn it is: what the next
+   * roll of the planar die costs (`dieCost`, {0} then {1} more each time in a turn) and whether they may roll now.
+   */
+  interface PlanechaseView {
+    controller: PlayerId | null;
+    planes: Array<ObjectView & { phenomenon?: true }>;
+    decks: Record<PlayerId, number>;
+    walks: number;
+    dieCost?: number;
+    canRoll?: boolean;
+    /** the last roll of the planar die: who, the face it showed, which turn */
+    lastRoll?: { player: PlayerId; face: PlanarFace; turn: number };
+    /** Chaotic Aether: blank rolls are chaos until a player planeswalks away from a plane */
+    chaoticAether?: true;
+    /** Fixed Point in Time: until this player's next turn, a planeswalk from the die is chaos instead */
+    fixedPoint?: PlayerId;
+  }
+  /** The planar die's faces (CR 901.3a): the Planeswalker symbol, chaos, blank. */
+  type PlanarFace = 'pw' | 'chaos' | 'blank';
+  /** A planeswalk (src/06b-events.js): what was turned face down, and what face up; `start`: the starting plane. */
+  interface PlaneswalkEvent extends TableEvent {
+    type: 'planeswalk';
+    player: PlayerId | null;
+    from: Array<{ objId: Id; name: string; card: Card }>;
+    to: Array<{ objId: Id; name: string; card: Card }>;
+    start?: true;
+  }
+
   interface View {
     /** the engine's state version */
     v: number;
@@ -359,6 +392,8 @@ declare namespace MTG {
     /** Mindslaver (CR 722): the seats of the players you control this turn, each the view that player would have
         (without the config and log, which are this view's) */
     controlling?: Array<{ id: PlayerId; name: string; view: View }>;
+    /** Planechase (src/06f-planechase.js), only in a Planechase game */
+    planechase?: PlanechaseView;
     /** added by the app, not the engine: what happened since the last view this table had (dice rolled among them:
         RollEvent), or null when that is not known */
     events?: TableEvent[] | null;
@@ -603,6 +638,8 @@ declare namespace MTG {
     | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[]; x?: number }
     | { kind: 'suspend'; objId: Id; x?: number }
     | { kind: 'plot' | 'foretell' | 'transmute' | 'encore' | 'turnFaceUp' | 'companion'; objId: Id }
+    /** Planechase: roll the planar die (CR 901.9) — paid by the game, or with mana tapped by hand (fromPool) */
+    | { kind: 'planarDie'; fromPool?: boolean }
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;

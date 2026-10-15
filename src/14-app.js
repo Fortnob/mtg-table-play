@@ -4943,6 +4943,8 @@
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
         // the companion: {3} to put it into your hand, once a game (CR 702.139)
         case 'companion': g.companionToHand(actorId, intent.objId, { auto: true }); break;
+        // Planechase: roll the planar die (CR 901.9), paid by the game or with what was tapped by hand (src/06f-planechase.js)
+        case 'planarDie': g.rollPlanarDie(actorId, { auto: !payByHand(intent), fromPool: payByHand(intent) }); break;
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */

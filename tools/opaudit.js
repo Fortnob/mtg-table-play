@@ -19,7 +19,8 @@ process.env.OFFLINE = '1';
 const origWarn = console.warn; console.warn = () => {};
 const MTG = load();
 console.warn = origWarn;
-const rules = fs.readFileSync(path.join(__dirname, '..', 'src', '06-rules.js'), 'utf8');
+// (with the engine's own extensions: Planechase's standing rules and ops, src/06f-planechase.js)
+const rules = ['06-rules.js', '06f-planechase.js'].map(f => fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8')).join('\n');
 const known = new Set();
 const runnable = new Set();
 for (const m of rules.matchAll(/case '(\w+)'/g)) { known.add(m[1]); runnable.add(m[1]); }

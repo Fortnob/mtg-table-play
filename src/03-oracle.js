@@ -4421,6 +4421,16 @@
     /* Missy: "you draw a card and chaos ensues" — with no plane in the game, chaos ensuing sets off only what
        watches for it (chaosEnsues) */
     { re: /^You draw a card and chaos ensues\.?$/i, make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'chaosEnsues' }] },
+    /* Planechase (src/06f-planechase.js): "Then planeswalk." (TARDIS Bay, Pompeii), "You may planeswalk." (Start the
+       TARDIS), "chaos ensues", "Roll the planar die." (Fractured Powerstone) — in a game without planes, nothing */
+    { re: /^(?:Then )?planeswalk\.?$/i, make: () => ({ op: 'planeswalk' }) },
+    { re: /^You may planeswalk\.?$/i, make: () => ({ op: 'planeswalk', optional: true }) },
+    { re: /^(?:Then )?chaos ensues\.?$/i, make: () => ({ op: 'chaosEnsues' }) },
+    { re: /^Roll the planar die\.?$/i, make: () => ({ op: 'rollPlanarDie' }) },
+    // Chaotic Aether: "each blank roll of the planar die is a {CHAOS} roll until a player planeswalks away from a plane"
+    { re: /^[Ee]ach blank roll of the planar die is a \{CHAOS\} roll until a player planeswalks away from a plane\.?$/, make: () => ({ op: 'chaoticAether' }) },
+    // Fixed Point in Time: "until your next turn, if a player would planeswalk as a result of rolling the planar die, chaos ensues instead"
+    { re: /^[Uu]ntil your next turn, if a player would planeswalk as a result of rolling the planar die, chaos ensues instead\.?$/, make: () => ({ op: 'fixedPoint' }) },
     /* the newer mechanics, each a word for a small procedure */
     { re: /^Discover (one|two|three|four|five|six|seven|eight|nine|ten|\d+)\.?$/i, make: (m) => ({ op: 'discover', n: num(m[1]) }) },
     { re: /^Discover X, where X is (?:that spell'?s|its) mana value\.?$/i, make: () => ({ op: 'discover', n: { ofTrigger: 'mv' } }) },
@@ -16698,6 +16708,14 @@
     { re: /^Whenever an opponent becomes the monarch,? /i, event: 'playerBecomesMonarch', extra: { toOpponent: true } },
     // Brazen Dwarf: "Whenever you roll one or more dice" — once for the dice rolled together (anyDice)
     { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll', extra: { anyDice: true } },
+    /* Planechase (CR 901; src/06f-planechase.js): a plane's or a phenomenon's own moments — planeswalking to it ("When
+       you encounter" a phenomenon is the same: turning it face up off a planar deck, CR 312.5), away from it, chaos
+       ensuing (CR 311.7), the planar die rolled; "this plane" is the card itself */
+    { re: /^When(?:ever)? you (?:planeswalk to|encounter) (?:CARDNAME|this plane|this phenomenon),? /i, event: 'planeswalkTo', self: true },
+    { re: /^When(?:ever)? you planeswalk away from (?:CARDNAME|this plane),? /i, event: 'planeswalkAway', self: true },
+    { re: /^When(?:ever)? chaos ensues,? /i, event: 'chaosEnsues' },
+    { re: /^Whenever you roll a blank on the planar die,? /i, event: 'youRollPlanarBlank' },
+    { re: /^Whenever you roll the planar die,? /i, event: 'youRollPlanar' },
     // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"
     // Nicanzil, Current Conductor: "Whenever a creature you control explores a land card" / "a nonland card" (exploreKind)
     { re: /^Whenever a creature you control explores an? (land|nonland) card,? /i, event: 'youExplore', extraOf: (m) => ({ exploreKind: m[1].toLowerCase() }) },
@@ -23283,6 +23301,10 @@
       { re: /^The first time you flip one or more coins each turn, those coins come up heads and you win those flips\.?$/i, eff: { op: 'firstFlipsHeads' }, auto: true },
       // Wyll, Pixie Guide, Barbarian Class: a die more, the lowest ignored (rollExtraIgnoreLowest)
       { re: /^If you would roll one or more dice, instead roll that many dice plus one and ignore the lowest roll\.?$/i, eff: { op: 'rollExtraIgnoreLowest' }, auto: true },
+      /* Susan Foreman: "If you would planeswalk, instead look at the top two cards of your planar deck, put one on the bottom
+         of your planar deck and the other on top, then planeswalk." (planeswalkLookTwo; src/06f-planechase.js) */
+      { re: /^If you would planeswalk, instead look at the top two cards of your planar deck, put one on the bottom of your planar deck and the other on top, then planeswalk\.?$/i,
+        eff: { op: 'planeswalkLookTwo' }, auto: true },
       // Stranglehold, Ugin's Nexus: "If a player (an opponent) would begin an extra turn, that player skips that turn instead."
       { re: /^If (a player|an opponent) would begin an extra turn, that player skips that turn instead\.?$/i,
         make: (m) => ({ op: 'skipExtraTurns', who: /opponent/i.test(m[1]) ? 'opponents' : 'all' }), auto: true },

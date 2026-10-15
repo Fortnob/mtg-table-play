@@ -299,7 +299,8 @@
       return viewer === who;
     }
     if (zone === 'hand') return viewer === (e.toOwner || e.owner);
-    if (zone === 'library') return false;
+    // (a planar deck, face down: nobody's to see — src/06f-planechase.js)
+    if (zone === 'library' || zone === 'planar') return false;
     return true;
   }
 
@@ -371,7 +372,14 @@
       /* (the dice rolled together share a `group`, `of` dice in all; a die rolled in secret is its roller's to read — redact) */
       case 'roll': if (a) this._ev('roll', Object.assign({ player: a.playerId, sides: a.sides, result: a.result,
         rolls: a.rolls || [a.result], ignored: a.ignored || [], group: a.group || 0, of: a.of || 1,
-        source: a.sourceId || null, sourceName: a.sourceName || null }, a.secret ? { secret: true } : {})); break;
+        source: a.sourceId || null, sourceName: a.sourceName || null }, a.secret ? { secret: true } : {},
+        // the planar die: the face it showed (src/06f-planechase.js)
+        a.planar ? { planar: a.planar } : {})); break;
+      /* Planechase: a planeswalk — the planes and phenomena turned face down, and those turned face up (the starting
+         plane is one turned up with nothing turned down: `start`) */
+      case 'planeswalk': if (a) this._ev('planeswalk', Object.assign({ player: a.playerId || null,
+        from: (a.from || []).map(o => ({ objId: o.id, name: o.name, card: o.card })),
+        to: (a.to || []).map(o => ({ objId: o.id, name: o.name, card: o.card })) }, a.start ? { start: true } : {})); break;
       case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result, won: a.won != null ? !!a.won : a.result === 'heads',
         ignored: !!a.ignored, source: a.sourceId || null, sourceName: a.sourceName || null, byHand: a.byHand || undefined }); break;
       case 'manual': if (a) this._ev('manual', { player: a.controller || null, text: String(a.text || '') }); break;

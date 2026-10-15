@@ -1579,6 +1579,12 @@
        (commandX); and which of their lands pay — those the engine would tap, listed first (commandLands) */
     commandX(s) { return { picks: [], number: s.number.max }; },
     commandLands(s) { return { picks: (s.items || []).slice(0, s.min).map(it => it.id) }; },
+    /* Susan Foreman: of the top two cards of our planar deck, the one to planeswalk to — the plane worth most to us
+       (a phenomenon is a gamble, kept only when the other is worse still: planeCardWorth) */
+    planarTop(s) {
+      const scored = (s.items || []).map(it => ({ id: it.id, v: this.planeCardWorth(it.card) })).sort((x, y) => y.v - x.v);
+      return scored.length ? { picks: [scored[0].id] } : null;
+    },
     /* Harold and Bob, First Numens: the Forest of ours it enchants as it returns — an untapped one, so its new mana
        ability is there to use this turn, and one with nothing else on it */
     auraHostEnter(s) {
@@ -3610,6 +3616,8 @@
       if (myTurn && g.isMain) {
         const main1 = g.phaseIndex === 1;
         if (this.playLandIfUseful()) return true;
+        // Planechase: the free roll of the planar die first, before the turn's mana is spent (rollPlanar)
+        if (main1 && this.rollPlanar(true)) return true;
         if (move && move.cast && this.castChoice(move.cast, this.availableMana(true))) return true;
         if (move && move.activate && g.activateAbility(this.pid, move.activate.o.id, move.activate.index, this._abilityOpts(move.activate))) {
           this._did('activate', move.activate.o, move.activate.label);
@@ -3619,6 +3627,8 @@
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
         if (!(move && move.hold) && this.useCompanion(main1)) return true;
         if (!(move && move.hold) && this.foretellSpare(main1)) return true;
+        // (and in the second main phase, with mana left over, a roll more when the planes make it worth paying for)
+        if (!(move && move.hold) && !main1 && this.rollPlanar(false)) return true;
         return false;
       }
       // combat on either side of the table
@@ -3664,6 +3674,63 @@
       if (!g.companionToHand(this.pid, comp.id, { auto: true })) return false;
       this._did('companion', comp, 'puts its companion into its hand');
       return true;
+    }
+
+    /**
+     * Planechase: roll the planar die (CR 901.9). The first roll each turn is free and nearly always worth it —
+     * one face in six makes chaos ensue for us, one moves the game on — so it is rolled in the first main phase,
+     * unless the plane we are on is so good for us that leaving it costs more than chaos is worth. Later rolls cost
+     * {1} more each, and are paid for in the second main phase with mana nothing else wanted, while what a roll is
+     * expected to bring (chaos for us, or leaving a plane that is bad for us) is worth the price; a weaker bot pays
+     * for fewer. The planes are judged by what their abilities do for the planar controller (planeCardWorth).
+     */
+    rollPlanar(main1) {
+      const g = this.game;
+      if (!g.planechaseOn || !g.planechaseOn() || g.planarDieBlock(this.pid)) return false;
+      const cost = g.planarDieCost(this.pid);
+      const planes = g.facePlanes();
+      const chaos = planes.reduce((v, o) => v + this.planeChaosWorth(o.card), 0);
+      const stay = planes.reduce((v, o) => v + this.planeCardWorth(o.card), 0);
+      // a sixth of the time chaos, a sixth of the time somewhere else (an average plane: 0)
+      const expect = chaos / 6 - stay / 6;
+      if (cost === 0) {
+        if (expect < -1.5 && this.sharp()) return false;
+      } else {
+        if (main1) return false;
+        const most = this.d >= 7 ? 3 : this.d >= 4 ? 1 : 0;
+        if (cost > most || this.availableMana(true) < cost) return false;
+        if (expect * 3 < cost) return false;
+      }
+      if (!g.canRollPlanarDie(this.pid) || !g.rollPlanarDie(this.pid, { auto: true })) return false;
+      this._did('planarDie', null, cost ? `pays {${cost}} and rolls the planar die` : 'rolls the planar die');
+      return true;
+    }
+    /** What a plane's chaos abilities are worth to its controller when chaos ensues. */
+    planeChaosWorth(card) {
+      const a = card && MTG.oracle.analyze(card);
+      if (!a) return 0;
+      let v = 0;
+      for (const ab of a.abilities) if (ab.kind === 'triggered' && ab.event === 'chaosEnsues') {
+        try { v += this._modeWorth(ab.effects || []); } catch (e) { /* a judgement, not a rule */ }
+      }
+      return v;
+    }
+    /** What being on this plane (or encountering this phenomenon) is worth to us: what it does as we arrive and
+        each upkeep, and its chaos; a phenomenon's encounter alone, a little less for being out of our hands. */
+    planeCardWorth(card) {
+      const a = card && MTG.oracle.analyze(card);
+      if (!a) return 0;
+      let v = 0;
+      for (const ab of a.abilities) {
+        if (ab.kind !== 'triggered') continue;
+        let w = 0;
+        try { w = this._modeWorth(ab.effects || []); } catch (e) { w = 0; }
+        if (ab.event === 'planeswalkTo') v += w;
+        else if (ab.event === 'chaosEnsues') v += w / 3;
+        else if (ab.event === 'yourUpkeep') v += w;
+      }
+      if (MTG.planar && MTG.planar.isPhenomenonCard(card)) v -= 1;
+      return v;
     }
 
     /**

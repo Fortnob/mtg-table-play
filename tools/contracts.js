@@ -267,6 +267,14 @@ function ChooseSpec(v, p, out) {
 /* What everyone else sees of somebody's question: who, and what kind, and nothing more. */
 const WaitingChoice = obj({ type: str, playerId: id, waiting: lit(true) }, { closed: true });
 
+/* Planechase (src/06f-planechase.js): the face-up planes and phenomena, everybody's; each planar deck's size; the
+   planar die, for the player whose turn it is (what the next roll costs, and whether they may roll now) */
+const PlanechaseView = obj({
+  controller: maybe(id), planes: arr((v, p, out) => ObjectView(v, p, out)), decks: rec(nat), walks: nat,
+  dieCost: opt(nat), canRoll: opt(bool), chaoticAether: opt(lit(true)), fixedPoint: opt(id),
+  lastRoll: opt(obj({ player: id, face: lit('pw', 'chaos', 'blank'), turn: nat }, { closed: true })),
+}, { closed: true });
+
 const View = obj({
   v: num, you: str, config: S.plainObj,
   turn: nat, phase: str, phaseName: str, step: str, stepName: str,
@@ -287,6 +295,7 @@ const View = obj({
   pendingChoice: maybe((v, p, out) => (v.waiting ? WaitingChoice : Choice)(v, p, out)),
   stack: arr(StackItemView), battlefield: arr(ObjectView), players: arr(PlayerView, { min: 1 }),
   log: arr(LogEntry),
+  planechase: opt(PlanechaseView),
   /* Mindslaver (CR 722): the seats of the players this one controls this turn, each the view that player would have */
   controlling: opt(arr(obj({ id, name: str, view: (v, p, out) => View(v, p, out) }, { closed: true }), { min: 1 })),
 });
@@ -331,6 +340,8 @@ const INTENTS = {
   playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, foretell: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
   // the companion's {3} into hand (CR 702.139)
   companion: onObj,
+  // Planechase: roll the planar die, the special action (CR 901.9), paid by the game or (fromPool) with mana tapped by hand
+  planarDie: closed({ fromPool: opt(bool) }),
   cast: closed({
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
     /* which of an "and/or" kicker's costs are paid: 0 the first, 1 the second */
@@ -796,6 +807,8 @@ const RollEvent = obj({
   result: maybe(int), rolls: arr(maybe(int), { min: 1 }), ignored: arr(int), group: prim('a group number (1 or more)', v => Number.isInteger(v) && v >= 1),
   of: prim('a count of dice (1 or more)', v => Number.isInteger(v) && v >= 1), secret: opt(lit(true)), hidden: opt(lit(true)),
   source: maybe(id), sourceName: maybe(str),
+  // the planar die (Planechase): the face it showed
+  planar: opt(lit('pw', 'chaos', 'blank')),
 }, { closed: true });
 /**
  * One event as `viewer` receives it. Of a die: its shape, every number within the die's range and the result the

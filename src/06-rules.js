@@ -480,6 +480,8 @@
       p.companionUsed = false;
       p.sideboard = (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty }));
       p.deck = deck;
+      // Planechase: the planar deck it brings, face down in the command zone (src/06f-planechase.js)
+      if (this.config.planechase) this._loadPlanar(playerId, deck.planar || []);
       this._loadDraftExtras(p, deck);
       // a meld card's other half is in the deck too: the card the pair melds into, at hand before it is needed (_meldCard)
       for (const c of deck.main.map(e => e.card).concat(deck.commanders || [])) { const r = this._meldResultName(c); if (r) this._meldCard(r); }
@@ -1049,6 +1051,8 @@
       const ap = this.activePlayer;
       ap.landsPlayed = 0;
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
+      // Planechase: the starting plane, and the planar controller for the turn (src/06f-planechase.js)
+      if (this.config.planechase) this._planarTurnBegins(ap);
       // Mindslaver: "during that player's next turn" — this one (_controlNextTurn)
       this._controlTurnBegins(ap);
       // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
@@ -5182,6 +5186,8 @@
       if (a.castWindow) { const why = this._castWindowShut(a.castWindow, playerId); if (why) return { ok: false, reason: why }; }
       if (o.card && o.card.layout === 'emblem') return { ok: false, reason: 'An emblem is not a card.' };
       if (o.conspiracy) return { ok: false, reason: 'A conspiracy is not cast.' };
+      // a plane or phenomenon stays in the command zone, and is never cast (CR 311.2, 312.2)
+      if (o.planeUp || o.zone === 'planar' || (o.card && o.card.layout === 'planar')) return { ok: false, reason: 'A plane is not cast: it stays in the command zone.' };
       if (o.companion && o.zone === 'command') return { ok: false, reason: 'Your companion waits outside the game: pay {3} to put it into your hand first.' };
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
@@ -12191,6 +12197,7 @@
         case 'turnFaceUp': return { what: `turn ${name} face up`, yes: 'Sacrifice and turn it face up' };
         case 'companion': return { what: `put ${name} into your hand`, yes: 'Sacrifice and pay' };
         case 'encore': return { what: `pay the encore cost of ${name}`, yes: 'Sacrifice and pay' };
+        case 'planarDie': return { what: 'roll the planar die', yes: 'Sacrifice and roll' };
         default: return { what: `${redo.kind} ${name}`, yes: 'Sacrifice and ' + redo.kind };
       }
     }
@@ -12231,6 +12238,7 @@
         case 'encore': return this.encoreCard(playerId, redo.objId, opts);
         case 'turnFaceUp': return this.turnFaceUp(playerId, redo.objId, opts);
         case 'companion': return this.companionToHand(playerId, redo.objId, opts);
+        case 'planarDie': return this.rollPlanarDie(playerId, opts);
         default: return false;
       }
     }
@@ -18837,7 +18845,8 @@
        and never a spell. */
     _emblems() {
       const out = [];
-      for (const p of this.players) for (const o of ((this.zones[p.id] || {}).command || [])) if (o.card && (o.card.layout === 'emblem' || o.conspiracy)) out.push(o);
+      // (and a face-up plane or phenomenon, whose abilities work from there too: src/06f-planechase.js, CR 901.7)
+      for (const p of this.players) for (const o of ((this.zones[p.id] || {}).command || [])) if (o.card && (o.card.layout === 'emblem' || o.conspiracy || o.planeUp)) out.push(o);
       return out;
     }
     /** A list of permanents with the emblems after them, for whatever watches for triggers. */
@@ -22722,6 +22731,10 @@
           if (e.noteChosen) this._noteLastAffected([{ kind: 'object', id: pick.id }]);
           break;
         }
+        /* Planechase (src/06f-planechase.js): planeswalk ("Then planeswalk.", "You may planeswalk.", the planeswalking
+           ability), roll the planar die (Fractured Powerstone), Chaotic Aether, Fixed Point in Time */
+        case 'planeswalk': case 'rollPlanarDie': case 'chaoticAether': case 'fixedPoint':
+          return this._planarOp(e, ctx);
         /* "You get an emblem with '...'": an object in your command zone
            whose abilities were written out when the card was read. */
         case 'getEmblem': {
@@ -27402,6 +27415,8 @@
         }
         // Missy: "chaos ensues" — with no plane in the game, it sets off only what watches for it (chaosEnsues)
         case 'chaosEnsues':
+          // (in a Planechase game, each face-up plane's chaos ability: src/06f-planechase.js)
+          if (this.config.planechase) return this._planarOp(e, ctx);
           this.logEvent('rules', 'Chaos ensues.');
           this._fire('chaosEnsues', ctx.controller, { playerId: ctx.controller });
           break;
@@ -38867,6 +38882,8 @@
         }
 
         this._sagaCleanup();
+        // Planechase: a face-up phenomenon with nothing left to do sends the planar controller on (CR 704.6f)
+        if (this.config.planechase && this._planarSba()) repeat = true;
 
         /* Everything state-based actions kill, they kill at once (CR 704.3):
            a creature dying alongside another still sees it go. */
@@ -39241,6 +39258,8 @@
       if (this._drawWait && this._drawWait.pid === p.id) this._drawResume();
       // Jinnie Fay, Esix: their tokens will not be made — what waited behind them goes on (_tokenWait)
       if (this._tokenWait && this._tokenWait.controller === p.id) { const w = this._tokenWait; this._tokenWait = null; this._tokenGoOn(w); }
+      // Planechase: their planar cards leave with them, and a face-up one gone sends the planar controller on (CR 901.10)
+      if (this.config.planechase) this._planarPlayerLeaves(p);
       this.emit('player:lost', p);
     }
 
@@ -39659,6 +39678,8 @@
           }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
+          // Susan Foreman: the planar card kept on top, then the planeswalk it was asked for (src/06f-planechase.js)
+          if (ch.purpose === 'planarTop' && ch.resumeKey == null) { this._planarTopAnswered(ch, got.picks[0]); break; }
           // Deadpool, Trading Card: the creature picked as it entered, if any, exchanges text boxes with it
           if (ch.purpose === 'exchangeText') {
             const o = this.obj(ch.objId), x = got.picks.length ? this.obj(got.picks[0]) : null;
@@ -42397,9 +42418,12 @@
           exile: (p.id === playerId
             ? this.zones[p.id].exile.concat(this._borrowedExile(playerId))
             : this.zones[p.id].exile.filter(o => !this._mayPlayFromExile(playerId, o))).map(o => ser(o)),
-          command: this.zones[p.id].command.map(o => ser(o)),
+          // (a face-up plane or phenomenon is shown as the game's, in view.planechase)
+          command: this.zones[p.id].command.filter(o => !o.planeUp).map(o => ser(o)),
         })),
         log: this.log.slice(-200),
+        // Planechase: the plane everybody is on, each planar deck's size, the planar die (src/06f-planechase.js)
+        planechase: this.config.planechase ? this._planarView(playerId, ser, decides) : undefined,
       };
       // the seats of the players this one controls, without what the view around them already carries
       const ctl = seat ? [] : this.controlledPlayers(playerId);
@@ -42821,7 +42845,9 @@
   function whole(s) { return String(s || ''); }
 
   MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs, effectSpecs,
-    targetSlots, hasBranchSlots, triggerAimPlan, castModal, applyModes, modeTargetPlan };
+    targetSlots, hasBranchSlots, triggerAimPlan, castModal, applyModes, modeTargetPlan,
+    // what an effect returns while it waits on a question (src/06f-planechase.js asks as the engine does)
+    SUSPEND };
 })(window.MTG);
 
 
