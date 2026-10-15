@@ -9486,6 +9486,17 @@
       return n(a) === n(b) || n(U.frontName(a)) === n(U.frontName(b));
     }
 
+    /** The opponents' cards this player can see: on the battlefield, in graveyards, face up in exile, in the command
+        zone — what a suggested answer may be worked out from, never their hidden hands or libraries. */
+    _oppPublicCards(pid) {
+      const out = [];
+      for (const q of this.opponentsOf(pid)) {
+        const z = this.zones[q.id] || {};
+        out.push(...this.battlefield.filter(x => x.controller === q.id && !x.faceDown), ...(z.graveyard || []), ...(z.command || []),
+          ...(z.exile || []).filter(x => !x.faceDown && !x.faceDownExile));
+      }
+      return out;
+    }
     /* "As this enters, choose a card name / a player / a number": the most
        likely answer at once, and a person asked to confirm or change it */
     _chooseValueFor(o, rule) {
@@ -9523,7 +9534,7 @@
             if (!ca || !ca.isCreature) continue;
             for (const v of new Set([parseInt(ca.power, 10), parseInt(ca.toughness, 10)])) if (!isNaN(v)) counts.set(v, (counts.get(v) || 0) + 1);
           }
-        } else for (const q of this.opponentsOf(p.id)) for (const c of ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))) {
+        } else for (const c of this._oppPublicCards(p.id)) {
           const mv = (c.card && c.card.cmc) || 0; counts.set(mv, (counts.get(mv) || 0) + 1);
         }
         const best = values.slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0))[0];
@@ -9532,7 +9543,7 @@
         // Gollum, Riddle Master: odd or even — the likelier first, by the opponents' cards (chosenParity)
         field = 'chosenParity';
         let odd = 0, even = 0;
-        for (const q of this.opponentsOf(p.id)) for (const c of ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))) {
+        for (const c of this._oppPublicCards(p.id)) {
           if ((c.analysis() || {}).isLand) continue;
           if (((c.card && c.card.cmc) || 0) % 2) odd++; else even++;
         }
@@ -9544,7 +9555,7 @@
            its controller's library, anything else the type the opponents play most */
         const own = ((o.analysis() || {}).abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'costMod' && e.who === 'you' && e.amount < 0));
         const pool = own ? ((this.zones[p.id] || {}).library || [])
-          : [].concat(...this.opponentsOf(p.id).map(q => ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))));
+          : this._oppPublicCards(p.id);
         const counts = new Map();
         for (const c of pool) for (const t of this._cardTypesOf(c)) counts.set(t, (counts.get(t) || 0) + 1);
         values = (rule.types || []).slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0));

@@ -178,4 +178,15 @@ module.exports = (test) => {
     t.eq(contracts.checkAnswer(ask('Grizzly Bears'), { name: 'Lightning Bolt' }, g).length, 0, 'a typed answer is a good answer');
     t.ok(contracts.checkAnswer(ask('Grizzly Bears'), { name: 'Forest' }, g).some(v => /land card/.test(v.msg)), 'a land typed for a nonland name is not');
   });
+
+  test('Naming: a suggested number is worked out from what the chooser can see, not the opponents\' libraries', (mk, t) => {
+    t.auto('Talion, the Kindly Lord');
+    const T = mk();
+    for (let i = 0; i < 20; i++) T.top('B', 'Hill Giant');   // mana value 4, hidden
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Runeclaw Bear');  // mana value 2, in sight
+    T.bf('A', 'Talion, the Kindly Lord', { etb: true });
+    const q = T.asked.find(ch => ch.purpose === 'chooseValue');
+    t.ok(q, 'asked for a number');
+    t.eq(q && q.values[0], 2, 'the likeliest is the mana value on the table, not the one hidden in the library');
+  });
 };
