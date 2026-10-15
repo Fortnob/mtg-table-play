@@ -35417,8 +35417,10 @@
           // (The Wondrous Wasp: "for as long as The Wondrous Wasp remains on the battlefield" — whileHere; gone already, nothing)
           const whileHere = e.duration === 'whileHere';
           if (whileHere && !(src && src.zone === 'battlefield')) break;
-          const until = e.duration === 'permanent' || e.duration === 'nextTurn' || whileHere ? null : 'eot';
+          const until = e.duration === 'permanent' || e.duration === 'nextTurn' || e.duration === 'nextUpkeepEnd' || whileHere ? null : 'eot';
           let eff = e.eff || {};
+          // Halfdane: "until the end of your next upkeep" (untilUpkeepEndOf)
+          if (e.duration === 'nextUpkeepEnd') eff = Object.assign({}, eff, { untilUpkeepEndOf: ctx.controller, setTurn: this.turn });
           // Destiny Spinner: "an X/X …, where X is the number of enchantments you control" — counted as it resolves
           if (e.ptX) { const k = Math.max(0, n(e.ptX)); eff = Object.assign({}, eff, { setPt: { p: k, t: k } }); }
           // Arni Brokenbrow: "base power become 1 plus …" — the power only (powerX)

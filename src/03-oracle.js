@@ -6992,6 +6992,11 @@
        equal to Sita Varma's power until end of turn." — both its power */
     { re: /^(?:Then )?(?:you may )?have the base power and toughness of each other creature you control become equal to (?:CARDNAME|this creature)'s power until end of turn\.?$/i,
       make: () => ({ op: 'may', then: [{ op: 'setBaseAll', p: 'srcPower', t: 'srcPower', other: true }] }) },
+    /* Halfdane: "Halfdane's base power and toughness become equal to the power and toughness of target creature other
+       than Halfdane until the end of your next upkeep." — its numbers as this resolves (becomes, ofTarget; nextUpkeepEnd) */
+    { re: /^CARDNAME'?s base power and toughness become equal to the power and toughness of target creature other than CARDNAME until the end of your next upkeep\.?$/i,
+      make: () => ({ op: 'becomes', scope: 'self', duration: 'nextUpkeepEnd', eff: {}, targets: [Object.assign(targetSpec('target creature'), { another: true })],
+        powerX: { ofTarget: 'power' }, toughnessX: { ofTarget: 'toughness' } }) },
     /* Galion, Elvenking's Butler: "Its base power and toughness become equal to Galion's power and toughness until end
        of turn." — the one just chosen, its numbers as this resolves (becomes, powerX, toughnessX) */
     { re: /^Its base power and toughness become equal to CARDNAME'?s power and toughness until end of turn\.?$/i,
@@ -15435,7 +15440,8 @@
     // Helmut Zemo, Mastermind: "If you cast a spell this way, put a +1/+1 counter on Helmut Zemo." (castThisWay)
     [/^you cast a spell this way$/i, () => ({ kind: 'castThisWay' })],
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
-    [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
+    // (Count Nefaria: "if you've sacrificed a permanent this turn")
+    [/^you(?:'ve)? sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
     // Lord Jyscal Guado: "you put a counter on a creature this turn" (counterPutter)
     [/^you put (?:a|one or more) counters? on a creature this turn$/i, () => ({ kind: 'youPutCounterOnCreature' })],
@@ -19931,7 +19937,8 @@
         sc.keywordAny = m[1].split(',').map(x => x.trim().toLowerCase()).filter(Boolean).concat(m[2].toLowerCase());
         rest = rest.slice(0, m.index);
       // (Skrelv's Hive: "creatures you control with toxic")
-      } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed|toxic|infect|flash|ward)$/i))) {
+      // (Telim'Tor: "all attacking creatures with flanking")
+      } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed|toxic|infect|flash|ward|flanking)$/i))) {
         if (/^without/i.test(m[1])) sc.withoutKeyword = m[2].toLowerCase(); else sc.keyword = m[2].toLowerCase();
         rest = rest.slice(0, m.index);
       }

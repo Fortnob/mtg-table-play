@@ -64377,4 +64377,78 @@ module.exports = (test) => {
     T.activate('A', te, 0, { targets: [bear] });
     t.zone(bear, 'graveyard', 'Tetsuo: the blocking Bears destroyed');
   });
+  test("Commanders: Telim'Tor — attacks: all attacking creatures with flanking get +1/+1", (mk, t) => {
+    t.auto("Telim'Tor");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const tt = T.bf('A', "Telim'Tor"), la = T.bf('A', "Suq'Ata Lancer"), bear = T.bf('A', 'Grizzly Bears'), home = T.bf('A', "Suq'Ata Lancer");
+    for (const x of [tt, la, bear, home]) x.summoningSick = false;
+    T.answer('declareAttackers', () => [tt, la, bear].map(x => ({ attackerId: x.id, defenderId: 'B' })));
+    T.toMain('A', 'declareBlockers');
+    t.eq(g.powerOf(tt), 3, "Telim'Tor: himself, +1/+1");
+    t.eq(g.powerOf(la), 3, "Telim'Tor: the attacking Lancer, +1/+1");
+    t.eq(g.powerOf(bear), 2, "Telim'Tor: not the Bears, without flanking");
+    t.eq(g.powerOf(home), 2, "Telim'Tor: not the Lancer at home");
+  });
+  test("Commanders: Count Nefaria — costs {3} less if you've sacrificed a permanent this turn", (mk, t) => {
+    t.auto('Count Nefaria');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const cn = T.hand('A', 'Count Nefaria');
+    const mf = T.bf('A', 'Mogg Fanatic'), foe = T.bf('B', 'Mogg Fanatic');
+    T.mana('A', '3B');
+    t.no(g.castSpell('A', cn.id, { auto: true }), 'Count Nefaria: four mana is not enough without a sacrifice');
+    // an opponent's sacrifice doesn't count
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    t.zone(foe, 'graveyard', "Count Nefaria: B sacrificed their Fanatic");
+    t.no(g.castSpell('A', cn.id, { auto: true }), "Count Nefaria: an opponent's sacrifice doesn't count");
+    T.activate('A', mf, 0, { targets: ['B'] });
+    t.zone(mf, 'graveyard', 'Count Nefaria: the Fanatic sacrificed');
+    T.cast('A', cn);
+    t.zone(cn, 'battlefield', 'Count Nefaria: cast for {3}{B}');
+  });
+  test("Commanders: Halfdane — each upkeep: his base power and toughness become another creature's until the end of your next upkeep", (mk, t) => {
+    t.auto('Halfdane');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const hd = T.bf('A', 'Halfdane');
+    const wurm = T.bf('B', 'Craw Wurm'), bear = T.bf('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.targets || ch.options || []).map(x => x.id); return { targets: [{ kind: 'object', id: wurm.id }] }; });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(offered && !offered.includes(hd.id), 'Halfdane: not himself');
+    t.eq(g.powerOf(hd), 6, "Halfdane: the Wurm's 6/4");
+    t.eq(g.toughnessOf(hd), 4, 'Halfdane: toughness 4');
+    hd.counters['+1/+1'] = 1; hd._chr = null;
+    t.eq(g.powerOf(hd), 7, 'Halfdane: counters still count on top');
+    hd.counters['+1/+1'] = 0; hd._chr = null;
+    T.nextTurn('B');
+    t.eq(g.powerOf(hd), 6, "Halfdane: still 6/4 on B's turn");
+    // next upkeep: it lasts to the end of that upkeep, then the new one (the Bears) takes over
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.nextTurn('A');
+    t.eq(g.powerOf(hd), 2, "Halfdane: the Bears' 2/2 after the next upkeep");
+    t.eq(g.toughnessOf(hd), 2, 'Halfdane: toughness 2');
+    t.eq(hd.effects.filter(x => x.untilUpkeepEndOf).length, 1, 'Halfdane: the old one gone');
+  });
+  test("Commanders: Bartel Runeaxe — can't be the target of Aura spells", (mk, t) => {
+    t.auto('Bartel Runeaxe');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const br = T.bf('A', 'Bartel Runeaxe'), bear = T.bf('A', 'Grizzly Bears');
+    t.ok(g.hasKw(br, 'vigilance'), 'Bartel: vigilance');
+    T.mana('A', 'W');
+    const hs = T.hand('A', 'Holy Strength');
+    t.no(g.castSpell('A', hs.id, { targets: [{ kind: 'object', id: br.id }], auto: true }), "Bartel: an Aura spell can't target him");
+    T.cast('A', hs, { targets: [bear] });
+    t.eq(hs.attachedTo, bear.id, 'Bartel: the Aura goes on the Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [br] });
+    t.eq(br.damage, 3, 'Bartel: other spells can target him');
+  });
 };

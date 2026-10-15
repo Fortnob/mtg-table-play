@@ -4563,6 +4563,11 @@
         return { kind: 'stack', id: theirs[0].id };
       }
 
+      // Halfdane: its own size becomes the target's — the biggest creature anywhere (becomes, ofTarget)
+      if (effect && effect.op === 'becomes' && effect.powerX && effect.powerX.ofTarget && objs.length) {
+        const size = (o) => g.powerOf(o) + g.toughnessOf(o);
+        return { kind: 'object', id: objs.slice().sort((x, y) => size(y) - size(x))[0].id };
+      }
       if (harmful) {
         const theirs = objs.filter(o => o.controller !== this.pid);
         const opp = this.mainOpponent();
