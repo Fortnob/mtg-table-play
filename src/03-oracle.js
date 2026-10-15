@@ -1015,7 +1015,7 @@
       oracle_text: text, keywords: [], layout: 'emblem' });
     // standing rules the engine asks of a player's emblems as well as their permanents
     // (Tibalt, Cosmic Impostor: "You may play cards exiled with Tibalt …" — playExiledWithLink)
-    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty', 'playExiledWithLink'];
+    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty', 'playExiledWithLink', 'noPoison'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       // Ob Nixilis of the Black Oath: "an emblem with '{1}{B}, Sacrifice a creature: …'" — worked from the command zone
       (ab.kind === 'activated' && ab.fromCommandZone) ||
@@ -2156,6 +2156,9 @@
     // Immaculate Magistrate: "Put a +1/+1 counter on target creature for each Elf you control."
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (target creature(?: you control)?) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [targetSpec(m[2])] } : null; } },
+    // She-Hulk, Wallbreaker: "put a +1/+1 counter on that Hero for each creature blocking it" — counted as it resolves
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on (?:that (?:creature|[A-Z][a-z]+)|it) for each creature blocking it\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofTrigger: 'blockers' }, targets: null, scope: 'triggerObject' }) },
     // Geralf, the Fleshwright: "put a +1/+1 counter on it for each other Zombie that entered …" — "it" the trigger's, or the last one named
     { re: /^Put an? ([+\-0-9/a-z]+) counter on it for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: null, scope: 'lastTarget' } : null; } },
@@ -2321,6 +2324,12 @@
        enter, for as long as they stay (returnSelfFromGrave, enterRider) */
     { re: /^If (?:they were|it was) a creature, return (?:them|it|CARDNAME) to the battlefield\.?$/i,
       make: () => ({ op: 'returnSelfFromGrave', tapped: false, owner: true, ifWasCreature: true }) },
+    /* Fang, Roku's Companion: "if he wasn't a Spirit, return this card to the battlefield under your control. He's a
+       Spirit in addition to his other types." — not when he went as a Spirit (ifWasNot); a Spirit as he enters (enterRider) */
+    { re: /^If (?:he|she|it) (?:wasn'?t|was not) an? ([A-Z][a-z]+), return (?:this card|CARDNAME|it|him|her) to the battlefield under your control\.?$/,
+      make: (m) => ({ op: 'returnSelfFromGrave', tapped: false, ifWasNot: m[1] }) },
+    { re: /^(?:He|She)'?s an? ([A-Z][a-z]+) in addition to (?:his|her) other types\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]] } }) },
     { re: /^(?:They'?re|It'?s) an? (artifact|enchantment|land)\.?$/i,
       make: (m) => ({ op: 'manual', enterRider: { setTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] } }) },
     /* Vraska, the Silencer: "It's a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color,"
@@ -7010,9 +7019,10 @@
     { re: /^(?:When you do, )?[Uu]ntil end of turn, gain control of (target [a-z ]+?) with power less than or equal to the amassed Army'?s power\.?$/,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'gainControl', until: 'eot', targets: [Object.assign(t, { maxPowerAmassed: true })] } : null; } },
     // Sire of Stagnation: "That player exiles the top two cards of their library and you draw two cards."
-    { re: /^(?:That player|They) exiles? the top (a|one|two|three|four|five|\d+) cards? of their library(?: and you draw (a|one|two|three|\d+) cards?)?\.?$/i,
-      make: (m) => (m[2] ? { op: 'sequence', list: [{ op: 'exileTop', n: num(m[1]), who: 'triggerPlayer' }, { op: 'draw', who: 'you', n: num(m[2]) }] }
-        : { op: 'exileTop', n: num(m[1]), who: 'triggerPlayer' }) },
+    // (Ian Malcolm, Chaotician: "that player exiles the top card of their library")
+    { re: /^(?:That player|They) exiles? the top (?:(a|one|two|three|four|five|\d+) )?cards? of their library(?: and you draw (a|one|two|three|\d+) cards?)?\.?$/i,
+      make: (m) => (m[2] ? { op: 'sequence', list: [{ op: 'exileTop', n: m[1] ? num(m[1]) : 1, who: 'triggerPlayer' }, { op: 'draw', who: 'you', n: num(m[2]) }] }
+        : { op: 'exileTop', n: m[1] ? num(m[1]) : 1, who: 'triggerPlayer' }) },
     // Persistent Constrictor: "They lose 1 life and you put a -1/-1 counter on up to one target creature they control."
     { re: /^(?:They|That player) loses? (\d+) life and you put an? ([+-]\d\/[+-]\d) counter on up to one target creature (?:they|that player) controls?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'loseLife', who: 'triggerPlayer', n: +m[1] },
@@ -10925,6 +10935,14 @@
     // Eldrazi Monument: "Sacrifice a creature. If you can't, sacrifice this artifact."
     { re: /^Sacrifice an? (creature|artifact|land|permanent)\. If you can'?t, sacrifice (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
       make: (m) => [{ op: 'sacOrSelf', filter: m[1].toLowerCase() }] },
+    /* Egon, God of Death: "exile two cards from your graveyard. If you can't, sacrifice Egon and draw a card." — not a
+       choice: done when there are enough (mayPay noAsk), and with fewer none go (exileGrave) */
+    { re: /^Exile (a|an|one|two|three|four|five) ([a-z ]*?)cards? from your graveyard\. If you can'?t, (.+)$/i,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences(m[3].charAt(0).toUpperCase() + m[3].slice(1)));
+        return rest.auto && rest.effects.length ? [{ op: 'mayPay', noAsk: true, pay: { exileGrave: { n: num(m[1]), filter: m[2].trim().toLowerCase() || 'card' } },
+          then: [], otherwise: rest.effects }] : null;
+      } },
     /* Tezzeret, Cruel Captain: "Untap target artifact or creature. If it's
        an artifact creature, put a +1/+1 counter on it." — the target */
     { re: /^Untap (target (?:artifact or creature|creature|artifact|permanent))\. If it'?s an? (artifact creature|creature|artifact), put a \+1\/\+1 counter on it\.?$/i,
@@ -14576,6 +14594,8 @@
     { re: /^Whenever one or more creatures you control fight or become blocked,? /i, event: 'creatureFights', also: 'becomesBlocked',
       filt: () => ({ who: 'you', words: 'creature', batch: true }) },
     { re: /^When(?:ever)? a creature you control becomes blocked,? /i, event: 'becomesBlocked', filt: () => ({ who: 'you', words: 'creature' }) },
+    // She-Hulk, Wallbreaker: "Whenever a Hero you control becomes blocked"
+    { re: /^When(?:ever)? an? ([A-Z][a-z]+) you control becomes blocked,? /, event: 'becomesBlocked', filt: (m) => ({ who: 'you', words: m[1].toLowerCase() }) },
     { re: /^When(?:ever)? an opponent casts their second spell each turn(?:,| )/i, event: 'opponentSecondSpell' },
     { re: /^At the beginning of your next end step(?:,| )/i, event: 'yourEndStep' },
     { re: /^At the beginning of the next end step(?:,| )/i, event: 'eachEndStep' },
@@ -17918,6 +17938,13 @@
         const k = m[2].toLowerCase();
         return scope && kwKnown(k) ? { op: 'continuous', layer: 6, scope, lose: [k[0].toUpperCase() + k.slice(1)], cantHave: [k] } : null;
       } },
+    // Melira, Sylvok Outcast: "Creatures your opponents control lose infect." — a later grant still gives it back (CR 613.7)
+    { re: /^(Creatures your opponents control|Creatures you control|All creatures|Other creatures) lose ([a-z]+)\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(/^All creatures$/i.test(m[1]) ? 'creatures' : m[1]);
+        const k = m[2].toLowerCase();
+        return scope && kwKnown(k) ? { op: 'continuous', layer: 6, scope, lose: [k[0].toUpperCase() + k.slice(1)] } : null;
+      } },
     // Maha: "Creatures your opponents control have base toughness 1."
     { re: /^(.+?) (?:have|has) base toughness (\d+)\.?$/i,
       make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 7, scope, setPt: { t: +m[2] } } : null; } },
@@ -18841,7 +18868,7 @@
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
-    'evasion', 'attackRequires', 'blockPowerLimit', 'toughnessDamage', 'drawDouble', 'cantBeCountered', 'noMaxHandSize', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
+    'evasion', 'attackRequires', 'blockPowerLimit', 'toughnessDamage', 'drawDouble', 'cantBeCountered', 'noMaxHandSize', 'noPoison', 'noLegendRule', 'preventSomeFromColor', 'goadAttached', 'peekTop', 'optionalUntap',
     'blocksExtra',
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
@@ -20154,6 +20181,8 @@
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,
         make: (m) => ({ op: 'sacUnlessControl', what: m[1].toLowerCase() }), auto: true },
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
+      // Melira, Sylvok Outcast: "You can't get poison counters." (noPoison)
+      { re: /^You can'?t get poison counters\.?$/i, eff: { op: 'noPoison' }, auto: true },
       { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+)\} less to activate for each colou?r of the creature it targets\.?$/i,
         make: (m) => ({ op: 'equip', cost: m[1], perTargetColor: +m[2] }), auto: true },
       /* Crown of Gondor, Plate Armor, Belt of Giant Strength: "Equip {4}. This
@@ -20711,6 +20740,10 @@
          they had flash. Mana of any type can be spent to cast those spells." (exiledWith, flash, anyMana) */
       { re: /^During your turn, you may cast cards exiled with CARDNAME and you may cast them as though they had flash\. Mana of any type can be spent to cast those spells\.?$/,
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell', duringYourTurn: true, flash: true, anyMana: true }, auto: true },
+      /* Ian Malcolm, Chaotician: "During each player's turn, that player may cast a spell from among the cards they don't own
+         exiled with Ian Malcolm, and mana of any type can be spent to cast it." — anybody's leave, on their own turn (anyPlayer) */
+      { re: /^During each player's turn, that player may cast a spell from among the cards they don'?t own exiled with CARDNAME, and mana of any type can be spent to cast it\.?$/,
+        eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell', anyPlayer: true, duringYourTurn: true, notOwned: true, anyMana: true }, auto: true },
       /* Tinybones, Bauble Burglar: "During your turn, you may play cards you don't own with stash counters on them
          from exile, and mana of any type can be spent to cast those spells." (exiledCounter) */
       { re: /^During your turn, you may play cards you don'?t own with ([a-z]+) counters on them from exile, and mana of any type can be spent to cast those spells\.?$/i,

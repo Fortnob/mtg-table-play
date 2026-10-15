@@ -3343,7 +3343,9 @@
         (o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn))) ||
         // Valgavoth, Terror Eater: "During your turn, you may play cards exiled with Valgavoth."
         // (Tinybones, Bauble Burglar: "cards you don't own with stash counters on them" — exiledCounter)
-        !!this._playFromRule(playerId, o, 'any');
+        !!this._playFromRule(playerId, o, 'any') ||
+        // (Ian Malcolm, Chaotician: "may cast a spell from among the cards …" — a leave for spells only)
+        (!(o.analysis() || {}).isLand && !!this._playFromRule(playerId, o, 'spell'));
     }
     /** Cards in other players' exile that this player may play. */
     _borrowedExile(playerId) {
@@ -4976,7 +4978,7 @@
         if (ef) return ef;
       }
       for (const src of this.battlefield) {
-        if (src.controller !== playerId || src.phasedOut) continue;
+        if (src.phasedOut) continue;
         const a = src.analysis();
         if (!a) continue;
         for (const ab of a.abilities) {
@@ -4984,6 +4986,10 @@
             if (ef.op !== 'playFrom' && ef.op !== 'playFromTop') continue;
             // (a card's words about itself on top of the library say nothing on the battlefield)
             if (ef.self) continue;
+            // Ian Malcolm, Chaotician: "During each player's turn, that player may cast …" — anybody's leave (anyPlayer)
+            if (src.controller !== playerId && !ef.anyPlayer) continue;
+            // ("from among the cards they don't own exiled with Ian Malcolm")
+            if (ef.notOwned && ef.zone === 'exiledWith' && o.owner === playerId) continue;
             if (ef.zone === 'exiledCounter') {
               if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId) || (ef.owned && o.owner !== playerId)) continue;
               // Haldan, Avid Arcanist: "cards you exiled" (exiledByYou)
@@ -7531,6 +7537,11 @@
       // life can be paid only with that much life to pay (CR 119.4)
       if (life && caster.life < life) {
         this.logEvent('ward', `${name} is countered by ${o.name}'s ward \u2014 ${caster.name} can't pay ${life} life.`);
+        return false;
+      }
+      // (Melira, Sylvok Outcast: "You can't get poison counters." — nor pay them, CR 118.3)
+      if (w.poison && this._anyStaticOf(pid, 'noPoison')) {
+        this.logEvent('ward', `${name} is countered by ${o.name}'s ward — ${caster.name} can't get poison counters.`);
         return false;
       }
       // Axebane Ferox: "Ward—Collect evidence 4" — the biggest cards first, so as few go as can
@@ -14898,6 +14909,8 @@
     }
 
     addPoison(p, n, by) {
+      // Melira, Sylvok Outcast: "You can't get poison counters." (noPoison; not a count changed by hand)
+      if (n > 0 && by !== undefined && this._anyStaticOf(p.id, 'noPoison')) return;
       // poison counters someone puts (an effect, infect damage) can be replaced
       if (by && n > 0) {
         const ev = this._replace({ kind: 'counters', player: p, n, counter: 'poison', controller: p.id, putter: by });
@@ -15214,6 +15227,9 @@
         o._lastKeywords = lc && lc.keywords ? [...lc.keywords] : [];
         // Éowyn, Fearless Knight: "each of that creature's colors" after it has gone
         o._lastColors = ((was || {}).colors || []).slice();
+        // Fang, Roku's Companion: "if he wasn't a Spirit" after he has gone — his subtypes as he left
+        o._lastSubtypes = ((was || {}).subtypes || []).slice();
+        o._lastChangeling = !!(lc && lc.keywords && [...lc.keywords].some(k => String(k).toLowerCase() === 'changeling'));
         // Sarkhan, Soul Aflame: "become a copy of it" after it has gone — its copiable values as it last was
         o._lkiCard = { card: o.card, face: o.face || 0 };
         // Barrin, Tolarian Archmage: a permanent put into its owner's hand this turn (bouncedToHand)
@@ -17744,6 +17760,8 @@
           // Shadowheart: "that creature" is the one sacrificed to pay for it
           if (!o) return (((ctx.sacrificed || [])[0] || {})[v.ofTrigger]) || 0;
           const gone = o.zone !== 'battlefield' && o._lastPower != null;
+          // She-Hulk, Wallbreaker: "for each creature blocking it" — as it resolves (blockers)
+          if (v.ofTrigger === 'blockers') return gone ? 0 : (o.blockedBy || []).length;
           if (v.ofTrigger === 'power') return gone ? o._lastPower : this.powerOf(o);
           // Ramos, Dragon Engine: "for each of that spell's colors" (spellColorCount)
           if (v.ofTrigger === 'colorCount') return ((o.analysis() || {}).colors || []).length;
@@ -21125,7 +21143,7 @@
               }
               if (mine && !this._lastProliferated.includes(x.id)) this._lastProliferated.push(x.id);
             }
-            for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller) { p.poison++; n2++; }
+            for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller && !this._anyStaticOf(p.id, 'noPoison')) { p.poison++; n2++; }
             // your own energy and experience, and opponents' rad counters
             if ((me.energy || 0) > 0) { me.energy++; n2++; }
             if ((me.experience || 0) > 0) { me.experience++; n2++; }
@@ -23964,7 +23982,7 @@
         }
         // Aetheric Amplifier: every kind of counter a player has, doubled
         case 'doublePlayerCounters': {
-          if ((me.poison || 0) > 0) this.addPoison(me, me.poison);
+          if ((me.poison || 0) > 0) this.addPoison(me, me.poison, null);
           for (const k of ['energy', 'experience', 'rad', 'ticket']) if ((Number(me[k]) || 0) > 0) me[k] = Number(me[k]) * 2;
           this.logEvent('counters', `${me.name} doubles their counters.`);
           break;
@@ -26872,6 +26890,8 @@
           if (!x || x.zone !== (e.fromZone || 'graveyard')) break;
           // Tom, Bert, and William: "if they were a creature" — as they left (ifWasCreature)
           if (e.ifWasCreature && !x._leftAsCreature) break;
+          // Fang, Roku's Companion: "if he wasn't a Spirit" — as he left (ifWasNot)
+          if (e.ifWasNot && ((x._lastSubtypes || []).includes(e.ifWasNot) || x._lastChangeling)) break;
           // "return it to the battlefield transformed": the back face arrives
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
           // (Tom, Bert, and William: "They're an artifact." — what it is as it enters: enterEff)
