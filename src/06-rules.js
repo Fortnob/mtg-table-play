@@ -19340,7 +19340,8 @@
         if (v && typeof v === 'object' && v.ofSelf) {
           if (!src) return 0;
           const gone = src.zone !== 'battlefield' && src._lastPower != null;
-          if (v.ofSelf === 'power') return gone ? src._lastPower : this.powerOf(src);
+          // (Duggan, Private Detective: "twice its power" — mult)
+          if (v.ofSelf === 'power') return (gone ? src._lastPower : this.powerOf(src)) * (v.mult || 1);
           if (v.ofSelf === 'loyalty') return Number((src.counters || {}).loyalty) || 0;
           // Curie, Emergent Intelligence: "its base power" — as it last existed, once gone
           if (v.ofSelf === 'basePower') return src.zone !== 'battlefield' && src._lastBasePower != null ? src._lastBasePower : ((this.characteristics(src) || {}).basePower || 0);
@@ -28537,8 +28538,17 @@
         case 'returnTriggerCard': {
           const td = ctx.triggerData || {};
           // what this resolution just exiled comes first ("Exile target creature. Return it …")
-          let x = !e.triggerOnly && this._lastExiled && this.obj(this._lastExiled);
+          let x = !e.triggerOnly && !e.oneOfBatch && this._lastExiled && this.obj(this._lastExiled);
           if (!x || x.zone !== 'exile') x = td.objectId && this.obj(td.objectId);
+          // Rinoa, Angel Wing: "return one of them" — one card of the lot that died, still in the graveyard (oneOfBatch)
+          if (e.oneOfBatch) {
+            const pool = (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard' && !c.isToken);
+            if (!pool.length) break;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'returnOneOfBatch', kind: 'objects', zone: 'graveyard',
+              items: this._chooseItems(pool), min: 1, max: 1, prompt: 'Return one of them to the battlefield.' }, 'rob');
+            if (got === SUSPEND) return SUSPEND;
+            x = ((got && got.picks) || []).map(id => this.obj(id)).find(c => c && pool.includes(c));
+          }
           if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
           // Tergrid, God of Fright: "from a graveyard" — not from exile (sacOrDiscardAny)
           if (e.fromGrave && x.zone !== 'graveyard') break;

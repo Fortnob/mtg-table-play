@@ -1700,9 +1700,10 @@
       make: (m) => { const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1); return inner && inner.op === 'createToken' && !inner.who ? Object.assign(inner, { who: 'triggerObjController' }) : null; } },
     // Sokka, Swordmaster: "attach up to one target Equipment you control to CARDNAME" (attachTargetToSelf)
     // (Amy Rose: "attach up to one target Equipment to her" — anybody's)
-    { re: /^Attach (up to one )?target Equipment( you control)? to (?:CARDNAME|it|this creature|him|her)\.?$/i,
-      make: (m) => Object.assign({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', filter: 'Equipment', subtypes: ['equipment'] },
-        m[2] ? { controller: 'you', filter: 'Equipment you control' } : {}, m[1] ? { upTo: true } : {})] }, m[2] ? {} : { anyController: true }) },
+    // (Frodo, Determined Hero: "attach target Equipment you control with mana value 2 or 3 to Frodo" — the with clause read by targetSpec)
+    { re: /^Attach (up to one )?target Equipment( you control)?( with mana value \d+ or (?:less|greater|\d+))? to (?:CARDNAME|it|this creature|him|her)\.?$/i,
+      make: (m) => m[3] && !m[2] ? null : Object.assign({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', filter: 'Equipment', subtypes: ['equipment'] },
+        m[2] ? { controller: 'you', filter: 'Equipment you control' } : {}, m[3] ? targetSpec('target Equipment you control' + m[3]) : {}, m[1] ? { upTo: true } : {})] }, m[2] ? {} : { anyController: true }) },
     // Amy Rose: "Then up to one other target attacking creature gets +X/+0 until end of turn, where X is Amy Rose's power."
     { re: /^(?:Then )?up to one other target attacking creature gets \+X\/\+0 until end of turn, where X is (?:CARDNAME|this creature)'?s power\.?$/i,
       make: () => ({ op: 'pump', p: { ofSelf: 'power' }, t: 0, duration: 'eot',
@@ -2336,6 +2337,9 @@
     // Punishing Punch: "deals damage equal to twice its power to target creature an opponent controls"
     { re: /^Target creature you control deals damage equal to twice its power to (target creature(?: or planeswalker)?(?: you don'?t control| an opponent controls)?)\.?$/i,
       make: (m) => ({ op: 'bite', mult: 2, targets: [{ type: 'creature', controller: 'you' }, targetSpec(m[1])] }) },
+    // Duggan, Private Detective: "Duggan deals damage equal to twice its power to another target creature." (ofSelf power, mult)
+    { re: /^CARDNAME deals damage equal to twice (?:its|CARDNAME'?s|his|her) power to ((?:another )?target creature(?: or planeswalker)?|any (?:other )?target)\.?$/i,
+      make: (m) => ({ op: 'damage', n: { ofSelf: 'power', mult: 2 }, targets: [targetSpec(m[1])] }) },
     // Engulfing Flames: "It can't be regenerated this turn."
     { re: /^(?:It|That creature) can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', scope: 'lastTarget' }) },
     // Pain Distributor: "they create a Treasure token"
@@ -7164,8 +7168,8 @@
        deck builder reads it, the table has nothing to do. */
     { re: /^CARDNAME can be your commander\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^A deck can have (?:any number of|up to (?:seven|nine|\d+)) cards named CARDNAME\.?$/i, make: () => ({ op: 'noop' }) },
-    /* The Leylines: free, if you drew one (CR 103.6). */
-    { re: /^If (?:CARDNAME|this card) is in your opening hand, you may begin the game with it on the battlefield\.?$/i,
+    /* The Leylines: free, if you drew one (CR 103.6). (Quicksilver, Brash Blur: "with him on the battlefield") */
+    { re: /^If (?:CARDNAME|this card) is in your opening hand, you may begin the game with (?:it|him|her|them) on the battlefield\.?$/i,
       make: () => ({ op: 'leyline' }) },
     { re: /^Play with the top card of your library revealed\.?$/i,
       make: () => ({ op: 'peekTop', revealed: true }) },
@@ -7432,8 +7436,9 @@
     /* Luminous Broodmoth: "Whenever a creature … dies, return it to the
        battlefield under its owner's control with a flying counter on it" —
        the card the trigger is about, back from where it went */
-    { re: /^Return (?:it|that card) to the battlefield( tapped)? under (its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)?\.?$/i,
-      make: (m) => Object.assign({ op: 'returnTriggerCard', yours: /your/i.test(m[2]) }, m[1] ? { tapped: true } : {}, m[3] ? { counter: m[4].toLowerCase() } : {}) },
+    // (Rinoa, Angel Wing: "return one of them to the battlefield tapped under its owner's control with a flying counter on it" — of the lot that died: oneOfBatch)
+    { re: /^Return (?:it|that card|(one of them)) to the battlefield( tapped)? under (its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'returnTriggerCard', yours: /your/i.test(m[3]) }, m[1] ? { oneOfBatch: true } : {}, m[2] ? { tapped: true } : {}, m[4] ? { counter: m[5].toLowerCase() } : {}) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
@@ -9541,6 +9546,9 @@
     if (pog) spec.minPowerOrToughness = +pog[1];
     const mx = p.match(/with (?:mana value|converted mana cost) (\d+)$/);
     if (mx) spec.mv = +mx[1];
+    // Frodo, Determined Hero: "target Equipment you control with mana value 2 or 3" — two values in a row, a range
+    const mor = p.match(/with (?:mana value|converted mana cost) (\d+) or (\d+)$/);
+    if (mor && +mor[2] === +mor[1] + 1) { spec.minMv = +mor[1]; spec.maxMv = +mor[2]; }
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
       spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withKeywordAny || spec.withoutKeyword || spec.withCounter || spec.withoutCounter || spec.withAnyCounter || spec.noCounters ||
@@ -9552,7 +9560,7 @@
        and copy it" is more than the mana value */
     if (withClause && known) {
       let left = withClause.toLowerCase();
-      for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more))?/g,
+      for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more|\d+))?/g,
         /with power (?:\d+|x) or (?:less|greater|more)/g, /with toughness \d+ or (?:less|greater|more)/g,
         new RegExp('with (?:' + KW + ') or (?:' + KW + ')\\b', 'g'), new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with(?:out)? an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
         /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
@@ -13696,7 +13704,8 @@
     // (Spider-Man India: "Pavitr's Sevā — …" — a letter with a mark on it: abilityWordAccent)
     // (The Ancient One: "Descend 8 \u2014 \u2026" \u2014 a number after the word)
     // (Captain America, First Avenger: "... Catch — At the beginning of combat …" — a label that starts with an ellipsis)
-    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.,' -]{2,30}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Duggan, Private Detective: "The Most Important Punch in History — {1}{G}, {T}: …" — 35 letters long)
+    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.,' -]{2,40}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -15071,8 +15080,8 @@
     { re: /^Whenever a goaded attacking or blocking creature dies,? /i, event: 'permDies', filt: () => ({ words: 'creature', wasGoaded: true, wasInCombat: true }) },
     // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
     { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
-    // Éomer, Marshal of Rohan: "Whenever one or more other attacking legendary creatures you control die" (wasAttacking, batch)
-    { re: /^Whenever (one or more other|one or more|another) attacking ([a-z ]+?creatures?) you control (?:dies|die),? /i, event: 'permDies',
+    // Éomer, Marshal of Rohan: "Whenever one or more other attacking legendary creatures you control die" (wasAttacking, batch) (Rinoa, Angel Wing: "one or more attacking creatures you control die")
+    { re: /^Whenever (one or more other|one or more|another) attacking ([a-z ]*?creatures?) you control (?:dies|die),? /i, event: 'permDies',
       filt: (m) => { const f = subjectFilter(m[1] + ' ' + m[2] + ' you control'); return f && Object.assign(f, { wasAttacking: true }); } },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
     { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
@@ -16159,6 +16168,9 @@
     // Francisco, Fowl Marauder: "Whenever one or more Pirates you control deal damage to a player" — a lot for each player hit (batchPerPlayer)
     { re: new RegExp('^Whenever (one or more [A-Za-z ]+? you control) deal damage to a player,? ', 'i'), event: 'yourSourceDamagesPlayer',
       filt: (m) => subjectFilter(m[1]), extra: { batchPerPlayer: true } },
+    // Syr Carah, the Bold: "Whenever Syr Carah or an instant or sorcery spell you control deals damage to a player" (selfOk)
+    { re: /^Whenever (?:CARDNAME|this creature) or an instant or sorcery spell you control deals damage to a player,? /i, event: 'yourSourceDamagesPlayer',
+      filt: () => ({ words: 'instant or sorcery', selfOk: true }) },
     // Dragonborn Champion: "Whenever a source you control deals 5 or more damage to a player" — you too (minAmount)
     { re: /^When(?:ever)? a source you control deals (\d+) or more damage to a player,? /i, event: 'yourSourceDamagesPlayer',
       extraOf: (m) => ({ minAmount: +m[1] }) },
