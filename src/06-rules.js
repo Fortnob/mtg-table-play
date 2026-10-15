@@ -5065,7 +5065,8 @@
          Iona: "Your opponents can't cast spells of the chosen color" */
       for (const s0 of this.battlefield) {
         if (s0.phasedOut) continue;
-        if (this._staticOp(s0, 'nameLockSpells') && this._chosenNameOf(s0, o)) return { ok: false, reason: `${s0.name}: spells named ${s0.chosenName} can't be cast.` };
+        // (Alhammarret, High Arbiter: "Your opponents can't cast spells with the chosen name" — oppsOnly)
+        if (this._staticOp(s0, 'nameLockSpells') && this._chosenNameOf(s0, o) && !(this._staticOp(s0, 'nameLockSpells').oppsOnly && s0.controller === playerId)) return { ok: false, reason: `${s0.name}: spells named ${s0.chosenName} can't be cast.` };
         if (this._staticOp(s0, 'colorLockSpells') && s0.chosenColor && s0.controller !== playerId && (a.colors || []).includes(s0.chosenColor))
           return { ok: false, reason: `${s0.name}: spells of that colour can't be cast.` };
         // Circu, Dimir Lobotomist: "Your opponents can't cast spells with the same name as a card exiled with Circu."
@@ -9512,7 +9513,25 @@
       if (!p) return;
       let values = [], labels = [], field = 'chosenName';
       let named = [];
-      if (rule.what === 'name') {
+      /* Alhammarret, High Arbiter: "each opponent reveals their hand. You choose the name of a nonland card revealed
+         this way" — only those names; none revealed, none chosen (oppHands) */
+      if (rule.what === 'name' && rule.oppHands) {
+        const opps = this.opponentsOf(p.id).filter(q => !q.hasLost);
+        const seen = new Map();
+        for (const q of opps) {
+          const hand = (this.zones[q.id] || {}).hand || [];
+          this._knowHand(q.id, '*');
+          this.logEvent('reveal', `${q.name} reveals their hand: ${hand.map(c => c.name).join(', ') || 'no cards'}.`);
+          for (const c of hand) {
+            const ca = c.analysis();
+            if (!ca || ca.isLand) continue;
+            const k = c.card ? c.card.name : c.name;
+            seen.set(k, Math.max(seen.get(k) || 0, (c.card && c.card.cmc) || 0));
+          }
+        }
+        values = [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(x => x[0]);
+        labels = values.slice();
+      } else if (rule.what === 'name') {
         // Sorcerous Spyglass: "look at an opponent's hand, then choose any card name" — the next opponent's (look)
         if (rule.look) {
           const opp = this.opponentsOf(p.id).find(q => !q.hasLost);
@@ -9595,7 +9614,7 @@
       }
       /* a name: any card's may be typed in, so a person is always asked, even with nothing in sight to offer
          (nameAny, saying what the card must be) */
-      const nameAny = rule.what === 'name' && !p.isBot ? (rule.nonland ? { nonland: true } : {}) : null;
+      const nameAny = rule.what === 'name' && !rule.oppHands && !p.isBot ? (rule.nonland ? { nonland: true } : {}) : null;
       if (!values.length && !nameAny) return;
       if (values.length) {
         o[field] = values[0];
@@ -17914,6 +17933,8 @@
           if (ab.self && !data.source) continue;
           // Sosuke, Son of Seshiro: "a Warrior you control deals combat damage" — the source one of this player's, of that type (dmgSourceYourType)
           if (ab.dmgSourceYourType && !(data.source && data.source.controller === o.controller && this._hasCreatureType(data.source, ab.dmgSourceYourType))) continue;
+          // Spider-Slayer, Hatred Honed: "deals damage to a Spider" — the creature hit of that type (hitType)
+          if (ab.hitType && !(data.object && this._hasCreatureType(data.object, ab.hitType))) continue;
           // "When this Class becomes level 3" is only that level
           if (ab.atLevel != null && data.level !== ab.atLevel) continue;
           // "whenever this attacks for the first time each turn"
@@ -24155,6 +24176,9 @@
              tapped" — all of them out, then all back together (tapped)
              (Don & Leo, Problem Solvers: "exile … Then return them" — the same, once each) */
           const out = list.filter((x, i) => x.zone === 'battlefield' && list.indexOf(x) === i);
+          /* The Neutrinos: "return it to the battlefield under your control tapped and attacking" — at whom the
+             creature that set it off attacks (asked before it leaves), during combat; never declared */
+          const atkDef = e.attacking ? ((src && src.attacking) || (this.opponentsOf(ctx.controller).find(p => !p.hasLost) || {}).id || null) : null;
           for (const x of out) { this.moveObject(x, 'exile'); this._lastExiled = x.id; }
           for (const x of out) {
             const back = this.obj(x.id) || x;
@@ -24162,6 +24186,8 @@
             const owner = to ? to.id : (back.owner || back.controller);
             this.moveObject(back, 'battlefield', Object.assign({ controller: owner }, e.tapped ? { tapped: true } : {}));
             if (e.tapped && back.zone === 'battlefield') back.tapped = true;
+            if (atkDef && back.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers
+              && !this.combat.attackers.includes(back.id)) { back.attacking = atkDef; this.combat.attackers.push(back.id); }
             this.logEvent('blink', to ? `${x.name} flickers out and returns under ${to.name}'s control.` : `${x.name} flickers out and returns${e.tapped ? ' tapped' : ''}.`);
           }
           this.emit('sfx', 'blink');
@@ -28882,6 +28908,8 @@
           const group = e.oneOf ? this._uid('ig') : null;
           // Gonti, Night Minister: "They may play that card" — the controller of the creature that hit
           const whoFor = e.who === 'objController' ? ((ctx.triggerData || {}).objController || null) : ctx.controller;
+          // (Kotose, the Silent Spider: "For as long as you control Kotose" — till it leaves or changes hands: impulseWhileSrc)
+          if (e.duration === 'whileControl' && !(src && src.zone === 'battlefield' && src.controller === ctx.controller)) break;
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile' || !whoFor) continue;
@@ -28892,7 +28920,8 @@
             const pid = e.who === 'owner' ? c.owner : whoFor;
             // Unlucky Witness: "Until your next end step" — this turn's, if it is theirs and still to come
             const nextEndNow = e.duration === 'nextEnd' && this.activePlayer && this.activePlayer.id === pid && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
-            const until = e.duration === 'eot' || nextEndNow ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(pid);
+            const until = e.duration === 'eot' || nextEndNow ? this.turn : e.duration === 'exiled' || e.duration === 'whileControl' ? 99999 : this._endOfNextTurnOf(pid);
+            if (e.duration === 'whileControl') c.impulseWhileSrc = src.id;
             // (a land "played without paying its mana cost" is simply played)
             if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; }
             else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; }
@@ -32861,6 +32890,20 @@
         }
         // Counterbore: every other card with that name — graveyard, hand, library — exiled, then a shuffle
         case 'exileNamedEverywhere': {
+          // (Kotose, the Silent Spider: "the same name as that card" — the card it just exiled, and its owner: ofExiled)
+          if (e.ofExiled) {
+            const x = this._lastExiled && this.obj(this._lastExiled);
+            const q = x && x.zone === 'exile' && this.player(x.owner);
+            if (!q) break;
+            const went = [x.id];
+            for (const zn of ['graveyard', 'hand', 'library']) {
+              for (const c of this.zones[q.id][zn].slice()) if (c.name === x.name) { this.moveObject(c, 'exile'); if (c.zone === 'exile') went.push(c.id); }
+            }
+            this.rng.shuffle(this.zones[q.id].library);
+            this._lastExiledList = went;
+            this.logEvent('exile', `${went.length - 1} more card${went.length === 2 ? '' : 's'} named ${x.name} exiled from ${q.name}'s graveyard, hand and library.`);
+            break;
+          }
           const la = this._lastCountered || this._lastAffected;
           const p = la && this.player(la.controller || la.owner);
           if (!p || !la.name) break;

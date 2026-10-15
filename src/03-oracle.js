@@ -2226,6 +2226,13 @@
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
     { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
       make: () => ({ op: 'exileNamedEverywhere' }) },
+    /* Kotose, the Silent Spider: "exile target card other than a basic land card from an opponent's graveyard. Search that
+       player's graveyard, hand, and library for any number of cards with the same name as that card and exile them."
+       — the card it just exiled (ofExiled) */
+    { re: /^Exile target card other than a basic land card from an opponent'?s graveyard\.?$/i,
+      make: () => ({ op: 'exile', targets: [{ type: 'permanent', filter: 'card other than a basic land card', zone: 'graveyard', controller: 'opponent', notBasicLand: true }] }) },
+    { re: /^Search that player'?s graveyard, hand, and library for any number of cards with the same name as that card and exile them\.?$/i,
+      make: () => ({ op: 'exileNamedEverywhere', ofExiled: true }) },
     { re: /^Then that player shuffles\.?$/i, make: () => ({ op: 'noop' }) },
     // Drizzt Do'Urden: "put a number of +1/+1 counters on Drizzt equal to the difference" — its power over his (triggerPowerOverSelf)
     { re: /^[Pp]ut (?:a number of \+1\/\+1 counters on (?:CARDNAME|[A-Z][a-z']+) equal to the difference|X \+1\/\+1 counters on (?:CARDNAME|[A-Z][a-z']+), where X is the difference)\.?$/,
@@ -5532,8 +5539,15 @@
       make: (m) => ({ op: 'loseLife', who: 'target', n: { ofLast: 'mv' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
 
     /* ===== blink, in the longer phrasings ===== */
-    { re: /^Exile (up to one )?((?:other |another )?target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
-      make: (m) => ({ op: 'blink', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
+    // (The Neutrinos: "…under your control tapped and attacking" — at whom it attacks: attacking)
+    { re: /^Exile (up to one )?((?:other |another )?target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control( tapped and attacking)?\.?$/i,
+      make: (m) => {
+        // (The Neutrinos: "target creature you own" — owner)
+        const own = / you own$/i.test(m[2]);
+        const spec = Object.assign(targetSpec(m[2].replace(/ you own$/i, '')), m[1] ? { upTo: true } : {}, own ? { owner: 'you', filter: 'creature you own' } : {});
+        if (own && spec.type !== 'creature') return null;
+        return Object.assign({ op: 'blink', targets: [spec] }, m[3] ? { tapped: true, attacking: true } : {});
+      } },
     /* Gandalf, Shadow's Foe: "exile up to three target lands you control, then return them to the battlefield tapped under
        their owner's control" — all out, then all back together (blink tapped) */
     { re: /^Exile up to (two|three|four|five) target ([a-z]+)s( you control)?, then return them to the battlefield( tapped)? under their owner'?s'? control\.?$/i,
@@ -7336,11 +7350,13 @@
        just exiled, playable as it says */
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
     // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
-    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|the exiled nonland card|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
+    // (Kotose, the Silent Spider: "For as long as you control Kotose, you may play one of the exiled cards" — whileControl)
+    { re: /^(?:(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn)|For as long as you control CARDNAME), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|the exiled nonland card|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|one of (?:those cards|them|the exiled cards)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
         if (/ may (?:play|cast) one of /i.test(m[0])) e.oneOf = true;
+        const whileCtl = /^For as long as you control /i.test(m[0]);
         // Ral, Leyline Prodigy: "You may cast instant and sorcery spells from among them" — only those (words)
         const kinds = m[0].match(/ may cast (instant and sorcery|instant|sorcery|creature|noncreature|artifact) spells from among /i);
         if (kinds) e.words = kinds[1].toLowerCase().replace(' and ', ' or ');
@@ -7349,7 +7365,7 @@
         if (/ may (?:play|cast) (?:that card|the exiled nonland card)\b/i.test(m[0])) e.thatCard = true;
         if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
         // (Unlucky Witness: "Until your next end step" — up to it, this turn's when it is still to come: nextEnd)
-        let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : /^your next end step$/i.test(m[1]) ? 'nextEnd' : 'next') : null;
+        let dur = whileCtl ? 'whileControl' : m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : /^your next end step$/i.test(m[1]) ? 'nextEnd' : 'next') : null;
         const take = (re, f) => { const x = rest.match(re); if (x) { rest = (rest.slice(0, x.index) + rest.slice(x.index + x[0].length)).trim(); f(x); } };
         take(/^,?\s*without paying (?:its|their) mana costs?/i, () => { e.free = true; });
         take(/^,?\s*this turn/i, () => { dur = 'eot'; });
@@ -7363,7 +7379,7 @@
           // no time given: during this resolution, for nothing (CR 608.2g) — the lands among them played then too
           return e.free && !e.oneOf ? Object.assign({ op: 'castFree' }, m[3] ? { lands: true } : {}, e.words ? { filter: e.words } : {}) : null;
         }
-        e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : dur === 'nextEnd' ? 'nextEnd' : 'nextTurn';
+        e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : dur === 'nextEnd' ? 'nextEnd' : dur === 'whileControl' ? 'whileControl' : 'nextTurn';
         return e;
       } },
     // Thancred Waters: "another target legendary permanent you control gains indestructible for as long as you control Thancred Waters"
@@ -8486,7 +8502,8 @@
           text: "Whenever you cast an instant or sorcery spell with mana value less than or equal to the power of the creature that made this emblem, copy that spell. You may choose new targets for the copy.",
           effects: [{ op: 'copyThatSpell' }] }] }) },
     // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
-    { re: /^(CARDNAME|This creature|Target creature(?: you control)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
+    // (Speed, Young Avenger: "target creature with haste can't be blocked this turn except by creatures with haste")
+    { re: /^(CARDNAME|This creature|Target creature(?: you control| with haste)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
       make: (m) => Object.assign({ op: 'restrict', flag: /haste/i.test(m[2]) ? 'exceptByHaste' : 'exceptByFlying' },
         /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : { scope: 'self' }) },
     // Wan Shi Tong: "Then draw half X cards, rounded down."
@@ -10126,6 +10143,8 @@
     if (spec.snow && !(a.supertypes || []).includes('Snow')) return false;
     if (spec.historic && !((a.supertypes || []).includes('Legendary') || a.isArtifact || (a.subtypes || []).includes('Saga'))) return false;
     if (spec.nonbasic && (a.supertypes || []).includes('Basic')) return false;
+    // (Kotose, the Silent Spider: "card other than a basic land card" — notBasicLand)
+    if (spec.notBasicLand && a.isLand && (a.supertypes || []).includes('Basic')) return false;
     if (spec.basic && !(a.supertypes || []).includes('Basic')) return false;
     if (spec.nonland && a.isLand) return false;
     // Tinybones, the Pickpocket: "target nonland permanent card" — off the battlefield, a card of a permanent type
@@ -16530,6 +16549,9 @@
        that creature": "that creature" is the one it hit */
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to a creature,? /i, event: 'dealsDamageToCreature', self: true,
       aboutObject: true, extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
+    // Spider-Slayer, Hatred Honed: "Whenever Spider-Slayer deals damage to a Spider," — a creature of that type (hitType)
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to an? ([A-Z][a-z]+),? /, event: 'dealsDamageToCreature', self: true,
+      aboutObject: true, extraOf: (m) => Object.assign({ hitType: m[2] }, m[1] ? { combatOnly: true } : {}) },
     // Sosuke, Son of Seshiro: "Whenever a Warrior you control deals combat damage to a creature," — the creature hit (dmgSourceYourType)
     // (Ohabi Caleria: "Whenever an Archer you control deals damage to a creature," — any damage)
     { re: /^Whenever an? ([A-Z][a-z]+) you control deals (combat )?damage to a creature,? /, event: 'dealsDamageToCreature',
@@ -17130,6 +17152,8 @@
     // (but not "you may have CARDNAME enter as a copy", "have CARDNAME deal 4 damage to them")
     // (Tui and La: "Whenever Tui and La become untapped, put a +1/+1 counter on them" — two of them, one card: pairBecome)
     if (/\bCARDNAME become (?:tapped|untapped)\b/.test(text)) text = text.replace(/\bCARDNAME become (tapped|untapped)\b/g, 'CARDNAME becomes $1').replace(/ counters? on them\./g, (x) => x.replace(/them\.$/, 'CARDNAME.'));
+    // (The Neutrinos: "The Neutrinos get +1/+0" — not "target creature and CARDNAME get")
+    text = text.replace(/(?<!\b(?:have|let|and) )\bCARDNAME get (?=[+-])/g, 'CARDNAME gets ');
     text = text.replace(/(?<!\b(?:have|let) )\bCARDNAME (enter|attack|block|die|deal)(?=[ ,.])/g, 'CARDNAME $1s')
       .replace(/\bCARDNAME (enters|attacks) or (attack|block|die)(?=[ ,.])/g, 'CARDNAME $1 or $2s');
     if (heldName) text = text.replace(/\u0001/g, heldName);
@@ -21362,6 +21386,10 @@
          or a number, chosen as it enters and kept on it */
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? (?:look at an opponent'?s hand, then )?choose (?:a|any) (nonland )?card name\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'name', nonland: !!m[1], look: /look at an opponent/i.test(m[0]) || undefined }), auto: true },
+      /* Alhammarret, High Arbiter: "As Alhammarret enters, each opponent reveals their hand. You choose the name of a
+         nonland card revealed this way." (oppHands) */
+      { re: /^As (?:CARDNAME|this creature) enters(?: the battlefield)?,? each opponent reveals their hand\. You choose the name of a nonland card revealed this way\.?$/i,
+        eff: { op: 'chooseOnEnter', what: 'name', nonland: true, oppHands: true }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose (a player|an opponent)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: /opponent/i.test(m[1]) ? 'opponent' : 'player' }), auto: true },
       // Gollum, Riddle Master: "As Gollum enters, choose odd or even." (chosenParity)
@@ -21420,6 +21448,8 @@
       { re: /^Activated abilities of sources with the chosen name can'?t be activated( unless they'?re mana abilities)?\.?$/i,
         make: (m) => ({ op: 'nameLockAbilities', manaOk: !!m[1] }), auto: true },
       { re: /^Spells with the chosen name can'?t be cast\.?$/i, eff: { op: 'nameLockSpells' }, auto: true },
+      // Alhammarret, High Arbiter: "Your opponents can't cast spells with the chosen name" (oppsOnly)
+      { re: /^Your opponents can'?t cast spells with the chosen name\.?$/i, eff: { op: 'nameLockSpells', oppsOnly: true }, auto: true },
       // Iona: "Your opponents can't cast spells of the chosen color."
       { re: /^Your opponents can'?t cast spells of the chosen colou?r\.?$/i, eff: { op: 'colorLockSpells' }, auto: true },
       // Circu, Dimir Lobotomist: "Your opponents can't cast spells with the same name as a card exiled with Circu." (exiledNameLock)
