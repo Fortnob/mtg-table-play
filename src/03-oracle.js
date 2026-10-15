@@ -3326,6 +3326,8 @@
     { re: /^Activate (?:this ability )?only during an opponent'?s turn\.?$/i, make: () => ({ op: 'activateOnly', when: 'opponentTurn' }) },
     // Desert: "Activate only during the end of combat step."
     { re: /^Activate (?:this ability )?only during the end of combat step\.?$/i, make: () => ({ op: 'activateOnly', when: 'endCombat' }) },
+    // General Jarkeld: "Activate only during the declare blockers step."
+    { re: /^Activate (?:this ability )?only during the declare blockers step\.?$/i, make: () => ({ op: 'activateOnly', when: 'declareBlockers' }) },
     // Angus Mackenzie: "Activate only before the combat damage step."
     { re: /^Activate (?:this ability )?only before the combat damage step\.?$/i, make: () => ({ op: 'activateOnly', when: 'beforeCombatDamage' }) },
     // Trap Runner: "Activate only during combat after blockers are declared."
@@ -3656,9 +3658,10 @@
         if (!eff || !eff.setPt) return null;
         return becomesSubject('it', eff, m[3] ? 'eot' : 'permanent');
       } },
-    /* Twisted Image: power and toughness switched (layer 7d) */
-    { re: /^Switch (target creature|CARDNAME|this creature|it)'s power and toughness until end of turn\.?$/i,
-      make: (m) => becomesSubject(m[1], { switchPt: true }, 'eot') },
+    /* Twisted Image: power and toughness switched (layer 7d); Mannichi, the Fevered Dream: "Switch each creature's
+       power and toughness until end of turn." — the creatures there as it resolves */
+    { re: /^Switch (target creature|CARDNAME|this creature|it|each creature)'s power and toughness until end of turn\.?$/i,
+      make: (m) => becomesSubject(/^each creature$/i.test(m[1]) ? 'all creatures' : m[1], { switchPt: true }, 'eot') },
     /* Switcheroo: both change hands at once (CR 701.12b) */
     { re: /^Exchange control of two target (creatures|artifacts|lands|permanents|enchantments)\.?$/i,
       make: (m) => {
@@ -7559,6 +7562,10 @@
     { re: /^Counter target (activated or triggered|activated|triggered) ability(?: you don'?t control)?\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
         /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, /don'?t control/i.test(m[0]) ? { controller: 'opponent' } : {})] }) },
+    // Ayesha Tanaka: "Counter target activated ability from an artifact source unless that ability's controller pays {W}."
+    { re: /^Counter target (activated or triggered|activated|triggered) ability(?: from an? (artifact|creature|enchantment|land) source)? unless (?:its|that ability'?s) controller pays (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i,
+      make: (m) => ({ op: 'counterUnless', cost: m[3], targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
+        /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, m[2] ? { sourceWords: m[2].toLowerCase() } : {})] }) },
     // Tale's End: "Counter target activated ability, triggered ability, or legendary spell."
     // Wash Away: "Counter target spell [that wasn't cast from its owner's hand]." (notFromHand)
     { re: /^Counter target spell \[?that wasn'?t cast from its owner'?s hand\]?\.?$/i,
@@ -8154,6 +8161,9 @@
     // Chandra's Outrage: "…to target creature and 2 damage to that creature's controller"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target [a-z ]+?) and (\d+) damage to (?:that (?:creature|permanent|planeswalker|artifact)'s|its) controller\.?$/i,
       make: (m) => { const a = tgt(m[2]); return a ? [{ op: 'damage', n: +m[1], targets: [a] }, { op: 'damage', n: +m[3], toAffectedController: true }] : null; } },
+    // Reveka, Wizard Savant: "deals 2 damage to any target and doesn't untap during your next untap step."
+    { re: /^(CARDNAME deals \d+ damage to (?:any target|target [a-z ]+?)) and doesn'?t untap during your next untap step\.?$/i,
+      make: (m) => { const d = parseEffectSentence(m[1] + '.', 1); return d && d.op === 'damage' ? [d, { op: 'noUntap', scope: 'self' }] : null; } },
     /* Blight N: N -1/-1 counters on a creature that player controls, of
        their choice ("Whenever this creature attacks, blight 1") */
     { re: /^(?:You )?blight (\d+)\.?$/i, make: (m) => ({ op: 'blight', n: +m[1], who: 'you' }) },
@@ -9723,7 +9733,7 @@
      one it would offer wrongly. */
   const SPEC_FLAGS = new Set(['attacking', 'nonattacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
     'nonlegendary', 'basic', 'nonbasic', 'nonland', 'noncreature', 'nonartifact', 'nonenchantment',
-    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked', 'modified', 'equipped', 'enchanted',
+    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked', 'blocked', 'modified', 'equipped', 'enchanted',
     // The Golden-Gear Colossus: "target double-faced artifact you control" (doubleFaced)
     'double-faced']);
   const SPEC_FILLER = new Set(['a', 'an', 'or', 'and', 'and/or', 'target', 'other', 'another', 'of', 'card', 'cards',
@@ -9941,6 +9951,8 @@
         else if (lw === 'double-faced') spec.doubleFaced = true;
         // Curtain of Light: "target unblocked attacking creature"
         else if (lw === 'unblocked') { spec.unblocked = true; spec.attacking = true; }
+        // General Jarkeld: "two target blocked attacking creatures"
+        else if (lw === 'blocked') { spec.blocked = true; spec.attacking = true; }
         // Silver Sable, Mercenary Leader: "target modified creature you control" (modifiedTarget)
         // (Feast of Dreams: "enchanted creature or enchantment creature" — the word for one of two kinds is left to a person)
         else if (lw === 'modified' || lw === 'equipped' || lw === 'enchanted') { spec[lw] = true; if (/\b(?:or|and\/or)\b/i.test(rest)) spec.unknown = true; }
@@ -10085,6 +10097,7 @@
     if (spec.nonattacking && obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
+    if (spec.blocked && !((obj.blockedBy || []).length || (obj.blockedNoBlocker && (!ctx || ctx.turn == null || obj.blockedNoBlocker === ctx.turn)))) return false;
     // (modifiedTarget: what is on it, as the game reads it)
     for (const w of ['modified', 'equipped', 'enchanted']) if (spec[w] && !(ctx && ctx.fits && ctx.fits(obj, w))) return false;
     // Halvar, God of Battle: "Aura or Equipment attached to a creature you control" (attachedToYourCreature)
@@ -10478,6 +10491,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* General Jarkeld: "Choose two target blocked attacking creatures. If each of those creatures could be blocked by all
+       creatures that the other is blocked by, each creature that's blocking exactly one of those attacking creatures stops
+       blocking it and is blocking the other attacking creature." (swapBlockers) */
+    { re: /^Choose two target blocked attacking creatures\. If each of those creatures could be blocked by all creatures that the other is blocked by, each creature that'?s blocking exactly one of those attacking creatures stops blocking it and is blocking the other attacking creature\.( Activate only during the declare blockers step\.)?$/i,
+      make: (m) => [{ op: 'swapBlockers', targets: [targetSpec('target blocked attacking creature'), Object.assign(targetSpec('target blocked attacking creature'), { distinct: true })] }]
+        .concat(m[1] ? [parseEffectSentence(m[1].trim(), 1)] : []) },
+    /* Nebuchadnezzar: "Choose a card name. Target opponent reveals X cards at random from their hand. Then that player
+       discards all cards with that name revealed this way." (discardNamed, random) */
+    { re: /^Choose a card name\. Target (player|opponent) reveals (X|a|one|two|three|\d+) cards? at random from their hand\. Then that player discards all cards with that name revealed this way\.( Activate only during your turn\.)?$/i,
+      make: (m) => [{ op: 'chooseName', nonland: false, nonartifact: false },
+        { op: 'discardNamed', random: /^an?$/i.test(m[2]) ? 1 : num(m[2]), targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }]
+        .concat(m[3] ? [parseEffectSentence(m[3].trim(), 1)] : []) },
     /* Lynde, Cheerful Tormentor: "you may attach a Curse attached to you to one of your opponents. If you do, draw two
        cards." — which Curse, or none, then which opponent; the "may" in that pick (curseToOpponent) */
     { re: /^you may attach a Curse attached to you to one of your opponents\. If you do, draw two cards\.?$/i,

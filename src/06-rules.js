@@ -10322,6 +10322,8 @@
       if (only.when === 'endstep' && this.step !== 'end') return 'Only during the end step.';
       // Desert: "Activate only during the end of combat step."
       if (only.when === 'endCombat' && this.step !== 'endCombat') return 'Only during the end of combat step.';
+      // General Jarkeld: "Activate only during the declare blockers step."
+      if (only.when === 'declareBlockers' && this.step !== 'declareBlockers') return 'Only during the declare blockers step.';
       // Trap Runner: once blockers are declared, until combat ends
       if (only.when === 'afterBlockers' && !(this.phase && this.phase.id === 'combat' &&
         ['declareBlockers', 'firstStrikeDamage', 'combatDamage', 'endCombat'].includes(this.step))) return 'Only during combat after blockers are declared.';
@@ -33306,6 +33308,35 @@
             this._fire('becomesBlocked', o.controller, { source: o, object: o });
           });
           break;
+        /* General Jarkeld: "If each of those creatures could be blocked by all creatures that the other is blocked by, each
+           creature that's blocking exactly one of those attacking creatures stops blocking it and is blocking the other
+           attacking creature." — no new "blocks" triggers (rulings) */
+        case 'swapBlockers': {
+          const [a, b] = targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id));
+          if (!a || !b || a === b || !a.attacking || !b.attacking || a.zone !== 'battlefield' || b.zone !== 'battlefield') break;
+          const of = (x) => (x.blockedBy || []).map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield');
+          // (a blocker tapped since it blocked still counts as able: only the block itself is in question)
+          const could = (bl, at) => { const was = bl.tapped; bl.tapped = false; try { return this.couldBlock(bl, at, this._defPid(at.attacking)); } finally { bl.tapped = was; } };
+          const ofA = of(a), ofB = of(b);
+          if (!ofA.every(bl => could(bl, b)) || !ofB.every(bl => could(bl, a))) {
+            this.logEvent('combat', `${a.name} and ${b.name} can't trade blockers.`);
+            break;
+          }
+          const move = (bl, from, to) => {
+            bl.blocking = (bl.blocking || []).map(id => (id === from.id ? to.id : id));
+            from.blockedBy = from.blockedBy.filter(id => id !== bl.id); from.blockOrder = (from.blockOrder || []).filter(id => id !== bl.id);
+            to.blockedBy.push(bl.id); if (!(to.blockOrder || []).includes(bl.id)) (to.blockOrder = to.blockOrder || []).push(bl.id);
+            // (a creature that was blocked stays blocked, with nothing blocking it — CR 509.1h)
+            if (!from.blockedBy.length) from.blockedNoBlocker = this.turn;
+          };
+          const onlyA = ofA.filter(bl => !ofB.includes(bl)), onlyB = ofB.filter(bl => !ofA.includes(bl));
+          for (const bl of onlyA) move(bl, a, b);
+          for (const bl of onlyB) move(bl, b, a);
+          for (const at of [a, b]) if (at.blockedBy.length) at.wasBlockedTurn = this.turn;
+          this.logEvent('combat', `The creatures blocking ${a.name} and ${b.name} trade places.`);
+          this.bumpBoard();
+          break;
+        }
         case 'bounceAtEndOfCombat':
           applyToScope(e, (o) => { o.bounceAtEndOfCombat = this.turn; });
           break;
@@ -33749,9 +33780,19 @@
         case 'discardNamed': {
           const p = firstPlayer(); const nm = this._chosenNameNow;
           if (!p || !nm) break;
-          const hits = this.zones[p.id].hand.filter(c => c.card && this._sameCardName(c.card.name, nm));
-          this._knowHand(p.id, '*');
-          this.logEvent('reveal', `${p.name} reveals their hand.`);
+          let seen = this.zones[p.id].hand;
+          // Nebuchadnezzar: "reveals X cards at random from their hand … discards all cards with that name revealed this way"
+          if (e.random != null) {
+            const pool = seen.slice(), k = Math.min(pool.length, Math.max(0, n(e.random)));
+            seen = [];
+            while (seen.length < k) seen.push(pool.splice(this.rng.int(pool.length), 1)[0]);
+            this._know(seen, '*');
+            this.logEvent('reveal', `${p.name} reveals ${seen.length ? seen.map(c => c.name).join(', ') : 'no cards'} at random from their hand.`);
+          } else {
+            this._knowHand(p.id, '*');
+            this.logEvent('reveal', `${p.name} reveals their hand.`);
+          }
+          const hits = seen.filter(c => c.card && this._sameCardName(c.card.name, nm));
           for (const c of hits) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
           this.logEvent('discard', `${p.name} discards ${hits.length} card${hits.length === 1 ? '' : 's'} named ${nm}.`);
           break;
