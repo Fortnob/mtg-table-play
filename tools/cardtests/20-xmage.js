@@ -67991,4 +67991,156 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.ok(T.player('B').hasLost, 'B loses once the turn is over');
   });
+  test('Cards: Archangel of Tithes — while attacking, each blocker costs {1}; a bot blocks only with what it can pay for', (mk, t) => {
+    t.auto('Archangel of Tithes');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    const ang = T.bf('A', 'Archangel of Tithes');
+    const wall = T.bf('B', 'Wall of Wood'), roc = T.bf('B', 'Giant Spider');
+    const pl = T.bf('B', 'Plains');
+    let two = null, one = null;
+    T.answer('declareAttackers', () => [{ attackerId: ang.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => {
+      two = g.declareBlockers('B', [{ blockerId: roc.id, attackerIds: [ang.id] }, { blockerId: wall.id, attackerIds: [ang.id] }]);
+      one = g.declareBlockers('B', [{ blockerId: roc.id, attackerIds: [ang.id] }]);
+      return null;
+    });
+    T.toMain('A', 'end');
+    t.no(two, 'two blockers: {2}, only one land');
+    t.ok(one, 'one blocker: {1} paid');
+    t.ok(pl.tapped, 'the Plains paid');
+    // not attacking: no tax (B attacks into it)
+    T.nextTurn('B');
+    const bear = T.bf('B', 'Grizzly Bears');
+    ang.tapped = false; pl.tapped = false;
+    let ok = null;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => { ok = g.declareBlockers('A', [{ blockerId: ang.id, attackerIds: [bear.id] }]); return null; });
+    T.toMain('B', 'end');
+    t.ok(pl.tapped, 'B paid {1} to attack (untapped Archangel)');
+    t.ok(ok, 'A blocks for free');
+    // a bot with no mana does not block
+    const T2 = mk({ library: Array(20).fill('Plains') });
+    const ang2 = T2.bf('A', 'Archangel of Tithes');
+    T2.bf('B', 'Giant Spider');
+    T2.player('B').isBot = true;
+    const bot2 = new (require('../harness').engine().bots.BotPlayer)(T2.g, 'B', 8);
+    T2.answer('declareAttackers', () => [{ attackerId: ang2.id, defenderId: 'B' }]);
+    T2.answer('declareBlockers', (ch) => { bot2.doChoice(ch); return null; });
+    T2.toMain('A', 'end');
+    t.eq(T2.life('B'), 17, 'the bot could not pay: unblocked');
+    // a bot with one land: one blocker, paid for
+    const T3 = mk({ library: Array(20).fill('Plains') });
+    const ang3 = T3.bf('A', 'Archangel of Tithes');
+    T3.bf('B', 'Giant Spider'); T3.bf('B', 'Giant Spider');
+    const pl3 = T3.bf('B', 'Plains');
+    T3.player('B').isBot = true;
+    const bot3 = new (require('../harness').engine().bots.BotPlayer)(T3.g, 'B', 8);
+    T3.answer('declareAttackers', () => [{ attackerId: ang3.id, defenderId: 'B' }]);
+    T3.answer('declareBlockers', (ch) => { bot3.doChoice(ch); return null; });
+    T3.toMain('A', 'end');
+    t.eq(T3.life('B'), 20, 'the bot blocked');
+    t.ok(pl3.tapped, 'and paid {1}');
+    t.eq(T3.g.log.filter(l => /pays \{1\} to block/.test(l.text)).length, 1, 'one blocker paid for');
+  });
+  test('Cards: Glimpse the Impossible — three exiled to play this turn; those left go to the graveyard at the end step, a Spawn each', (mk, t) => {
+    t.auto('Glimpse the Impossible');
+    const T = mk({ library: Array(10).fill('Island') });
+    const g = T.g;
+    const a = T.top('A', 'Grizzly Bears'), b = T.top('A', 'Divination'), c = T.top('A', 'Mountain');
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Glimpse the Impossible'));
+    t.ok([a, b, c].every(x => x.zone === 'exile'), 'exiled');
+    T.playLand('A', c);
+    t.zone(c, 'battlefield', 'played from exile');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(a, 'graveyard'); t.zone(b, 'graveyard');
+    const spawn = T.bfOf('A').filter(o => o.isToken && /Eldrazi Spawn/.test(o.card.type_line || ''));
+    t.eq(spawn.length, 2, 'two Eldrazi Spawn');
+    t.eq(g.powerOf(spawn[0]), 0); t.eq(g.toughnessOf(spawn[0]), 1);
+    t.ok(g.tapForMana('A', spawn[0].id, 0, 'C'), 'sacrificed for {C}: ' + g.lastError);
+    t.eq(T.player('A').pool.C, 1);
+  });
+  test("Cards: Imposter Mech — a copy of an opponent's creature, as a Vehicle artifact with crew 3", (mk, t) => {
+    t.auto('Imposter Mech');
+    const T = mk();
+    const g = T.g;
+    T.bf('B', 'Serra Angel'); T.bf('B', 'Grizzly Bears');
+    T.bf('A', 'Craw Wurm');
+    const mech = T.hand('A', 'Imposter Mech');
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [ch.cards.find(c => c.name === 'Serra Angel').id] }; });
+    T.mana('A', '1U');
+    T.cast('A', mech);
+    t.ok(q, 'asked');
+    t.no(q.cards.some(c => c.name === 'Craw Wurm'), 'not your own creature');
+    t.zone(mech, 'battlefield');
+    t.eq(mech.name, 'Serra Angel');
+    const ch = g.characteristics(mech);
+    t.no(ch.isCreature, 'not a creature');
+    t.ok(g._cardFitsWords(mech, 'artifact'), 'an artifact');
+    t.ok(g._cardFitsWords(mech, 'Vehicle'), 'a Vehicle');
+    t.no(g._hasCreatureType(mech, 'Angel'), 'no creature types');
+    // crew 3: then a 4/4 flier
+    const wurm = T.bfOf('A').find(o => o.name === 'Craw Wurm');
+    const all = mech.analysis().manaAbilities.concat(mech.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const i = all.findIndex(a => a.text === 'Crew 3');
+    t.ok(i >= 0, 'crew 3');
+    t.eq(all.filter(a => /^Crew/.test(a.text || '')).length, 1, 'one crew ability');
+    T.activate('A', mech, i, { tapIds: [wurm.id] });
+    t.ok(g.characteristics(mech).isCreature, 'crewed: a creature');
+    t.eq(g.powerOf(mech), 4); t.ok(g.hasKw(mech, 'flying'), 'with flying');
+    t.no(g._hasCreatureType(mech, 'Angel'), 'still no Angel');
+  });
+  test("Cards: Invert Polarity — a won flip takes the spell, new targets allowed; a lost one counters it", (mk, t) => {
+    t.auto('Invert Polarity');
+    for (const win of [true, false]) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const g = T.g;
+      const bears = T.bf('A', 'Grizzly Bears');
+      T.nextTurn('B');
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.mana('B', 'R');
+      T.cast('B', bolt, { targets: [bears], resolve: false });
+      g.passPriority('B', true);
+      g.rng.chance = () => win;
+      let asked = null;
+      T.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'player', id: 'B' }] }; });
+      T.mana('A', 'UUR');
+      T.cast('A', T.hand('A', 'Invert Polarity'), { targets: [T.stackTarget(bolt)] });
+      if (win) {
+        t.ok(asked, 'won: new targets asked');
+        t.eq(T.life('B'), 17, 'won: the Bolt, now A\'s, hits B');
+        t.zone(bears, 'battlefield', 'won: the Bears live');
+        t.zone(bolt, 'graveyard'); t.ok(T.zone('B', 'graveyard').includes(bolt), "into its owner's graveyard");
+      } else {
+        t.zone(bolt, 'graveyard', 'lost: countered');
+        t.zone(bears, 'battlefield', 'lost: the Bears live');
+        t.eq(T.life('B'), 20);
+      }
+    }
+  });
+  test('Cards: Summon: Yojimbo — I exiles an artifact, enchantment or tapped creature; IV a Treasure per opponent with a big creature', (mk, t) => {
+    t.auto('Summon: Yojimbo');
+    const T = mk({ library: Array(30).fill('Plains'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const ring = T.bf('B', 'Sol Ring'), giant = T.bf('B', 'Hill Giant'), bear = T.bf('C', 'Grizzly Bears');
+    const tappedBear = T.bf('C', 'Grizzly Bears'); tappedBear.tapped = true;
+    const yo = T.hand('A', 'Summon: Yojimbo');
+    const ab = yo.analysis().abilities.find(a => a.kind === 'chapter' && (a.chapters || []).includes(1));
+    const ids = g._legalTargetsFor(ab.effects[0].targets[0], 'A', yo.id).map(x => x.id || x);
+    t.ok(ids.includes(ring.id) && ids.includes(tappedBear.id), 'an artifact (untapped too), a tapped creature');
+    t.no(ids.includes(giant.id) || ids.includes(bear.id), 'not an untapped creature');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ring.id }] }));
+    T.mana('A', '3W');
+    T.cast('A', yo);
+    t.zone(ring, 'exile', 'I: Sol Ring exiled');
+    // IV: B has a 4-power creature? Hill Giant is 3/3 — none yet; a Craw Wurm for C
+    T.bf('C', 'Craw Wurm');
+    yo.counters.lore = 3;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1, 'IV: one opponent (C) with power 4 or greater');
+    t.zone(yo, 'graveyard', 'sacrificed after IV');
+  });
 };

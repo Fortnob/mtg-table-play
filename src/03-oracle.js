@@ -889,6 +889,9 @@
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
       // Auton Soldier: "it isn't legendary, is an artifact in addition to its other types, and has myriad" — "it" said once
       else if ((c = ex.match(/^(?:it'?s|is) an? (artifact|enchantment) in addition to its other types/i))) e.addTypes = (e.addTypes || []).concat(c[1][0].toUpperCase() + c[1].slice(1).toLowerCase());
+      /* Imposter Mech: "it's a Vehicle artifact with crew 3 and it loses all other card types" — no creature types either
+         (they go with the card type), its supertypes kept (vehicleCrew) */
+      else if ((c = ex.match(/^it'?s a Vehicle artifact with crew (\d+) and it loses all other card types/i))) e.vehicleCrew = +c[1];
       // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1"; Volrath, the Shapestealer: "it's 7/5" — that size
       // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
       else if ((c = ex.match(/^(?:it|he|she)'?s (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
@@ -7660,19 +7663,21 @@
       } },
     /* Clones: "You may have CARDNAME enter the battlefield as a copy of
        any creature on the battlefield." */
-    { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
+    // (Imposter Mech: "this Vehicle … a creature an opponent controls" — opponents)
+    { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
       make: (m0) => {
         /* Mockingbird: "…with mana value less than or equal to the amount
            of mana spent to cast this creature" */
         const spentRe = / with mana value less than or equal to the amount of mana spent to cast (?:this creature|CARDNAME)/i;
         const upToSpent = spentRe.test(m0[0]);
-        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
+        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
         if (!m) return null;
         const e = { op: 'etbAsCopy', what: m[2].trim().toLowerCase() };
         if (upToSpent) e.upToSpent = true;
         if (!/^(?:(?:nonland |nonlegendary )?(?:creature|artifact|enchantment|land|equipment|permanent|planeswalker)(?: or (?:creature|artifact|enchantment|planeswalker))?)$/.test(e.what)) return null;
         if (m[1]) e.tapped = true;
-        if (m[3]) e.yours = true;
+        if (m[3] && /opponent/i.test(m[3])) e.opponents = true;
+        else if (m[3]) e.yours = true;
         /* the exceptions the table can honour; anything else ("it has
            haste", "it has 'when this becomes the target …'") is left for a
            person rather than quietly dropped */
@@ -9812,6 +9817,8 @@
     if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
     // Kellan, Daring Traveler // Journey On: "the number of opponents who control an artifact" (opponentsControlling)
     if ((m = p.match(/^opponents? (?:who|that) controls? an? (artifact|creature|enchantment|planeswalker|land)$/i))) return { opponentsControlling: m[1].toLowerCase(), mult: k };
+    // Summon: Yojimbo: "the number of opponents who control a creature with power 4 or greater" (opponentsControlling minPower)
+    if ((m = p.match(/^opponents? (?:who|that) controls? a creature with power (\d+) or greater$/i))) return { opponentsControlling: 'creature', minPower: +m[1], mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
     if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
     // Smuggler's Share: "for each opponent who drew two or more cards this turn" (opponentsDrewAtLeast)
@@ -10437,6 +10444,9 @@
     if (/\battacking or blocking\b/i.test(rest)) { spec.inCombat = true; rest = rest.replace(/\battacking or blocking\b/i, ''); }
     // Tetsuo Umezawa: "target tapped or blocking creature" — either will do (tappedOrBlocking)
     if (/\btapped or blocking\b/i.test(rest)) { spec.tappedOrBlocking = true; rest = rest.replace(/\btapped or blocking\b/i, ''); }
+    /* Summon: Yojimbo: "target artifact, enchantment, or tapped creature" — "tapped" is the last kind's only (tappedTypes) */
+    const lastTapped = rest.match(/^(?:[a-z]+, )+(?:and\/)?or tapped (creature|artifact|land)$/i);
+    if (lastTapped) { spec.tappedTypes = [lastTapped[1].toLowerCase()]; rest = rest.replace(/ tapped (?=[a-z]+$)/i, ' '); }
     for (const w of rest.split(/[\s,]+/).filter(Boolean)) {
       const lw = w.toLowerCase();
       const bare = lw.replace(/s$/, '');
@@ -10643,6 +10653,8 @@
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tappedOrBlocking && !obj.tapped && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
+    // (Summon: Yojimbo: "artifact, enchantment, or tapped creature" — untapped, it has to be one of the other kinds: tappedTypes)
+    if (spec.tappedTypes && !obj.tapped && !(spec.anyOf || []).some(w => !spec.tappedTypes.includes(w) && isType(w))) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
     // Ruxa, Patient Professor: "with no abilities" — the game's answer on the battlefield, the card's elsewhere (noAbilities)
@@ -12578,6 +12590,11 @@
        damage to each opponent who didn't." — the same choice once, damage for the price (tormentRepeat damage) */
     { re: /^Each opponent may discard a card or sacrifice a permanent of their choice\. CARDNAME deals (\d+) damage to each opponent who didn'?t\.?$/i,
       make: (m) => [{ op: 'tormentRepeat', n: 1, life: +m[1], damage: true, anyPermanent: true }] },
+    /* Invert Polarity: "Choose target spell, then flip a coin. If you win the flip, gain control of that spell and you
+       may choose new targets for it. If you lose the flip, counter that spell." — the target the flip is about */
+    { re: /^Choose (target (?:noncreature |instant or sorcery |creature )?spell), then flip a coin\. If you win the flip, gain control of that spell and you may choose new targets for it\. If you lose the flip, counter that spell\.?$/i,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? [{ op: 'flipCoin', targets: [spec],
+        then: [{ op: 'stealSpell', newTargets: true }], otherwise: [{ op: 'counterSpell' }] }] : null; } },
     // Commandeer: "Gain control of target noncreature spell. You may choose new targets for it."
     { re: /^Gain control of (target (?:noncreature |instant or sorcery |creature )?spell)\.(?: You may choose new targets for it\.)?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? [{ op: 'stealSpell', newTargets: /new targets/i.test(m[0]), targets: [spec] }] : null; } },
@@ -12926,6 +12943,19 @@
     { re: /^[Rr]eveal cards from the top of your library until you reveal X nonland cards, where X is the number of colou?rs among permanents you control\. For each of those colou?rs, you may exile a card of that colou?r from among the revealed cards\. Then shuffle\. You may cast the exiled cards this turn\.?$/,
       make: () => [{ op: 'revealUntil', n: { colorsAmongYours: true, mult: 1 }, filter: 'nonland', dest: 'stay', zeroNone: true },
         { op: 'exileRevealedPerColor' }, { op: 'shuffle' }, { op: 'mayPlayExiled', castOnly: true, duration: 'eot' }] },
+    /* Glimpse the Impossible: "At the beginning of the next end step, if any of those cards remain exiled, put them into
+       your graveyard, then create a 0/1 colorless Eldrazi Spawn creature token for each card put into your graveyard
+       this way. Those tokens have "Sacrifice this token: Add {C}."" — the cards just exiled, noted now, each only if it
+       is still the same card in exile then (heldExiled, heldExiledToGrave) */
+    { re: /^((?:[^.]+\.\s+)*?)At the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then (create .+? creature tokens?) for each card put into your graveyard this way\. Those tokens have "([^"]+)"$/,
+      make: (m) => {
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        const tok = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1) + ' with "' + m[3].replace(/\bthis token\b/g, 'this creature') + '"');
+        const te = tok && tok.auto && tok.effects.length === 1 && tok.effects[0].op === 'createToken' ? tok.effects[0] : null;
+        if (!pre.auto || !te) return null;
+        return [...pre.effects, { op: 'delayed', event: 'eachEndStep', subject: 'none', heldExiled: true, name: 'Those cards still exiled to the graveyard',
+          effects: [{ op: 'heldExiledToGrave', n: { stillExiled: true, mult: 1 }, token: te }] }];
+      } },
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the
        bottom of your library in a random order." Dig until one fits (or
@@ -21868,7 +21898,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours',
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'blockTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours',
     'unsacrificable', 'cantAttackOwner', 'entersUnderOpponent']);
 
   function parseStatic(line, ctx) {
@@ -22047,11 +22077,12 @@
         return Object.assign({}, inner, { text: line });
       }
     }
-    const alTax = String(line).match(/^As long as ([^,]+), (creatures can'?t attack you .+)$/i);
+    // (Archangel of Tithes: "As long as this creature is attacking, creatures can't block unless …" — blockTax)
+    const alTax = String(line).match(/^As long as ([^,]+), (creatures can'?t (?:attack you|block unless) .+)$/i);
     if (alTax) {
       const c = condOf(alTax[1]);
       const inner = c && parseStatic(alTax[2].charAt(0).toUpperCase() + alTax[2].slice(1), ctx);
-      if (inner && inner.auto && (inner.effects || []).length && inner.effects.every(e => e && e.op === 'attackTax' && !e.cond)) {
+      if (inner && inner.auto && (inner.effects || []).length && inner.effects.every(e => e && (e.op === 'attackTax' || e.op === 'blockTax') && !e.cond)) {
         for (const e of inner.effects) e.cond = c;
         return Object.assign({}, inner, { text: line });
       }
@@ -22775,6 +22806,9 @@
           return scope ? { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
             { op: 'cantAttackYou', scope: Object.assign({}, scope), walkers: true }] } : null;
         }, auto: true },
+      // Archangel of Tithes: "creatures can't block unless their controller pays {1} for each of those creatures" (blockTax)
+      { re: /^Creatures can'?t block unless their controller pays \{(\d+)\} for each (?:creature they control that'?s blocking|of those creatures)\.?$/i,
+        make: (m) => ({ op: 'blockTax', amount: '{' + m[1] + '}' }), auto: true },
       // Ghostly Prison, Baird: any generic amount, and planeswalkers as well
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+|[WUBRG]\/P)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         make: (m) => ({ op: 'attackTax', amount: '{' + m[2].toUpperCase() + '}', walkers: !!m[1] }), auto: true },

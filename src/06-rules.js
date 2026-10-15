@@ -2910,6 +2910,8 @@
       }
       return this.battlefield.filter(o => o !== src && !o.phasedOut && this._cardFitsWords(o, what) &&
         (!e.yours || o.controller === controller) &&
+        // (Imposter Mech: "a creature an opponent controls" — opponents)
+        (!e.opponents || this.opponentsOf(controller).some(q => q.id === o.controller)) &&
         // Mockingbird: no more mana value than the mana spent to cast it
         (!e.upToSpent || ((o.card && o.card.cmc) || 0) <= (src.manaSpent || 0)));
     }
@@ -4560,7 +4562,9 @@
       if (v.playersDiscarded) { const by = ((this.turnHistory || {}).discardsBy) || {}; return this.players.filter(q => (by[q.id] || 0) > 0).length * mult; }
       if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Kellan, Daring Traveler // Journey On: "the number of opponents who control an artifact" (opponentsControlling)
-      if (v.opponentsControlling) return this.opponentsOf(pid).filter(q => !q.hasLost && this.battlefield.some(x => x.controller === q.id && !x.phasedOut && this._matchesCategory(x, v.opponentsControlling))).length * mult;
+      // (Summon: Yojimbo: "a creature with power 4 or greater" — minPower)
+      if (v.opponentsControlling) return this.opponentsOf(pid).filter(q => !q.hasLost && this.battlefield.some(x => x.controller === q.id && !x.phasedOut && this._matchesCategory(x, v.opponentsControlling) &&
+        (v.minPower == null || this.powerOf(x) >= v.minPower))).length * mult;
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Smuggler's Share: "for each opponent who drew two or more cards this turn" (opponentsDrewAtLeast)
@@ -13739,6 +13743,31 @@
           return this.fail(`${o.name} must block ${drawn[0].name} if able.`);
         }
       }
+      /* Archangel of Tithes: "creatures can't block unless their controller pays {1} for each of those creatures" — the
+         sum for every blocker, paid as they are declared (CR 509.1d); a person who can't pay is told, a bot's last
+         blockers stand down until it can (blockTax) */
+      if (declarations.length && this.config.rulesEnforcement === 'full') {
+        let per = 0;
+        const srcs = [];
+        for (const o of this._withEmblems(this.battlefield)) {
+          if (o.phasedOut) continue;
+          for (const ab of ((o.analysis() || { abilities: [] }).abilities || [])) for (const ef of (ab.effects || [])) {
+            if (!ef || ef.op !== 'blockTax') continue;
+            if (ef.cond && !this._condMet(ef.cond, { controller: o.controller, obj: o })) continue;
+            per += parseInt(String(ef.amount || '{1}').replace(/[{}]/g, ''), 10) || 0;
+            if (!srcs.includes(o.name)) srcs.push(o.name);
+          }
+        }
+        if (per > 0) {
+          const bill = () => '{' + per * declarations.length + '}';
+          if ((this.player(blockerPid) || {}).isBot && blockerPid === playerId)
+            while (declarations.length && !this.canPayNow(blockerPid, bill())) declarations = declarations.slice(0, -1);
+          if (declarations.length) {
+            if (!this.payMana(blockerPid, bill(), { auto: true })) return this.fail(`Blocking costs ${bill()} (${srcs.join(', ')}) and you cannot pay it.`);
+            this.logEvent('rules', `${this.player(blockerPid).name} pays ${bill()} to block (${srcs.join(', ')}).`);
+          }
+        }
+      }
       /* Banding (CR 702.22h): a creature blocking any creature in a band blocks every creature in it */
       declarations = declarations.map(d => {
         const ids = d.attackerIds.slice();
@@ -20466,6 +20495,14 @@
       }
       // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — that type line (setTypeLine)
       if (e.setTypeLine) card = Object.assign({}, card, { id: card.id + ':types:' + U.hash(e.setTypeLine), type_line: e.setTypeLine, card_faces: null });
+      /* Imposter Mech: "it's a Vehicle artifact with crew 3 and it loses all other card types" — its supertypes kept, the
+         subtypes of the types lost gone with them (vehicleCrew) */
+      if (e.vehicleCrew) {
+        const supers = (String(card.type_line || '').split(/\s+—/)[0].match(/\b(?:Legendary|Snow|World|Basic)\b/g) || []);
+        const line = supers.concat(['Artifact \u2014 Vehicle']).join(' ');
+        const text = String(card.oracle_text || '') + '\nCrew ' + e.vehicleCrew;
+        card = Object.assign({}, card, { id: card.id + ':vehicle:' + U.hash(line + text), type_line: line, oracle_text: text.trim(), card_faces: null });
+      }
       // Superior Spider-Man: "he's a 4/4 …" — that size (copyPt)
       if (e.copyPt) {
         const [pw, tg] = e.copyPt.split('/');
@@ -29484,6 +29521,16 @@
           break;
         }
 
+        /* Glimpse the Impossible: "if any of those cards remain exiled, put them into your graveyard, then create a … token
+           for each card put into your graveyard this way" — the cards noted as they were exiled (held), each the same card
+           in exile still (heldExiledToGrave) */
+        case 'heldExiledToGrave': {
+          const held = ((e.n && e.n.held) || []).map(([id, st]) => this.obj(id) && this.obj(id).zone === 'exile' && this.obj(id).exileStamp === st ? this.obj(id) : null).filter(Boolean);
+          let k = 0;
+          for (const c of held) { this.moveObject(c, 'graveyard'); if (c.zone === 'graveyard') k++; }
+          if (k && e.token) { const r0 = this._runEffect(Object.assign({}, e.token, { n: k }), ctx); if (r0 === SUSPEND) return SUSPEND; }
+          break;
+        }
         /* ===== looking at the top of a library ===== */
         case 'lookAt': {
           const cnt = n(e.n);
@@ -30559,7 +30606,7 @@
           break;
         }
 
-        case 'attackTax':
+        case 'attackTax': case 'blockTax':
         case 'untapOnEveryUntapStep':
         case 'cageGraveyards':
         case 'graveCreaturesStay':
