@@ -10288,7 +10288,8 @@
       return sc ? done({ greatestPower: sc }) : null;
     }
     // Inscription of Abundance: "Target player gains X life, where X is the greatest power among creatures they control" — the target's
-    if (/^the greatest power among creatures (?:they|that player) controls?$/i.test(p)) return done({ greatestPower: { who: 'target', what: 'creature' } });
+    // ("they" read as "target player" after a "Target player …" lead: whereXAmount)
+    if (/^the greatest power among creatures (?:they|that player|target player) controls?$/i.test(p)) return done({ greatestPower: { who: 'target', what: 'creature' } });
     if ((m = p.match(/^your devotion to (white|blue|black|red|green)$/i)))
       return done({ devotion: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] });
     if ((m = p.match(/^the number of (.+)$/i))) {
