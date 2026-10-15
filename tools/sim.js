@@ -3,6 +3,7 @@
    node tools/sim.js --format standard --games 10 --a 3 --b 8 [--seed 1] [--turns 40] [--verbose]
    node tools/sim.js --format commander --players 4 --games 4
    node tools/sim.js --contracts ...   (check every view, question and bot call; see tools/contracts.js)
+   node tools/sim.js --planechase ...  (Planechase: each seat a planar deck of ten dealt from the planes the game runs)
 
    With --players 3 or 4 the extra seats (C, D) play at difficulty b.
 
@@ -18,7 +19,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose' || k === 'json' || k === 'contracts') { a[k] = true; continue; }
+    if (k === 'verbose' || k === 'json' || k === 'contracts' || k === 'planechase') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -27,6 +28,22 @@ function args() {
      (a four-player Commander game runs about forty all told) */
   if (a.turns == null) a.turns = a.players > 2 ? 15 * a.players : 40;
   return a;
+}
+
+/* Planechase (src/06f-planechase.js): every plane and phenomenon, read from the bulk file once (as the card cache
+   would have them) */
+let PLANES = null;
+function planarPool(MTG) {
+  if (PLANES) return PLANES;
+  const want = new Set(MTG.planes.list().map(x => x.name));
+  const text = require('zlib').gunzipSync(require('fs').readFileSync(require('path').join(__dirname, 'oracle-cards.jsonl.gz'))).toString();
+  PLANES = [];
+  for (const line of text.split('\n')) {
+    if (!line || line.indexOf('"planar"') < 0) continue;
+    const d = JSON.parse(line);
+    if (want.has(d.name)) PLANES.push(MTG.scry.slim(d));
+  }
+  return PLANES;
 }
 
 async function playOne(MTG, o) {
@@ -48,10 +65,12 @@ async function playOne(MTG, o) {
     // (by the rules for this many seats: CR 103.5c, 103.8)
     freeMulligans: MTG.formats.freeMulligansFor(fmt, rules, seats.length), maxPlayers: fmt.maxPlayers, seed,
     firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(fmt, rules, seats.length),
+    planechase: !!o.planechase,
   });
+  const planar = o.planechase ? await Promise.all(seats.map((id, i) => MTG.planes.complete([], new MTG.RNG(seed * 13 + 3 + i), planarPool(MTG)))) : null;
   seats.forEach((id, i) => {
     g.addPlayer({ id, name: `${id}(d${diffOf(id)})`, isBot: true, botDifficulty: diffOf(id) });
-    g.loadDeck(id, decks[i]);
+    g.loadDeck(id, planar ? Object.assign({}, decks[i], { planar: planar[i] }) : decks[i]);
   });
   const errors = [];
   const origWarn = console.warn;
@@ -107,7 +126,7 @@ async function main() {
     let mon = null;
     const r = await playOne(MTG, {
       formatId: a.format, seed: a.seed + i, diffA: swap ? a.b : a.a, diffB: swap ? a.a : a.b,
-      maxTurns: a.turns, verbose: a.verbose, players: a.players,
+      maxTurns: a.turns, verbose: a.verbose, players: a.players, planechase: a.planechase,
       onGame: C ? (g) => { mon = C.watch(g, MTG, { label: `${a.format} seed ${a.seed + i}` }); } : undefined,
     });
     if (mon) { mon.stop(); found.push(mon.violations.concat(mon.known)); r.contracts = mon.violations.length; mon = null; }

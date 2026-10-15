@@ -1333,4 +1333,336 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Ornithopter'));
     t.eq(T.zone('A', 'hand').length, h0 + 1, 'a card drawn');
   });
+  test('Planes: Bant — chaos: a divinity counter, and indestructible while it stays', (mk, t) => {
+    t.auto('Bant');
+    const T = onPlane(mk, 'Bant');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    chaos(T);
+    t.eq(Number(bear.counters.divinity) || 0, 1, 'a divinity counter');
+    t.ok(T.g.hasKw(bear, 'indestructible'), 'indestructible');
+    delete bear.counters.divinity;
+    T.g.checkStateBasedActions();
+    t.no(T.g.hasKw(bear, 'indestructible'), 'not once the counter is gone');
+  });
+
+  test('Planes: Dalek Intensive Care — upkeep: a non-Dalek creature exiled for a 3/3 Dalek with menace and haste', (mk, t) => {
+    t.auto('Dalek Intensive Care');
+    const T = onPlane(mk, 'Dalek Intensive Care');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B');
+    t.zone(bear, 'exile');
+    const d = tokensOf(T, 'B').find(o => /Dalek/.test(o.card.type_line));
+    t.ok(d, 'a Dalek');
+    t.ok(T.g.hasKw(d, 'menace') && T.g.hasKw(d, 'haste'), 'menace and haste');
+  });
+
+  test('Planes: Furnace Layer — a player at random discards; a land discarded costs 3 life', (mk, t) => {
+    t.auto('Furnace Layer');
+    const T = onPlane(mk, 'Gavony');
+    T.hand('A', 'Forest'); T.hand('B', 'Forest');
+    walkTo(T, 'Furnace Layer');
+    const lost = ['A', 'B'].filter(id => T.life(id) === 17);
+    t.eq(lost.length, 1, 'one player discarded the land and lost 3');
+    t.ok(T.g.log.some(l => /is selected at random/.test(l.text)), 'selected at random');
+  });
+
+  test('Planes: Li\'l Giri Saves the Day — chaos: X counters, X the planar die rolls this turn', (mk, t) => {
+    t.auto('Li\'l Giri Saves the Day');
+    const T = onPlane(mk, 'Li\'l Giri Saves the Day');
+    const ox = T.bf('A', 'Karn, Silver Golem');
+    faces(T, [BLANK]); T.g.rollPlanarDie('A'); T.resolve();
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ox.id }] }));
+    chaos(T);
+    t.eq(Number(ox.counters['+1/+1']) || 0, 2, 'two rolls this turn: two counters');
+  });
+
+  test('Planes: Norn\'s Dominion — planeswalking away destroys each nonland permanent without a fate counter', (mk, t) => {
+    t.auto('Norn\'s Dominion');
+    const T = onPlane(mk, 'Norn\'s Dominion');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('B', 'Hill Giant'), l = T.bf('A', 'Forest');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: a.id }] }));
+    chaos(T);
+    t.eq(Number(a.counters.fate) || 0, 1, 'a fate counter');
+    walkTo(T, 'Shiv');
+    t.zone(a, 'battlefield', 'the Bears had a fate counter');
+    t.zone(b, 'graveyard', 'the Giant did not');
+    t.zone(l, 'battlefield', 'lands stay');
+    t.no(a.counters.fate, 'the fate counters gone');
+  });
+
+  test('Planes: Prahv — cast a spell, no attacking; attacked, no spells', (mk, t) => {
+    t.auto('Prahv');
+    const T = onPlane(mk, 'Prahv');
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.ok(T.g.canAttack(bear), 'can attack before any spell');
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    t.no(T.g.canAttack(bear), 'not after a spell');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    const o = T.hand('A', 'Shock');
+    T.mana('A', 'R');
+    t.no(T.g.canCast('A', o.id).ok, 'no spells after attacking');
+  });
+
+  test('Planes: Skybreen — spells sharing a card type with a library\'s top card can\'t be cast', (mk, t) => {
+    t.auto('Skybreen');
+    const T = onPlane(mk, 'Skybreen');
+    T.top('B', 'Hill Giant');
+    const bear = T.hand('A', 'Grizzly Bears'), shock = T.hand('A', 'Shock');
+    t.no(T.g.canCast('A', bear.id).ok, 'a creature on top of B\'s library: no creature spells');
+    T.mana('A', 'R');
+    t.ok(T.g.canCast('A', shock.id).ok, 'an instant is fine');
+  });
+
+  test('Planes: The Aether Flues — upkeep: sacrifice a creature for the next creature card of the library', (mk, t) => {
+    t.auto('The Aether Flues');
+    const T = onPlane(mk, 'The Aether Flues', { library: Array(6).fill('Island') });
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.top('B', 'Hill Giant'); T.top('B', 'Island');
+    T.answer('sacrifice', { cardIds: [bear.id] });
+    T.nextTurn('B');
+    t.zone(bear, 'graveyard', 'sacrificed');
+    t.ok(T.bfOf('B').some(o => o.name === 'Hill Giant'), 'Hill Giant revealed and put onto the battlefield');
+  });
+
+  test('Planes: The Fertile Lands of Saulvinia — chaos: chaos ensues on the next plane of the planar deck', (mk, t) => {
+    t.auto('The Fertile Lands of Saulvinia');
+    const T = mk({ planechase: true, planar: { A: ['The Fertile Lands of Saulvinia', 'Shiv', 'Truga Jungle'], B: ['Gavony'] } });
+    chaos(T);
+    t.eq(tokensOf(T, 'A', 'Dragon').length, 1, 'Shiv\'s chaos: a Dragon');
+    t.eq(JSON.stringify(deckNames(T, 'A')), JSON.stringify(['Truga Jungle', 'Shiv']), 'Shiv to the bottom');
+  });
+
+  test('Planes: The Maelstrom — upkeep: a permanent card off the top onto the battlefield', (mk, t) => {
+    t.auto('The Maelstrom');
+    const T = onPlane(mk, 'The Maelstrom', { library: Array(6).fill('Island') });
+    T.top('B', 'Hill Giant');
+    T.nextTurn('B');
+    t.ok(T.bfOf('B').some(o => o.name === 'Hill Giant'), 'onto the battlefield');
+  });
+
+  test('Planes: Valor\'s Reach — exactly two attackers get double strike', (mk, t) => {
+    t.auto('Valor\'s Reach');
+    const T = onPlane(mk, 'Valor\'s Reach');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', [{ attackerId: a.id, defenderId: 'B' }, { attackerId: b.id, defenderId: 'B' }]);
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 12, 'two Bears with double strike: 8');
+  });
+
+  test('Planes: We Hope You Like Squirrels — a Squirrel at each upkeep and for each spell cast', (mk, t) => {
+    t.auto('We Hope You Like Squirrels');
+    const T = onPlane(mk, 'We Hope You Like Squirrels');
+    const n0 = tokensOf(T, 'A', 'Squirrel').length;
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    t.eq(tokensOf(T, 'A', 'Squirrel').length, n0 + 1, 'a Squirrel for the spell');
+    T.nextTurn('B');
+    t.eq(tokensOf(T, 'B', 'Squirrel').length, 1, 'B\'s upkeep: B\'s Squirrel');
+  });
+
+  test('Planes: Eloren Wilds — mana doubled for whoever taps a permanent', (mk, t) => {
+    t.auto('Eloren Wilds');
+    const T = onPlane(mk, 'Eloren Wilds');
+    const f = T.bf('A', 'Forest');
+    T.g.tapForMana('A', f.id, 0);
+    t.eq(T.player('A').pool.total(), 2, 'two mana');
+  });
+
+  test('Planes: Mirrored Depths — a caster flips a coin; a lost flip counters the spell', (mk, t) => {
+    const T = onPlane(mk, 'Mirrored Depths');
+    T.g._flipOne = () => false;
+    const o = T.hand('A', 'Ornithopter');
+    T.cast('A', o);
+    t.zone(o, 'graveyard', 'countered');
+  });
+
+  test('Planes: Mount Keralia — planeswalking away, its pressure counters as damage to each creature', (mk, t) => {
+    const T = onPlane(mk, 'Mount Keralia');
+    const pl = T.g.facePlanes()[0];
+    pl.counters.pressure = 3;
+    const g = T.bf('B', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears');
+    walkTo(T, 'Shiv');
+    t.zone(g, 'graveyard'); t.zone(bear, 'graveyard');
+  });
+
+  test('Planes: Grand Ossuary — chaos: creatures exiled for Saprolings, as many as their power', (mk, t) => {
+    const T = onPlane(mk, 'Grand Ossuary');
+    T.bf('A', 'Hill Giant'); T.bf('B', 'Grizzly Bears');
+    chaos(T);
+    t.eq(tokensOf(T, 'A', 'Saproling').length, 3, 'A: three');
+    t.eq(tokensOf(T, 'B', 'Saproling').length, 2, 'B: two');
+  });
+
+  test('Planes: The Dining Car — upkeep: the creature with the least toughness sacrificed, then a Clue', (mk, t) => {
+    const T = onPlane(mk, 'The Dining Car');
+    const ox = T.bf('B', 'Ornithopter'), g = T.bf('B', 'Hill Giant');
+    T.nextTurn('B');
+    t.zone(ox, 'graveyard', 'the Ornithopter, toughness 2');
+    t.zone(g, 'battlefield');
+    t.eq(tokensOf(T, 'B', 'Clue').length, 1, 'a Clue');
+  });
+
+  test('Planes: Glen Elendra — chaos: gain control of a creature you own', (mk, t) => {
+    const T = onPlane(mk, 'Glen Elendra');
+    const bear = T.bf('B', 'Grizzly Bears');
+    bear.owner = 'A';
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    chaos(T);
+    t.eq(bear.controller, 'A');
+  });
+  test('Planes: Selesnya Loft Gardens — chaos: for the turn, your lands make one mana more', (mk, t) => {
+    t.auto('Selesnya Loft Gardens');
+    const T = onPlane(mk, 'Selesnya Loft Gardens');
+    chaos(T);
+    const f = T.bf('A', 'Forest');
+    T.g.tapForMana('A', f.id, 0);
+    t.eq(T.player('A').pool.total(), 2, 'two mana from a Forest');
+    const m = T.bf('B', 'Mountain');
+    T.g.tapForMana('B', m.id, 0);
+    t.eq(T.player('B').pool.total(), 1, 'not for B');
+  });
+
+  test('Planes: Minamo — chaos: each player may return a blue card from their graveyard', (mk, t) => {
+    t.auto('Minamo');
+    const T = onPlane(mk, 'Minamo');
+    const a = T.grave('A', 'Divination'), b = T.grave('B', 'Counterspell'), r = T.grave('B', 'Shock');
+    T.answer('choose', (ch) => ({ picks: [(ch.items || [])[0].id] }));
+    T.answer('choose', (ch) => ({ picks: [(ch.items || [])[0].id] }));
+    chaos(T);
+    t.zone(a, 'hand'); t.zone(b, 'hand'); t.zone(r, 'graveyard', 'not the red card');
+  });
+
+  test('Planes: Esper — chaos: white, blue and black creatures become artifacts; artifact creatures gain vigilance, menace, lifelink', (mk, t) => {
+    t.auto('Esper');
+    const T = onPlane(mk, 'Esper');
+    const bat = T.bf('A', 'Vampire Nighthawk'), bear = T.bf('A', 'Grizzly Bears'), ox = T.bf('A', 'Ornithopter');
+    chaos(T);
+    t.ok(T.g._cardFitsWords(bat, 'artifact'), 'the black Nighthawk an artifact');
+    t.no(T.g._cardFitsWords(bear, 'artifact'), 'the green Bears not');
+    t.ok(T.g.hasKw(bat, 'menace') && T.g.hasKw(ox, 'vigilance') && T.g.hasKw(ox, 'lifelink'), 'the artifact creatures gain the keywords');
+    t.no(T.g.hasKw(bear, 'menace'));
+  });
+
+  test('Planes: The Great Aerie — chaos: two creatures deal damage equal to their toughness to each other', (mk, t) => {
+    t.auto('The Great Aerie');
+    const T = onPlane(mk, 'The Great Aerie');
+    const wall = T.bf('A', 'Wall of Stone'), bear = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: wall.id }, { kind: 'object', id: bear.id }] }));
+    chaos(T);
+    t.zone(bear, 'graveyard', '8 damage to the Bears');
+    t.zone(wall, 'battlefield', '2 to the Wall');
+  });
+
+  test('Planes: Gardens of Tranquil Repose — a dying creature is exiled with it, its controller scries; chaos: Daleks, one more than the cards exiled', (mk, t) => {
+    t.auto('Gardens of Tranquil Repose');
+    const T = onPlane(mk, 'Gardens of Tranquil Repose');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g.destroy ? T.g.destroy(bear) : T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.zone(bear, 'exile');
+    t.ok(T.asked.some(c => c.type === 'scry' && c.playerId === 'B'), 'B scries');
+    chaos(T);
+    t.eq(tokensOf(T, 'A').filter(o => /Dalek/.test(o.card.type_line)).length, 2, 'two Daleks');
+  });
+
+  test('Planes: The Doctor\'s Tomb — a creature that would die is exiled, its controller losing 2 life', (mk, t) => {
+    const T = onPlane(mk, 'The Doctor\'s Tomb');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [bear] });
+    t.zone(bear, 'exile');
+    t.eq(T.life('B'), 18);
+  });
+  test('Planes: Hotel of Fears — chaos: counters by your devotion to the colour chosen, then another creature sacrificed', (mk, t) => {
+    t.auto('Hotel of Fears');
+    const T = onPlane(mk, 'Hotel of Fears', { library: Array(8).fill('Island') });
+    const bat = T.bf('A', 'Vampire Nighthawk'), bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bat.id }] }));
+    // (the colour: a mode, Black the third)
+    T.answer('mode', { modes: [2] });
+    chaos(T);
+    t.eq(Number(bat.counters['+1/+1']) || 0, 2, 'devotion to black: two');
+    t.zone(bear, 'graveyard', 'the other creature sacrificed');
+  });
+
+  test('Planes: Prime Minister\'s Cabinet Room — at your combat, your creature becomes a copy of an opponent\'s', (mk, t) => {
+    t.auto('Prime Minister\'s Cabinet Room');
+    const T = onPlane(mk, 'Prime Minister\'s Cabinet Room');
+    const bear = T.bf('A', 'Grizzly Bears'), g = T.bf('B', 'Hill Giant');
+    T.nextTurn('B');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: g.id }] }));
+    T.nextTurn('A');
+    T.toMain('A', 'declareAttackers' === 'x' ? 'x' : 'main');
+    T.g.passPriority(T.g.priorityPlayer.id, true); T.settle(); T.resolve();
+    t.eq(bear.name, 'Hill Giant', 'a copy of the Giant');
+  });
+
+  test('Planes: Bowie Base One — at your end step, goad a creature of the player to your left', (mk, t) => {
+    t.auto('Bowie Base One');
+    const T = onPlane(mk, 'Bowie Base One');
+    const g = T.bf('B', 'Hill Giant'), mine = T.bf('A', 'Grizzly Bears');
+    T.toMain('A', 'end'); T.resolve();
+    t.ok(g.goadedBy === 'A' || (g.goaded || []).includes?.('A') || T.g._isGoaded?.(g), 'B\'s Giant goaded');
+    t.no(mine.goadedBy, 'not A\'s own');
+  });
+
+  test('Planes: Two Streams Facility — anchor: a land more; waterfall: +2/+0 and haste; chaos swaps', (mk, t) => {
+    t.auto('Two Streams Facility');
+    const T = mk({ planechase: true, planar: { A: ['Gavony', 'Two Streams Facility', 'Truga Jungle'], B: ['Krosa'] } });
+    T.answer('choose', () => ({ picks: [0] }));
+    T.answer('choose', () => ({ picks: [1] }));
+    walkTo(T, 'Two Streams Facility');
+    t.eq(T.player('A').planarStream, 'anchor'); t.eq(T.player('B').planarStream, 'waterfall');
+    t.eq(T.g.landAllowance(T.player('A')), 2, 'A: two lands a turn');
+    const g = T.bf('B', 'Hill Giant');
+    t.eq(T.g.powerOf(g), 5, 'B\'s Giant +2/+0');
+    t.ok(T.g.hasKw(g, 'haste'), 'and haste');
+    chaos(T);
+    t.eq(T.player('A').planarStream, 'waterfall', 'swapped');
+    t.eq(T.g.powerOf(g), 3, 'B anchors now');
+  });
+
+  test('Planes: City of the Daleks — chaos: a hasty Dalek at each opponent, sacrificed at the end step', (mk, t) => {
+    t.auto('City of the Daleks');
+    const T = onPlane(mk, 'City of the Daleks');
+    chaos(T);
+    const d = tokensOf(T, 'A').filter(o => /Dalek/.test(o.card.type_line));
+    t.eq(d.length, 1, 'one Dalek for the one opponent');
+    t.eq(d[0].mustAttackPlayer, 'B', 'attacking B if able');
+    t.ok(T.g.hasKw(d[0], 'haste') && T.g.hasKw(d[0], 'menace'), 'haste and menace');
+    T.toMain('A', 'end'); T.resolve();
+    T.nextTurn('B');
+    t.eq(tokensOf(T, 'A').filter(o => /Dalek/.test(o.card.type_line)).length, 0, 'sacrificed');
+  });
+
+  test('Planes: Kharasha Foothills — chaos: sacrifice any number of creatures for that much damage', (mk, t) => {
+    const T = onPlane(mk, 'Kharasha Foothills');
+    const a = T.bf('A', 'Grizzly Bears'), b = T.bf('A', 'Grizzly Bears'), g = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g.id }] }));
+    T.answer('choose', () => ({ picks: [a.id, b.id] }));
+    chaos(T);
+    t.zone(a, 'graveyard'); t.zone(b, 'graveyard');
+    t.eq(g.damage || g.damageMarked || 0, 2, 'two damage to the Giant');
+  });
+
+  test('Planes: The Wilds — chaos: the player sacrifices a creature; Food for it, two for a big one', (mk, t) => {
+    t.auto('The Wilds');
+    const T = onPlane(mk, 'The Wilds');
+    const f0 = tokensOf(T, 'A', 'Food').length;
+    T.bf('B', 'Craw Wurm');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    chaos(T);
+    t.eq(tokensOf(T, 'A', 'Food').length, f0 + 2, 'toughness 4: two Food');
+  });
+
+  test('Planes: Mirrored Depths — chaos: a player\'s top card revealed, cast free if nonland', (mk, t) => {
+    const T = onPlane(mk, 'Mirrored Depths');
+    T.g._flipOne = () => true;
+    T.top('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    chaos(T);
+    t.ok(T.bfOf('A').some(o => o.name === 'Hill Giant'), 'A cast B\'s Giant');
+  });
 };

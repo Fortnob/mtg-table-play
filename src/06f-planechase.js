@@ -492,6 +492,38 @@
       const p = this.player(pid);
       return !!(p && p.planarHolds && p.planarHolds.some(h => h.kind === kind));
     },
+    /** Why this spell can't be cast, by what a face-up plane says (Eloren Wilds' hold, Prahv, Skybreen) — or null. */
+    _planarCastBlock(pid, o, a) {
+      if (this._planarHeld(pid, 'cantCast')) return "You can't cast spells until a player planeswalks.";
+      for (const pl of this.facePlanes()) {
+        for (const e of this._staticOpsAll(pl, 'planarRule')) {
+          // Prahv: "If you attacked with creatures this turn, you can't cast spells." (only the turn's player attacks)
+          if (e.rule === 'noCastAfterAttack' && pl.controller === pid && this.activePlayer && this.activePlayer.id === pid &&
+            ((this.turnHistory || {}).attackers || 0) > 0) return `${pl.name}: you attacked with creatures this turn, so you can't cast spells.`;
+          // Skybreen: "Spells that share a card type with the top card of a library can't be cast."
+          if (e.rule === 'topTypeLock' && a) {
+            const mine = (a.types || []).map(t => String(t).toLowerCase());
+            for (const q of this.players) {
+              if (q.hasLost) continue;
+              const top = ((this.zones[q.id] || {}).library || [])[0];
+              const ta = top && top.analysis();
+              const shared = ta && (ta.types || []).map(t => String(t).toLowerCase()).find(t => mine.includes(t));
+              if (shared) return `${pl.name}: the top card of ${q.name}'s library is ${/^[aeiou]/.test(shared) ? 'an' : 'a'} ${shared} card, so ${shared} spells can't be cast.`;
+            }
+          }
+        }
+      }
+      return null;
+    },
+    /** Prahv: "If you cast a spell this turn, you can't attack with creatures." — true when this creature can't attack. */
+    _planarAttackBlock(o) {
+      for (const pl of this.facePlanes()) {
+        for (const e of this._staticOpsAll(pl, 'planarRule')) {
+          if (e.rule === 'noAttackAfterCast' && pl.controller === o.controller && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) > 0) return true;
+        }
+      }
+      return false;
+    },
     /** Trail of the Mage-Rings: "Instant and sorcery spells have rebound." — handed out from a face-up plane. */
     _planarRebound(item) {
       const o = item && item.obj;
@@ -639,6 +671,173 @@
         case 'tokensDeal': {
           const made = this.battlefield.filter(o => o.isToken && o.controller === pid && o.name === e.token).sort((x, y) => (y.ts || 0) - (x.ts || 0)).slice(0, e.count || 1);
           this._spliceNext(made.map(o => ({ op: 'damage', n: e.n || 1, each: e.each, fromObjId: o.id })));
+          return null;
+        }
+        // Furnace Layer: "select target player at random" — "that player" from here on
+        case 'randomPlayer': {
+          const live = this.players.filter(q => !q.hasLost);
+          if (!live.length) return null;
+          if (ctx.chosenPlayer == null || !this._doneHere('pcRandom')) ctx.chosenPlayer = live[this.rng.range(0, live.length - 1)].id;
+          this.logEvent('rules', `${(this.player(ctx.chosenPlayer) || {}).name} is selected at random.`);
+          return null;
+        }
+        // Norn's Dominion: "then remove all fate counters from all permanents"
+        case 'clearCounters': {
+          for (const o of this.battlefield) if (o.counters && o.counters[e.kind]) { delete o.counters[e.kind]; o._chr = null; }
+          this.bumpBoard();
+          return null;
+        }
+        /* The Maelstrom: the top card revealed if you like; a permanent card may go onto the battlefield; a card revealed
+           and not put there goes to the bottom */
+        case 'maelstrom': {
+          const z = this.zones[pid];
+          const top = z && z.library[0];
+          if (!top) return null;
+          const look = this._ask({ type: 'confirm', playerId: pid, purpose: 'maelstromReveal', prompt: `${(ctx.obj && ctx.obj.name) || 'The Maelstrom'}: reveal the top card of your library?` }, 'pcMaelA');
+          if (look === SUSPEND) return look;
+          if (!look) return null;
+          if (!this._doneHere('pcMaelShow')) { this._know(top, '*'); this.logEvent('rules', `${me.name} reveals ${top.name}.`); }
+          const perm = (top.analysis() || {}).isPermanent;
+          let put = false;
+          if (perm) {
+            put = this._ask({ type: 'confirm', playerId: pid, purpose: 'maelstromPut', prompt: `${(ctx.obj && ctx.obj.name) || 'The Maelstrom'}: put ${top.name} onto the battlefield?` }, 'pcMaelB');
+            if (put === SUSPEND) return put;
+          }
+          if (put) this.moveObject(top, 'battlefield', { controller: pid });
+          else { z.library.splice(z.library.indexOf(top), 1); z.library.push(top); this.logEvent('rules', `${me.name} puts ${top.name} on the bottom of their library.`); }
+          return null;
+        }
+        /* Grand Ossuary: "each player exiles all creatures they control and creates X 1/1 green Saproling creature tokens,
+           where X is the total power of the creatures they exiled this way" */
+        case 'ossuary': {
+          for (const q of this.players.filter(x => !x.hasLost)) {
+            const theirs = this.battlefield.filter(o => o.controller === q.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+            const power = theirs.reduce((k, o) => k + Math.max(0, this.powerOf(o)), 0);
+            for (const o of theirs) this.moveObject(o, 'exile');
+            if (theirs.length) this.logEvent('rules', `${q.name} exiles ${theirs.length} creature${theirs.length === 1 ? '' : 's'} (total power ${power}).`);
+            if (power > 0) this._createToken(q.id, { n: power, pt: '1/1', colorWords: ['green'], subtypes: 'Saproling', keywords: [] });
+          }
+          return null;
+        }
+        // Dalek Intensive Care: "exile a non-Dalek creature you control. If you do, …"
+        case 'exileYoursThen': {
+          const pool = this.battlefield.filter(o => o.controller === pid && !o.phasedOut && (this.characteristics(o) || {}).isCreature &&
+            this._cardFitsWords(o, e.filter || 'creature'));
+          if (!pool.length) { this.logEvent('rules', `${me.name} has no ${e.filter || 'creature'} to exile.`); return null; }
+          let pick = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: pid, purpose: 'exileYours', kind: 'objects', zone: 'battlefield', min: 1, max: 1, items: this._chooseItems(pool),
+              prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: exile a ${e.filter || 'creature'} you control.` }, 'pcExile');
+            if (got === SUSPEND) return got;
+            pick = pool.find(o => got && got.picks && got.picks[0] === o.id) || pool[0];
+          }
+          this.moveObject(pick, 'exile');
+          this.logEvent('rules', `${me.name} exiles ${pick.name}.`);
+          if (pick.zone === 'exile') this._spliceNext(e.then || []);
+          return null;
+        }
+        // The Dining Car: "sacrifice a creature with the least toughness among creatures you control" — a choice among the tied
+        case 'sacLeast': {
+          const mine = this.battlefield.filter(o => o.controller === pid && !o.phasedOut && (this.characteristics(o) || {}).isCreature && this._canSacrifice(o));
+          if (!mine.length) return null;
+          const val = (o) => e.stat === 'power' ? this.powerOf(o) : this.toughnessOf(o);
+          const least = Math.min(...mine.map(val));
+          const pool = mine.filter(o => val(o) === least);
+          let pick = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: pid, purpose: 'sacrificeLeast', kind: 'objects', zone: 'battlefield', min: 1, max: 1, items: this._chooseItems(pool),
+              prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: sacrifice a creature with the least ${e.stat || 'toughness'} (${least}).` }, 'pcLeast');
+            if (got === SUSPEND) return got;
+            pick = pool.find(o => got && got.picks && got.picks[0] === o.id) || pool[0];
+          }
+          this._sacrificeNow(pid, [pick], ctx);
+          return null;
+        }
+        // Minamo: "each player may return a blue card from their graveyard to their hand" — in turn order, from the planar controller
+        case 'eachMayReturn': {
+          const order = this.turnOrder.length ? this.turnOrder : this.players.map(q => q.id);
+          const at = Math.max(0, order.indexOf(pid));
+          for (let k = 0; k < order.length; k++) {
+            const q = this.player(order[(at + k) % order.length]);
+            if (!q || q.hasLost) continue;
+            const pool = ((this.zones[q.id] || {}).graveyard || []).filter(c => this._cardFitsWords(c, e.filter || 'card'));
+            if (!pool.length) continue;
+            const got = this._choose({ playerId: q.id, purpose: 'mayReturn', kind: 'objects', zone: 'graveyard', min: 0, max: 1, optional: true,
+              items: this._chooseItems(pool), prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: you may return a ${e.filter || ''} card from your graveyard to your hand.` }, 'pcRet' + q.id);
+            if (got === SUSPEND) return got;
+            const c = pool.find(x => got && got.picks && got.picks[0] === x.id);
+            if (c && !this._doneHere('pcRetDone' + q.id)) { this.moveObject(c, 'hand'); this.logEvent('rules', `${q.name} returns ${c.name} to their hand.`); }
+          }
+          return null;
+        }
+        // The Great Aerie: each of the two deals damage equal to its toughness to the other
+        case 'toughnessBite': {
+          const objs = (targets || []).filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
+          if (objs.length < 2) { this.logEvent('rules', 'There is no other creature to deal damage to.'); return null; }
+          const [a, b] = objs;
+          const ta = this.toughnessOf(a), tb = this.toughnessOf(b);
+          if (ta > 0) this.dealDamageToObject(b, ta, a);
+          if (tb > 0) this.dealDamageToObject(a, tb, b);
+          return null;
+        }
+        // City of the Daleks: a token for each opponent, attacking that one this turn if able, hasty, sacrificed at the end step
+        case 'tokenAtEachOpponent': {
+          for (const foe of this.opponentsOf(pid)) {
+            const before = new Set(this.battlefield.map(o => o.id));
+            this._createToken(pid, Object.assign({}, e.token));
+            for (const o of this.battlefield.filter(x => !before.has(x.id) && x.isToken && x.controller === pid)) {
+              o.mustAttackPlayer = foe.id;
+              o.sacAtEndOfTurn = this.turn;
+              o.effects.push({ keywords: ['Haste'], until: 'eot' });
+              o._chr = null;
+            }
+          }
+          this.bumpBoard();
+          return null;
+        }
+        // Kharasha Foothills: "you may sacrifice any number of creatures. If you do, CARDNAME deals that much damage to target creature."
+        case 'sacAnyDamage': {
+          const t0 = (targets || []).find(x => x && x.kind === 'object');
+          const victim = t0 && this.obj(t0.id);
+          const mine = this.battlefield.filter(o => o.controller === pid && !o.phasedOut && (this.characteristics(o) || {}).isCreature && this._canSacrifice(o));
+          if (!mine.length) return null;
+          const got = this._choose({ playerId: pid, purpose: 'sacrificeAny', kind: 'objects', zone: 'battlefield', min: 0, max: mine.length, optional: true,
+            items: this._chooseItems(mine), prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: sacrifice any number of creatures — that much damage to ${victim ? victim.name : 'the target'}.` }, 'pcSacAny');
+          if (got === SUSPEND) return got;
+          const picks = mine.filter(o => got && (got.picks || []).includes(o.id));
+          if (!picks.length) return null;
+          this._sacrificeNow(pid, picks, ctx);
+          if (victim && victim.zone === 'battlefield') this.dealDamageToObject(victim, picks.length, ctx.obj || null);
+          return null;
+        }
+        // The Wilds: a Food for the sacrifice, two for one of toughness 4 or more
+        case 'wildsFood': {
+          const s0 = (this._lastSacrificed || [])[0];
+          if (!s0) return null;
+          this._spliceNext([{ op: 'createNamedToken', token: 'Food', n: s0.toughness >= 4 ? 2 : 1 }]);
+          return null;
+        }
+        /* Two Streams Facility: each player chooses green anchor or red waterfall (mode choose), or each one's choice turns
+           to the other (mode swap) — kept as player.planarStream */
+        case 'stream': {
+          const order = this.turnOrder.length ? this.turnOrder : this.players.map(q => q.id);
+          const at = Math.max(0, order.indexOf(pid));
+          for (let k = 0; k < order.length; k++) {
+            const q = this.player(order[(at + k) % order.length]);
+            if (!q || q.hasLost) continue;
+            if (e.mode === 'swap') {
+              if (q.planarStream) q.planarStream = q.planarStream === 'anchor' ? 'waterfall' : 'anchor';
+              continue;
+            }
+            const got = this._choose({ playerId: q.id, purpose: 'planarStream', kind: 'options', min: 1, max: 1,
+              options: [{ label: 'Green anchor', value: 'anchor' }, { label: 'Red waterfall', value: 'waterfall' }],
+              prompt: `${(ctx.obj && ctx.obj.name) || 'Two Streams Facility'}: green anchor (an additional land each turn) or red waterfall (your creatures get +2/+0 and haste)?` }, 'pcStream' + q.id);
+            if (got === SUSPEND) return got;
+            const i = got && got.picks ? got.picks[0] : 0;
+            q.planarStream = i === 1 || i === 'waterfall' ? 'waterfall' : 'anchor';
+          }
+          this.logEvent('rules', this.players.filter(q => !q.hasLost && q.planarStream).map(q => `${q.name}: ${q.planarStream === 'anchor' ? 'green anchor' : 'red waterfall'}`).join(', ') + '.');
+          this.bumpBoard();
           return null;
         }
         // Lair of the Ashen Idol: "sacrifice a creature. If you can't, planeswalk."

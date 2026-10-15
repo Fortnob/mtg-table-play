@@ -201,8 +201,9 @@ module.exports = (test) => {
     t.no(own.tapped, 'untapped');
   });
 
+  // the parser reads "bolster N" itself now (The Great Aerie, a plane)
   test('XMage: bolster goes on the creature with the least toughness', (mk, t) => {
-    generated(t, 'Elite Scaleguard');
+    t.auto('Elite Scaleguard');
     const T = mk();
     const small = T.bf('A', 'Llanowar Elves');
     T.bf('A', 'Craw Wurm');

@@ -4152,7 +4152,8 @@
         const e = this._staticOp(o, 'extraLand');
         // Rites of Flourishing gives every player the extra land
         // (Exploration Broodship: "3+ |" — only at that many charge counters: cond)
-        if (e && (o.controller === p.id || e.all) && (!e.cond || this._condMet(e.cond, { controller: o.controller, obj: o }))) k += Number(e.n) || 1;
+        // (Two Streams Facility, a plane: "Each player who last chose green anchor" — stream)
+        if (e && (e.stream ? p.planarStream === e.stream : (o.controller === p.id || e.all)) && (!e.cond || this._condMet(e.cond, { controller: o.controller, obj: o }))) k += Number(e.n) || 1;
       }
       return k;
     }
@@ -5322,8 +5323,9 @@
           (!lim.nonartifact || !(O.analyze(x.card, x.face) || {}).isArtifact)).length;
         if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : lim.nonartifact ? 'nonartifact ' : ''}spells this turn.` };
       }
-      // Eloren Wilds (a plane): "target player can't cast spells until a player planeswalks"
-      if (this.config.planechase && this._planarHeld(playerId, 'cantCast')) return { ok: false, reason: "You can't cast spells until a player planeswalks." };
+      // Eloren Wilds, Prahv, Skybreen (planes): what the planes say can't be cast (src/06f-planechase.js)
+      const pcWhy = this.config.planechase ? this._planarCastBlock(playerId, o, a) : null;
+      if (pcWhy) return { ok: false, reason: pcWhy };
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
@@ -12645,8 +12647,10 @@
       for (const f of (this._floatingMana || [])) {
         if (f.turn !== this.turn) continue;
         if (f.filter && !this._cardFitsWords(o, f.filter)) continue;
-        for (const sym of f.symbols || []) p.pool.add(sym);
-        if ((f.symbols || []).length) this.logEvent('mana', `${f.name} adds ${(f.symbols || []).map(x => '{' + x + '}').join('')}.`);
+        if (f.pid && f.pid !== p.id) continue;
+        const fs = f.sameType ? Object.keys(made).filter(c => made[c] > 0).slice(0, 1) : (f.symbols || []);
+        for (const sym of fs) p.pool.add(sym);
+        if (fs.length) this.logEvent('mana', `${f.name} adds ${fs.map(x => '{' + x + '}').join('')}.`);
       }
     }
 
@@ -12855,6 +12859,8 @@
       if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender')) return false;
       if (a.abilities.some(x => (x.effects || []).some(e => e.op === 'cantAttack'))) return false;
       if (this._hasFlag(o, 'cantAttack')) return false;
+      // Prahv (a plane): "If you cast a spell this turn, you can't attack with creatures."
+      if (this.config.planechase && this._planarAttackBlock(o)) return false;
       // Ensnaring Bridge: not with power greater than the number of cards in the Bridge's controller's hand
       if (this.battlefield.some(b => !b.phasedOut && this._staticOp(b, 'bridgeAttack') &&
         this.powerOf(o) > ((this.zones[b.controller] || {}).hand || []).length)) return false;
@@ -14622,6 +14628,8 @@
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) { ev.withCounter = ef.withCounter; if (ef.withCounterN) ev.withCounterN = ef.withCounterN; }
           // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
           if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
+          // The Doctor's Tomb (a plane): "and that creature's controller loses 2 life" (ctrlLoses)
+          if (ef.ctrlLoses && ev.object) { const q = this.player(ev.object.controller); if (q && !q.hasLost) this.changeLife(q, -ef.ctrlLoses); }
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
           if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
           // The Darkness Crystal: "instead exile it and you gain 2 life" (alsoGain)
@@ -19476,6 +19484,10 @@
           if (ab.attacksEnchanted && (!o.attachedTo || data.player !== o.attachedTo || !this.player(data.defenderId))) continue;
           // battalion: this and at least so many others attacking
           if (ab.minAttackers && Math.max(((this.combat && this.combat.attackers) || []).length, Number(data.declared) || 0) < ab.minAttackers) continue;
+          // (Two Streams Facility, a plane: "at the beginning of the first upkeep of the game")
+          if (ab.firstUpkeepOfGame && this.turn !== 1) continue;
+          // (Valor's Reach, a plane: "with exactly two creatures" — maxAttackers)
+          if (ab.maxAttackers && Math.max(((this.combat && this.combat.attackers) || []).length, Number(data.declared) || 0) > ab.maxAttackers) continue;
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
@@ -21557,6 +21569,17 @@
           this._lastGroup = list.map(o => o.id);
           return list.length * (v.mult || 1);
         }
+        // Li'l Giri Saves the Day (a plane): "the number of times you've rolled the planar die this turn" (planarRolls)
+        if (v && typeof v === 'object' && v.planarRolls) { const r = me && me.planarRolls; return (r && r.turn === this.turn ? r.n : 0) * (v.mult || 1); }
+        // Hotel of Fears (a plane): "your devotion to that color" — the colour chosen just before (devotionChosen)
+        if (v && typeof v === 'object' && v.devotionChosen) return (ctx.chosenColor && me ? this.devotionOf(me.id, ctx.chosenColor) : 0) * (v.mult || 1);
+        // Gardens of Tranquil Repose (a plane): "one plus the number of cards exiled with CARDNAME" (exiledWithSelf)
+        if (v && typeof v === 'object' && v.exiledWithSelf) {
+          const k = src ? this.players.reduce((t, q) => t + ((this.zones[q.id] || {}).exile || []).filter(x => x.exiledWithId === src.id).length, 0) : 0;
+          return (k + (v.plus || 0)) * (v.mult || 1);
+        }
+        // Mount Keralia (a plane): "the number of pressure counters on it" — on the plane, wherever it went (selfCounters)
+        if (v && typeof v === 'object' && v.selfCounters) return (Number(((src || {}).counters || {})[v.selfCounters]) || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.cardsInHand) {
           const who = v.cardsInHand === 'you' ? me
             : v.cardsInHand === 'triggerPlayer' ? triggerPlayer()
@@ -23052,7 +23075,8 @@
         }
         /* A coin flip, with what happens either way (CR 705). */
         case 'flipCoin': {
-          const won = this._flipOne(me);
+          // (Mirrored Depths, a plane: "that player flips a coin" — who triggerPlayer)
+          const won = this._flipOne(e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me);
           ctx.wonFlip = won;
           const run = won ? (e.then || []) : (e.otherwise || []);
           if (run.length) this._spliceNext(run);
@@ -23328,7 +23352,8 @@
           const r = this.resolving;
           if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + ':' + e.op)) break;
           // Kozilek's Command: "Target player scries X"
-          const who = (e.who === 'target' && firstPlayer()) || me;
+          // (Gardens of Tranquil Repose, a plane: "Its controller scries 1." — triggerPlayer)
+          const who = (e.who === 'target' && firstPlayer()) || (e.who === 'triggerPlayer' && triggerPlayer()) || me;
           // Kenessos, Priest of Thassa: "scry that many cards plus one instead" (a scry replacement)
           const evS = e.op === 'scry' && n(e.n) > 0 ? this._replace({ kind: 'scry', n: n(e.n), controller: who.id }) : null;
           const want = evS ? evS.n : n(e.n);
@@ -23694,6 +23719,8 @@
               if (x.controller !== p.id || !xa || x.phasedOut || !this._canSacrifice(x)) return false;
               // "another creature" never means the one doing the asking
               if (e.other && src && x.id === src.id) return false;
+              // (Hotel of Fears, a plane: "Then sacrifice another creature." — another than the one it targeted: notTarget)
+              if (e.notTarget && targets.some(t => t && t.kind === 'object' && t.id === x.id)) return false;
               // Pick Your Poison: "a creature with flying"
               if (e.keyword && !this.hasKw(x, e.keyword)) return false;
               // Witch-king of Angmar: "that dealt combat damage to you this turn" (hitYouThisTurn)
@@ -28793,7 +28820,8 @@
           this.moveObject(x, 'exile');
           this._lastExiled = x.id;
           // (Shelob, Dread Weaver: "exile it" — a card exiled with the permanent whose ability it was, CR 607.2a)
-          if (src && src.zone === 'battlefield' && x.zone === 'exile' && x !== src) x.exiledWithId = src.id;
+          // (Gardens of Tranquil Repose: a face-up plane's, from the command zone)
+          if (src && (src.zone === 'battlefield' || src.planeUp) && x.zone === 'exile' && x !== src) x.exiledWithId = src.id;
           // Mari, the Killing Quill: "exile it with a hit counter on it"
           if (e.counter && x.zone === 'exile') {
             x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
@@ -33806,8 +33834,10 @@
         }
         // High Tide: "until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}"
         case 'extraManaThisTurn':
+          // (Selesnya Loft Gardens, a plane: "whenever you tap a land for mana, add one mana of any type that land produced" — pid, sameType)
           this._floatingMana = (this._floatingMana || []).filter(f => f.turn === this.turn)
-            .concat([{ turn: this.turn, filter: e.filter, symbols: (e.symbols || []).slice(), name: (src && src.name) || ctx.name || 'An effect' }]);
+            .concat([Object.assign({ turn: this.turn, filter: e.filter, symbols: (e.symbols || []).slice(), name: (src && src.name) || ctx.name || 'An effect' },
+              e.who === 'you' ? { pid: ctx.controller } : {}, e.sameType ? { sameType: true } : {})]);
           break;
         // Past in Flames: the instants and sorceries in your graveyard now gain flashback for this turn
         case 'flashbackThisTurn':
@@ -37743,6 +37773,8 @@
         return !!(oa.keywordSet && oa.keywordSet.has(lk)) || (o.effects || []).some(e => e && Array.isArray(e.keywords) && e.keywords.some(x => String(x).toLowerCase() === lk));
       };
       if (inLayers && sc.withoutKeyword && kwInLayers(sc.withoutKeyword)) return false;
+      // (Two Streams Facility, a plane: "Creatures controlled by players who last chose red waterfall" — stream)
+      if (sc.stream && (this.player(o.controller) || {}).planarStream !== sc.stream) return false;
       // (Celestine Reef: "Creatures without flying or islandwalk" — withoutKeywords: lacking all of them)
       if (sc.withoutKeywords && sc.withoutKeywords.some(k => inLayers ? kwInLayers(k) : this.hasKw(o, k))) return false;
       // Henrika, Infernal Seer: "with flying, deathtouch, and/or lifelink" (keywordAny)
@@ -40982,6 +41014,13 @@
         isCreature: (o) => !!(this.characteristics(o) || {}).isCreature,
         // (Admiral Beckett Brass: the creatures of a type that dealt that player combat damage this turn — controllerHitBy)
         hitByType: (pid, type) => this._combatHitByType(pid, type),
+        // (Bowie Base One, a plane: "the player to your left" — the next in turn order; to your right, the one before)
+        sideOf: (pid, side) => {
+          const order = game.turnOrder.filter(id => { const q = game.player(id); return q && !q.hasLost; });
+          const i = order.indexOf(pid);
+          if (i < 0 || order.length < 2) return null;
+          return order[(i + (side === 'right' ? order.length - 1 : 1)) % order.length];
+        },
         // (Yenna, Redtooth Regent: "the same name as another permanent you control" — uniqueName)
         sharesName: (o) => this.battlefield.some(x => x !== o && !x.phasedOut && x.controller === o.controller && x.name === o.name),
         // "with mana value X": the X of the spell or ability being cast, while it is checked

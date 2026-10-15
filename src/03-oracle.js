@@ -5530,6 +5530,42 @@
       make: (m) => [{ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' },
         { op: 'grantKeyword', keywords: [m[3].charAt(0).toUpperCase() + m[3].slice(1)], duration: 'eot', scope: 'yourCreatures' },
         { op: 'addTypes', subtypes: [m[4]], duration: 'eot', scope: 'yourCreatures' }] },
+    // Valor's Reach: "untap up to two target creatures your team controls" — a team of one, outside Two-Headed Giant
+    { re: /^Untap up to (two|three) target creatures (?:you control|your team controls)\.?$/i,
+      make: (m) => ({ op: 'untap', targets: Array.from({ length: num(m[1]) }, () => ({ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you', upTo: true })) }) },
+    // Glen Elendra: "gain control of target creature you own"
+    { re: /^Gain control of target creature you own\.?$/i,
+      make: () => ({ op: 'gainControl', until: null, targets: [{ type: 'creature', filter: 'creature you own', zone: 'battlefield', owner: 'you' }] }) },
+    // We Hope You Like Squirrels: "that player creates a 1/1 green Squirrel creature token"
+    { re: /^That player creates (an? .+? creature tokens?(?: with [a-z ,]+)?)\.?$/i,
+      make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.'); return tok && tok.op === 'createToken' ? Object.assign(tok, { who: 'triggerPlayer' }) : null; } },
+    // Mount Keralia: "it deals damage equal to the number of pressure counters on it to each creature and each planeswalker" — counted from where it went
+    { re: /^(?:It|CARDNAME) deals damage equal to the number of ([a-z]+) counters on it to each creature and each planeswalker\.?$/i,
+      make: (m) => ({ op: 'damage', n: { selfCounters: m[1].toLowerCase() }, each: 'creature and each planeswalker' }) },
+    // Grand Ossuary: "each player exiles all creatures they control and creates X 1/1 green Saproling creature tokens, where X is the total power of the creatures they exiled this way"
+    { re: /^Each player exiles all creatures they control and creates X 1\/1 green Saproling creature tokens, where X is the total power of the creatures they exiled this way\.?$/i,
+      make: () => ({ op: 'planar', what: 'ossuary' }) },
+    // The Dining Car: "sacrifice a creature with the least toughness among creatures you control"
+    { re: /^Sacrifice a creature with the least (toughness|power) among creatures you control\.?$/i,
+      make: (m) => ({ op: 'planar', what: 'sacLeast', stat: m[1].toLowerCase() }) },
+    // Prime Minister's Cabinet Room: "up to one target creature you control becomes a copy of target creature an opponent controls"
+    { re: /^Up to one target creature you control becomes a copy of target creature an opponent controls\.?$/i,
+      make: () => ({ op: 'becomeCopy', subjectTarget: true, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you', upTo: true },
+        { type: 'creature', filter: 'creature an opponent controls', zone: 'battlefield', controller: 'opponent' }] }) },
+    // Bowie Base One: "goad target creature controlled by the player to your left" (controller 'left')
+    { re: /^Goad target creature controlled by the player to your (left|right)\.?$/i,
+      make: (m) => ({ op: 'goad', targets: [{ type: 'creature', filter: 'creature controlled by the player to your ' + m[1].toLowerCase(), zone: 'battlefield', controller: m[1].toLowerCase() }] }) },
+    // Two Streams Facility: "each player chooses green anchor or red waterfall" / "… chooses red waterfall, and vice versa"
+    { re: /^Each player chooses green anchor or red waterfall\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'choose' }) },
+    { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
+    // Selesnya Loft Gardens: "until end of turn, whenever you tap a land for mana, add one mana of any type that land produced"
+    { re: /^Until end of turn, whenever you tap a land for mana, add one mana of any type that land produced\.?$/i,
+      make: () => ({ op: 'extraManaThisTurn', filter: 'land', sameType: true, who: 'you' }) },
+    // Minamo: "each player may return a blue card from their graveyard to their hand"
+    { re: /^Each player may return an? (white|blue|black|red|green|creature|land|artifact|enchantment|instant|sorcery) card from their graveyard to their hand\.?$/i,
+      make: (m) => ({ op: 'planar', what: 'eachMayReturn', filter: m[1].toLowerCase() }) },
+    // Gardens of Tranquil Repose: "Its controller scries 1." — the controller of the creature that died
+    { re: /^Its controller (scries|surveils) (\d+|one|two)\.?$/i, make: (m) => ({ op: /scr/i.test(m[1]) ? 'scry' : 'surveil', n: num(m[2]), who: 'triggerPlayer' }) },
     // Time Distortion, Temple of Atropos: "reverse the game's turn order"
     { re: /^Reverse the game'?s turn order\.?$/i, make: () => ({ op: 'planar', what: 'reverseTurnOrder' }) },
     // Celestine Reef: "until a player planeswalks, you can't lose the game and your opponents can't win the game"
@@ -9961,6 +9997,8 @@
     const p = String(phrase || '').trim();
     const k = mult == null ? 1 : mult;
     let m;
+    // (Li'l Giri Saves the Day, a plane: "the number of times you've rolled the planar die this turn")
+    if (/^(?:the number of )?times you'?ve rolled the planar die this turn$/i.test(p)) return { planarRolls: true, mult: k };
     // Wasp, Shrinking Savior: "for each creature with power less than 0 on the battlefield" — everybody's
     if ((m = p.match(/^(.+?) on the battlefield$/i))) {
       const c = countOf(m[1], mult);
@@ -10173,6 +10211,12 @@
   }
   function amountOf(phrase) {
     let p = String(phrase || '').trim().replace(/\.$/, '');
+    // Li'l Giri Saves the Day (a plane): "the number of times you've rolled the planar die this turn" (planarRolls)
+    if (/^the number of times you'?ve rolled the planar die this turn$/i.test(p)) return { planarRolls: true, mult: 1 };
+    // Hotel of Fears (a plane): "your devotion to that color" — the colour just chosen (devotionChosen)
+    if (/^your devotion to that colou?r$/i.test(p)) return { devotionChosen: true, mult: 1 };
+    // Gardens of Tranquil Repose (a plane): "one plus the number of cards exiled with CARDNAME" (exiledWithSelf)
+    if (/^(one plus )?the number of cards exiled with CARDNAME$/i.test(p)) return Object.assign({ exiledWithSelf: true, mult: 1 }, /^one plus/i.test(p) ? { plus: 1 } : {});
     // Elvish Mariner, Elrond: "the number of cards looked at while scrying this way" — what the trigger saw (countedTargets)
     if (/^the number of cards looked at while scrying this way$/i.test(p)) return 'triggerAmount';
     // The Wise Mothman: "the number of nonland cards milled this way" — the lot the trigger counted
@@ -10838,6 +10882,8 @@
     // one particular player's ("that player controls"), settled as the effect resolves
     if (spec.controllerId && obj.controller !== spec.controllerId) return false;
     if (spec.controller === 'opponent' && obj.controller === me) return false;
+    // Bowie Base One (a plane): "controlled by the player to your left" (right) — the next in turn order (the one before)
+    if ((spec.controller === 'left' || spec.controller === 'right') && !(ctx && ctx.sideOf && obj.controller === ctx.sideOf(me, spec.controller))) return false;
     // Admiral Beckett Brass: "controlled by a player who was dealt combat damage by three or more Pirates this turn"
     if (spec.controllerHitBy && !(ctx && ctx.hitByType && ctx.hitByType(obj.controller, spec.controllerHitBy.type) >= spec.controllerHitBy.n)) return false;
     // X: the one this was cast with, when it is known yet; any, until then
@@ -13618,6 +13664,72 @@
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
     /* Planechase (src/06f-planechase.js): the planes and phenomena whose sentences go together */
+    // Furnace Layer: "select target player at random. That player discards a card. If that player discards a land card this way, they lose 3 life."
+    { re: /^Select target player at random\. That player discards a card\. If that player discards a land card this way, they lose (\d+) life\.?$/i,
+      make: (m) => [{ op: 'planar', what: 'randomPlayer' }, { op: 'discard', n: 1, who: 'triggerPlayer' },
+        { op: 'ifCond', cond: { kind: 'didThisWay', how: 'discarded', filter: 'land' }, then: [{ op: 'loseLife', n: +m[1], who: 'triggerPlayer' }] }] },
+    /* Dalek Intensive Care: "exile a non-Dalek creature you control. If you do, create a 3/3 black Dalek artifact
+       creature token with menace. It gains haste until end of turn." */
+    { re: /^Exile an? ((?:non-[A-Z][a-z]+ )?creature) you control\. If you do, (.+)$/i,
+      make: (m) => {
+        const rest = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        if (!rest || !rest.auto || !(rest.effects || []).length) return null;
+        return [{ op: 'planar', what: 'exileYoursThen', filter: m[1], then: rest.effects }];
+      } },
+    /* Esper: "creatures you control that are white, blue, and/or black become artifacts in addition to their other types
+       until end of turn. Then each artifact creature you control gains vigilance, menace, and lifelink until end of turn." */
+    { re: /^Creatures you control that are white, blue, and\/or black become artifacts in addition to their other types until end of turn\. Then each artifact creature you control gains ([a-z, ]+?) until end of turn\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        return [{ op: 'addTypes', types: ['Artifact'], subtypes: [], duration: 'eot', scope: { who: 'you', what: 'creature', colorAny: ['W', 'U', 'B'] } },
+          { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: { who: 'you', what: 'creature', alsoType: ['artifact'] } }];
+      } },
+    /* The Great Aerie: "choose up to one target creature you control and up to one target creature an opponent controls.
+       Each of those creatures deals damage equal to its toughness to the other." */
+    { re: /^Choose up to one target creature you control and up to one target creature an opponent controls\. Each of those creatures deals damage equal to its toughness to the other\.?$/i,
+      make: () => [{ op: 'planar', what: 'toughnessBite', targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you', upTo: true },
+        { type: 'creature', filter: 'creature an opponent controls', zone: 'battlefield', controller: 'opponent', upTo: true }] }] },
+    /* City of the Daleks: "for each opponent, you create a 3/3 black Dalek artifact creature token with menace that attacks
+       that opponent this turn if able. Those tokens gain haste. Sacrifice them at the beginning of the next end step." */
+    { re: /^For each opponent, you create (an? .+? creature token(?: with [a-z ,]+)?) that attacks that opponent this turn if able\. Those tokens gain haste\. Sacrifice them at the beginning of the next end step\.?$/i,
+      make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.'); return tok && tok.op === 'createToken' ? [{ op: 'planar', what: 'tokenAtEachOpponent', token: tok }] : null; } },
+    // Kharasha Foothills: "you may sacrifice any number of creatures. If you do, CARDNAME deals that much damage to target creature."
+    { re: /^You may sacrifice any number of creatures\. If you do, CARDNAME deals that much damage to target creature\.?$/i,
+      make: () => [{ op: 'planar', what: 'sacAnyDamage', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }] },
+    /* The Wilds: "target player sacrifices a creature of their choice. If they do, you create a Food token. You create two
+       Food tokens instead if the sacrificed creature's toughness was 4 or greater." */
+    { re: /^Target player sacrifices a creature of their choice\. If they do, you create a Food token\. You create two Food tokens instead if the sacrificed creature'?s toughness was 4 or greater\.?$/i,
+      make: () => [{ op: 'sacrificeChoice', n: 1, who: 'target', filter: 'creature', targets: [{ type: 'player', opponent: false }] }, { op: 'planar', what: 'wildsFood' }] },
+    /* Mirrored Depths: "target player reveals the top card of their library. If it's a nonland card, you may cast it without
+       paying its mana cost." */
+    { re: /^Target player reveals the top card of their library\. If it'?s a nonland card, you may cast it without paying its mana cost\.?$/i,
+      make: () => [{ op: 'reveal', n: 1, from: 'library', who: 'target', targets: [{ type: 'player', opponent: false }] },
+        { op: 'ifCond', cond: { kind: 'itIs', filter: 'nonland' }, then: [{ op: 'castFree', from: 'revealed', upTo: 1 }] }] },
+    /* Hotel of Fears: "choose a color. Put X +1/+1 counters on target creature you control, where X is your devotion to
+       that color. Then sacrifice another creature." — another than the one the counters went on (notTarget) */
+    { re: /^Choose a colou?r\. Put X \+1\/\+1 counters on target creature you control, where X is your devotion to that colou?r\. Then sacrifice another creature\.?$/i,
+      make: () => [{ op: 'chooseColor' },
+        { op: 'counters', kind: '+1/+1', n: { devotionChosen: true, mult: 1 }, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], scope: null },
+        { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true, notTarget: true }] },
+    // Norn's Dominion: "destroy each nonland permanent without a fate counter on it, then remove all fate counters from all permanents"
+    { re: /^Destroy each nonland permanent without an? ([a-z]+) counter on it, then remove all \1 counters from all permanents\.?$/i,
+      make: (m) => [{ op: 'destroyAll', what: 'nonland permanent', withoutCounter: m[1].toLowerCase() }, { op: 'planar', what: 'clearCounters', kind: m[1].toLowerCase() }] },
+    /* The Maelstrom: "you may reveal the top card of your library. If a permanent card is revealed this way, you may put it
+       onto the battlefield. If you revealed a card but didn't put it onto the battlefield, put it on the bottom of your library." */
+    { re: /^You may reveal the top card of your library\. If a permanent card is revealed this way, you may put it onto the battlefield\. If you revealed a card but didn'?t put it onto the battlefield, put it on the bottom of your library\.?$/i,
+      make: () => [{ op: 'planar', what: 'maelstrom' }] },
+    // Mirrored Depths: "that player flips a coin. If the player loses the flip, counter that spell."
+    { re: /^That player flips a coin\. If the player loses the flip, counter that spell\.?$/i,
+      make: () => [{ op: 'flipCoin', who: 'triggerPlayer', otherwise: [{ op: 'counterSpell', thatSpell: true }] }] },
+    /* The Aether Flues: "you may sacrifice a creature. If you do, reveal cards from the top of your library until you reveal
+       a creature card, put that card onto the battlefield, then shuffle all other cards revealed this way into your library." */
+    { re: /^You may sacrifice a creature\. If you do, reveal cards from the top of your library until you reveal a creature card, put that card onto the battlefield, then shuffle all other cards revealed this way into your library\.?$/i,
+      make: () => [{ op: 'sacThen', optional: true, filter: 'creature', other: false, then: [{ op: 'revealUntil', filter: 'creature', n: 1, dest: 'battlefield', tapped: false, rest: 'shuffle' }] }] },
+    // Bant: "put a divinity counter on target green, white, or blue creature. That creature has indestructible for as long as it has a divinity counter on it."
+    { re: /^Put an? ([a-z]+) counter on (target [a-z, ]+creature)\. That creature has (indestructible|hexproof|flying|vigilance) for as long as it has an? \1 counter on it\.?$/i,
+      make: (m) => { const t = targetSpec(m[2]); return t && !t.unknown ? [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, targets: [t], scope: null },
+        { op: 'whileCounter', counter: m[1].toLowerCase(), ef: { keywords: [U.titleCase(m[3].toLowerCase())] } }] : null; } },
     /* The Western Cloud: "create three tapped Treasure tokens. They each deal 1 damage to each creature and each
        planeswalker." — each Treasure a source of its own (tokensDeal) */
     { re: /^Create (two|three|four) (tapped )?(Treasure|Clue|Food) tokens\. They each deal (\d+) damage to each creature and each planeswalker\.?$/i,
@@ -17655,6 +17767,10 @@
     { re: /^At the beginning of your next end step(?:,| )/i, event: 'yourEndStep' },
     { re: /^At the beginning of the next end step(?:,| )/i, event: 'eachEndStep' },
     { re: /^At the beginning of your next main phase(?:,| )/i, event: 'yourMain1' },
+    // Two Streams Facility (a plane): "at the beginning of the first upkeep of the game" — turn 1's (firstUpkeepOfGame)
+    { re: /^At the beginning of the first upkeep of the game,? /i, event: 'eachUpkeep', extra: { firstUpkeepOfGame: true } },
+    // We Hope You Like Squirrels: "At the beginning of each player's upkeep and whenever a player casts a spell," — two moments, one ability
+    { re: /^At the beginning of each player'?s upkeep and whenever a player casts a spell,? /i, event: 'eachUpkeep', also: 'anyCastSpell' },
     { re: /^At the beginning of each player'?s upkeep(?:,| )/i, event: 'eachUpkeep' },
     // Black Vise, The Rack: "At the beginning of the chosen player's upkeep" — the opponent chosen as it entered
     { re: /^At the beginning of the chosen player'?s upkeep,? /i, event: 'eachUpkeep', extra: { chosenPlayerOnly: true } },
@@ -17854,6 +17970,9 @@
       filt: (m) => ({ words: m[2].toLowerCase(), who: 'you', other: /another/i.test(m[1]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? you put one or more \+1\/\+1 counters on (?:a|another) creature you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
+    // Valor's Reach (a plane): "Whenever your team attacks with exactly two creatures" — a team of one, outside Two-Headed Giant
+    { re: /^Whenever (?:you attack|your team attacks) with exactly (two|three|four|\d+) creatures,? /i, event: 'youAttack',
+      extraOf: (m) => ({ minAttackers: num(m[1]), maxAttackers: num(m[1]) }) },
     // Auntie Ool, Cursewretch: "Whenever one or more -1/-1 counters are put on a creature" — anyone's, by anyone
     { re: /^Whenever one or more -1\/-1 counters are put on a creature, /i, event: 'countersPut', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { counterKind: '-1/-1' } },
@@ -22188,6 +22307,9 @@
     { re: /^If (?:CARDNAME|this creature) would die, instead exile it with (an?|one|two|three|four|five|\d+) ([a-z]+) counters? on it\.?$/i,
       make: (m) => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile',
         withCounter: m[2].toLowerCase(), withCounterN: /^an?$/i.test(m[1]) ? 1 : num(m[1]) }) },
+    // The Doctor's Tomb (a plane): "If a creature would die, instead exile it and that creature's controller loses 2 life." (ctrlLoses)
+    { re: /^If a creature would die, instead exile it and that creature'?s controller loses (\d+) life\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dieExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile', ctrlLoses: +m[1] }) },
     { re: /^If a creature would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dieExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
     // Rayami, First of the Fallen: "If a nontoken creature would die, exile that card with a blood counter on it instead." (withCounter)
@@ -22713,7 +22835,8 @@
       { re: /^Whenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced\.?$/i,
         eff: { op: 'extraManaOnTap', filter: 'land', sameType: true, sameNameExiled: true }, auto: true },
       // Mana Flare, Heartbeat of Spring: every player's lands, for whoever taps them
-      { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that land produced)\.?$/i,
+      // (Eloren Wilds, a plane: "Whenever a player taps a permanent for mana, that player adds one mana of any type that permanent produced.")
+      { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains|permanent) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that (?:land|permanent) produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
       // Caged Sun: "Whenever a land's ability causes you to add one or more mana of the chosen color, add an additional one mana of that color."
@@ -23844,6 +23967,17 @@
       // TARDIS Bay: "The first spell you cast during each of your turns with mana value 2 or greater has cascade."
       { re: /^The first spell you cast during each of your turns with mana value (\d+) or greater has cascade\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', minMv: +m[1], yourTurn: true, firstMinMv: true }), auto: true },
+      // Two Streams Facility: by what each player last chose (stream)
+      { re: /^Each player who last chose green anchor may play an additional land during each of their turns\.?$/i,
+        eff: { op: 'extraLand', n: 1, stream: 'anchor' }, auto: true },
+      { re: /^Creatures controlled by players who last chose red waterfall get \+(\d+)\/\+(\d+) and have (haste|trample|flying|vigilance)\.?$/i,
+        make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { who: 'all', what: 'creature', stream: 'waterfall' }, pt: { p: +m[1], t: +m[2] } },
+          { op: 'continuous', layer: 6, scope: { who: 'all', what: 'creature', stream: 'waterfall' }, grant: [m[3].charAt(0).toUpperCase() + m[3].slice(1).toLowerCase()] }] }), auto: true },
+      // Prahv: "If you cast a spell this turn, you can't attack with creatures." / "If you attacked with creatures this turn, you can't cast spells."
+      { re: /^If you cast a spell this turn, you can'?t attack with creatures\.?$/i, eff: { op: 'planarRule', rule: 'noAttackAfterCast' }, auto: true },
+      { re: /^If you attacked with creatures this turn, you can'?t cast spells\.?$/i, eff: { op: 'planarRule', rule: 'noCastAfterAttack' }, auto: true },
+      // Skybreen: "Spells that share a card type with the top card of a library can't be cast."
+      { re: /^Spells that share a card type with the top card of a library can'?t be cast\.?$/i, eff: { op: 'planarRule', rule: 'topTypeLock' }, auto: true },
       // Sea of Sand: "Players reveal each card they draw."
       { re: /^Players reveal each card they draw\.?$/i, eff: { op: 'revealDraws' }, auto: true },
       // Tidal Barracuda: "Any player may cast spells as though they had flash."

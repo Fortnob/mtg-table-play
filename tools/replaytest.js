@@ -1,6 +1,6 @@
 /* Replays must come out the same as the games they record.
 
-   node tools/replaytest.js [--games 25] [--players 2] [--format standard] [--seed 1] [--turns 40] [--localdb]
+   node tools/replaytest.js [--games 25] [--players 2] [--format standard] [--seed 1] [--turns 40] [--localdb] [--planechase]
 
    Each game is a bot-vs-bot sim (tools/sim.js) with a recorder on it from
    the first action. When it is over the recording is written out as JSON,
@@ -19,7 +19,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
-    if (k === 'verbose' || k === 'localdb') { a[k] = true; continue; }
+    if (k === 'verbose' || k === 'localdb' || k === 'planechase') { a[k] = true; continue; }
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
@@ -53,7 +53,7 @@ async function main() {
     const trail = [];
     const r = await playOne(MTG, {
       formatId: a.format, seed: a.seed + i, diffA: a.a, diffB: a.b, maxTurns: a.turns, players: a.players,
-      keepGame: true,
+      keepGame: true, planechase: !!a.planechase,
       onGame: (g) => {
         rec = MTG.replay.record(g, { source: 'replaytest' });
         if (a.verbose) {
