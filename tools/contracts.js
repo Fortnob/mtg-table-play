@@ -267,7 +267,7 @@ const View = obj({
   turn: nat, phase: str, phaseName: str, step: str, stepName: str,
   activePlayer: maybe(id), priorityPlayer: maybe(id), turnOrder: arr(id),
   over: bool, winners: maybe(arr(id)), mulliganPhase: bool,
-  canUndo: bool, undoLabel: maybe(str), holding: bool,
+  canUndo: bool, undoLabel: maybe(str), undoTurn: opt(maybe(num)), holding: bool,
   fullControl: bool, fullControlSticky: bool, yielding: maybe(lit('turn', 'response', 'batch')),
   /* what you answered once for the rest of the turn or of a batch of triggers */
   autoAnswers: opt(arr(obj({ id: str, kind: lit('may', 'pay', 'mode', 'targets'), text: str, batch: opt(id) }, { closed: true }))),

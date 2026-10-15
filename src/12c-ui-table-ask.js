@@ -101,7 +101,10 @@
               `You choose which of ${them.name}'s creatures block, and how · <b>${incoming}</b> damage coming at them (${them.life} life).` +
               (pend ? '' : ` ${press()} one of their creatures, then the attacker it blocks, or press <b>No blocks</b>.`));
           }
-          return set('combat block', pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers',
+          // what gets through as the blocks stand would end the game for you: said in red (lethalBlocks)
+          const lethal = this.lethalBlocks(ch);
+          const chip = lethal ? ` <span class="lethal-chip" title="${lethal.through} damage gets through and you have ${lethal.life} life">Lethal</span>` : '';
+          return set('combat block' + (lethal ? ' lethal' : ''), (pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers') + chip,
             `${atk.length} attacker${atk.length === 1 ? '' : 's'} · <b>${incoming}</b> damage coming at you${me ? ` (you have ${me.life})` : ''}.` +
             (pend ? '' : ` ${press()} your creature, then the attacker it blocks.`));
         }

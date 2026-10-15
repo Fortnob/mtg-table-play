@@ -2693,7 +2693,9 @@
       ]),
       toggle('animateDraws', 'Card animations', 'Tapping, drawing and combat animate. Off, the table simply changes.'),
       pick('priorityTimer', 'Priority timer', [[0, 'Off'], [8, '8 s'], [15, '15 s'], [30, '30 s']],
-        'When the game stops for you to respond (an opponent\u2019s spell, a step of their turn), it passes for you after this long. A ring on the button counts it down; any click or key starts it again. It never runs on your own main phases or while you are choosing something.', 15),
+        'With other people at the table: when the game stops for you to respond (an opponent\u2019s spell, a step of their turn), it passes for you after this long. A fuse along the button burns down in the last few seconds; any click or key starts it again. It never runs on your own main phases or while you are choosing something.', 15),
+      pick('botTimer', 'Priority timer against bots', [[0, 'Off'], [8, '8 s'], [15, '15 s'], [30, '30 s']],
+        'The same when every opponent is a bot. Off, the game waits for you as long as you like.', 0),
     ]));
 
     /* -- stops -- */

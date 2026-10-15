@@ -564,6 +564,18 @@
   opacity: 0; transition: opacity .15s; pointer-events: none; }
 .ps.now span, .ps:hover span { opacity: 1; }
 .ps.now span { color: var(--gold-hi); }
+/* someone else's turn: the bar is theirs, in their blue */
+.phase-strip.theirs .ps.now i { background: #9cc7ff; box-shadow: 0 0 10px rgba(156,199,255,.7); }
+.phase-strip.theirs .ps.now span { color: #9cc7ff; }
+/* blocks that would leave you dead: a red chip on the prompt and on your portrait, and a button that wants a second press */
+.lethal-chip { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 1px 8px; border-radius: 99px;
+  font: 800 11px/1.5 var(--font); letter-spacing: .06em; text-transform: uppercase; color: #fff; background: #c2312a;
+  box-shadow: 0 0 0 1px rgba(255,160,140,.6), 0 0 14px rgba(255,70,50,.55); white-space: nowrap; }
+/* (above the portrait's own chips: the attackers coming, ⚔3) */
+.life-orb > .lethal-chip { position: absolute; left: 50%; top: -34px; translate: -50% 0; margin: 0; z-index: 3; pointer-events: none; }
+.life-orb.lethal .orb-ring { box-shadow: 0 0 0 2px rgba(255,90,70,.8), 0 0 22px 4px rgba(255,70,50,.55), 0 6px 18px rgba(0,0,0,.6); }
+.big-btn.lethal .bb-sub { display: inline-block; margin-top: 2px; padding: 0 8px; border-radius: 99px; background: #c2312a; color: #fff; font-weight: 800; }
+.big-btn.lethal.armed { box-shadow: 0 0 0 2px rgba(255,120,95,.9), 0 0 24px rgba(255,70,50,.6), 0 10px 26px rgba(0,0,0,.6); }
 .phase-strip { margin-bottom: 8px; }
 .big-btn { position: relative; min-height: 66px; border-radius: 33px; border: 0; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 18px;
@@ -1352,8 +1364,9 @@
 /* ---------- priority: the timer, and an opponent's spell to answer ---------- */
 .bb-timer { position: absolute; left: 14%; right: 14%; bottom: 6px; height: 3px; border-radius: 2px; pointer-events: none;
   background: rgba(255,255,255,.75); transform-origin: left center; transform: scaleX(0); opacity: 0; }
-.big-btn.timing .bb-timer { opacity: 1; animation: bbTimer var(--t, 15s) linear forwards; }
-@keyframes bbTimer { 0% { transform: scaleX(1); background: rgba(255,255,255,.75); } 75% { background: rgba(255,255,255,.75); } 100% { transform: scaleX(0); background: #ff8a70; } }
+/* the rope: unseen until its last seconds (--t-wait), then it burns down over --t */
+.big-btn.timing .bb-timer { animation: bbTimer var(--t, 6s) linear var(--t-wait, 0s) forwards; }
+@keyframes bbTimer { 0% { opacity: 1; transform: scaleX(1); background: #ffd27a; } 100% { opacity: 1; transform: scaleX(0); background: #ff6a50; } }
 /* someone else's spell: the button warms and breathes, asking */
 .big-btn.respond { background: linear-gradient(180deg, #8a4a2e, #4a2416); animation: bbAsk 1.6s ease-in-out infinite; }
 @keyframes bbAsk { 50% { box-shadow: 0 0 0 2px rgba(255, 160, 110, .55), 0 0 26px rgba(255, 120, 70, .5), 0 10px 26px rgba(0,0,0,.6); } }

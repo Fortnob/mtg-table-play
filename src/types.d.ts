@@ -319,6 +319,8 @@ declare namespace MTG {
     mulliganPhase: boolean;
     canUndo: boolean;
     undoLabel: string | null;
+    /** The turn the action Undo would take back was done in, or null. */
+    undoTurn?: number | null;
     holding: boolean;
     fullControl: boolean;
     fullControlSticky: boolean;

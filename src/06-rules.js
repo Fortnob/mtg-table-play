@@ -40444,7 +40444,7 @@
     pushUndo(label, actor) {
       if (this._restoring || this.over) return null;
       this._undo = this._undo || [];
-      const entry = { label: label || 'that', actor: actor || null, at: this.stateVersion, snap: this.snapshot() };
+      const entry = { label: label || 'that', actor: actor || null, at: this.stateVersion, turn: this.turn, snap: this.snapshot() };
       this._undo.push(entry);
       if (this._undo.length > 30) this._undo.shift();
       return entry;
@@ -40745,6 +40745,8 @@
         over: this.over, winners: this.winners,
         mulliganPhase: this.mulliganPhase,
         canUndo: decides && this.canUndo(playerId), undoLabel: this.undoLabel(),
+        // the turn the action to take back was done in (the table offers Undo for this turn's only)
+        undoTurn: this._undo && this._undo.length ? this._undo[this._undo.length - 1].turn : null,
         holding: this.holdFor === playerId,
         /* What the table is doing on your behalf, so it can say so: full
            control on, or a yield running. */

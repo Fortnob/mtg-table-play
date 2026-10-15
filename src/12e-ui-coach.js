@@ -90,7 +90,7 @@
     },
     {
       id: 'button', title: 'The big button',
-      text: () => 'It always says what pressing it does next: To combat, End turn, Resolve, Pass. ' +
+      text: () => 'It always says what pressing it does next: Attack, End turn, Resolve, Pass. ' +
         (touch() ? '' : 'Space presses it too. ') + 'When you have nothing more to play, press it to move on.',
       // once this turn's land is down; with nothing at all to play, the game moves on without you
       when: (t, v) => myMain(t, v) && !t.paying && !!(t.me && t.me.landsPlayed > 0),

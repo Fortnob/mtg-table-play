@@ -275,7 +275,9 @@ const defaultSettings = {
   suggestFrom: 'both',           // where Commander suggestions come from: 'both' | 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
-  priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself (0: never)
+  priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself, with people at the table (0: never)
+  logDetail: false,              // the game log line by line, rather than the short log
+  botTimer: 0,                   // the same against bots only: off, so nothing moves on while you read
   botSpeed: 1500,                // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES): Normal
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
@@ -309,6 +311,16 @@ MTG.settings = loadSettings();
 if (MTG.settings.botPaceV !== 2) {
   if (MTG.settings.botSpeed === 600) MTG.settings.botSpeed = 1500;
   MTG.settings.botPaceV = 2;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
+}
+/* The priority timer against bots: off became the default there (botTimer). A
+   priorityTimer other than the old default of 15 was chosen, so it carries over
+   to bot games too, once; 15 itself was the default written out, not a choice.
+   (botTimerV marks it done.) */
+if (MTG.settings.botTimerV !== 1) {
+  const was = MTG.settings.priorityTimer;
+  if (was != null && +was !== 15 && +was > 0) MTG.settings.botTimer = +was;
+  MTG.settings.botTimerV = 1;
   try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
 }
 /* Suggestions: asking Recommander and EDHREC both became the default. The

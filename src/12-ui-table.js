@@ -1565,6 +1565,13 @@
         ]));
       }
       this.paintOrb(h._orb, me);
+      // blocks that would leave you dead: your portrait says so too (lethalBlocks)
+      const ch = (this.live || this.view).pendingChoice;
+      const lethal = ch && ch.type === 'declareBlockers' ? this.lethalBlocks(ch) : null;
+      h._orb.classList.toggle('lethal', !!lethal);
+      let lc = h._orb.querySelector(':scope > .lethal-chip');
+      if (lethal && !lc) { lc = el('span', { class: 'lethal-chip', 'aria-hidden': 'true', text: 'Lethal' }); h._orb.appendChild(lc); }
+      else if (!lethal && lc) lc.remove();
       // your name; how many cards you hold is the hand itself, right there
       if (h._who._sig !== me.name) {
         h._who._sig = me.name;
@@ -1761,7 +1768,8 @@
       const d = this.dock;
       if (!d._built) {
         d._built = true;
-        d._turn = el('div', { class: 'dock-turn' });
+        // whose turn and its number: the steps bar's colour shows the one, pointing at it the other; read out, both
+        d._turn = el('div', { class: 'dock-turn sr-only' });
         d._strip = el('div', { class: 'phase-strip', role: 'list', 'aria-label': 'Steps of the turn' });
         d._main = el('button', { type: 'button', class: 'big-btn', onclick: () => this.primaryAction() }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
@@ -1788,8 +1796,8 @@
         d._turn._sig = turnSig;
         d._turn.innerHTML = '';
         d._turn.append(
-          el('span', { class: 'dt-who' + (mine ? ' mine' : ''), text: mine ? 'Your turn' : `${possessive(ap ? ap.name : '—')} turn` }),
-          el('span', { class: 'dt-n', text: 'Turn ' + (v.turn || 1) }),
+          el('span', { class: 'dt-who' + (mine ? ' mine' : ''), text: (mine ? 'Your turn' : `${possessive(ap ? ap.name : '—')} turn`) + ', ' }),
+          el('span', { class: 'dt-n', text: 'turn ' + (v.turn || 1) }),
         );
       }
       this.renderStrip(d._strip);
@@ -1805,7 +1813,7 @@
          step of their turn), never on your own main phases. A new moment
          starts it afresh. */
       const live0 = this.live || v;
-      const secs = MTG.settings.priorityTimer == null ? 15 : +MTG.settings.priorityTimer;
+      const secs = this.timerSecs();
       const want = act.timer && !act.disabled && secs > 0 && !v.replay && !v.spectating && !this.targeting && !this.paying;
       const key = want ? [live0.turn, live0.phase, live0.step, (live0.stack || []).map(s => s.id).join(','), live0.priorityPlayer].join('|') : null;
       if (key !== d._timerKey) {
@@ -1826,7 +1834,7 @@
       const small = (text, title, fn, cls) => el('button', { type: 'button', class: 'dock-btn ' + (cls || ''), text, title, onclick: fn });
       const live = this.live || v;
       if (act.secondary) d._row.appendChild(small(act.secondary.label, act.secondary.title || '', act.secondary.fn, 'alt'));
-      if (live.canUndo && !live.over) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
+      if (this.undoShown(live)) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
       if (live.fullControl) {
         d._row.appendChild(small(live.fullControlSticky ? 'Full control • locked' : 'Full control', 'Nothing is passed for you. Ctrl toggles it, Ctrl+Shift locks it.',
           () => this.send({ kind: 'fullControl', on: false }), 'flagged'));
@@ -1882,13 +1890,41 @@
       return out;
     }
 
-    /** The priority timer, from the top: the bar runs out over `secs`, and then the button presses itself. */
+    /**
+     * How long the game waits before passing for you, in seconds (0: never). Against bots nobody is kept
+     * waiting, so it is off unless you asked for it (botTimer); with people at the table, priorityTimer.
+     */
+    timerSecs() {
+      const v = this.view;
+      const people = (v.players || []).some(p => p.id !== this.meId && !p.isBot);
+      const S = MTG.settings;
+      return people ? (S.priorityTimer == null ? 15 : +S.priorityTimer) : (+S.botTimer || 0);
+    }
+
+    /**
+     * Undo, when taking back is yours to do now: your own decision, something done this turn (not last turn's
+     * play, nor the hand you kept), and not the pass that let an opponent's turn carry on (that would wind their
+     * turn back).
+     */
+    undoShown(live) {
+      if (!live.canUndo || live.over) return false;
+      const ch = live.pendingChoice;
+      const deciding = ch ? ch.playerId === this.meId && !ch.waiting : live.priorityPlayer === this.meId;
+      if (!deciding) return false;
+      if (live.undoTurn != null && live.undoTurn !== live.turn) return false;
+      return live.activePlayer === this.meId || live.undoLabel !== 'passing';
+    }
+
+    /** The priority timer, from the top: it runs over `secs`, and then the button presses itself. Like Arena's
+        rope it is only seen for the last few seconds (ROPE), burning down along the button's foot. */
     _startPriorityTimer(secs, key) {
       const d = this.dock;
       if (!d || !d._main) return;
       clearTimeout(d._timerT);
       d._timerSecs = secs;
-      d._main.style.setProperty('--t', secs + 's');
+      const ROPE = 6;
+      d._main.style.setProperty('--t', Math.min(secs, ROPE) + 's');
+      d._main.style.setProperty('--t-wait', Math.max(0, secs - ROPE) + 's');
       d._main.classList.remove('timing');
       void d._main.offsetWidth;   // the bar starts again from full
       d._main.classList.add('timing');
@@ -1961,10 +1997,15 @@
       const stops = MTG.settings.stops || MTG.DEFAULT_STOPS;
       const mineNow = v.activePlayer === this.meId;
       const stoppable = new Set(MTG.STOP_STEPS.map(([k]) => k));
-      const sig = cur + '|' + mineNow + '|' + JSON.stringify(stops);
+      const sig = cur + '|' + mineNow + '|' + v.turn + '|' + JSON.stringify(stops);
       if (host._sig === sig) return;
       host._sig = sig;
       host.innerHTML = '';
+      // whose turn it is, in the bar's colour; which turn, when it is pointed at
+      const ap = (v.players || []).find(p => p.id === v.activePlayer);
+      const turnWords = `Turn ${v.turn || 1} \u00b7 ${mineNow ? 'your turn' : possessive(ap ? ap.name : 'their') + ' turn'}`;
+      host.classList.toggle('theirs', !mineNow);
+      host.setAttribute('aria-label', 'Steps of the turn. ' + turnWords);
       STRIP.forEach(([key, label], i) => {
         const side = mineNow ? 'yours' : 'theirs';
         const stop = !!((stops[side] || {})[key]);
@@ -1977,7 +2018,8 @@
         }, [el('i'), el('span', { text: label })]);
         // what the step is for, in a sentence, while you point at it
         const tip = () => this.showTip(b, `<b class="tip-head">${escapeHtml(STEP_WORDS[key] || label)}${i === at ? ' · now' : ''}</b>` +
-          `${escapeHtml(PHASE_HELP[key] || '')}${stopNote ? `<span class="tip-note">${escapeHtml(stopNote)}</span>` : ''}`, { cls: 'step' });
+          `${escapeHtml(PHASE_HELP[key] || '')}${stopNote ? `<span class="tip-note">${escapeHtml(stopNote)}</span>` : ''}` +
+          `<span class="tip-note">${escapeHtml(turnWords)}</span>`, { cls: 'step' });
         b.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') tip(); });
         b.addEventListener('focus', tip);
         b.addEventListener('pointerleave', () => this.hideTip());
@@ -2029,11 +2071,11 @@
       // creatures tapped to convoke: done, or the game picks them
       if (this.convoking) {
         const n = this.convoking.picks.length;
-        return { label: 'Done', cls: 'go', sub: n ? `${n} tapping for it` : 'the game picks what taps', title: 'Cast it (Space)',
+        return { label: 'Done', cls: 'go', sub: n ? `${n} tapping` : '', title: n ? `Cast it, ${n} tapping for it (Space)` : 'Cast it; the game picks what taps (Space)',
           secondary: { label: 'Cancel', title: 'Leave it in your hand (Esc)', fn: () => this.convokeCancel() } };
       }
       // a spell waiting for you to tap lands: or the game taps the rest
-      if (this.paying) return { label: 'Pay for me', cls: 'go', sub: 'tap the lands it needs',
+      if (this.paying) return { label: 'Pay for me', cls: 'go',
         title: 'Let the game tap lands for the rest of the cost (Space)',
         secondary: { label: 'Cancel', title: 'Leave it for now (Esc)', fn: () => this.cancelPay() } };
       const ch = live.pendingChoice;
@@ -2042,17 +2084,23 @@
           const n = this.attackPlan ? this.attackPlan.declarations.length : 0;
           const all = (ch.candidates || []).length;
           return {
-            label: n ? `Attack` : 'No attacks', sub: n ? `${n} attacker${n === 1 ? '' : 's'}` : 'skip combat',
+            label: n ? `Attack` : 'No attacks', sub: n > 1 ? `${n} attackers` : '',
             cls: n ? 'go attack' : 'pass',
-            // everything in at once, as big a choice as attacking with none
-            above: n < all ? { label: 'All attack', sub: `${all} creature${all === 1 ? '' : 's'}`, cls: 'go attack', fn: () => this.attackAll(ch) } : null,
+            // everything in at once, as big a choice as attacking with none ("Attack", when there is one to send)
+            above: n < all ? { label: all === 1 ? 'Attack' : 'All attack', cls: 'go attack', fn: () => this.attackAll(ch),
+              title: all === 1 ? 'Attack with your creature' : `Attack with all ${all} of your creatures` } : null,
             secondary: n ? { label: 'Clear', fn: () => { this.attackPlan.declarations = []; this.render(); } } : null,
           };
         }
         if (ch.type === 'declareBlockers') {
           const n = this.blockPlan ? this.blockPlan.declarations.length : 0;
-          return { label: n ? 'Block' : 'No blocks', sub: n ? `${n} blocker${n === 1 ? '' : 's'}` : ch.blockingPlayer ? 'none of theirs block' : 'take the damage',
-            cls: n ? 'go block' : 'pass',
+          /* what gets through would end the game for you: said in red, and pressing takes a second press */
+          const lethal = this.lethalBlocks(ch);
+          if (lethal && this._lethalArmed === lethal.key) return { label: n ? 'Block anyway' : 'No blocks', sub: 'press again', cls: 'pass lethal armed',
+            title: `${lethal.through} damage gets through and you have ${lethal.life} life. Press again to confirm.` };
+          return { label: n ? 'Block' : 'No blocks', sub: lethal ? 'Lethal' : n > 1 ? `${n} blockers` : '',
+            cls: (n ? 'go block' : 'pass') + (lethal ? ' lethal' : ''),
+            title: lethal ? `${lethal.through} damage gets through and you have ${lethal.life} life` : '',
             secondary: n ? { label: 'Clear', fn: () => { this.blockPlan = { declarations: [], pendingBlocker: null }; this.render(); } } : null };
         }
         if (ch.type === 'discard' || ch.type === 'discardToHandSize') {
@@ -2084,7 +2132,8 @@
         const top = live.stack[live.stack.length - 1];
         const mine = top.controller === this.meId;
         // someone else's spell: you are being asked whether to answer it
-        return { label: mine ? 'Resolve' : 'Let it resolve', cls: mine ? 'go' : 'pass respond', sub: this.stackName(top), timer: !mine,
+        // (someone else's: the panel above the button says what it is)
+        return { label: 'Resolve', cls: mine ? 'go' : 'pass respond', sub: mine ? this.stackName(top) : '', timer: !mine,
           title: 'Let the top of the stack resolve (Space)',
           secondary: { label: 'Pass until response', title: 'Keep passing until somebody adds to the stack (Enter)', fn: () => this.send({ kind: 'yield', mode: 'response' }) } };
       }
@@ -2093,13 +2142,13 @@
       if (myTurn && k === 'main1') {
         const could = live.battlefield.some(o => o.controller === this.meId && o.power != null && !o.tapped && !o.summoningSick && o.power > 0);
         return could
-          ? { label: 'To combat', cls: 'go', sub: 'declare attackers', secondary: { label: 'End turn', title: 'Pass to the end of the turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } }
-          : { label: 'End turn', cls: 'go', sub: 'nothing can attack', yieldTurn: true };
+          ? { label: 'Attack', cls: 'go', title: 'Go to combat and choose attackers (Space)', secondary: { label: 'End turn', title: 'Pass to the end of the turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } }
+          : { label: 'End turn', cls: 'go', title: 'Nothing of yours can attack: pass to the next player (Space)', yieldTurn: true };
       }
-      if (myTurn && k === 'main2') return { label: 'End turn', cls: 'go', sub: 'pass to the next player' };
-      if (!myTurn) return { label: 'Pass', cls: 'pass', sub: (STEP_WORDS[k] || '') + (STEP_WORDS[k] ? ' \u00b7 ' : '') + 'let them carry on', timer: true,
+      if (myTurn && k === 'main2') return { label: 'End turn', cls: 'go', title: 'Pass to the next player (Space)' };
+      if (!myTurn) return { label: 'Pass', cls: 'pass', title: `Let them carry on${STEP_WORDS[k] ? ' from ' + STEP_WORDS[k].toLowerCase() : ''} (Space)`, timer: true,
         secondary: { label: 'Pass turn', title: 'Take no more actions this turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } };
-      return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
+      return { label: 'Next', cls: 'pass', title: STEP_WORDS[k] ? `On from ${STEP_WORDS[k].toLowerCase()} (Space)` : '' };
     }
 
     /** @this {MTG.TableInstance} */
@@ -2123,6 +2172,9 @@
           return;
         }
         if (ch.type === 'declareBlockers') {
+          const lethal = this.lethalBlocks(ch);
+          if (lethal && this._lethalArmed !== lethal.key) { this._lethalArmed = lethal.key; MTG.sfx('click'); this.render(); return; }
+          this._lethalArmed = null;
           this.send({ kind: 'declareBlockers', declarations: (this.blockPlan || { declarations: [] }).declarations });
           this.blockPlan = null;
           return;
@@ -2143,6 +2195,25 @@
       const info = this.primaryInfo();
       if (info.yieldTurn) { this.send({ kind: 'yield', mode: 'turn' }); return; }
       this.send({ kind: 'pass' });
+    }
+
+    /**
+     * Your blockers question, when the attackers that get through as the blocks stand now would deal you at least
+     * your life: { through, life, key } (key: these blocks, so a change of blocks asks again), else null. Combat
+     * damage only, as printed on the table: trample, lifelink and the like are not worked out.
+     */
+    lethalBlocks(ch) {
+      const me = this.me;
+      if (!ch || ch.type !== 'declareBlockers' || ch.playerId !== this.meId || ch.blockingPlayer || !me) return null;
+      const blocked = new Set([].concat(...((this.blockPlan && this.blockPlan.declarations) || []).map(d => d.attackerIds || [d.attackerId])));
+      let through = 0;
+      for (const id of ch.attackers || []) {
+        const o = this.objIn(id);
+        if (!o || blocked.has(id) || (o.attacking && o.attacking !== this.meId)) continue;
+        through += Math.max(0, o.power || 0);
+      }
+      if (!through || through < me.life) return null;
+      return { through, life: me.life, key: (ch.attackers || []).join(',') + '|' + [...blocked].sort().join(',') };
     }
 
     attackAll(ch) {
