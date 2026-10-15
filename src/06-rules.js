@@ -24445,6 +24445,24 @@
           this._noteLastAffected(targets);
           break;
         }
+        /* Expropriate: "For each money vote, choose a permanent owned by the voter and gain control of it." — any permanent
+           that player owns, whoever controls it now; yours for good (gainControlOwnedByVoter) */
+        case 'gainControlOwnedByVoter': {
+          const voter = this.player(e.voterId);
+          if (!voter) break;
+          const pool = this.battlefield.filter(x => x.owner === voter.id && !x.phasedOut);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'gainControlOwned', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 1, max: 1,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a permanent ${voter.id === ctx.controller ? 'you own' : 'owned by ' + voter.name} and gain control of it.` }, 'gco');
+          if (got === SUSPEND) return SUSPEND;
+          let x = this.obj(((got && got.picks) || [])[0]);
+          if (!x || !pool.includes(x)) x = pool[0];
+          x.effects.push({ control: ctx.controller, until: null, ts: this._stampNew() });
+          this.logEvent('control', `${me.name} gains control of ${x.name}.`);
+          this._refreshControl();
+          break;
+        }
         /* Akiri, Fearless Voyager: "unattach an Equipment from a creature you control. If you do, tap that
            creature …" — the creature chosen is what the rest is about (unattachFromYours) */
         case 'unattachFromYours': {
@@ -25608,9 +25626,11 @@
             : [firstPlayer()].filter(Boolean);
           // Crypt Incursion: only cards of a kind, and "for each card exiled this way" counts them
           this._lastExiledCount = 0;
+          // (Mnemonic Betrayal: "those cards" — the cards exiled, for the sentences after)
+          this._lastExiledList = [];
           for (const p of who) {
             const gy = this.zones[p.id].graveyard.slice().filter(c => !e.filter || this._cardFitsWords(c, e.filter));
-            for (const c of gy) this.moveObject(c, 'exile');
+            for (const c of gy) { this.moveObject(c, 'exile'); if (c.zone === 'exile') this._lastExiledList.push(c.id); }
             this._lastExiledCount += gy.length;
             this.logEvent('exile', `${p.name}'s graveyard is exiled (${gy.length}).`);
           }
@@ -28417,14 +28437,15 @@
           const hosts = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && (this.characteristics(o) || {}).isCreature && this._cardFitsWords(o, e.host));
           if (!eqs.length || !hosts.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'attachOneOfTaken', kind: 'objects', items: this._chooseItems(eqs), min: 0, max: 1, optional: true,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach one of them to ${/^[aeiou]/i.test(e.host) ? 'an' : 'a'} ${U.titleCase(e.host)} you control.` }, 'aot');
+            // (Armored Skyhunter: "you may attach it to a creature you control" — it)
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach ${e.it ? 'it' : 'one of them'} to ${/^[aeiou]/i.test(e.host) ? 'an' : 'a'} ${e.host === 'creature' ? 'creature' : U.titleCase(e.host)} you control.` }, 'aot');
           if (got === SUSPEND) return SUSPEND;
           const eq = this.obj(((got && got.picks) || [])[0]);
           if (!eq || !eqs.includes(eq)) break;
           let host = hosts.length === 1 ? hosts[0] : null;
           if (!host) {
             const h = this._choose({ playerId: ctx.controller, purpose: 'attachTo', kind: 'objects', items: this._chooseItems(hosts), min: 1, max: 1,
-              prompt: `Attach ${eq.name} to ${/^[aeiou]/i.test(e.host) ? 'an' : 'a'} ${U.titleCase(e.host)} you control.` }, 'aoth');
+              prompt: `Attach ${eq.name} to ${/^[aeiou]/i.test(e.host) ? 'an' : 'a'} ${e.host === 'creature' ? 'creature' : U.titleCase(e.host)} you control.` }, 'aoth');
             if (h === SUSPEND) return SUSPEND;
             host = this.obj(((h && h.picks) || [])[0]) || hosts[0];
           }
@@ -28480,6 +28501,26 @@
         }
         // Nightmare Shepherd: the card the trigger is about, exiled from the graveyard
         // (Patron of the Vein: the card that died; with no card named, this one)
+        /* Currency Converter: "Put a card exiled with this artifact into its owner's graveyard. If it's a land card, …" —
+           one of the cards exiled with it, chosen; "it" the card put there (exiledWithToGraveyard) */
+        case 'exiledWithToGraveyard': {
+          if (!src) break;
+          const pool = [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id);
+          if (!pool.length) break;
+          let x = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'exiledWithToGraveyard', kind: 'objects', zone: 'exile',
+              items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put a card exiled with ${src.name} into its owner's graveyard.` }, 'ewg');
+            if (got === SUSPEND) return SUSPEND;
+            const y = this.obj(((got && got.picks) || [])[0]);
+            if (y && pool.includes(y)) x = y;
+          }
+          this.moveObject(x, 'graveyard');
+          this._lastPut = x.id;
+          this.logEvent('zone', `${x.name} is put into ${(this.player(x.owner) || {}).name || 'its owner'}'s graveyard.`);
+          break;
+        }
         case 'exileTriggerCard': {
           const td = ctx.triggerData || {};
           const x = (td.objectId && this.obj(td.objectId)) || src;
@@ -32530,6 +32571,23 @@
           this.logEvent('exile', `${out.length} card${out.length === 1 ? ' is' : 's are'} exiled from the top of ${who.length > 1 ? 'each library' : 'the library'}.`);
           break;
         }
+        /* Wand of Wonder: "…until they exile an instant or sorcery card, then shuffles the rest into their library" — the
+           other cards back into their owners' libraries, each library shuffled; the hits stay (exileRestShuffle) */
+        case 'exileRestShuffle': {
+          const eu = this._exileUntil;
+          if (!eu) break;
+          const rest = eu.ids.filter(id => !eu.hits.includes(id)).map(id => this.obj(id)).filter(c => c && c.zone === 'exile');
+          const owners = new Set();
+          for (const c of rest) { this.moveObject(c, 'library'); if (c.zone === 'library') owners.add(c.owner); }
+          for (const pid of owners) { this.rng.shuffle(this.zones[pid].library); this.logEvent('rules', `${(this.player(pid) || {}).name} shuffles their library.`); }
+          break;
+        }
+        // Wand of Wonder: "1—9 | X is one." — X for the rest of the ability (setX)
+        case 'setX': {
+          ctx.x = n(e.n);
+          this.logEvent('rules', `X is ${ctx.x}.`);
+          break;
+        }
         /* Plargg and Nassari: "An opponent chooses a nonland card exiled this way." — the opponent is yours to
            pick (asked only with more than one), and the card theirs; it is the one you can't cast after */
         /* Tasigur, the Golden Fang: "return a nonland card of an opponent's choice from your graveyard to your hand" — you
@@ -32645,6 +32703,8 @@
               : e.from === 'discarded' ? (((r && r._discBy) || []).filter(d => d.pid === ctx.controller).map(d => d.id).filter(id => (this.obj(id) || {}).zone === 'graveyard'))
               // Gríma, Saruman's Footman, Jodah, the Unifier: "You may cast that card without paying its mana cost." — the card the digging stopped at (thatCard)
               : e.from === 'thatCard' ? (this._exileUntil ? this._exileUntil.hits.slice(-1) : [this._lastExiled].filter(Boolean))
+              // Wand of Wonder: "from among cards exiled this way" — each card the digging stopped at, still in exile (exileHits)
+              : e.from === 'exileHits' ? ((this._exileUntil || {}).hits || []).filter(id => (this.obj(id) || {}).zone === 'exile')
               // Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it …" — the card revealed, still there (revealedTop)
               : e.from === 'revealed' ? [this._lastRevealed].filter(id => id && (this.obj(id) || {}).zone === 'library')
               // Tasha, the Witch Queen: "from among cards in exile with page counters on them" — anybody's, one picked (exiledCounter)
@@ -33872,8 +33932,10 @@
           }
           const run = [];
           if (e.mode === 'each') {
-            for (let k = 0; k < counts[0]; k++) run.push(...e.thenA);
-            for (let k = 0; k < counts[1]; k++) run.push(...e.thenB);
+            // (Expropriate: "a permanent owned by the voter" — each vote's own voter: perVoter, voterId)
+            const per = (list, c) => list.map(x => (x && x.perVoter ? Object.assign({}, x, { voterId: c.pid }) : x));
+            for (const c of cast) if (c.choice === e.choices[0]) run.push(...per(e.thenA, c));
+            for (const c of cast) if (c.choice === e.choices[1]) run.push(...per(e.thenB, c));
           } else if (e.mode === 'count') {
             // (Emissary Green: "a number of … equal to twice the number of profit votes" — n { votes, times })
             for (const x of JSON.parse(JSON.stringify([...e.thenA, ...e.thenB]))) {

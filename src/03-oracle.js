@@ -5030,6 +5030,15 @@
       } },
     /* the d20 Dragons */
     { re: /^[Rr]oll a d(4|6|8|10|12|20)\.?$/, make: (m) => ({ op: 'rollDie', sides: +m[1] }) },
+    // Wand of Wonder: "1—9 | X is one." — a die's row saying what X is for the rest of the ability (setX)
+    { re: /^X is (one|two|three|four|five|six|seven|\d+)\.?$/i, make: (m) => ({ op: 'setX', n: num(m[1]) }) },
+    /* Wand of Wonder: "Each opponent exiles cards from the top of their library until they exile an instant or sorcery
+       card, then shuffles the rest into their library." — the cards it stopped at stay (exileRestShuffle) */
+    { re: /^Each opponent exiles cards from the top of their library until they exile an? ((?:(?:non)?(?:artifact|creature|enchantment|instant|sorcery|planeswalker|permanent|land)(?:,? or |, | ))+)card, then shuffles the rest into their library\.?$/i,
+      make: (m) => [{ op: 'exileTop', who: 'opponents', untilWords: m[1].trim().replace(/,? or |, /g, ' or ').toLowerCase() }, { op: 'exileRestShuffle' }] },
+    // Wand of Wonder: "You may cast up to X instant and/or sorcery spells from among cards exiled this way without paying their mana costs." (exileHits)
+    { re: /^You may cast up to (X|one|two|three) (instant and\/or sorcery|instant|sorcery) spells? from among cards exiled this way without paying their mana costs\.?$/i,
+      make: (m) => ({ op: 'castFree', from: 'exileHits', upTo: /^X$/.test(m[1]) ? 'X' : num(m[1]), filter: m[2].replace(' and/or ', ' or ').toLowerCase() }) },
     /* Mr. House, President and CEO: "Roll a six-sided die plus an additional six-sided die for each mana from
        Treasures spent to activate this ability." (perTreasureSpent) */
     { re: /^Roll a six-sided die plus an additional six-sided die for each mana from Treasures spent to activate this ability\.?$/,
@@ -5279,6 +5288,12 @@
       make: (m) => ({ op: 'bounce', withYourAuras: true, targets: [targetSpec(m[1])] }) },
     // (a dies trigger's "exile it", as the trigger reads it)
     { re: /^Exile the card that died\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
+    // Currency Converter: "Whenever you discard a card, you may exile that card from your graveyard." — the card discarded
+    { re: /^Exile that card from your graveyard\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
+    /* Currency Converter: "Put a card exiled with this artifact into its owner's graveyard." — one of them, picked; "it"
+       for the sentences after (exiledWithToGraveyard) */
+    { re: /^Put a card exiled with (?:CARDNAME|this artifact|this creature|this enchantment) into its owner'?s graveyard\.?$/i,
+      make: () => ({ op: 'exiledWithToGraveyard' }) },
     /* Lucius the Eternal: "When Lucius the Eternal dies, exile it and choose target creature an opponent controls. When
        that creature leaves the battlefield, return this card from exile to the battlefield under its owner's control." —
        the creature watched as it is now, the card back only while it is that card in exile (backWhenTargetLeaves) */
@@ -5435,6 +5450,9 @@
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
     { re: /^You may play (two|three) additional lands(?: on each of your turns| this turn)?\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
     { re: /^Take an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn' }) },
+    /* Expropriate: "For each money vote, choose a permanent owned by the voter and gain control of it." — that vote's voter
+       (perVoter: voterId), for good */
+    { re: /^Choose a permanent owned by the voter and gain control of it\.?$/i, make: () => ({ op: 'gainControlOwnedByVoter', perVoter: true }) },
     // Teferi, Master of Time: "Take two extra turns after this one."
     { re: /^Take (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]) }) },
     // Kang the Conqueror: "During that turn, power-up abilities can't be activated." — on the extra turn just taken (noPowerUp)
@@ -5782,6 +5800,9 @@
        of them to a Samurai you control." — what the look before it put there (attachOneOfTaken) */
     { re:/^When you put one or more ([A-Za-z]+) onto the battlefield this way, you may attach one of them to an? ([A-Za-z]+) you control\.?$/,
       make: (m) => ({ op: 'attachOneOfTaken', what: m[1].toLowerCase(), host: m[2].toLowerCase() }) },
+    // Armored Skyhunter: "If an Equipment is put onto the battlefield this way, you may attach it to a creature you control." (attachOneOfTaken it)
+    { re: /^If an? ([A-Za-z]+) is put onto the battlefield this way, you may attach it to an? ([A-Za-z]+) you control\.?$/,
+      make: (m) => ({ op: 'attachOneOfTaken', what: m[1].toLowerCase(), host: m[2].toLowerCase(), it: true }) },
     /* Ao, the Dawn Sky: "Put any number of nonland permanent cards with total mana value 4 or less from among
        them onto the battlefield." — the rest wait for the next sentence (totalMv) */
     { re: /^Put any number of ([-a-z' ]*?)cards with total mana value (\d+) or less from among them onto the battlefield\.?$/i,
@@ -7447,7 +7468,7 @@
 
     /* ===== the sentences that come up most often across the whole card pool ===== */
     // (Winota, Joiner of Forces: "Put the rest of the cards on the bottom …")
-    { re: /^Put the rest(?: of the cards)? on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
+    { re: /^Put the rest(?: of the cards| of those cards)? on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
       make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
     /* Dihada, Binder of Wills: "Put any number of legendary cards from among them into your hand and the rest into
@@ -13036,6 +13057,14 @@
         if (!pre.auto || !te) return null;
         return [...pre.effects, { op: 'delayed', event: 'eachEndStep', subject: 'none', heldExiled: true, name: 'Those cards still exiled to the graveyard',
           effects: [{ op: 'heldExiledToGrave', n: { stillExiled: true, mult: 1 }, token: te }] }];
+      } },
+    /* Mnemonic Betrayal: "At the beginning of the next end step, if any of those cards remain exiled, return them to their
+       owners' graveyards." — the cards just exiled, each only while it is the same card in exile (heldExiled) */
+    { re: /^((?:[^.]+\.\s+)*?)At the beginning of the next end step, if any of those cards remain exiled, return them to their owners'? graveyards\.?$/i,
+      make: (m) => {
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        return pre.auto ? [...pre.effects, { op: 'delayed', event: 'eachEndStep', subject: 'none', heldExiled: true, name: 'Those cards still exiled to their graveyards',
+        effects: [{ op: 'heldExiledToGrave', n: { stillExiled: true, mult: 1 } }] }] : null;
       } },
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the

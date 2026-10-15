@@ -2179,6 +2179,23 @@
       for (const x of rest) if (total + x.pw <= max) { picks.push(x.id); total += x.pw; }
       return { picks };
     },
+    /* Currency Converter: a nonland card for a 2/2 Rogue, the one we would least mind back in a graveyard (ours before an
+       opponent's) */
+    exiledWithToGraveyard(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const score = (o) => ((o.analysis() || {}).isLand ? 0 : 10) + (o.owner === this.pid ? 1 : 0) - rateCard(o.card, { prior: 0 }) / 10;
+      const best = pool.sort((a, b) => score(b) - score(a))[0];
+      return best ? { picks: [best.id] } : null;
+    },
+    /* Expropriate: the voter's permanent worth most that we don't control already */
+    gainControlOwned(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const theirs = pool.filter(o => o.controller !== this.pid);
+      const best = (theirs.length ? theirs : pool).sort((a, b) => this.permanentValue(b) - this.permanentValue(a))[0];
+      return best ? { picks: [best.id] } : null;
+    },
     /* Fire Prophecy: the cards we want least go to the bottom */
     handToBottom(s) {
       const g = this.game;
@@ -2208,6 +2225,11 @@
       const item = this.game.resolving && this.game.resolving.ctx;
       const mine = item && item.controller === this.pid;
       const w = [this._modeWorth(e.thenA || []), this._modeWorth(e.thenB || [])];
+      /* Expropriate: a money vote gives up the voter's own best permanent (to the caster; nothing gained voting it on our
+         own spell) — worth what that permanent is */
+      const g = this.game;
+      const best = Math.max(0, ...g.battlefield.filter(o => o.owner === this.pid && !o.phasedOut).map(o => this.permanentValue(o)));
+      [e.thenA, e.thenB].forEach((l, i) => { if ((l || []).some(x => x && x.op === 'gainControlOwnedByVoter')) w[i] = mine ? 0 : best; });
       return { picks: [mine ? (w[0] >= w[1] ? 0 : 1) : (w[0] <= w[1] ? 0 : 1)] };
     },
     /* Council's Judgment: the most dangerous thing that isn't ours */
