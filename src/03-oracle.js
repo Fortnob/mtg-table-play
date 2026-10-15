@@ -5278,6 +5278,9 @@
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: countSpec(m[2], 1) }) },
     { re: /^Add (\{[^}]+\}) for each ([-a-z' ]+?) on the battlefield\.?$/i,
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: countSpec(m[2], 1, 'any') }) },
+    // Rasputin, the Oneiromancer: "{T}, Remove one or more dream counters from Rasputin: Add that much {C}." (removedCounters)
+    { re: /^Add that much (\{[WUBRGC]\})\.?$/i,
+      make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { removedCounters: true, mult: 1 }, thatMuch: true }) },
     // anything else counted: "for each card named CARDNAME in each graveyard"
     { re: /^Add (\{[WUBRGC]\}) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: c } : null; } },
@@ -6952,6 +6955,10 @@
        equal to Sita Varma's power until end of turn." — both its power */
     { re: /^(?:Then )?(?:you may )?have the base power and toughness of each other creature you control become equal to (?:CARDNAME|this creature)'s power until end of turn\.?$/i,
       make: () => ({ op: 'may', then: [{ op: 'setBaseAll', p: 'srcPower', t: 'srcPower', other: true }] }) },
+    /* Galion, Elvenking's Butler: "Its base power and toughness become equal to Galion's power and toughness until end
+       of turn." — the one just chosen, its numbers as this resolves (becomes, powerX, toughnessX) */
+    { re: /^Its base power and toughness become equal to CARDNAME'?s power and toughness until end of turn\.?$/i,
+      make: () => ({ op: 'becomes', scope: 'lastTarget', duration: 'eot', eff: {}, powerX: { ofSelf: 'power' }, toughnessX: { ofSelf: 'toughness' } }) },
     /* Arni Brokenbrow: "You may have Arni's base power become 1 plus the greatest power among other creatures you
        control until end of turn." — counted as it resolves, the toughness left alone (becomes, powerX) */
     { re: /^(You may )?have CARDNAME'?s base power become (.+?) until end of turn\.?$/i,
@@ -15565,6 +15572,8 @@
     [/^there are (\w+) or more permanent cards in your graveyard$/i, (m) => ({ kind: 'graveyardPermanents', n: num(m[1]) })],
     [/^you descended this turn$/i, () => ({ kind: 'descended' })],
     // Hour of Revelation, Portcullis: "there are ten or more nonland permanents (two or more other creatures) on the battlefield"
+    // Shauku, Endbringer: "there's another creature on the battlefield" — anyone's but its own
+    [/^there'?s another creature on the battlefield$/i, () => ({ kind: 'control', scope: { what: 'creature', who: 'all', other: true }, n: 1 })],
     [/^there are (\w+) or more (other )?([a-z ]+?) on the battlefield$/i, (m) => {
       const k = num(m[1].toLowerCase());
       const sc = typeof k === 'number' ? scopeOf(m[3]) : null;
@@ -15981,6 +15990,8 @@
        causes you to discard this card" — from the graveyard it went to (discardedByOpponent) */
     { re: /^When a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME),? /i,
       event: 'discardedByOpponent', self: true, extra: { fromGraveyard: true } },
+    // Titanbones, Towering Heart: "When you discard this card," — from the graveyard it went to (discardedSelf)
+    { re: /^When you discard (?:this card|CARDNAME),? /i, event: 'discardedSelf', self: true, extra: { fromGraveyard: true } },
     // Voracious Tome-Skimmer, Dream Spoilers: "Whenever you cast a spell during an opponent's turn"
     // (Gandalf of the Secret Fire: "an instant or sorcery spell from your hand during an opponent's turn")
     // (Ral, Monsoon Mage: "an instant or sorcery spell during your turn")
@@ -18038,9 +18049,11 @@
         /* The Earth King, Grand Warlord Radha, Fangorn, Raphael: "that many" and "that much" in a
            trigger — the amount it was about, or how many set it off (batchCount). Only here: in a spell
            or an activated ability the words point at something else (Settle the Wreckage, Rasputin). */
-        if (parsed.effects.some(e => e && e.op === 'manual')) {
+        if (parsed.effects.some(e => e && (e.op === 'manual' || e.thatMuch))) {
           let changed = false;
           parsed.effects = [].concat(...parsed.effects.map(e => {
+            // (Rasputin's "Add that much {C}" read in a trigger: the amount it was about — thatMuch)
+            if (e && e.thatMuch) { changed = true; return [{ op: 'addManaX', amount: 'triggerAmount', symbol: e.symbol, text: e.text }]; }
             if (!e || e.op !== 'manual') return [e];
             const t = String(e.text || '').trim();
             let m2;
@@ -22423,6 +22436,9 @@
           const c = condOf(m[1]), sc = scopeOf('other ' + m[2] + 's you control');
           return c && sc ? { op: 'sequence', list: [{ op: 'playerHexproof', cond: c }, { op: 'continuous', layer: 6, scope: sc, cond: c, grant: ['Hexproof'] }] } : null;
         }, auto: true },
+      // Shauku, Endbringer: "Shauku can't attack if there's another creature on the battlefield." (cantAttack, cond)
+      { re: /^(?:CARDNAME|This creature) can'?t attack if (.+?)\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'cantAttack', cond: c } : null; }, auto: true },
       // Medomai the Ageless: "can't attack during extra turns" (extraTurnNow)
       { re: /^(?:CARDNAME|This creature) can'?t attack during extra turns\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'cantAttack', cond: { kind: 'extraTurn' } }, auto: true },

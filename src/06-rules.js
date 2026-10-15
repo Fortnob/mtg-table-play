@@ -6695,6 +6695,8 @@
       }
       // Orvar, Psychic Purge: "When a spell or ability an opponent controls causes you to discard this card" ("that player": the cause)
       if (o.zone === 'graveyard' && cause != null && cause !== playerId) this._fire('discardedByOpponent', playerId, { source: o, object: o, playerId, player: cause });
+      // Titanbones, Towering Heart: "When you discard this card" — whoever made you
+      if (o.zone === 'graveyard') this._fire('discardedSelf', playerId, { source: o, object: o, playerId });
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
       this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });
@@ -35303,6 +35305,8 @@
           if (e.ptX) { const k = Math.max(0, n(e.ptX)); eff = Object.assign({}, eff, { setPt: { p: k, t: k } }); }
           // Arni Brokenbrow: "base power become 1 plus …" — the power only (powerX)
           if (e.powerX != null) eff = Object.assign({}, eff, { setPt: { p: n(e.powerX) } });
+          // (Galion, Elvenking's Butler: "equal to Galion's power and toughness" — the toughness too)
+          if (e.toughnessX != null) eff = Object.assign({}, eff, { setPt: Object.assign({}, eff.setPt, { t: n(e.toughnessX) }) });
           applyToScope(e, (o) => {
             if (!o || o.zone !== 'battlefield') return;
             const one = JSON.parse(JSON.stringify(eff));
