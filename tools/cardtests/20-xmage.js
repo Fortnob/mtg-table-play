@@ -69920,4 +69920,123 @@ module.exports = (test) => {
       t.ok(g.log.some(l => /rolls 12, plus 3: 15/.test(l.text)), 'the roll and the power, said');
     }
   });
+  test("Cards: Silent-Blade Oni — combat damage to a player: you see their hand and may cast a spell from it for free", (mk, t) => {
+    t.auto('Silent-Blade Oni');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const oni = T.bf('A', 'Silent-Blade Oni');
+    const div = T.hand('B', 'Divination'), bolt = T.hand('B', 'Lightning Bolt'), mtn = T.hand('B', 'Mountain');
+    let q = null;
+    T.answer('declareAttackers', () => [{ attackerId: oni.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => { q = ch; return { picks: [div.id] }; });
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 14, 'six damage');
+    t.ok(q && q.purpose === 'castFreePick', 'asked which spell');
+    const ids = (q.items || []).map(it => it.id);
+    t.ok(ids.includes(div.id) && ids.includes(bolt.id), 'their spells offered');
+    t.no(ids.includes(mtn.id), 'not a land');
+    t.ok(g._knows(mtn, 'A'), 'the whole hand seen, the land too');
+    t.zone(div, 'graveyard', 'Divination cast');
+    t.ok(T.zone('B', 'graveyard').includes(div), "into its owner's graveyard");
+    t.eq(T.zone('A', 'hand').length, 2, 'A drew two');
+    t.eq(mana(T.player('A').pool), 0, 'for free');
+    t.zone(bolt, 'hand'); t.eq(bolt.owner, 'B');
+    function mana(pool) { return ['W', 'U', 'B', 'R', 'G', 'C'].reduce((s, c) => s + (pool[c] || 0), 0); }
+  });
+  test("Cards: Machine God's Effigy — a copy of any creature, but only an artifact, with {T}: Add {U}", (mk, t) => {
+    t.auto("Machine God's Effigy");
+    const T = mk();
+    const g = T.g;
+    T.bf('B', 'Serra Angel');
+    T.bf('A', 'Craw Wurm');
+    const eff = T.hand('A', "Machine God's Effigy");
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [ch.cards.find(c => c.name === 'Serra Angel').id] }; });
+    T.mana('A', '4');
+    T.cast('A', eff);
+    t.ok(q, 'asked');
+    t.ok(q.cards.some(c => c.name === 'Craw Wurm'), 'any creature, yours too');
+    t.zone(eff, 'battlefield');
+    t.eq(eff.name, 'Serra Angel');
+    t.no(g.characteristics(eff).isCreature, 'not a creature');
+    t.ok(g._cardFitsWords(eff, 'artifact'), 'an artifact');
+    t.no(g._hasCreatureType(eff, 'Angel'), 'no creature types');
+    t.ok(g._cardFitsWords(eff, 'legendary') === false, 'not legendary (Serra Angel is not)');
+    t.ok(g.tapForMana('A', eff.id, 0, 'U'), 'taps for {U}: ' + g.lastError);
+    t.eq(T.player('A').pool.U, 1);
+    // no copy: itself, an artifact with {T}: Add {U}
+    const T2 = mk();
+    const e2 = T2.hand('A', "Machine God's Effigy");
+    T2.mana('A', '4');
+    T2.cast('A', e2);
+    t.zone(e2, 'battlefield');
+    t.eq(e2.name, "Machine God's Effigy");
+    t.ok(T2.g.tapForMana('A', e2.id, 0, 'U'), 'taps for {U}');
+  });
+  test('Cards: Doppelgang — X target permanents, X token copies of each; bots pay for X three times over', (mk, t) => {
+    t.auto('Doppelgang');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears'), ring = T.bf('B', 'Sol Ring');
+    T.mana('A', '6GU');
+    T.cast('A', T.hand('A', 'Doppelgang'), { x: 2, targets: [bear, ring] });
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears').length, 2, 'two Bears');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Sol Ring').length, 2, 'two Sol Rings, yours');
+    t.eq(T.bfOf('B').filter(o => o.isToken).length, 0);
+    // X = 1: one target, one copy
+    T.mana('A', '3GU');
+    T.cast('A', T.hand('A', 'Doppelgang'), { x: 1, targets: [ring] });
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Sol Ring').length, 3, 'one more');
+    // a bot with eleven mana: X = 3 (nine of it), not 9
+    const T2 = mk();
+    const g2 = T2.g;
+    T2.bf('A', 'Grizzly Bears'); T2.bf('A', 'Hill Giant'); T2.bf('A', 'Craw Wurm');
+    for (let i = 0; i < 11; i++) T2.bf('A', i % 2 ? 'Forest' : 'Island');
+    T2.player('A').isBot = true;
+    const bot = new (require('../harness').engine().bots.BotPlayer)(g2, 'A', 8);
+    const dg = T2.hand('A', 'Doppelgang');
+    const ok = bot.castChoice({ o: dg, a: dg.analysis(), cost: 2, costStr: dg.card.mana_cost }, 11);
+    t.ok(ok, 'cast: ' + g2.lastError);
+    T2.resolve();
+    t.eq(T2.bfOf('A').filter(o => o.isToken).length, 9, 'three permanents, three copies each');
+    t.ok(g);
+  });
+  test('Cards: Swell of Courage — +2/+2 to yours; reinforce X from the hand: X +1/+1 counters, X paid', (mk, t) => {
+    t.auto('Swell of Courage');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    const sw = T.hand('A', 'Swell of Courage');
+    t.ok(g.altUsesFor('A', sw.id).some(u => u.channel || u.kind === 'channel' || /reinforce/i.test(u.label || '')), 'reinforce offered from the hand');
+    T.mana('A', '3WW');
+    t.ok(g.cycleCard('A', sw.id, { auto: true, channel: true, x: 3, targets: [{ kind: 'object', id: bear.id }] }), 'reinforced: ' + g.lastError);
+    T.resolve();
+    t.zone(sw, 'graveyard', 'discarded');
+    t.eq(bear.counters['+1/+1'], 3, 'three counters');
+    t.eq(['W', 'U', 'B', 'R', 'G', 'C'].reduce((s, c) => s + (T.player('A').pool[c] || 0), 0), 0, 'X paid');
+    // cast: +2/+2 to your creatures only
+    T.mana('A', '3WW');
+    T.cast('A', T.hand('A', 'Swell of Courage'));
+    t.eq(g.powerOf(bear), 7); t.eq(g.powerOf(theirs), 2);
+  });
+  test('Cards: Spinewoods Armadillo — from the hand: a basic land or a Desert to hand, and 3 life', (mk, t) => {
+    t.auto('Spinewoods Armadillo');
+    const T = mk({ library: ['Island'] });
+    const g = T.g;
+    const des = T.top('A', 'Sunscorched Desert'), temple = T.top('A', 'Temple of Malady'), fst = T.top('A', 'Forest');
+    const arm = T.hand('A', 'Spinewoods Armadillo');
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [des.id] }; });
+    T.mana('A', '1G');
+    t.ok(g.cycleCard('A', arm.id, { auto: true, channel: true }), 'used from the hand: ' + g.lastError);
+    T.resolve();
+    t.zone(arm, 'graveyard', 'discarded');
+    t.ok(q, 'asked');
+    t.eq(q.prompt, 'Search your library for a basic land card or a Desert card.');
+    const offered = (q.cards || []).map(c => c.id);
+    t.ok(offered.includes(des.id) && offered.includes(fst.id), 'a Desert and a basic land');
+    t.no(offered.includes(temple.id), 'not another nonbasic land');
+    t.zone(des, 'hand');
+    t.eq(T.life('A'), 23, '3 life');
+  });
 };

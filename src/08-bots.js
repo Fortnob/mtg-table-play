@@ -4300,7 +4300,9 @@
       }
       // an {X} spell is only worth casting for a real X, so spend what is left over
       if (/\{X\}/.test(choice.costStr || choice.o.card.mana_cost || '')) {
-        const left = Math.max(0, spare);
+        // (Doppelgang: {X}{X}{X} — each X paid that many times over)
+        const xs = (String(choice.costStr || choice.o.card.mana_cost || '').match(/\{X\}/g) || []).length || 1;
+        const left = Math.floor(Math.max(0, spare) / xs);
         opts.x = this.d >= 4 ? left : Math.min(left, 1 + Math.floor(this.rand() * 3));
         opts.x = Math.min(opts.x, g._xCap(choice.o, this.pid));   // Open the Way: "X can't be greater than …"
         if (opts.x <= 0 && !(choice.a.isPermanent)) return false;

@@ -20860,11 +20860,12 @@
       if (e.setTypeLine) card = Object.assign({}, card, { id: card.id + ':types:' + U.hash(e.setTypeLine), type_line: e.setTypeLine, card_faces: null });
       /* Imposter Mech: "it's a Vehicle artifact with crew 3 and it loses all other card types" — its supertypes kept, the
          subtypes of the types lost gone with them (vehicleCrew) */
-      if (e.vehicleCrew) {
+      // (Machine God's Effigy: "it's an artifact" — that card type only, no creature types with it: onlyCardType)
+      if (e.vehicleCrew || e.onlyCardType) {
         const supers = (String(card.type_line || '').split(/\s+—/)[0].match(/\b(?:Legendary|Snow|World|Basic)\b/g) || []);
-        const line = supers.concat(['Artifact \u2014 Vehicle']).join(' ');
-        const text = String(card.oracle_text || '') + '\nCrew ' + e.vehicleCrew;
-        card = Object.assign({}, card, { id: card.id + ':vehicle:' + U.hash(line + text), type_line: line, oracle_text: text.trim(), card_faces: null });
+        const line = supers.concat([e.vehicleCrew ? 'Artifact \u2014 Vehicle' : e.onlyCardType]).join(' ');
+        const text = String(card.oracle_text || '') + (e.vehicleCrew ? '\nCrew ' + e.vehicleCrew : '');
+        card = Object.assign({}, card, { id: card.id + (e.vehicleCrew ? ':vehicle:' : ':only:') + U.hash(line + text), type_line: line, oracle_text: text.trim(), card_faces: null });
       }
       // Superior Spider-Man: "he's a 4/4 …" — that size (copyPt)
       if (e.copyPt) {
@@ -27293,6 +27294,14 @@
             }
             break;
           }
+          // Doppelgang: "For each of X target permanents, create X tokens that are copies of that permanent." (eachTarget)
+          if (e.eachTarget) {
+            for (const t of targets.filter(x => x.kind === 'object')) {
+              const x = this.obj(t.id);
+              if (x && x.zone === 'battlefield') this._runEffect(Object.assign({}, e, { eachTarget: false, targets: null, _forcedId: x.id }), ctx);
+            }
+            break;
+          }
           // (Sin, Spira's Punishment: the card exiled at random, by its id — _forcedId)
           let source = e._forced || (e._forcedId && this.obj(e._forcedId)) || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
           /* Orvar, the All-Form: "a copy of one of those permanents" — the other permanents of yours the spell
@@ -33092,6 +33101,11 @@
               : e.from === 'graveyard' ? this._freeFromGraveyardPick(e, ctx, me, firstPlayer, n)
               : e.from === 'handOrGraveyard' ? this._freeFromHandOrGravePick(e, ctx, me)
               : e.from === 'looked' ? (this._looked || []).slice()
+              // Silent-Blade Oni: "look at that player's hand" — seen by you for as long as the cards stay there (triggerPlayerHand)
+              : e.from === 'triggerPlayerHand' ? (() => { const tp = triggerPlayer(); if (!tp || !this.zones[tp.id]) return [];
+                if (tp.id !== ctx.controller) this._knowHand(tp.id, ctx.controller);
+                this.logEvent('reveal', `${me.name} looks at ${tp.name}'s hand.`);
+                return this.zones[tp.id].hand.map(c => c.id); })()
               // Sunforger: "Search your library for … and cast that card" — the library, one picked (library)
               : e.from === 'library' ? this.zones[ctx.controller].library.map(c => c.id)
               // The Ur-Sphinx: "a card that player milled this way" — those cards, named (ids)
@@ -33131,8 +33145,14 @@
               // (Sanwell, Avenger Ace: paying its costs — only what could be paid for)
               (!e.pay || this.couldPay(ctx.controller, String(this._anyColorCost(ctx.controller, c, this.castCost(c, {}) || '')).replace(/\{X\}/g, ''), this.manaSources(ctx.controller))));
             let picks = [];
+            // (Silent-Blade Oni: nothing in that hand to cast — the look is all there is: look)
+            if (!able.length && e.look && pool.length) {
+              const seen = this._choose({ playerId: ctx.controller, kind: 'objects', min: 0, max: 0, items: this._chooseItems(pool.map(id => this.obj(id)).filter(Boolean)),
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.among ? e.among.charAt(0).toUpperCase() + e.among.slice(1) : 'Those cards'} — nothing in it you could cast.` }, 'cfpLook');
+              if (seen === SUSPEND) return SUSPEND;
+            }
             if (able.length) {
-              const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: e.from === 'hand' ? 'hand' : 'library', items: this._chooseItems(able),
+              const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: e.from === 'hand' || e.from === 'triggerPlayerHand' ? 'hand' : 'library', items: this._chooseItems(able),
                 min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''}${mvEq != null ? ' with mana value ' + mvEq : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
               if (got === SUSPEND) return SUSPEND;
               picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
@@ -33212,7 +33232,12 @@
             // Anrakyr the Traveller: life equal to its mana value, rather than its mana cost (payLifeMv)
             const lifeMv = e.payLifeMv ? ((c.card && c.card.cmc) || 0) : 0;
             if (e.payLifeMv && !this._canPayLifeMv(me, lifeMv)) continue;
-            const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
+            // (Silent-Blade Oni: a card in another player's hand, cast by leave of this effect: handCastBy)
+            const otherHand = c.zone === 'hand' && c.owner !== ctx.controller;
+            if (otherHand) c.handCastBy = ctx.controller;
+            let ok;
+            try { ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true })); }
+            finally { if (otherHand) delete c.handCastBy; }
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
             if (r) r.marks[slot + 'n']++;
@@ -42247,6 +42272,8 @@
     _oppHandGrant(playerId, o) {
       const p = this.player(playerId);
       if (!p || !o || o.zone !== 'hand' || o.owner === playerId) return false;
+      // Silent-Blade Oni: "cast a spell from among those cards" — this one, as that resolves (handCastBy)
+      if (o.handCastBy === playerId) return true;
       return (p.oppHandGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
     }
     /** …and every card in those hands. */

@@ -897,6 +897,9 @@
       /* Imposter Mech: "it's a Vehicle artifact with crew 3 and it loses all other card types" — no creature types either
          (they go with the card type), its supertypes kept (vehicleCrew) */
       else if ((c = ex.match(/^it'?s a Vehicle artifact with crew (\d+) and it loses all other card types/i))) e.vehicleCrew = +c[1];
+      /* Machine God's Effigy: "it's an artifact and it has …" — that card type and no other (so not a creature), its
+         supertypes kept (onlyCardType) */
+      else if ((c = ex.match(/^it'?s an? (artifact|enchantment)(?= and |,|$)/i))) e.onlyCardType = c[1][0].toUpperCase() + c[1].slice(1).toLowerCase();
       // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1"; Volrath, the Shapestealer: "it's 7/5" — that size
       // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
       else if ((c = ex.match(/^(?:it|he|she)'?s (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
@@ -1262,6 +1265,10 @@
     let desc = m[1].trim().toLowerCase().replace(/,$/, '');
     s = s.slice(m[0].length);
     let q;
+    // Spinewoods Armadillo: "a basic land card or a Desert card" — either kind (orAlso, joined after the basics below)
+    let orAlso = '';
+    // (nothing said of the second kind alone — Starfield Shepherd's "or a creature card with mana value 1 or less" is not this)
+    if ((q = s.match(/^ or an? ([A-Za-z][-a-zA-Z']*(?: [a-z]+)?) card(?=,|$)/))) { orAlso = q[1].toLowerCase(); s = s.slice(q[0].length); }
     // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
@@ -1294,6 +1301,7 @@
       desc = desc.replace(/^basic /, '').split(/\s*,\s*(?:or\s+)?|\s+or\s+/).filter(Boolean)
         .map(w => 'basic ' + w).join(' or ');
     }
+    if (orAlso && desc) desc = desc + ' or ' + orAlso;
     e.filter = desc || 'any';
     s = s.replace(/^,? (?:and )?reveal (?:it|them|that card|those cards|the cards)/i, '');
     if ((m = s.match(/^,? (?:and )?put (?:it|that card) onto the battlefield attached to (?:CARDNAME|this creature)/i))) {
@@ -1329,7 +1337,10 @@
     if (s.trim()) return null;
     // the prompt says it as the card does: "a Forest card", not "a forest card"; "up to two", not "up to 2"
     const asPrinted = (w) => { const hit = String(sentence).match(new RegExp('\\b' + w.replace(/[^a-z'-]/gi, '') + '\\b', 'i')); return hit && /^[A-Z]/.test(hit[0]) ? hit[0] : w; };
-    const what = e.filter === 'any' ? 'card' : e.filter.split(' ').map(w => w.replace(/^[a-z'-]+/, (x) => asPrinted(x))).join(' ') + ' card';
+    const said = (f) => f.split(' ').map(w => w.replace(/^[a-z'-]+/, (x) => asPrinted(x))).join(' ');
+    // (Spinewoods Armadillo: "a basic land card or a Desert card", as printed)
+    const what = e.filter === 'any' ? 'card' : orAlso && e.n === 1 ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' card or ' + (/^[aeiou]/i.test(orAlso) ? 'an ' : 'a ') + said(orAlso) + ' card'
+      : said(e.filter) + ' card';
     const NW = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
     e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
       what + (e.n === 1 ? '' : 's') +
@@ -11827,6 +11838,15 @@
     { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
       make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
         { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
+    /* Doppelgang: "For each of X target permanents, create X tokens that are copies of that permanent." — X of them, X
+       copies of each (eachTarget) */
+    { re: /^For each of X target (permanents|creatures|artifacts), create X tokens that are copies of that (?:permanent|creature|artifact)\.?$/i,
+      make: (m) => { const w = m[1].toLowerCase().replace(/s$/, '');
+        return [{ op: 'copyPermanent', n: 'X', eachTarget: true, grant: [], targets: [{ type: w, filter: w, zone: 'battlefield', multi: { count: 'X', exact: true } }] }]; } },
+    /* Silent-Blade Oni: "look at that player's hand. You may cast a spell from among those cards without paying its mana
+       cost." — the hand seen, and one of its spells picked (triggerPlayerHand) */
+    { re: /^Look at that player'?s hand\. You may cast a spell from among those cards without paying its mana cost\.$/i,
+      make: () => [{ op: 'castFree', from: 'triggerPlayerHand', upTo: 1, pickOne: true, look: true, among: "that player's hand" }] },
     /* Wyll's Reversal: "You may choose new targets for that spell or ability. Then copy it. You may choose new targets
        for the copy." — the one this targets */
     { re: /^You may choose new targets for that spell or ability\. Then copy it\. You may choose new targets for the copy\.$/i,
@@ -18827,9 +18847,10 @@
          discarding the card, cheaper for each legend you control. */
       /* Reinforce N (CR 702.77): discard it for N +1/+1 counters on a
          creature, an ability from the hand like channel */
+      // (Swell of Courage: "Reinforce X—{X}{W}{W}" — X chosen and paid as it is used, as channel's {X} is)
       const reinf = line.match(/^Reinforce (one|two|three|four|five|X|\d+)\s*(?:\u2014|--|-)\s*((?:\{[^}]+\})+)/i);
-      if (reinf && !/X/i.test(reinf[1])) {
-        out.channel = { cost: reinf[2], effects: [{ op: 'counters', kind: '+1/+1', n: num(reinf[1]), targets: [targetSpec('target creature')] }] };
+      if (reinf && (!/X/i.test(reinf[1]) || /\{X\}/.test(reinf[2]))) {
+        out.channel = { cost: reinf[2], effects: [{ op: 'counters', kind: '+1/+1', n: /X/i.test(reinf[1]) ? 'X' : num(reinf[1]), targets: [targetSpec('target creature')] }] };
         out.abilities.push({ kind: 'castModifier', keyword: 'Channel', arg: reinf[2], text: line, auto: true, effects: [] });
         autoLines++;
         continue;
