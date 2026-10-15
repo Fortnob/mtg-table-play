@@ -3987,6 +3987,8 @@
     { re: /^Discover X, where X is (?:that creature'?s|its) (power|toughness)\.?$/i, make: (m) => ({ op: 'discover', n: { ofTrigger: m[1].toLowerCase() } }) },
     // Aloy, Savior of Meridian: "discover X, where X is the greatest power among them" — the attackers in the lot (batchMaxPower)
     { re: /^Discover X, where X is the greatest power among them\.?$/i, make: () => ({ op: 'discover', n: { batchMaxPower: true } }) },
+    // Ellie and Alan, Paleontologists: "Discover X, where X is the mana value of the exiled card." — the one exiled to pay (ofExiledCost)
+    { re: /^Discover X, where X is the mana value of the exiled card\.?$/i, make: () => ({ op: 'discover', n: { ofExiledCost: 'mv' } }) },
     { re: /^[Ee]arthbend (one|two|three|four|five|six|\d+|X)\.?$/,
       make: (m) => ({ op: 'earthbend', n: num(m[1]), targets: [{ type: 'land', controller: 'you', filter: 'land you control' }] }) },
     // (Aang, Airbending Master: "airbend another target creature" — airbendAnother)
@@ -4445,6 +4447,10 @@
     // Azorius Ploy: "Prevent all combat damage that would be dealt to target creature this turn."
     { re: /^Prevent all combat damage that would be dealt to (target creature) this turn\.?$/i,
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken'] }) },
+    /* Avacyn, Guardian Angel: "Prevent all damage that would be dealt to another target creature (target player or
+       planeswalker) this turn by sources of the color of your choice." — the colour chosen as it resolves (preventFromColor) */
+    { re: /^Prevent all damage that would be dealt to ((?:another )?target creature|target player or planeswalker) this turn by sources of the colou?r of your choice\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'preventFromColor', targets: [sp] } : null; } },
     { re: /^Prevent all damage that would be dealt to (target creature|target permanent) this turn\.?$/i,
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
     /* Cass, Hand of Vengeance: "return any number of Aura cards that were attached to it from your graveyard to the
@@ -5342,13 +5348,17 @@
        the stack */
     // (Anikthea, Hand of Erebos: "up to one target non-Aura enchantment card")
     // (Lobelia Sackville-Baggins: "… from an opponent's graveyard that was put there from the battlefield this turn" — fromBfThisTurn)
-    { re: /^Exile (up to one )?target ((?:[a-z-]+ )*?)card from (a|your|an opponent's) graveyard( that was put there from the battlefield this turn)?\.?$/i,
+    /* (Soundwave, Sonic Spy: "exile target instant or sorcery card with mana value equal to the damage dealt from their
+       graveyard" — the player hit, and what the lot dealt them: triggerPlayer, mvEqTriggerAmount) */
+    { re: /^Exile (up to one )?target ((?:[a-z-]+ )*?)card( with mana value equal to the damage dealt)? from (a|your|an opponent's|their|that player's) graveyard( that was put there from the battlefield this turn)?\.?$/i,
       make: (m) => {
         const spec = m[2].trim() ? targetSpec('target ' + m[2].trim(), 'graveyard') : { type: 'permanent', filter: 'card', zone: 'graveyard' };
         if (spec.unknown) return null;
-        if (m[4]) spec.fromBfThisTurn = true;
-        if (/your/i.test(m[3])) spec.controller = 'you';
-        if (/opponent/i.test(m[3])) spec.controller = 'opponent';
+        if (m[5]) spec.fromBfThisTurn = true;
+        if (m[3]) spec.mvEqTriggerAmount = true;
+        if (/your/i.test(m[4])) spec.controller = 'you';
+        if (/opponent/i.test(m[4])) spec.controller = 'opponent';
+        if (/their|that player/i.test(m[4])) spec.controller = 'triggerPlayer';
         if (m[1]) spec.upTo = true;
         return { op: 'exile', targets: [spec] };
       } },
@@ -6794,6 +6804,8 @@
        spell suspended as it resolves */
     { re: /^Exile (?:CARDNAME|this spell|it) with (two|three|four|five|\d+) time counters on it\.?$/i,
       make: (m) => ({ op: 'suspendSelf', n: num(m[1]) }) },
+    // Rory Williams: "exile it with three time counters on it. It gains suspend." — suspendSelf has suspended it already
+    { re: /^It gains suspend\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Attach (CARDNAME|it) to (target creature you control|target creature)\.?$/i,
       make: (m) => Object.assign({ op: 'attachSelf', targets: [targetSpec(m[2])] }, /^it$/i.test(m[1]) ? { attachIt: true } : {}) },
     { re: /^If that (?:creature|permanent)(?: or planeswalker)? would die this turn, exile it instead\.?$/i,
@@ -10303,6 +10315,10 @@
        — only when it did turn over (then) */
     { re: /^convert (?:CARDNAME|it)\. If you do, there is an additional beginning phase after this phase\.?$/i,
       make: () => [{ op: 'transformSelf', then: [{ op: 'extraBeginningPhase' }] }] },
+    /* Soundwave, Superior Captain: "convert Soundwave. If you do, create Ravage, …" — only when it does turn over, not if
+       it has since the trigger (CR 701.28f; sinceTrigger, then) */
+    { re: /^convert (?:CARDNAME|it)\. If you do, (create [^.]+)\.?$/i,
+      make: (m) => { const then = voteBody(m[1]); return then ? [{ op: 'transformSelf', sinceTrigger: true, then }] : null; } },
     /* Pia Nalaar, Chief Mechanic: "you may pay one or more {E}. If you do, create an X/X … token …, where X is the
        amount of {E} paid this way." — how much, none for no (payEnergyAny) */
     { re: /^(?:you may )?pay one or more \{E\}\. If you do, (create an X\/X [^.]+?), where X is the amount of \{E\} paid this way\.?$/i,
@@ -12559,6 +12575,11 @@
     let m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} (less|more) to cast for each (.+)$/i);
     // Thrasta, Tempest's Roar: "for each other spell cast this turn" — anyone's (allSpellsThisTurn)
     if (m && /^other spells? cast this turn$/i.test(m[3].trim())) return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: { allSpellsThisTurn: true } };
+    // Licia, Sanguine Tribune: "for each 1 life you gained this turn" — the life gained (playerStat)
+    if (m && /^1 life you(?:'ve)? gained this turn$/i.test(m[3].trim())) {
+      const a = amountOf('the amount of life you gained this turn');
+      return a && typeof a === 'object' ? { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: a } : null;
+    }
     if (m) {
       let phrase = m[3].trim();
       const field = / on the battlefield$/i.test(phrase);
@@ -12989,6 +13010,13 @@
         effects.push({ op: 'castCopy', of: /exiled/i.test(copyIt[2]) ? 'exiled' : 'last', text: s + ' ' + next });
         if (/^you may copy a card exiled/i.test(s)) effects[effects.length - 1].pickExiled = true;
         if (paidLife) Object.assign(effects[effects.length - 1], { pay: true, lifeIfCast: num(paidLife[1]), text: s + ' ' + next + ' ' + sentences[i + 2] });
+        // Soundwave, Sonic Spy: "If you do, convert Soundwave." — once the copy is cast (then)
+        const ifCast = !paidLife && String(sentences[i + 2] || '').match(/^If you do, ((?:convert|transform) CARDNAME\.)$/i);
+        const ifThen = ifCast && parseSentenceList(splitSentences(U.titleCase(ifCast[1].charAt(0)) + ifCast[1].slice(1)));
+        if (ifThen && ifThen.auto && ifThen.effects.length) {
+          Object.assign(effects[effects.length - 1], { then: ifThen.effects, text: s + ' ' + next + ' ' + sentences[i + 2] });
+          i++;
+        }
         i += paidLife ? 2 : 1;
         continue;
       }
@@ -14859,6 +14887,9 @@
     if (list) { const ks = list[1].match(/\d+/g).map(Number); f.minMv = Math.min(...ks); f.maxMv = Math.max(...ks); }
     // Pollywog Prodigy: "with mana value less than this creature's power"
     if (/less than (?:this creature|CARDNAME)'?s power/i.test(String(mv || ''))) f.mvBelowSelfPower = true;
+    // Soundwave, Superior Captain: "a spell with an odd mana value" (mvParity)
+    const par = String(mv || '').match(/with an? (odd|even) mana value/i);
+    if (par) f.mvParity = par[1].toLowerCase();
     return f;
   }
 
@@ -15164,6 +15195,8 @@
     { re: /^Whenever you play a land or cast a spell from anywhere other than your hand,/i, event: 'youPlayLand', also: 'youCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
     // the Eldrazi titans: a trigger from the stack, as the spell is cast
+    // Rory Williams: "When you cast this spell from anywhere other than exile," — not when cast from exile (notFromExile)
+    { re: /^When you cast (?:this spell|CARDNAME) from anywhere other than exile,? /i, event: 'castSelf', extra: { notFromExile: true } },
     { re: /^When you cast (?:this spell|CARDNAME),? /i, event: 'castSelf' },
     { re: /^Whenever (?:CARDNAME|this creature) attacks for the first time each turn,? /i, event: 'attacks', self: true,
       extra: { firstAttack: true } },
@@ -15428,7 +15461,7 @@
     // Edgar Markov: "Whenever you cast another Vampire spell" — not this card
     { re: /^When(?:ever)? you cast another ([a-zA-Z ,-]*?)spell, /i,
       event: 'youCastSpell', filt: (m) => { const f = spellFilter(m[1]); return f ? Object.assign(f, { other: true }) : null; } },
-    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power|\d+(?:, \d+)*,? or \d+))?, /i,
+    { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power|\d+(?:, \d+)*,? or \d+)| with an? (?:odd|even) mana value)?, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell of the chosen type, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' of the chosen type') },

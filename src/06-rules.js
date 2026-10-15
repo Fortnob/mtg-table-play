@@ -7838,6 +7838,8 @@
       if (a && !item.isCopy) {
         a.abilities.forEach((ab, i) => {
           if (ab.kind !== 'triggered' || ab.event !== 'castSelf') return;
+          // Rory Williams: "from anywhere other than exile" (notFromExile)
+          if (ab.notFromExile && fromZone === 'exile') return;
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: playerId, name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
@@ -18674,6 +18676,8 @@
         })
         // Krile Baldesion: "with mana value equal to that spell's mana value" (mvEqTrigger)
         .map(spec => (spec && spec.mvEqTrigger ? this._mvEqTriggerSpec(spec, td) : spec))
+        // Soundwave, Sonic Spy: "with mana value equal to the damage dealt" — what the lot dealt that player (mvEqTriggerAmount)
+        .map(spec => (spec && spec.mvEqTriggerAmount ? Object.assign({}, spec, { mvEqTriggerAmount: false, minMv: Number(td.amount) || 0, maxMv: Number(td.amount) || 0 }) : spec))
         // Saruman of Many Colors: "with equal or lesser mana value than that spell" (mvAtMostTrigger)
         .map(spec => (spec && spec.mvAtMostTrigger ? Object.assign({}, spec, { mvAtMostTrigger: false, maxMv: this._triggerSpellMv(td) }) : spec))
         // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
@@ -19270,6 +19274,11 @@
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
         // Food Chain: the creature exiled to pay for it
+        // (Ellie and Alan, Paleontologists: a card exiled from the graveyard to pay — costExiled)
+        if (v && typeof v === 'object' && v.ofExiledCost && !ctx.exiledCost && (ctx.costExiled || []).length) {
+          const c0 = this.obj(ctx.costExiled[0]);
+          return (v.ofExiledCost === 'mv' ? ((c0 && c0.card && c0.card.cmc) || 0) : 0) + (v.plus || 0);
+        }
         if (v && typeof v === 'object' && v.ofExiledCost) return ((ctx.exiledCost || {})[v.ofExiledCost] || 0) + (v.plus || 0);
         // Captain America, First Avenger: "that Equipment's mana value" — the one unattached to pay
         if (v && typeof v === 'object' && v.ofUnattached) return (ctx.unattachedCost || {})[v.ofUnattached] || 0;
@@ -29136,6 +29145,22 @@
           }
           break;
 
+        /* Avacyn, Guardian Angel: "Prevent all damage that would be dealt to another target creature this turn by sources
+           of the color of your choice." — the colour asked as it resolves, the shield on the target (fromColor) */
+        case 'preventFromColor': {
+          const t = targets[0];
+          const who = t && (t.kind === 'player' ? this.player(t.id) : this.obj(t.id));
+          if (!who) break;
+          const COLS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green']];
+          const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'protectionColor',
+            options: COLS.map((c, i) => ({ i, label: c[1] })), prompt: `Prevent all damage that would be dealt to ${who.name} this turn by sources of which colour?` }, 'pfcol');
+          if (picked === SUSPEND) return SUSPEND;
+          const idx = Array.isArray(picked) ? picked[0] : picked;
+          const col = COLS[idx == null ? 0 : idx] || COLS[0];
+          this.prevention.push({ toObj: who.id, fromColor: col[0], who: ctx.controller, until: 'eot' });
+          this.logEvent('rules', `Damage ${col[1].toLowerCase()} sources would deal to ${who.name} is prevented this turn.`);
+          break;
+        }
         case 'preventNext': {
           const amt = n(e.n);
           if (e.to === 'you') { me.preventShield = (me.preventShield || 0) + amt; break; }
@@ -30119,6 +30144,8 @@
             st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`);
             // Kaervek, the Punisher: "If you do, you lose 2 life."
             if (e.lifeIfCast) this.changeLife(me, -e.lifeIfCast);
+            // Soundwave, Sonic Spy: "If you do, convert Soundwave." (then)
+            if (e.then && e.then.length) this._spliceNext(e.then);
           } else { this._removeFromZone(dup); dup.zone = null; }
           break;
         }
@@ -34437,6 +34464,8 @@
         if (pv.toSubtype && !(tCreature && this._hasCreatureType(target, pv.toSubtype))) continue;
         if (pv.to === 'youAndYours' && !(target && (target.id === pv.who || (tCreature && target.controller === pv.who)))) continue;
         if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;
+        // Avacyn, Guardian Angel: "by sources of the color of your choice" (fromColor)
+        if (pv.fromColor && !(source && source.analysis && ((source.analysis() || {}).colors || []).includes(pv.fromColor))) continue;
         if (pv.fromAttacking && !(source && source.attacking)) continue;
         // Fog of War: only what creatures with power 2 or less deal
         if (pv.fromMaxPower != null && !(source && (this.characteristics(source) || {}).isCreature && this.powerOf(source) <= pv.fromMaxPower)) continue;
@@ -36044,6 +36073,8 @@
       if (f.minCardTypes && this._cardTypesOf(x).length < f.minCardTypes) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"
       if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;
+      // Soundwave, Superior Captain: "a spell with an odd (even) mana value" — X and all (mvParity)
+      if (f.mvParity && (((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) % 2 === 0) !== (f.mvParity === 'even'))) return false;
       // (one that has died is judged by the keywords it had as it went — _lastKeywords)
       const kwOf = (k) => (gone && x._lastKeywords ? x._lastKeywords.includes(k) : this.hasKw(x, k));
       if (f.keyword && !kwOf(f.keyword)) return false;
