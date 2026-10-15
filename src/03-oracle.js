@@ -8103,8 +8103,9 @@
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamage', 'noDamageTaken'] }) },
     { re: /^Prevent all (combat )?damage that would be dealt to you this turn\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'you' }) },
-    { re: /^Prevent the next (\d+) damage that would be dealt to (any target|target creature|target player|you|CARDNAME|this creature) this turn\.?$/i,
-      make: (m) => ({ op: 'preventNext', n: +m[1],
+    // (Atalya, Samite Master: "Prevent the next X damage …" — X as paid)
+    { re: /^Prevent the next (\d+|X) damage that would be dealt to (any target|target creature|target player|you|CARDNAME|this creature) this turn\.?$/i,
+      make: (m) => ({ op: 'preventNext', n: m[1] === 'X' ? 'X' : +m[1],
         targets: /^target|^any/i.test(m[2]) ? [targetSpec(m[2])] : null, to: /^you$/i.test(m[2]) ? 'you' : null,
         self: /^(?:CARDNAME|this creature)$/i.test(m[2]) || undefined }) },
     /* "Target creature can't block this creature this turn." */
@@ -9494,6 +9495,10 @@
     // Estinien Varlineau: "your opponents who were dealt combat damage by Estinien Varlineau or a Dragon this turn" (hitBySelfOr)
     if ((m = p.match(/^(?:your )?opponents? (?:that|who) (?:was|were) dealt combat damage by CARDNAME or an? ([A-Z][a-z]+) this turn$/)))
       return { combatHitPlayers: 'opponents', hitBySelfOr: m[1].toLowerCase(), mult: k };
+    // Asmira, Holy Avenger: "for each creature put into your graveyard from the battlefield this turn" — yours as owner (owned)
+    if (/^creatures? put into your graveyard from the battlefield this turn$/i.test(p)) return { diedThisTurn: true, owned: true, mult: k };
+    // Tobias, Doomed Conqueror: "for each nontoken creature you controlled that died this turn" (nontoken, yours)
+    if (/^nontoken creatures? you controlled that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, yours: true, mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
     // Kinbinding: "the number of creatures that entered the battlefield under your control this turn"
@@ -14943,6 +14948,8 @@
     [/^a card with the chosen name is revealed this way$/i, () => ({ kind: 'chosenNameRevealed' })],
     // Ratonhnhaké꞉ton: "As long as Ratonhnhaké꞉ton hasn't dealt damage yet" — since it entered (selfNoDamageYet)
     [/^(?:CARDNAME|this creature|it) hasn'?t dealt damage yet$/i, () => ({ kind: 'selfNoDamageYet' })],
+    // Ruric Thar, Magecrusher: "as long as they haven't dealt combat damage yet" (selfNoCombatDamageYet)
+    [/^(?:CARDNAME|this creature|it|they|he|she) (?:hasn'?t|haven'?t) dealt combat damage yet$/i, () => ({ kind: 'selfNoCombatDamageYet' })],
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
@@ -17696,8 +17703,17 @@
            ability rather than run as one of its effects. */
         const only = parsed.effects.filter(e => e.op === 'activateOnly');
         // Crypt Rats: "Spend only black mana on X." — a rule about paying, kept with the ability
-        const xOnly = parsed.effects.find(e => e.op === 'xColorOnly');
+        let xOnly = parsed.effects.find(e => e.op === 'xColorOnly');
         if (xOnly) parsed.effects = parsed.effects.filter(e => e.op !== 'xColorOnly');
+        // (Atalya, Samite Master: "Spend only white mana on X." in every mode — the ability's, whichever mode is chosen)
+        const xModal = !xOnly && parsed.effects.find(e => e && e.op === 'modal' && (e.modes || []).length);
+        if (xModal) {
+          const per = xModal.modes.map(mo => (mo.effects || []).find(e => e && e.op === 'xColorOnly'));
+          if (per.every(e => e && e.color === per[0].color)) {
+            xOnly = per[0];
+            for (const mo of xModal.modes) mo.effects = mo.effects.filter(e => e.op !== 'xColorOnly');
+          }
+        }
         const spend = parsed.effects.find(e => e.op === 'spendOnly');
         const effects = parsed.effects.filter(e => e.op !== 'activateOnly' && e.op !== 'spendOnly');
         /* Syr Ginger: "Sacrifice Syr Ginger: You gain life equal to its
@@ -22406,6 +22422,9 @@
       // (Baldin, Century Herdmaster: "During your turn, each creature …" — yourTurnOnly)
       { re: /^(During your turn, )?Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => Object.assign({ op: 'toughnessDamage', who: m[2] ? 'you' : 'all', ifTougher: !!m[3] }, m[1] ? { yourTurnOnly: true } : {}), auto: true },
+      // Loot, the Anomaly: "If Loot's power is negative, he assigns combat damage as though his power were positive." (negPowerAbs)
+      { re: /^If CARDNAME'?s power is negative, (?:he|she|it|they) assigns? combat damage as though (?:his|her|its|their) power were positive\.?$/i,
+        eff: { op: 'negPowerAbs' }, auto: true },
       // Signal Pest: "can't be blocked except by creatures with flying or reach"
       { re: /^(?:CARDNAME|This creature) can'?t be blocked except by creatures with (flying|reach)(?: or (flying|reach))?\.?$/i,
         make: (m) => ({ op: 'evasion', onlyBy: [m[1].toLowerCase()].concat(m[2] ? [m[2].toLowerCase()] : []) }), auto: true },

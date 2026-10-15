@@ -4469,6 +4469,9 @@
       if (v.combatHitPlayers) { const hit = ((this.turnHistory || {}).combatHit) || []; return hit.filter(id => v.combatHitPlayers === 'players' || this.opponentsOf(pid).some(q => q.id === id)).length * mult; }
       // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
+      // (Asmira, Holy Avenger: owned; Tobias, Doomed Conqueror: nontoken and yours)
+      if (v.diedThisTurn && v.owned) return ((((this.turnHistory || {}).diedOwned) || {})[pid] || 0) * mult;
+      if (v.diedThisTurn && v.nontoken && v.yours) return ((((this.turnHistory || {}).nontokenDiedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
@@ -13218,7 +13221,9 @@
         if (firstStrikeStep && !(fs || ds)) continue;
         if (!firstStrikeStep && fs && !ds) continue;
         // Weight Advantage: "assigns combat damage equal to its toughness rather than its power"
-        const power = this._dealsByToughness(o) ? this.toughnessOf(o) : this.powerOf(o);
+        let power = this._dealsByToughness(o) ? this.toughnessOf(o) : this.powerOf(o);
+        // Loot, the Anomaly: "If Loot's power is negative, he assigns combat damage as though his power were positive." (negPowerAbs)
+        if (power < 0 && this._staticOp(o, 'negPowerAbs')) power = -power;
         if (power <= 0) continue;
         if (this._hasFlag(o, 'noDamage') || this._hasFlag(o, 'noDamageAll')) continue;
 
@@ -15207,6 +15212,8 @@
         case 'selfOnBattlefield': return !!src && src.zone === 'battlefield';
         // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — this object, since it last entered (marked in _evDamage)
         case 'selfNoDamageYet': return !!src && !src._dealtDamage;
+        // Ruric Thar, Magecrusher: "as long as they haven't dealt combat damage yet"
+        case 'selfNoCombatDamageYet': return !!src && !src._dealtCombatDamage;
         // Isperia the Inscrutable: the name chosen as this resolved, among the hand it revealed (chosenNameRevealed)
         case 'chosenNameRevealed': return !!this._chosenNameNow && ((this._revealedHand || {}).names || []).some(n0 => this._sameCardName(n0, this._chosenNameNow));
         case 'selfAttacking': return !!src && !!src.attacking;
@@ -17083,6 +17090,10 @@
           // Sméagol: "a creature died under your control this turn"
           h.diedBy = h.diedBy || {};
           h.diedBy[o.controller] = (h.diedBy[o.controller] || 0) + 1;
+          // Asmira, Holy Avenger: "put into your graveyard from the battlefield" — by owner (diedOwned)
+          (h.diedOwned = h.diedOwned || {})[o.owner] = (h.diedOwned[o.owner] || 0) + 1;
+          // Tobias, Doomed Conqueror: "nontoken creature you controlled that died" (nontokenDiedBy)
+          if (!o.isToken) (h.nontokenDiedBy = h.nontokenDiedBy || {})[o.controller] = (h.nontokenDiedBy[o.controller] || 0) + 1;
           // Ebondeath, Dracolich: "a creature not named …" — the names of the ones that died (morbidOtherName)
           h.diedNames = h.diedNames || [];
           if (!h.diedNames.includes(o.name)) h.diedNames.push(o.name);
@@ -17180,7 +17191,7 @@
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
-        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = keptCounters || {}; o.counterTs = null; o._stackKw = null; o._dealtDamage = false;
+        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = keptCounters || {}; o.counterTs = null; o._stackKw = null; o._dealtDamage = false; o._dealtCombatDamage = false;
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;
@@ -20061,6 +20072,8 @@
         if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).colorsSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
+        // (Asmira, Holy Avenger; Tobias, Doomed Conqueror: owned, nontoken and yours)
+        if (v && typeof v === 'object' && v.diedThisTurn && (v.owned || v.yours)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * (v.mult || 1);
         // Vren, the Relentless: "creatures that were exiled under your opponents' control this turn" (exiledOppThisTurn)
         if (v && typeof v === 'object' && v.exiledOppThisTurn) {

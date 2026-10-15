@@ -63675,4 +63675,105 @@ module.exports = (test) => {
     T.activate('A', hp, 0, { targets: [c1] });
     t.ok(c1.tapped && !c1.counters.stun, 'Hapatra: untapping — the stun counter comes off instead');
   });
+  test('Commanders: Loot, the Anomaly — negative power: combat damage as though it were positive; threshold: sacrifice for -2/-0', (mk, t) => {
+    t.auto('Loot, the Anomaly');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const lt = T.bf('A', 'Loot, the Anomaly');
+    for (let i = 0; i < 7; i++) T.grave('A', 'Island');
+    const p0 = g.powerOf(lt);
+    const fodder = T.bf('A', 'Llanowar Elves'), fodder2 = T.bf('A', 'Grizzly Bears');
+    T.answer('sacrifice', { cardIds: [fodder.id] });
+    T.activate('A', lt, 0);
+    t.zone(fodder, 'graveyard', 'Loot: the Elves sacrificed');
+    T.answer('sacrifice', { cardIds: [fodder2.id] });
+    T.activate('A', lt, 0);
+    const p = g.powerOf(lt);
+    t.eq(p, p0 - 4, 'Loot: -4/-0 in all');
+    t.ok(p < 0, 'Loot: his power is negative');
+    T.answer('declareAttackers', () => [{ attackerId: lt.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20 + p, 'Loot: deals damage equal to the size of his negative power');
+    // threshold: fewer than seven cards in the graveyard — not even once
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.toMain('A');
+    const l2 = T2.bf('A', 'Loot, the Anomaly'); T2.bf('A', 'Llanowar Elves');
+    t.no(T2.g.activateAbility('A', l2.id, 0, { auto: true }), 'Loot: no threshold — can\'t activate');
+  });
+  test('Commanders: Atalya, Samite Master — {X},{T}: prevent the next X damage to a creature, or gain X life; white mana only on X', (mk, t) => {
+    t.auto('Atalya, Samite Master');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const at = T.bf('A', 'Atalya, Samite Master');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'WWW');
+    T.answer('mode', { modes: [1] });
+    T.activate('A', at, 0, { x: 3, modes: [1] });
+    t.eq(T.life('A'), 23, 'Atalya: gain X life');
+    at.tapped = false;
+    T.mana('A', 'WW');
+    T.answer('mode', { modes: [0] });
+    T.activate('A', at, 0, { x: 2, modes: [0], targets: [bear] });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    t.zone(bear, 'battlefield', 'Atalya: two of the Bolt prevented');
+    t.eq(bear.damage || 0, 1, 'Atalya: the Bears take 1');
+    at.tapped = false;
+    T.mana('A', 'RR');
+    t.no(g.activateAbility('A', at.id, 0, { x: 2, modes: [1], auto: true }), 'Atalya: red mana can\'t pay X');
+  });
+  test('Commanders: Asmira, Holy Avenger — each end step: a +1/+1 counter for each creature put into your graveyard from the battlefield this turn', (mk, t) => {
+    t.auto('Asmira, Holy Avenger');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const as = T.bf('A', 'Asmira, Holy Avenger');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Llanowar Elves'), foe = T.bf('B', 'Hill Giant');
+    // B's creature that A controls goes to B's graveyard: not counted
+    const stolen = T.bf('A', 'Raging Goblin'); stolen.owner = 'B';
+    for (const x of [b1, b2, foe, stolen]) { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [x] }); }
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(as.counters['+1/+1'], 2, 'Asmira: two of yours into your graveyard — two counters');
+    T.nextTurn('B'); T.toMain('B', 'end'); T.resolve();
+    t.eq(as.counters['+1/+1'], 2, "Asmira: on B's turn, nothing died — none");
+    // Fresh Meat reads the same count
+    t.auto('Fresh Meat');
+    const F = mk({ library: Array(20).fill('Island') });
+    F.toMain('A');
+    const fb = F.bf('A', 'Grizzly Bears');
+    F.mana('A', 'R'); F.cast('A', F.hand('A', 'Lightning Bolt'), { targets: [fb] });
+    F.mana('A', 'G3'); F.cast('A', F.hand('A', 'Fresh Meat'));
+    t.eq(F.bfOf('A').filter(o => o.name === 'Beast').length, 1, 'Fresh Meat: one creature of yours died — one Beast');
+  });
+  test("Commanders: Ruric Thar, Magecrusher — can't be countered; hexproof until they've dealt combat damage", (mk, t) => {
+    t.auto('Ruric Thar, Magecrusher');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const rt = T.bf('A', 'Ruric Thar, Magecrusher');
+    t.ok(g.hasKw(rt, 'hexproof'), 'Ruric Thar: hexproof');
+    T.mana('B', 'R');
+    t.no(g.castSpell('B', T.hand('B', 'Lightning Bolt').id, { targets: [{ kind: 'object', id: rt.id }], auto: true }), "Ruric Thar: an opponent can't target them");
+    T.answer('declareAttackers', () => [{ attackerId: rt.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.ok(T.life('B') < 20, 'Ruric Thar: combat damage dealt');
+    t.no(g.hasKw(rt, 'hexproof'), 'Ruric Thar: no more hexproof');
+  });
+  test('Commanders: Tobias, Doomed Conqueror — dies: a 2/2 Zombie for each nontoken creature you controlled that died this turn', (mk, t) => {
+    t.auto('Tobias, Doomed Conqueror');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const tb = T.bf('A', 'Tobias, Doomed Conqueror');
+    const b1 = T.bf('A', 'Grizzly Bears'), foe = T.bf('B', 'Hill Giant');
+    T.answer('*', null);
+    const tok = T.bf('A', 'Llanowar Elves'); tok.isToken = true;
+    for (const x of [b1, foe, tok]) { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [x] }); }
+    T.answers.length = 0;
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [tb] });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Zombie').length, 2, 'Tobias: the Bears and Tobias himself — two Zombies');
+  });
 };

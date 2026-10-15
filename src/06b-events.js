@@ -127,6 +127,8 @@
       if (!(amount > 0)) return;
       // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — the permanent remembers it has
       if (source && source.zone === 'battlefield') source._dealtDamage = true;
+      // (Ruric Thar, Magecrusher: "haven't dealt combat damage yet")
+      if (combat && source && source.zone === 'battlefield') source._dealtCombatDamage = true;
       this._ev('damage', {
         source: source ? source.id : null, sourceName: source ? source.name : null,
         target, amount, combat: !!combat,

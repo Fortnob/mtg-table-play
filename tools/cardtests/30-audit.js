@@ -1925,7 +1925,8 @@ module.exports = (test) => {
     const T = mk();
     // (Death's Presence now reads its count: its own test checks it)
     // (Murmuration now reads its count too: "for each spell you've cast this turn", tested in 20-xmage)
-    for (const n of ['Fresh Meat', 'Hoard Hauler', 'Caller of the Claw'])
+    // (Fresh Meat now reads its count too: "for each creature put into your graveyard from the battlefield this turn", tested with Asmira in 20-xmage)
+    for (const n of ['Hoard Hauler', 'Caller of the Claw'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
 
