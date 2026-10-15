@@ -1086,7 +1086,12 @@
 .life-orb.mini.acting::before { inset: -4px; }
 .op-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .op-name { font: 600 12.5px/1.25 var(--serif); color: #f4f0e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.op-sub { font-size: 10.5px; color: #9aa4b5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-hand { flex: none; display: inline-flex; align-items: center; gap: 3px; font: 700 11px/1 var(--font); color: #cfd6e2;
+  padding: 3px 6px 3px 5px; border-radius: 99px; background: rgba(255,255,255,.07); font-variant-numeric: tabular-nums; }
+.op-hand::before { content: ''; width: 7px; height: 10px; border-radius: 1.5px; background: linear-gradient(160deg, #6b5a3a, #2e2516);
+  box-shadow: inset 0 0 0 1px rgba(246,220,140,.45); }
+.op-hand.out::before { display: none; }
+.op-hint:empty { display: none; }
 .op-flags { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
 .op-flags:empty { display: none; }
 .op-flags i { font-style: normal; font: 700 9.5px/1.45 var(--font); padding: 0 6px; border-radius: 6px; white-space: nowrap;
@@ -1104,12 +1109,14 @@
 :root[data-phone] .opp-strip { left: 52px; right: 6px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
 :root[data-phone] .oplate { flex: 0 0 auto; max-width: 150px; }
 :root[data-phone] .op-sub, :root[data-phone] .op-hint, :root[data-phone] .op-split { display: none; }
+/* a phone: each opponent is a portrait and its life, so every tab fits across (name and hand in the title and tip) */
+:root[data-phone] .oplate .op-who, :root[data-phone] .oplate .op-hand { display: none; }
+:root[data-phone] .oplate { padding: 4px 8px 4px 5px; gap: 6px; }
 /* plates share the strip equally; what is happening at a seat is a tag on its corner */
 .oplate { flex: 1 1 0; max-width: 230px; padding-right: 8px; }
 .op-flags { position: absolute; top: -8px; right: 8px; flex-direction: row; gap: 3px; }
 .op-flags i { box-shadow: 0 2px 6px rgba(0,0,0,.6); background: #1b2030; border: 1px solid rgba(255,255,255,.14); }
 .arena[data-opponents="6"] .op-hint, .arena[data-opponents="7"] .op-hint { display: none; }
-.arena[data-opponents="6"] .oplate .op-sub, .arena[data-opponents="7"] .oplate .op-sub { font-size: 9.5px; }
 .arena.split .oplate { display: none; }
 .arena.split .opp-strip { justify-content: flex-end; height: 30px; }
 .arena.split .arena-board { top: 40px; }

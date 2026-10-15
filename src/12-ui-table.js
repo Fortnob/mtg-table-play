@@ -1052,9 +1052,10 @@
           plate._orb = this.lifeOrb(p);
           plate._orb.classList.add('mini');
           plate._name = el('span', { class: 'op-name' });
-          plate._sub = el('span', { class: 'op-sub' });
-          plate._flags = el('span', { class: 'op-flags' });
-          plate.append(plate._num, plate._orb, el('span', { class: 'op-who' }, [plate._name, plate._sub]), plate._flags);
+          // how many cards in hand, as a chip; the library's size is in the title, the label and a tapped portrait's tip
+          plate._sub = el('span', { class: 'op-hand', 'aria-hidden': 'true' });
+          plate._flags = el('span', { class: 'op-flags', 'aria-hidden': 'true' });
+          plate.append(plate._num, plate._orb, el('span', { class: 'op-who' }, [plate._name]), plate._sub, plate._flags);
           plate.addEventListener('click', (e) => {
             e.stopPropagation();
             // out of the game: nothing of theirs to look at, aim at or attack
@@ -1079,21 +1080,30 @@
         }
         const seatNo = order.indexOf(p.id) + 1;
         plate._num.textContent = String(seatNo);
-        plate.title = p.hasLost ? `${p.name} \u2014 seat ${seatNo}, out of the game` : `${p.name} \u2014 seat ${seatNo} (press ${seatNo} to look at this board)`;
+        const bot = this.botWords(p);
+        plate.title = p.hasLost ? `${p.name} \u2014 seat ${seatNo}, out of the game`
+          : `${p.name} \u2014 seat ${seatNo}${bot ? ', ' + bot : ''}\n${p.handSize} in hand \u00b7 ${p.librarySize} in library` +
+            (MTG.isTouch() ? '' : `\n(press ${seatNo} to look at this board)`);
         plate.setAttribute('aria-selected', this.focusSeat === p.id && !p.hasLost ? 'true' : 'false');
         if (p.hasLost) plate.setAttribute('aria-disabled', 'true'); else plate.removeAttribute('aria-disabled');
         this.paintOrb(plate._orb, p);
         plate._name.textContent = p.name;
-        plate._sub.textContent = p.hasLost ? 'Out' : `${p.handSize} in hand \u00b7 ${p.librarySize} in library`;
+        plate._sub.textContent = p.hasLost ? 'Out' : String(p.handSize);
+        plate._sub.classList.toggle('out', !!p.hasLost);
         const flags = [];
-        if (v.activePlayer === p.id) flags.push(['turn', '\u25b6 turn']);
-        if (v.battlefield.some(o => o.controller === p.id && o.attacking === this.meId)) flags.push(['atk', '\u2694 you']);
-        if (p.poison) flags.push(['bad', `\u2620 ${p.poison}`]);
+        if (v.activePlayer === p.id) flags.push(['turn', '\u25b6 turn', 'their turn']);
+        if (v.battlefield.some(o => o.controller === p.id && o.attacking === this.meId)) flags.push(['atk', '\u2694 you', 'attacking you']);
+        if (p.poison) flags.push(['bad', `\u2620 ${p.poison}`, `${p.poison} poison`]);
         const toMe = this.me ? Object.entries(this.me.commanderDamage || {})
           .filter(([cid]) => { const o = this.objIn(cid); return o && o.owner === p.id; })
           .reduce((m, [, n]) => Math.max(m, n || 0), 0) : 0;
-        if (toMe) flags.push(['cmd', `${toMe} cmd`]);
-        if (v.monarch === p.id) flags.push(['crown', '\u265b']);
+        if (toMe) flags.push(['cmd', `${toMe} cmd`, `${toMe} commander damage to you`]);
+        if (v.monarch === p.id) flags.push(['crown', '\u265b', 'the monarch']);
+        // said whole for a screen reader: what the plate shows, and what it now leaves to the title
+        const acting = ch ? ch.playerId === p.id : (v.priorityPlayer === p.id && !v.mulliganPhase && !v.over);
+        plate.setAttribute('aria-label', p.hasLost ? `${p.name}, seat ${seatNo}, out of the game`
+          : [`${p.name}, seat ${seatNo}`, `${p.life} life`, `${p.handSize} in hand`, `${p.librarySize} in library`, bot,
+            ...flags.map(f => f[2]), acting ? (ch ? 'deciding' : 'thinking') : ''].filter(Boolean).join(', '));
         const sig = JSON.stringify(flags);
         if (plate._flags._sig !== sig) {
           plate._flags._sig = sig;
@@ -1112,7 +1122,8 @@
         host._split = el('button', { type: 'button', class: 'op-split', title: 'Show every opponent side by side',
           onclick: (e) => { e.stopPropagation(); MTG.setSetting('splitOpponents', !MTG.settings.splitOpponents); this._noMotionOnce = true; this.render(); } });
       }
-      host._hint.innerHTML = MTG.isTouch() ? '' : `<kbd>\u2190</kbd><kbd>\u2192</kbd> or <kbd>1</kbd>\u2013<kbd>${Math.min(8, order.length)}</kbd>`;
+      // (the keys for this are in the keyboard help, ?, and each plate's title: not printed beside the plates)
+      host._hint.innerHTML = '';
       host._split.textContent = MTG.settings.splitOpponents ? 'One board' : 'All boards';
       host._split.style.display = others.length <= 3 ? '' : 'none';
       this.place(host, kids.concat([host._hint, host._split]));
