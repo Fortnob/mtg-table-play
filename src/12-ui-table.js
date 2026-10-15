@@ -2853,6 +2853,12 @@
         const have = ((this.view && this.view.battlefield) || []).filter(x => x.controller === this.meId && x.isToken && !x.tapped && x.id !== o.id).length;
         return { label: 'tap how many tokens?', sub: `X is the number of untapped tokens you tap. You have ${have}.`, max: have };
       }
+      // Glacian, Powerstone Engineer: "Tap X untapped artifacts you control"
+      if (c.tapCreatures && c.tapCreatures.n === 'X' && c.tapCreatures.filter === 'artifact') {
+        const have = ((this.view && this.view.battlefield) || []).filter(x => x.controller === this.meId && !x.tapped && x.id !== o.id &&
+          /\bArtifact\b/.test(String((x.card || {}).type_line || ''))).length;
+        return { label: 'tap how many artifacts?', sub: `X is the number of untapped artifacts you tap. You have ${have}.`, max: have };
+      }
       if (/\{X\}/.test(String(c.mana || ''))) {
         const fixed = MTG.mana.cmc(String(c.mana).replace(/\{X\}/g, ''));
         // Gogo, Master of Mimicry: "{X}{X}" pays X twice, and "X can't be 0"

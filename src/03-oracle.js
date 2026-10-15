@@ -2046,7 +2046,8 @@
     // Symbiote Spider-Man: "It gains this card's other abilities." — the card's other lines, read as it resolves (otherOfSource)
     { re: /^It gains this card'?s other abilities\.?$/i, make: () => ({ op: 'grantAbility', otherOfSource: true, duration: 'permanent', scope: 'lastTarget' }) },
     // Symbiote Spider-Man: "Put one of them into your hand and the rest into your graveyard." — after "look at that many"
-    { re: /^Put one of them into your hand and the rest into your graveyard\.?$/i,
+    // (Glacian, Powerstone Engineer: "Put one of those cards …")
+    { re: /^Put one of (?:them|those cards) into your hand and the rest into your graveyard\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'graveyard', prompt: 'Put one of them into your hand.' }) },
     // Jaxis, the Troublemaker: "It gains haste and "When this token dies, draw a card.""
     { re: /^(?:It|That creature|That token) gains ([a-z ]+?) and "([^"]+)"\.?$/,
@@ -3559,6 +3560,9 @@
     // (Empress Galina: "Gain control of target legendary permanent.")
     { re: /^Gain control of target ((?:legendary )?(?:creature|permanent|artifact)|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
+    // Skyfire Kirin: "gain control of target creature with that spell's mana value until end of turn" (mvEqTrigger)
+    { re: /^Gain control of (target creature) with that spell'?s mana value until end of turn\.?$/i,
+      make: (m) => ({ op: 'gainControl', until: 'eot', targets: [Object.assign(targetSpec(m[1]), { mvEqTrigger: true })] }) },
     /* Silver Surfer, Galactus's Herald: "until the end of your next turn, target creature attacks that player each combat
        if able" — the player dealt the damage (mustAttackThatPlayer) */
     { re: /^until the end of your next turn, (target creature) attacks that player each combat if able\.?$/i,
@@ -9508,6 +9512,8 @@
     if (/^other creatures? you control that shares? a creature type with (?:it|CARDNAME|this creature)$/i.test(p)) return { sharesTypeOthers: true, mineOnly: true, mult: k };
     // Wolfbriar Elemental, Lightkeeper of Emeria: "for each time it was kicked" (multikicker)
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
+    // The Mary Janes: "for each creature that attacked this turn" — anyone's (attackedCreatures)
+    if (/^creatures? that attacked this turn$/i.test(p)) return { attackedCreatures: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // The Balrog, Durin's Bane: "for each permanent sacrificed this turn" — by anyone (sacrificedThisTurn, byAnyone)
@@ -9962,6 +9968,9 @@
     // Spear of Heliod: "target creature that dealt damage to you this turn"
     const hurtYou = /\s+that dealt damage to you this turn$/i.test(String(phrase));
     if (hurtYou) phrase = String(phrase).replace(/\s+that dealt damage to you this turn$/i, '');
+    // Red Guardian, Super-Soldier: "target creature an opponent controls that dealt damage this turn"
+    const dealtNow = /\s+that dealt damage this turn$/i.test(String(phrase));
+    if (dealtNow) phrase = String(phrase).replace(/\s+that dealt damage this turn$/i, '');
     // Drown in the Loch: "with mana value less than or equal to the number of cards in its controller's graveyard"
     const ctlGy = /\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i.test(String(phrase));
     if (ctlGy) phrase = String(phrase).replace(/\s+with mana value less than or equal to the number of cards in its controller'?s graveyard$/i, '');
@@ -10022,6 +10031,7 @@
     if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
+    if (dealtNow) spec.dealtDamageThisTurn = true;
     if (ctlGy) spec.mvAtMostCtlGy = true;
     if (hasX) spec.hasXCost = true;
     if (colored) spec.colored = true;
@@ -10369,6 +10379,8 @@
     if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     // Spear of Heliod: one that has dealt damage to the one choosing, this turn
     if (spec.dealtDamageToYou && !(obj._hurtPlayers && ctx && obj._hurtPlayers.turn === ctx.turn && obj._hurtPlayers.ids.includes(me))) return false;
+    // Red Guardian, Super-Soldier: "that dealt damage this turn" — to anything (_dealtDamageTurn)
+    if (spec.dealtDamageThisTurn && !(ctx && obj._dealtDamageTurn === ctx.turn)) return false;
     if (spec.noCounters && Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     return true;
   }
@@ -16179,8 +16191,11 @@
     // Feather, Radiant Arbiter: "Whenever you cast a noncreature spell that targets only Feather"
     { re: /^Whenever you cast a noncreature spell that targets only (?:this creature|CARDNAME),? /i, event: 'youCastSpell',
       extra: { spellFilter: 'noncreature', targetsSelf: true, targetsOnlySelf: true } },
+    // Bill Potts: "… that targets only Bill Potts or activate an ability that targets only Bill Potts" — either
+    { re: /^Whenever you cast an instant or sorcery spell that targets only (?:this creature|CARDNAME) or activate an ability that targets only (?:this creature|CARDNAME),? /i,
+      event: 'youCastSpell', also: 'youActivateAbility', extra: { spellFilter: 'instant or sorcery', targetsSelf: true, targetsOnlySelf: true } },
     // Zada, Hedron Grinder: "Whenever you cast an instant or sorcery spell that targets only Zada"
-    { re: /^Whenever you cast an instant or sorcery spell that targets only (?:this creature|CARDNAME),? /i, event: 'youCastSpell',
+    { re:/^Whenever you cast an instant or sorcery spell that targets only (?:this creature|CARDNAME),? /i, event: 'youCastSpell',
       extra: { spellFilter: 'instant or sorcery', targetsSelf: true, targetsOnlySelf: true } },
     /* Inkling Mascot, Stirring Hopesinger: "Whenever you cast an instant or
        sorcery spell that targets a creature"; Storm, Windrider: "a spell that
@@ -23300,9 +23315,10 @@
       // Ormos, Archive Keeper: "If you would draw a card while your library has no cards in it, instead put five +1/+1 counters on Ormos."
       { re: /^If you would draw a card while your library has no cards in it, instead put (a|one|two|three|four|five|six|\d+) \+1\/\+1 counters? on CARDNAME\.?$/i,
         make: (m) => ({ op: 'countersOnEmptyDraw', n: num(m[1]) }), auto: true },
-      /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off */
-      { re: /^(Creatures|Permanents) entering(?: the battlefield)?( or dying)? don'?t cause abilities( of permanents your opponents control)? to trigger\.?$/i,
-        make: (m) => ({ op: 'noEnterTriggers', what: /creature/i.test(m[1]) ? 'creature' : 'permanent',
+      /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off
+         (Karn, Argent Defender: "Artifacts and creatures entering the battlefield …") */
+      { re: /^(Creatures|Permanents|Artifacts and creatures) entering(?: the battlefield)?( or dying)? don'?t cause abilities( of permanents your opponents control)? to trigger\.?$/i,
+        make: (m) => ({ op: 'noEnterTriggers', what: /^artifacts/i.test(m[1]) ? 'artifact or creature' : /creature/i.test(m[1]) ? 'creature' : 'permanent',
           dying: !!m[2], opponentsOnly: !!m[3] }), auto: true },
       /* Panharmonicon and its kin: one cause, one more trigger */
       // (Naban, Dean of Iteration: "If a Wizard you control entering …" — yours)

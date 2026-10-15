@@ -4494,6 +4494,8 @@
       // (Asmira, Holy Avenger: owned; Tobias, Doomed Conqueror: nontoken and yours)
       if (v.diedThisTurn && v.owned) return ((((this.turnHistory || {}).diedOwned) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.nontoken && v.yours) return ((((this.turnHistory || {}).nontokenDiedBy) || {})[pid] || 0) * mult;
+      // The Mary Janes: "for each creature that attacked this turn" (attackedCreatures)
+      if (v.attackedCreatures) return (((this.turnHistory || {}).attackedIds) || []).length * mult;
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
@@ -12469,6 +12471,9 @@
       if (declarations.length) {
         (this.turnHistory || (this.turnHistory = {})).attacked = true;
         this.turnHistory.attackers = (this.turnHistory.attackers || 0) + declarations.length;
+        // The Mary Janes: "for each creature that attacked this turn" — each creature once (attackedIds)
+        const aids = this.turnHistory.attackedIds || (this.turnHistory.attackedIds = []);
+        for (const d of declarations) if (!aids.includes(d.attackerId)) aids.push(d.attackerId);
         // Rose, Cutthroat Raider: which players each player attacked this turn (opponentsAttacked)
         const apb = this.turnHistory.attackedPlayersBy || (this.turnHistory.attackedPlayersBy = {});
         for (const d of declarations) if (this.player(d.defenderId) && !(apb[playerId] || []).includes(d.defenderId)) (apb[playerId] = apb[playerId] || []).push(d.defenderId);
@@ -16450,6 +16455,8 @@
       if (source) {
         if (!o._damagedBy || o._damagedBy.turn !== this.turn) o._damagedBy = { turn: this.turn, ids: [] };
         if (!o._damagedBy.ids.includes(source.id)) o._damagedBy.ids.push(source.id);
+        // Red Guardian, Super-Soldier: "that dealt damage this turn"
+        source._dealtDamageTurn = this.turn;
         // Wolverine, Best There Is: "if Wolverine dealt damage to another creature this turn" — from the source's side
         if (source !== o && (this.characteristics(o) || {}).isCreature) source._hurtCreatureTurn = this.turn;
         // Shelob, Child of Ungoliant: "by a Spider you controlled" — what the source was, and whose, as it dealt it
@@ -16617,6 +16624,8 @@
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       // Spear of Heliod: who this source has dealt damage to this turn
       if (source) {
+        // Red Guardian, Super-Soldier: "that dealt damage this turn"
+        source._dealtDamageTurn = this.turn;
         if (!source._hurtPlayers || source._hurtPlayers.turn !== this.turn) source._hurtPlayers = { turn: this.turn, ids: [] };
         if (!source._hurtPlayers.ids.includes(p.id)) source._hurtPlayers.ids.push(p.id);
       }
@@ -18008,7 +18017,8 @@
           /* "Whenever you cast a creature spell" is not every spell, and
              "whenever a creature with power 4 or greater enters" is not
              every creature: the trigger says what it is watching for. */
-          if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
+          // (Bill Potts: "an instant or sorcery spell … or activate an ability" — the spell's words aren't the ability's)
+          if (ab.spellFilter && !(ab.also === 'youActivateAbility' && event === 'youActivateAbility') && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
           // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
           // a player aimed at is only for "you or a permanent you control" (orYou); "you become the target": only that (youTargetedOnly)
           // (Loki, God of Mischief: "a player or permanent", any player — anyAbility)
@@ -18217,7 +18227,9 @@
             if (n0 == null || !c || ![c.cmc, parseInt(c.power, 10), parseInt(c.toughness, 10)].some(v => v === n0)) continue;
           }
           // Heroic: "whenever you cast a spell that targets this creature"
-          if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // (Bill Potts: an ability activated — its targets, on the stack)
+          const tsItem = data.spell || (event === 'youActivateAbility' && data.stackId ? this.stack.find(st => st.id === data.stackId) : null);
+          if (ab.targetsSelf && !((tsItem && tsItem.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
           // Feather, the Redeemed: "that targets a creature you control"
           if (ab.targetsYourCreature && !((data.spell && data.spell.targets) || []).some(t => {
             const x = t.kind === 'object' && this.obj(t.id);
@@ -18229,7 +18241,7 @@
             return !!x && x.zone === 'battlefield' && x.controller === o.controller && !!(this.characteristics(x) || {}).isCreature;
           })) continue;
           // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
-          if (ab.targetsOnlySelf && !((data.spell && data.spell.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
+          if (ab.targetsOnlySelf && !((tsItem && tsItem.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
           /* Zevlor, Elturel Exile: "targets only a single opponent or a single permanent an opponent controls" — one of
              them, maybe more than once, and nothing else (targetsOneOpponentOrTheirs) */
           if (ab.targetsOneOpponentOrTheirs) {
@@ -20396,7 +20408,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
-        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.attackedCreatures || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);

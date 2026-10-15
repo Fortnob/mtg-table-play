@@ -4340,6 +4340,13 @@
           discardIds = [toss.id];
         }
       }
+      // Glacian, Powerstone Engineer: "Tap X untapped artifacts you control" — every one it can (it waits for their end step)
+      if (cost.tapCreatures && cost.tapCreatures.n === 'X' && cost.tapCreatures.filter === 'artifact' && x == null) {
+        const k = g._tapCostPool(this.pid, cost.tapCreatures, o, cost.tap).length;
+        if (!k) return null;
+        x = k;
+        v += Math.min(k, 4) * 0.5;
+      }
       // Gogo, Master of Mimicry: "X can't be 0" — the least X allowed, when it can be paid
       const xMin = flat.reduce((m, e) => (e.xMin ? Math.max(m, e.xMin) : m), 0);
       if (xMin && x == null) {
