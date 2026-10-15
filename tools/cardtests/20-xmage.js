@@ -70321,4 +70321,123 @@ module.exports = (test) => {
     t.eq(T.life('A'), 16, "an opponent's Shock: no more");
     t.eq(T.manualLines().length, 0);
   });
+  test('Cards: Mirror Room // Fractured Realm — unlocking Mirror Room copies your creature as a Reflection; Fractured Realm doubles your permanents\' triggers', (mk, t) => {
+    t.auto('Mirror Room // Fractured Realm');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const bears = T.bf('A', 'Grizzly Bears');
+    const r = T.hand('A', 'Mirror Room // Fractured Realm');
+    T.mana('A', '2U');
+    T.cast('A', r, { face: 0 });
+    t.eq(r.name, 'Mirror Room');
+    const toks = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
+    t.eq(toks().length, 1, 'Mirror Room: a copy of the Bears');
+    t.ok(g._hasCreatureType(toks()[0], 'Reflection') && g._hasCreatureType(toks()[0], 'Bear'), 'a Reflection Bear');
+    t.no(g._hasCreatureType(bears, 'Reflection'), 'not the original');
+    // Fractured Realm: a trigger of yours twice
+    const a = r.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const ui = acts.findIndex(x => x.special === 'unlock');
+    T.mana('A', '5UU');
+    T.activate('A', r, ui);
+    T.resolve();
+    t.eq(r.face, 2, 'both doors unlocked');
+    const h0 = T.zone('A', 'hand').length;
+    T.bf('A', 'Elvish Visionary', { etb: true });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'Elvish Visionary draws twice');
+    // an opponent's trigger: once
+    const hb = T.zone('B', 'hand').length;
+    T.bf('B', 'Elvish Visionary', { etb: true });
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, hb + 1, "an opponent's: once");
+    // Fractured Realm first: unlocking Mirror Room makes two copies
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Grizzly Bears');
+    const r2 = T2.hand('A', 'Mirror Room // Fractured Realm');
+    T2.mana('A', '5UU');
+    T2.cast('A', r2, { face: 1 });
+    t.eq(r2.name, 'Fractured Realm');
+    const a2 = r2.analysis();
+    const acts2 = a2.manaAbilities.concat(a2.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T2.mana('A', '2U');
+    T2.activate('A', r2, acts2.findIndex(x => x.special === 'unlock'));
+    T2.resolve();
+    t.eq(T2.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears').length, 2, 'the unlock trigger twice: two copies');
+    t.eq(T.manualLines().length + T2.manualLines().length, 0);
+  });
+  test('Cards: Angel of Destiny — combat damage to a player: you and they each gain that much; 15 above your starting life at your end step: the players it attacked lose', (mk, t) => {
+    t.auto('Angel of Destiny');
+    const T = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const ang = T.bf('A', 'Angel of Destiny');
+    T.player('A').life = 30;
+    T.answer('declareAttackers', () => [{ attackerId: ang.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 20, 'B: hit for 2 twice, gains 2 twice');
+    t.eq(T.life('A'), 34, 'A gains 2 twice');
+    t.no(T.player('B').hasLost, '34: not 15 above 20');
+    // again, from 31: 35 at the end step
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A');
+    T.player('A').life = 31;
+    T.answer('declareAttackers', () => [{ attackerId: ang.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('A'), 35);
+    t.ok(T.player('B').hasLost, 'B, attacked this turn, loses');
+    t.no(T.player('C').hasLost, 'C, not attacked, does not');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Underrealm Lich — each draw is a look at three: one to the hand, the rest to the graveyard', (mk, t) => {
+    t.auto('Underrealm Lich');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Underrealm Lich');
+    T.nextTurn('B');
+    const f = T.top('A', 'Forest'), bolt = T.top('A', 'Lightning Bolt'), bears = T.top('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [bolt.id] }; });
+    T.nextTurn('A');
+    t.ok(q && q.purpose === 'drawLook', 'asked which to keep');
+    t.ok(/graveyard/.test(q.prompt), 'the rest to the graveyard, it says');
+    t.zone(bolt, 'hand');
+    t.zone(bears, 'graveyard'); t.zone(f, 'graveyard');
+    // pay 4 life: indestructible, tapped
+    const lich = T.bfOf('A').find(o => o.name === 'Underrealm Lich');
+    T.activate('A', lich, 0);
+    t.ok(g.hasKw(lich, 'indestructible'), 'indestructible');
+    t.ok(lich.tapped, 'and tapped');
+    t.eq(T.life('A'), 16);
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Library of Leng — a card discarded by an effect may go on top of your library instead; no maximum hand size; a bot keeps graveyard value', (mk, t) => {
+    t.auto('Library of Leng');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Library of Leng');
+    const bears = T.hand('A', 'Grizzly Bears'), fo = T.hand('A', 'Forest');
+    T.nextTurn('B');
+    const asks = [];
+    T.answer('confirm', (ch) => { asks.push(ch); return { yes: ch.objId === bears.id }; });
+    T.answer('confirm', (ch) => { asks.push(ch); return { yes: ch.objId === bears.id }; });
+    T.mana('B', '2B');
+    T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.eq(asks.filter(c => c.purpose === 'discardToTop').length, 2, 'asked for each card');
+    t.eq(T.zone('A', 'library')[0], bears, 'the Bears on top');
+    t.zone(fo, 'graveyard', 'the Forest to the graveyard');
+    t.ok(g.log.some(l => /discards/.test(l.text)), 'still discarded');
+    // a bot: a flashback card stays in the graveyard, a spell goes on top
+    const bot = new (require('../harness').engine().bots.BotPlayer)(T.g, 'A', 8);
+    const fb = T.grave('A', 'Think Twice'); fb._lengSeq = 99;
+    t.no(bot.confirmChoice({ type: 'confirm', purpose: 'discardToTop', objId: fb.id, playerId: 'A' }), 'bot: flashback stays');
+    const sp = T.grave('A', 'Hill Giant');
+    t.ok(bot.confirmChoice({ type: 'confirm', purpose: 'discardToTop', objId: sp.id, playerId: 'A' }), 'bot: a creature on top');
+    // a cleanup step with eight cards: nothing discarded
+    T.nextTurn('A');
+    for (let i = 0; i < 9; i++) T.hand('A', 'Island');
+    const n0 = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'hand').length, n0, 'no maximum hand size');
+    t.eq(T.manualLines().length, 0);
+  });
 };

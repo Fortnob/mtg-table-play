@@ -3241,6 +3241,17 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      /* Library of Leng: a discarded card back on top — unless the graveyard is where it does its work, or it is a land
+         and lands are plenty (discardToTop) */
+      if (ch.purpose === 'discardToTop') {
+        const o = ch.objId ? g.obj(ch.objId) : null;
+        if (!o) return false;
+        const a = o.analysis() || {};
+        const ks = a.keywordSet || new Set();
+        if (['flashback', 'unearth', 'escape', 'embalm', 'eternalize', 'retrace', 'jump-start', 'disturb', 'encore', 'scavenge', 'dredge'].some(k => ks.has(k))) return false;
+        if (a.isLand) return g.battlefield.filter(x => x.controller === this.pid && (g.characteristics(x) || {}).isLand).length < 5;
+        return true;
+      }
       // a Treasure spent for mana: a bot is never asked, and would say yes (sacMana)
       if (ch.purpose === 'sacMana') return true;
       // Nick Fury, Agent of S.H.I.E.L.D.: a double-faced Hero put onto the battlefield — its other face is the point

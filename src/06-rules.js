@@ -7027,6 +7027,17 @@
         if (toBf.counters) this.addCounters(o, '+1/+1', toBf.counters);
         this.logEvent('rules', `${o.name} is put onto the battlefield instead of into the graveyard.`);
       }
+      /* Library of Leng: "If an effect causes you to discard a card, discard it, but you may put it on top of your library
+         instead of into your graveyard." — a discard as something resolves (not a cost, not the cleanup's); asked once
+         it is discarded, and put on top if it is still that card in the graveyard (discardMayTop) */
+      if (o.zone === 'graveyard' && this.resolving) {
+        const leng = this.battlefield.find(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'discardMayTop'));
+        if (leng) {
+          o._lengSeq = this._lengSeq = (this._lengSeq || 0) + 1;
+          this.queueChoice({ type: 'confirm', playerId, purpose: 'discardToTop', objId: o.id, seq: o._lengSeq, sourceId: leng.id, sourceName: leng.name,
+            prompt: `${leng.name}: put ${o.name} on top of your library instead of into your graveyard?` });
+        }
+      }
       // Orvar, Psychic Purge: "When a spell or ability an opponent controls causes you to discard this card" ("that player": the cause)
       if (o.zone === 'graveyard' && cause != null && cause !== playerId) this._fire('discardedByOpponent', playerId, { source: o, object: o, playerId, player: cause });
       // Titanbones, Towering Heart: "When you discard this card" — whoever made you
@@ -18771,14 +18782,17 @@
            waits for its player, and the draws after it wait with it (drawLooksInstead) */
         const tm = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawLooksInstead'));
         if (tm) {
-          const look = z.library.slice(0, Math.max(1, Number(this._staticOp(tm, 'drawLooksInstead').n) || 3));
-          if (look.length < 2) { this._drawLookKeep(p, tm.name, look, look.length ? look[0].id : null); continue; }
+          const tmE = this._staticOp(tm, 'drawLooksInstead');
+          // (Underrealm Lich: "the rest into your graveyard" — restTo)
+          const restTo = tmE.restTo === 'graveyard' ? 'graveyard' : null;
+          const look = z.library.slice(0, Math.max(1, Number(tmE.n) || 3));
+          if (look.length < 2) { this._drawLookKeep(p, tm.name, look, look.length ? look[0].id : null, restTo); continue; }
           this._know(look, p.id);
-          this._drawWait = { pid: p.id, st: { left, extras, drawnNow }, silent: !!silent, cards: look.map(o => o.id), src: tm.name, queue: [], resume: false };
+          this._drawWait = { pid: p.id, st: { left, extras, drawnNow }, silent: !!silent, cards: look.map(o => o.id), src: tm.name, restTo, queue: [], resume: false };
           this.queueChoice({ type: 'pickCard', purpose: 'drawLook', playerId: p.id, count: 1,
             candidates: look.map(o => o.id), cards: look.map(o => ({ id: o.id, name: o.name, card: o.card })),
             sourceId: tm.id, sourceName: tm.name, sourceCard: tm.card,
-            prompt: `${tm.name}: instead of drawing, put one of the top ${O.nounCount(look.length, 'card')} of your library into your hand. The rest go on the bottom of your library.` });
+            prompt: `${tm.name}: instead of drawing, put one of the top ${O.nounCount(look.length, 'card')} of your library into your hand. The rest go ${restTo ? 'into your graveyard' : 'on the bottom of your library'}.` });
           return;
         }
         if (!z.library.length) {
@@ -18829,16 +18843,17 @@
       }
       this.emit('draw', { player: p, n: drawnNow });
     }
-    /** Tomorrow, Azami's Familiar: the card kept from a look that replaced a draw, the rest to the bottom. */
-    _drawLookKeep(p, srcName, look, keepId) {
+    /** Tomorrow, Azami's Familiar: the card kept from a look that replaced a draw, the rest to the bottom (Underrealm Lich: restTo graveyard). */
+    _drawLookKeep(p, srcName, look, keepId, restTo) {
       const z = this.zones[p.id];
       const here = look.filter(o => o && o.zone === 'library' && o.owner === p.id);
       const keep = here.find(o => o.id === keepId) || here[0];
       if (!keep) { this.logEvent('draw', `${srcName}: ${p.name} has no cards to look at instead of drawing.`); return; }
       this.moveObject(keep, 'hand');
       const rest = here.filter(o => o !== keep);
-      for (const o of rest) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
-      this.logEvent('draw', rest.length ? `${srcName}: instead of drawing, ${p.name} looks at the top ${O.nounCount(here.length, 'card')} of their library and puts one into their hand and the rest on the bottom.`
+      if (restTo === 'graveyard') for (const o of rest) this.moveObject(o, 'graveyard');
+      else for (const o of rest) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+      this.logEvent('draw', rest.length ? `${srcName}: instead of drawing, ${p.name} looks at the top ${O.nounCount(here.length, 'card')} of their library and puts one into their hand and the rest ${restTo === 'graveyard' ? 'into their graveyard' : 'on the bottom'}.`
         : `${srcName}: instead of drawing, ${p.name} puts the top card of their library into their hand.`);
     }
     /** Abundance: what a bot reveals for — a land while it is short of them, otherwise a spell; null to just draw. */
@@ -29893,7 +29908,15 @@
           break;
         }
         // (Ezio Auditore da Firenze: "that player loses the game" — triggerPlayer)
-        case 'loseGame': { const lp = e.who === 'triggerPlayer' ? triggerPlayer() : me; if (lp && !lp.hasLost) this.playerLoses(lp, 'a card said so'); break; }
+        case 'loseGame': {
+          // Angel of Destiny: "each player this creature attacked this turn" (attackedBySelf, _attackedPlayers)
+          if (e.who === 'attackedBySelf') {
+            const ids = src && src._attackedPlayers && src._attackedPlayers.turn === this.turn ? [...new Set(src._attackedPlayers.ids)] : [];
+            for (const id of ids) { const lp = this.player(id); if (lp && !lp.hasLost) this.playerLoses(lp, `${(src && src.name) || 'a card'} said so`); }
+            break;
+          }
+          const lp = e.who === 'triggerPlayer' ? triggerPlayer() : me; if (lp && !lp.hasLost) this.playerLoses(lp, 'a card said so'); break;
+        }
         /* Etrata, the Silencer: "That player loses the game if they own three or more exiled cards with hit counters
            on them." — in any exile, theirs to own */
         case 'loseIfExiledCounters': {
@@ -40045,7 +40068,7 @@
             const p = this.player(playerId);
             const look = ((w && w.cards) || ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
             this.pendingChoice = null;
-            if (p) this._drawLookKeep(p, (w && w.src) || ch.sourceName || 'Tomorrow', look, ids.find(id => (ch.candidates || []).includes(id)));
+            if (p) this._drawLookKeep(p, (w && w.src) || ch.sourceName || 'Tomorrow', look, ids.find(id => (ch.candidates || []).includes(id)), w && w.restTo);
             this._drawResume();
             if (!this.pendingChoice) this._nextChoice();
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
@@ -40204,6 +40227,15 @@
           if (ch.purpose === 'unleash') {
             const o = this.obj(ch.objId);
             if (o && o.zone === 'battlefield' && data && data.yes) this.addCounters(o, '+1/+1', 1, { noReplace: true });
+            break;
+          }
+          // Library of Leng: the card just discarded, on top of its owner's library instead (discardMayTop)
+          if (ch.purpose === 'discardToTop') {
+            const o = this.obj(ch.objId);
+            if (!o || !(data && data.yes) || o.zone !== 'graveyard' || o._lengSeq !== ch.seq) break;
+            this.moveObject(o, 'library');
+            this._know([o], '*');
+            this.logEvent('rules', `${ch.sourceName || 'Library of Leng'}: ${this.player(playerId).name} puts ${o.name} on top of their library instead of into their graveyard.`);
             break;
           }
           if (ch.purpose === 'madness') {

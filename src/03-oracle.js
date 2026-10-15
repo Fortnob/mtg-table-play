@@ -8551,6 +8551,10 @@
     // Twenty-Toed Toad: "you win the game if there are twenty or more counters on it or …"
     { re: /^You win the game if (.+?)\.?$/i, make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'winGame' }] } : null; } },
     { re: /^You lose the game\.?$/i, make: () => ({ op: 'loseGame' }) },
+    // Angel of Destiny: "each player this creature attacked this turn loses the game" — players, not their planeswalkers (attackedBySelf)
+    { re: /^[Ee]ach player (?:this creature|CARDNAME) attacked this turn loses the game\.?$/, make: () => ({ op: 'loseGame', who: 'attackedBySelf' }) },
+    // Angel of Destiny: "you and that player each gain that much life"
+    { re: /^[Yy]ou and that player each gain that much life\.?$/, make: () => [{ op: 'gainLife', n: 'triggerAmount', who: 'you' }, { op: 'gainLife', n: 'triggerAmount', who: 'triggerPlayer' }] },
     { re: /^Each opponent loses the game\.?$/i, make: () => ({ op: 'winGame' }) },
 
     /* ===== counts that depend on the board ("... for each creature you control") ===== */
@@ -9456,6 +9460,9 @@
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except its name is ([A-Z][^,.]*?) and it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) (artifact )?creature in addition to its other types\.?$/,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown
         ? { op: 'copyPermanent', n: 1, grant: [], setName: m[2], setPt: m[3] + '/' + m[4], addSubtypes: [m[5]], addTypes: (m[6] ? ['Artifact'] : []).concat('Creature'), targets: [spec] } : null; } },
+    // Mirror Room: "create a token that's a copy of target creature you control, except it's a Reflection in addition to its other creature types."
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addSubtypes: [m[2]], targets: [spec] } : null; } },
     // Adagia, Windswept Bastion: "Create a token that's a copy of target artifact or enchantment you control, except it's legendary."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
@@ -23235,6 +23242,10 @@
         eff: { op: 'costFloor', n: 3, whileUntapped: true }, auto: true },
       // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
       { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
+      /* Library of Leng: "If an effect causes you to discard a card, discard it, but you may put it on top of your library
+         instead of into your graveyard." (discardMayTop) */
+      { re: /^If an effect causes you to discard a card, discard it, but you may put it on top of your library instead of into your graveyard\.?$/i,
+        eff: { op: 'discardMayTop' }, auto: true },
       // Obstinate Baloth, Wilt-Leaf Liege, Loxodon Smiter, Nullhide Ferox: discarded by an opponent's effect, it enters instead (discardToBattlefield)
       // (Dodecapod: "… onto the battlefield with two +1/+1 counters on it instead")
       { re: /^If a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME), put it onto the battlefield( with (one|two|three|a) \+1\/\+1 counters? on it)? instead of putting it into your graveyard\.?$/i,
@@ -24813,6 +24824,10 @@
          one of those cards into your hand and the rest on the bottom of your library in any order." (drawLooksInstead) */
       { re: /^If you would draw a card, look at the top (two|three|four|five) cards of your library instead\. Put one of (?:those cards|them) into your hand and the rest on the bottom of your library in any order\.?$/i,
         make: (m) => ({ op: 'drawLooksInstead', n: num(m[1]) }), auto: true },
+      /* Underrealm Lich: "If you would draw a card, instead look at the top three cards of your library, then put one into
+         your hand and the rest into your graveyard." (drawLooksInstead restTo graveyard) */
+      { re: /^If you would draw a card, instead look at the top (two|three|four|five) cards of your library, then put one into your hand and the rest into your graveyard\.?$/i,
+        make: (m) => ({ op: 'drawLooksInstead', n: num(m[1]), restTo: 'graveyard' }), auto: true },
       /* Abundance: "If you would draw a card, you may instead choose land or nonland and reveal cards from the top of your
          library until you reveal a card of the chosen kind. Put that card into your hand and put all other cards revealed
          this way on the bottom of your library in any order." (drawRevealKind) */
