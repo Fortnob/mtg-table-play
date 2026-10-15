@@ -1567,6 +1567,15 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Valki, God of Lies; Lazav, Wearer of Faces: the strongest creature card to become a copy of — for Lazav's "you
+       may", only one stronger than what it is now */
+    becomeCopyOf(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
+      const src = s.objId ? g.obj(s.objId) : null;
+      if (!os.length || (s.min === 0 && src && src.zone === 'battlefield' && this.rating(os[0]) <= this.permanentValue(src))) return { picks: [] };
+      return { picks: [os[0].id] };
+    },
     // Lynde, Cheerful Tormentor: a Curse off us and onto an opponent, and two cards — always, the worst Curse first
     curseToOpponent(s) {
       const g = this.game;

@@ -2037,6 +2037,9 @@
       make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: num(m[1]), who: 'each' }) },
     { re: /^Each player creates (.+)$/i,
       make: (m) => { const inner = parseTokenSentence('Create ' + m[1]); return inner ? Object.assign(inner, { who: 'each' }) : null; } },
+    // Gor Muldrak, Amphinologist: "each player who controls the fewest creatures creates a 4/3 … token" (fewestCreatures)
+    { re: /^Each player who controls the fewest creatures creates (.+)$/i,
+      make: (m) => { const inner = parseTokenSentence('Create ' + m[1]); return inner && inner.op === 'createToken' ? Object.assign(inner, { who: 'fewestCreatures' }) : null; } },
     // Into the Fire: "2 damage to each creature, planeswalker, and battle"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature, planeswalker, and battle\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'all', what: 'permanent', anyOf: ['creature', 'planeswalker', 'battle'] } }) },
@@ -6871,7 +6874,7 @@
        just exiled, playable as it says */
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
     // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
-    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
+    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|the exiled nonland card|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
@@ -6880,7 +6883,8 @@
         const kinds = m[0].match(/ may cast (instant and sorcery|instant|sorcery|creature|noncreature|artifact) spells from among /i);
         if (kinds) e.words = kinds[1].toLowerCase().replace(' and ', ' or ');
         // (Stolen Goods: "until they exile a nonland card. Until end of turn, you may cast that card …" — the one card: thatCard)
-        if (/ may (?:play|cast) that card\b/i.test(m[0])) e.thatCard = true;
+        // (Black Widow, Super Spy: "the exiled nonland card" — the same)
+        if (/ may (?:play|cast) (?:that card|the exiled nonland card)\b/i.test(m[0])) e.thatCard = true;
         if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
         // (Unlucky Witness: "Until your next end step" — up to it, this turn's when it is still to come: nextEnd)
         let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : /^your next end step$/i.test(m[1]) ? 'nextEnd' : 'next') : null;
@@ -8307,6 +8311,8 @@
     /* Rituals that last: "Until end of turn, you don't lose this mana as
        steps and phases end." */
     { re: /^Until end of turn, you don'?t lose (?:this|that|unspent) mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana' }) },
+    // Shizuko, Caller of Autumn: "that player adds {G}{G}{G}. Until end of turn, they don't lose this mana …" — the player the trigger is about
+    { re: /^Until end of turn, they don'?t lose this mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana', who: 'triggerPlayer' }) },
     // Avatar Roku, Firebender: "Until end of combat, you don't lose this mana as steps end." (keepManaCombat)
     // Strongarm Tactics: "Then each player who didn't discard a creature card this way loses 4 life."; Kroxa: "… then each opponent who didn't discard a nonland card this way loses 3 life" (lifeUnlessDiscarded)
     { re: /^(?:Then )?each (opponent|player) who didn'?t discard an? (nonland|creature|land|noncreature) card this way loses (\d+) life\.?$/i,
@@ -10160,6 +10166,10 @@
        (becomeExiledWithCopy mvX) */
     { re: /^Choose an? ([a-z]+) card exiled with CARDNAME with mana value X\. CARDNAME becomes a copy of that card\.?$/i,
       make: (m) => [{ op: 'becomeExiledWithCopy', words: m[1].toLowerCase(), mvX: true }] },
+    /* Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it until end of turn" —
+       which, or none, the one question (optional) */
+    { re: /^(you may )?have CARDNAME become a copy of an? ([a-z]+) card exiled with it until end of turn\.?$/i,
+      make: (m) => [Object.assign({ op: 'becomeExiledWithCopy', words: m[2].toLowerCase(), eot: true }, m[1] ? { optional: true } : {})] },
     /* Ral, Monsoon Mage: "flip a coin. If you lose the flip, Ral deals 1 damage to you. If you win the flip, you may
        exile Ral. If you do, return him to the battlefield transformed under his owner's control." — not asked once
        he has gone (selfHere) */
@@ -13107,6 +13117,16 @@
           if (!elsePart.auto) auto = false;
           i++;
           continue;
+        }
+        /* Black Widow, Super Spy: "You may put a +1/+1 counter on Black Widow. If you don't, you may cast the exiled
+           nonland card until end of turn …" — one or the other */
+        if (/^put an? \+1\/\+1 counter on CARDNAME$/i.test(may[1]) && elsePart.auto) {
+          const inner = parseSentenceList([U.titleCase(may[1].charAt(0)) + may[1].slice(1) + '.']);
+          if (inner.auto) {
+            effects.push({ op: 'may', then: inner.effects, otherwise: elsePart.effects, prompt: s + ' ' + next, text: s + ' ' + next });
+            i++;
+            continue;
+          }
         }
       }
 
@@ -20175,6 +20195,9 @@
         make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, grantChosen: true } : null; }, auto: true },
       // Serra's Emissary: "You and creatures you control have protection from the chosen card type."
       { re: /^You and creatures you control have protection from the chosen card type\.?$/i, eff: { op: 'protChosenCardType' }, auto: true },
+      // Gor Muldrak, Amphinologist: "You and permanents you control have protection from Salamanders." (protFromSubtype)
+      { re: /^You and permanents you control have protection from ([A-Z][a-z]+?)s\.?$/,
+        make: (m) => ({ op: 'protFromSubtype', subtype: m[1] }), auto: true },
       { re: /^Activated abilities of sources with the chosen name can'?t be activated( unless they'?re mana abilities)?\.?$/i,
         make: (m) => ({ op: 'nameLockAbilities', manaOk: !!m[1] }), auto: true },
       { re: /^Spells with the chosen name can'?t be cast\.?$/i, eff: { op: 'nameLockSpells' }, auto: true },

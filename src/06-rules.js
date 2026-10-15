@@ -3143,7 +3143,8 @@
          may be left empty, not a yes or no and then the pick (ownPick) */
       // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
       // (Jeleva, Nephalia's Scourge: "you may cast an instant or sorcery spell from among cards exiled with Jeleva" — pickOne)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.pickOne))) && !once;
+      // (Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it" — becomeExiledWithCopy)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -12088,6 +12089,17 @@
       }
       return out;
     }
+    /** Gor Muldrak, Amphinologist: "You and permanents you control have protection from Salamanders" — a source of that
+        creature type, against this player or a permanent of theirs (protFromSubtype). */
+    _protSubtypeFrom(pid, source) {
+      if (!source) return false;
+      for (const x of this.battlefield) {
+        if (x.phasedOut || x.controller !== pid) continue;
+        const e = this._staticOp(x, 'protFromSubtype');
+        if (e && e.subtype && this._hasCreatureType(source, e.subtype)) return true;
+      }
+      return false;
+    }
     /** The card types of a card or permanent, capitalised: what it is now on the battlefield, as printed elsewhere. */
     _cardTypesOf(x) {
       if (!x) return [];
@@ -12123,6 +12135,8 @@
         const r = at && this._staticOp(at, 'protChosenColor');
         if (r && r.attached && at.chosenColor) args.push(CN[at.chosenColor]);
       }
+      // (Gor Muldrak, Amphinologist: permanents you control have protection from Salamanders)
+      if (o.zone === 'battlefield' && this._protSubtypeFrom(o.controller, source)) return true;
       // Serra's Emissary: creatures you control have protection from the chosen card type
       if (o.zone === 'battlefield' && c && c.isCreature) {
         for (const t of this._protCardTypes(o.controller)) if (this._cardTypesOf(source).includes(t)) return true;
@@ -15602,7 +15616,7 @@
       // all of it replaced or prevented (Nine Lives, Force Bubble): no damage is dealt
       if (amount <= 0) return 0;
       if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
-      if (source && !this._noPrevention(combat) && this._protCardTypes(p.id).some(t => this._cardTypesOf(source).includes(t))) {
+      if (source && !this._noPrevention(combat) && (this._protCardTypes(p.id).some(t => this._cardTypesOf(source).includes(t)) || this._protSubtypeFrom(p.id, source))) {
         this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
       }
       // Absolute Virtue: protection from each of your opponents — damage from what they control
@@ -21004,6 +21018,14 @@
           }
           // Grismold: "each player creates a 1/1 green Plant creature token"
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
+          // Gor Muldrak, Amphinologist: "each player who controls the fewest creatures" — counted before any is made (fewestCreatures)
+          if (e.who === 'fewestCreatures') {
+            const alive = this.players.filter(p => !p.hasLost);
+            const cnt = (p) => this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && !!(this.characteristics(x) || {}).isCreature).length;
+            const counts = alive.map(cnt), least = Math.min(...counts);
+            alive.forEach((p, i) => { if (counts[i] === least) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); });
+            break;
+          }
           // Slaughter Specialist: "each opponent creates …"
           if (e.who === 'opponents') { for (const p of this.opponentsOf(ctx.controller)) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
           // Brimaz: "a token that's blocking that creature" — the creature the trigger is about
@@ -23200,18 +23222,21 @@
         case 'noMonarchThisTurn':
           me.noMonarchTurn = this.turn;
           break;
-        case 'keepMana':
+        case 'keepMana': {
+          // Shizuko, Caller of Autumn: "they don't lose this mana" — the player the trigger is about (who triggerPlayer)
+          const kp = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           /* Klauth, Unrivaled Ancient: "Spend this mana only to cast spells. Until end of turn, you don't lose this
              mana as steps and phases end." — that mana, set aside, is kept; the rest of the pool empties as usual */
-          if (this._lastSetAside && this._lastSetAside.pid === me.id) {
+          if (this._lastSetAside && this._lastSetAside.pid === kp.id) {
             for (const r of this._lastSetAside.list) r.keepTurn = this.turn;
-            if (this._lastSetAside.list.length) this.logEvent('mana', `${me.name} keeps that mana until the end of the turn.`);
+            if (this._lastSetAside.list.length) this.logEvent('mana', `${kp.name} keeps that mana until the end of the turn.`);
             break;
           }
-          me.poolKeepUntil = 'turn';
-          me.poolKeepTurn = this.turn;
-          this.logEvent('mana', `${me.name} keeps their mana until the end of the turn.`);
+          kp.poolKeepUntil = 'turn';
+          kp.poolKeepTurn = this.turn;
+          this.logEvent('mana', `${kp.name} keeps their mana until the end of the turn.`);
           break;
+        }
         case 'becomePrepared':
           if (src && src.zone === 'battlefield' && !src.prepared) {
             src.prepared = true;
@@ -25136,15 +25161,17 @@
         case 'becomeExiledWithCopy': {
           if (!src || src.zone !== 'battlefield') break;
           const pool = this._exiledWithPool(src, e.words).filter(c => !e.mvX || ((c.card && c.card.cmc) || 0) === (ctx.x || 0));
-          if (!pool.length) { this.logEvent('rules', `${src.name}: no ${e.words || 'card'} card with mana value ${ctx.x || 0} is exiled with it.`); break; }
+          if (!pool.length) { this.logEvent('rules', `${src.name}: no ${e.words || 'card'} card${e.mvX ? ' with mana value ' + (ctx.x || 0) : ''} is exiled with it.`); break; }
           let c = pool[0];
-          if (pool.length > 1) {
-            const got = this._choose({ playerId: ctx.controller, purpose: 'becomeCopyOf', kind: 'objects', zone: 'exile', items: this._chooseItems(pool), min: 1, max: 1,
-              prompt: `${src.name} becomes a copy of which card?` }, 'bewc');
+          // (Lazav, Wearer of Faces: "you may have Lazav become a copy …" — one of them, or none: optional)
+          if (pool.length > 1 || e.optional) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'becomeCopyOf', objId: src.id, kind: 'objects', zone: 'exile', items: this._chooseItems(pool), min: e.optional ? 0 : 1, max: 1,
+              prompt: e.optional ? `${src.name} may become a copy of a ${e.words || 'card'} card exiled with it${e.eot ? ' until end of turn' : ''}. Which card, if any?` : `${src.name} becomes a copy of which card?` }, 'bewc');
             if (got === SUSPEND) return SUSPEND;
-            c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x)) || pool[0];
+            c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x)) || (e.optional ? null : pool[0]);
+            if (!c) { this.logEvent('rules', `${me.name} declines.`); break; }
           }
-          this._runEffect({ op: 'becomeCopy', _forcedId: c.id }, ctx);
+          this._runEffect(Object.assign({ op: 'becomeCopy', _forcedId: c.id }, e.eot ? { eot: true } : {}), ctx);
           break;
         }
         case 'exiledWithToBattlefield': {
@@ -34621,7 +34648,7 @@
       if (hostP) {
         if (!toPlayer || hostP.hasLost || this._protected(hostP)) return false;
         if ((spec.type === 'opponent' || spec.opponent) && hostP.id === x.controller) return false;
-        return !this._protCardTypes(hostP.id).some(t => this._cardTypesOf(x).includes(t));
+        return !this._protCardTypes(hostP.id).some(t => this._cardTypesOf(x).includes(t)) && !this._protSubtypeFrom(hostP.id, x);
       }
       if (!hostO || hostO === x || toPlayer) return false;
       if (equip && c.isCreature && !this.hasKw(x, 'reconfigure')) return false;
@@ -35834,7 +35861,7 @@
          opponent's spell may point at (CR 702.11e). */
       const tsrc = sourceId && this.obj(sourceId);
       const players = () => this.players.filter(p => !p.hasLost && !this._protected(p))
-        .filter(p => !tsrc || !this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)))
+        .filter(p => !tsrc || !(this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)) || this._protSubtypeFrom(p.id, tsrc)))
         // Absolute Virtue: not by an opponent's spell or ability
         .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
         .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn))

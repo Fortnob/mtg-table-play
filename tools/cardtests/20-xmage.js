@@ -55976,4 +55976,111 @@ module.exports = (test) => {
     T.nextTurn('A');
     t.eq(vol.name, 'Volrath, the Shapestealer', 'Volrath again on your next turn');
   });
+  test('Commanders: Black Widow, Super Spy — hits a player: they exile to a nonland card; a +1/+1 counter, or you may cast that card', (mk, t) => {
+    t.auto('Black Widow, Super Spy');
+    for (const counter of [false, true]) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const g = T.g;
+      const bw = T.bf('A', 'Black Widow, Super Spy');
+      const bears = T.top('B', 'Grizzly Bears'), forest = T.top('B', 'Forest');
+      let q = null;
+      T.answer('declareAttackers', () => [{ attackerId: bw.id, defenderId: 'B' }]);
+      T.answer('declareBlockers', () => []);
+      T.answer('confirm', (ch) => { q = ch; return { yes: counter }; });
+      T.toMain('A', 'endCombat');
+      T.resolve();
+      t.zone(forest, 'exile', 'the Forest exiled on the way');
+      t.zone(bears, 'exile', 'down to the Bears');
+      t.ok(q && /\+1\/\+1 counter on Black Widow.*If you don't, you may cast the exiled nonland card/.test(q.prompt), 'asked whole: ' + (q && q.prompt));
+      for (let i = 0; i < 20 && !(g.phase && g.phase.id === 'postcombat'); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+      if (counter) {
+        t.eq(bw.counters['+1/+1'], 1, 'a +1/+1 counter');
+        T.mana('A', 'GG');
+        t.no(g.castSpell('A', bears.id, { auto: true }), 'with the counter: the Bears are not yours to cast');
+      } else {
+        t.eq(bw.counters['+1/+1'] || 0, 0, 'no counter');
+        T.mana('A', 'RR');
+        T.cast('A', bears);
+        t.zone(bears, 'battlefield', 'the Bears cast, with red mana');
+        t.eq(bears.controller, 'A', 'yours');
+      }
+    }
+  });
+  test('Commanders: Shizuko, Caller of Autumn — each upkeep: that player adds {G}{G}{G}, kept until end of turn', (mk, t) => {
+    t.auto('Shizuko, Caller of Autumn');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Shizuko, Caller of Autumn');
+    T.nextTurn('B');
+    t.eq(T.player('B').pool.total(), 3, "B's upkeep: B has {G}{G}{G} in their main phase");
+    t.eq(T.player('B').pool.G, 3, 'green');
+    t.eq(T.player('A').pool.total(), 0, 'not you');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.eq(T.player('B').pool.total(), 1, 'spent on the Bears, one left');
+    T.nextTurn('A');
+    t.eq(T.player('B').pool.total(), 0, 'gone at end of turn');
+    t.eq(T.player('A').pool.G, 3, 'your upkeep: yours');
+  });
+  test('Commanders: Gor Muldrak, Amphinologist — protection from Salamanders; end step: the fewest creatures get a 4/3 Salamander', (mk, t) => {
+    t.auto('Gor Muldrak, Amphinologist');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const gor = T.bf('A', 'Gor Muldrak, Amphinologist');
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+    T.bf('C', 'Llanowar Elves');
+    const sal = () => g.battlefield.filter(o => o.isToken && g._hasCreatureType(o, 'Salamander'));
+    T.toMain('B');
+    t.eq(sal().length, 2, 'you and C, one creature each: a Salamander each');
+    t.ok(sal().some(o => o.controller === 'A') && sal().some(o => o.controller === 'C'), 'A and C');
+    const tok = sal().find(o => o.controller === 'C');
+    t.eq(g.powerOf(tok) + '/' + g.toughnessOf(tok), '4/3', '4/3');
+    t.ok((tok.analysis().colors || []).includes('U'), 'blue');
+    // protection from Salamanders: you and your permanents
+    t.ok(g._protectedFrom(gor, tok), 'Gor: protection from a Salamander');
+    t.no(g._protectedFrom(gor, g.battlefield.find(o => o.name === 'Grizzly Bears')), 'not from the Bears');
+    const lifeA = T.life('A');
+    g.dealDamageToPlayer(T.player('A'), 4, tok, true);
+    t.eq(T.life('A'), lifeA, 'a Salamander\'s damage to you is prevented');
+    g.dealDamageToPlayer(T.player('B'), 4, tok, true);
+    t.eq(T.life('B'), 16, 'not to B');
+    T.nextTurn('C');
+    t.eq(sal().length, 2, "not at an opponent's end step");
+  });
+  test('Commanders: Lazav, Wearer of Faces — attacks: exile a card from a graveyard, investigate; sacrifice a Clue: may copy a creature card exiled with it', (mk, t) => {
+    t.auto('Lazav, Wearer of Faces');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const lz = T.bf('A', 'Lazav, Wearer of Faces');
+    const wurm = T.grave('B', 'Craw Wurm'), giant = T.grave('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: lz.id, defenderId: 'B' }]);
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: wurm.id }] });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(wurm, 'exile', 'the Wurm exiled');
+    const clue = g.battlefield.find(o => o.controller === 'A' && o.name === 'Clue');
+    t.ok(clue, 'investigate: a Clue');
+    // "you may": one question, the card or none
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [] }; });
+    T.mana('A', '2');
+    T.activate('A', clue, 0);
+    t.ok(q && q.min === 0 && q.items.length === 1, 'which card, or none: ' + (q && q.prompt));
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'no yes-or-no first');
+    t.eq(lz.name, 'Lazav, Wearer of Faces', 'declined: still Lazav');
+    // a second Clue: yes
+    T.toMain('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: lz.id, defenderId: 'B' }]);
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    T.toMain('A', 'endCombat');
+    const clue2 = g.battlefield.find(o => o.controller === 'A' && o.name === 'Clue');
+    T.answer('choose', (ch) => { q = ch; return { picks: [wurm.id] }; });
+    T.mana('A', '2');
+    T.activate('A', clue2, 0);
+    t.eq(q.items.length, 2, 'both creature cards exiled with Lazav');
+    t.eq(lz.name, 'Craw Wurm', 'a copy of the Wurm');
+    T.nextTurn('B');
+    t.eq(lz.name, 'Lazav, Wearer of Faces', 'until end of turn');
+  });
 };
