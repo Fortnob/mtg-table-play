@@ -5367,6 +5367,9 @@
       make: () => ({ op: 'blink', self: true, toOpponent: true }) },
     { re: /^Exile (another target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1].replace(/^another /i, ''))] }) },
+    // Wiccan, Rising Magician: "exile another target nonland, nontoken permanent" — not the source (another)
+    { re: /^(Exile|Destroy) another target (non[a-z]+, non[a-z]+ (?:permanent|creature|artifact|enchantment))\.?$/i,
+      make: (m) => { const t = targetSpec('target ' + m[2]); return t && !t.unknown ? { op: m[1].toLowerCase(), targets: [Object.assign(t, { another: true })] } : null; } },
     { re: /^Destroy (another target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'destroy', targets: [targetSpec(m[1].replace(/^another /i, ''))] }) },
 
@@ -12381,6 +12384,12 @@
        a time counter from each other card you own in exile." (exileHandTimeCounters, removeTimeEachExiled) */
     { re: /^Draw a card, then exile a card from your hand and put a number of time counters on it equal to its mana value\. It gains "When the last time counter is removed from this card, if it'?s exiled, you may cast it without paying its mana cost\. If you cast a creature spell this way, it gains haste until end of turn\.?" Then remove a time counter from each other card you own in exile\.?$/i,
       make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'exileHandTimeCounters' }, { op: 'removeTimeEachExiled', other: true }] },
+    /* Uvilda, Dean of Perfection: "You may exile an instant or sorcery card from your hand and put three refine counters on
+       it. It gains "At the beginning of your upkeep, if this card is exiled, remove a refine counter from it" and "When
+       the last refine counter is removed from this card, if it's exiled, you may cast it. It costs {4} less to cast this
+       way."" — the card marked (exileHandRefine: refineBy, refineLess) */
+    { re: /^You may exile an? (instant or sorcery|[a-z]+) card from your hand and put (one|two|three|four|five) ([a-z]+) counters? on it\. It gains "At the beginning of your upkeep, if this card is exiled, remove an? \3 counter from it" and "When the last \3 counter is removed from this card, if it'?s exiled, you may cast it\. It costs \{(\d+)\} less to cast this way\."\.?$/i,
+      make: (m) => [{ op: 'exileHandRefine', filter: m[1].toLowerCase(), n: num(m[2]), kind: m[3].toLowerCase(), less: +m[4] }] },
     /* The Ur-Sphinx: "each player mills that many cards. For each player, you may cast a card that player milled this way
        without paying its mana cost." — as many as attacked (castFreeMilledEach) */
     { re: /^each player mills that many cards\. For each player, you may cast a card that player milled this way without paying its mana cost\.?$/i,
@@ -15226,6 +15235,10 @@
     // Faldorn, Dread Wolf Herald: "Whenever a land you control enters from exile" (enteredFromExile)
     { re: /^Whenever (an? (?:land|creature|artifact|enchantment|permanent|nontoken creature)(?: you control)?) enters from exile,? /i, event: 'permEnters',
       filt: (m) => subjectFilter(m[1]), extra: { fromExileEnter: true } },
+    /* Squall, Gunblade Duelist: "Whenever one or more creatures attack one of your opponents, if any of those creatures
+       have power or toughness equal to the chosen number," — once for each opponent attacked, those at them (attackersHerePtChosen) */
+    { re: /^Whenever one or more creatures attack one of your opponents, if any of those creatures have power or toughness equal to the chosen number,? /i,
+      event: 'anyPlayerAttacksPlayer', extra: { attackedIsYourOpponent: true, attackersHerePtChosen: true } },
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
@@ -19298,7 +19311,8 @@
     const eff = {};
     const text = String(body || '').trim().replace(/\.$/, '');
     // "…and has indestructible, and it loses all other abilities, card types, and creature types"
-    const parts = text.split(/,? and (?:it )?(?=(?:loses?|becomes?|has|have|is|are|gains?) )/i);
+    // (Chromium, the Mutable: "becomes a Human with base power and toughness 1/1, loses all abilities, and gains hexproof")
+    const parts = text.split(/,? and (?:it )?(?=(?:loses?|becomes?|has|have|is|are|gains?) )|, (?=loses? all (?:other )?abilities,? )/i);
     let m;
     const typed = (colorWords, words, pt) => {
       const cols = String(colorWords || '').trim().split(/\s+/).filter(Boolean);
@@ -20769,6 +20783,10 @@
         eff: { op: 'chooseOnEnter', what: 'parity' }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number between (\d+) and (\d+)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'number', min: +m[1], max: +m[2] }), auto: true },
+      /* Squall, Gunblade Duelist: "As Squall enters, choose a number." — any, offered from 0 to 20; the likeliest a power
+         or toughness of its controller's creatures (ptHint) */
+      { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number\.?$/i,
+        eff: { op: 'chooseOnEnter', what: 'number', min: 0, max: 20, ptHint: true }, auto: true },
       /* Cloud Key, Stenn, Umori, Serra's Emissary, Arachne: a card type, chosen as it enters */
       { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? (?:look at an opponent'?s hand, then )?choose (a card type(?: other than ([a-z]+)(?: or ([a-z]+))?)?|artifact, creature, enchantment, instant, or sorcery)\.?$/i,
         make: (m) => {

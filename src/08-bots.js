@@ -1647,6 +1647,11 @@
       const pick = spells[0] || items.sort((a, b) => a.v - b.v)[0];
       return pick ? { picks: [pick.it.id] } : null;
     },
+    /* Uvilda, Dean of Perfection: the dearest instant or sorcery, {4} cheaper three turns on (exileForRefine) */
+    exileForRefine(s) {
+      const items = (s.items || []).slice().sort((a, b) => (((b.card && b.card.cmc) || 0) - ((a.card && a.card.cmc) || 0)));
+      return items.length && ((items[0].card && items[0].card.cmc) || 0) >= 3 ? { picks: [items[0].id] } : { picks: [] };
+    },
     /* Marina Vendrell: unlock a shut door (its words and its trigger) rather than lock an open one */
     roomDoor(s) {
       const i = (s.options || []).findIndex(o => o && o.unlock);

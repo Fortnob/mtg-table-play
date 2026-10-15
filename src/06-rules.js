@@ -1146,6 +1146,7 @@
         case 'upkeep':
           this._cumulativeUpkeep();
           this._tickSuspended(this.activePlayer.id);
+          this._tickRefine(this.activePlayer.id);
           this._rebound(this.activePlayer.id);
           this._fire('yourUpkeep', this.activePlayer.id); this._fire('eachUpkeep', null, { playerId: this.activePlayer.id });
           // the initiative: "at the beginning of your upkeep, venture into Undercity"
@@ -6418,6 +6419,17 @@
         this._castFromSuspend(playerId, o);
       }
     }
+    /** Uvilda, Dean of Perfection: "At the beginning of your upkeep, if this card is exiled, remove a refine counter from
+        it" — the line each card it exiled has, a trigger of its owner's (refineTick) */
+    _tickRefine(playerId) {
+      for (const o of ((this.zones[playerId] || {}).exile || [])) {
+        if (o.refineBy == null || !((Number(o.counters[o.refineKind || 'refine']) || 0) > 0)) continue;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+          controller: o.owner, name: `${o.name} — ${o.refineKind || 'refine'} counter`, auto: true, effects: [{ op: 'refineTick' }],
+          abilityText: `At the beginning of your upkeep, if this card is exiled, remove a ${o.refineKind || 'refine'} counter from it.`,
+          triggerData: { event: 'yourUpkeep', objectId: o.id } });
+      }
+    }
     /** The last time counter is off a suspended card: it is cast without paying its mana cost, with haste if a creature
         (in the upkeep, or as a trigger resolves: time travel) */
     _castFromSuspend(playerId, o) {
@@ -9315,7 +9327,14 @@
         for (let k = rule.min || 0; k <= (rule.max == null ? 10 : rule.max); k++) { values.push(k); labels.push(String(k)); }
         // the mana value most common among the opponents' cards
         const counts = new Map();
-        for (const q of this.opponentsOf(p.id)) for (const c of ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))) {
+        if (rule.ptHint) {
+          // (Squall, Gunblade Duelist: the power or toughness its controller's creatures have most — ptHint)
+          for (const c of ((this.zones[p.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === p.id && x !== o))) {
+            const ca = c.analysis();
+            if (!ca || !ca.isCreature) continue;
+            for (const v of new Set([parseInt(ca.power, 10), parseInt(ca.toughness, 10)])) if (!isNaN(v)) counts.set(v, (counts.get(v) || 0) + 1);
+          }
+        } else for (const q of this.opponentsOf(p.id)) for (const c of ((this.zones[q.id] || {}).library || []).concat(this.battlefield.filter(x => x.controller === q.id))) {
           const mv = (c.card && c.card.cmc) || 0; counts.set(mv, (counts.get(mv) || 0) + 1);
         }
         const best = values.slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0))[0];
@@ -17802,6 +17821,8 @@
           if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
           if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
+          // Squall, Gunblade Duelist: "if any of those creatures have power or toughness equal to the chosen number" (attackersHerePtChosen)
+          if (ab.attackersHerePtChosen && !(o.chosenNumber != null && (data.attackers || []).some(x => x && (this.powerOf(x) === o.chosenNumber || this.toughnessOf(x) === o.chosenNumber)))) continue;
           /* Firkraag, Cunning Instigator; Meriadoc Brandybuck; Gornog, the Red Reaper: "one or more Dragons you control attack an
              opponent" — among those at that one (attackersOfTypeHere) */
           // Landroval, Horizon Witness: "two or more creatures you control attack a player" — that many at that one (attackersHereMin)
@@ -19601,7 +19622,8 @@
           /* (The Pride of Hull Clade's "Whenever this creature deals combat damage to a player, draw cards equal to its
              toughness": that event names no object — "its" is the creature itself) */
           const tdC = ctx.triggerData || {};
-          const tdo = v.ofPrior ? null : (tdC.objectId || (tdC.event === 'combatDamageToPlayer' && src && !targets.length ? src.id : null));
+          // (Squall, Gunblade Duelist: "creatures attack one of your opponents" names none either — anyPlayerAttacksPlayer)
+          const tdo = v.ofPrior ? null : (tdC.objectId || ((tdC.event === 'combatDamageToPlayer' || tdC.event === 'anyPlayerAttacksPlayer') && src && !targets.length ? src.id : null));
           const st = !tdo && targets.find(t => t.kind === 'stack');
           const stItem = st && this.stack.find(x => x.id === st.id);
           // with neither, "its mana value" is what the effect acted on: the target, or what was just exiled or put
@@ -20473,7 +20495,8 @@
             // (Tormentor's Helm: "it" is the equipped creature the trigger is about)
             const tdD = ctx.triggerData || {};
             const att = (e.fromTrigger && tdD.objectId && this.obj(tdD.objectId)) || src;
-            const p = this._defenderOf(att) || this._defenderOf(src) || triggerPlayer();
+            // (Squall, Gunblade Duelist: "attack one of your opponents" — the player attacked: attackedPlayer)
+            const p = (tdD.event === 'anyPlayerAttacksPlayer' && this.player(tdD.attackedPlayer)) || this._defenderOf(att) || this._defenderOf(src) || triggerPlayer();
             if (p) this.dealDamageToPlayer(p, cnt, dsrc);
             this.emit('sfx', 'damage');
             break;
@@ -32867,6 +32890,53 @@
           x.timeCastBy = me.id;
           ctx._timeExiled = x.id;
           this.logEvent('rules', `${me.name} exiles ${x.name} from their hand with ${x.counters.time} time counter${x.counters.time === 1 ? '' : 's'}.`);
+          break;
+        }
+        /* Uvilda, Dean of Perfection: "You may exile an instant or sorcery card from your hand and put three refine counters
+           on it." — the card keeps the two lines it gains as refineBy/refineLess (_tickRefine, refineTick, refineCast) */
+        case 'exileHandRefine': {
+          const pool = this.zones[me.id].hand.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: me.id, purpose: 'exileForRefine', kind: 'objects', zone: 'hand', items: this._chooseItems(pool),
+            min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may exile ${/^[aeiou]/i.test(e.filter || 'card') ? 'an' : 'a'} ${e.filter || 'card'} card from your hand. It gets ${MTG.oracle.nounCount(e.n || 3, (e.kind || 'refine') + ' counter')}, and you may cast it for {${e.less || 0}} less when the last is removed.` }, 'xhr');
+          if (got === SUSPEND) return SUSPEND;
+          const x = pool.find(c => ((got && got.picks) || []).includes(c.id));
+          if (!x) break;
+          this.moveObject(x, 'exile');
+          if (x.zone !== 'exile') break;
+          x.counters[e.kind || 'refine'] = e.n || 3;
+          x.refineBy = me.id; x.refineLess = e.less || 0; x.refineKind = e.kind || 'refine';
+          this.logEvent('rules', `${me.name} exiles ${x.name} from their hand with ${MTG.oracle.nounCount(e.n || 3, x.refineKind + ' counter')}.`);
+          break;
+        }
+        // Uvilda: "At the beginning of your upkeep, if this card is exiled, remove a refine counter from it"
+        case 'refineTick': {
+          const x = src;
+          if (!x || x.zone !== 'exile' || x.refineBy == null) break;
+          const k = x.refineKind || 'refine';
+          if (!((Number(x.counters[k]) || 0) > 0)) break;
+          x.counters[k]--;
+          x._chr = null; this.bumpBoard();
+          this.logEvent('counters', `${x.name}: a ${k} counter removed (${x.counters[k]}).`);
+          if (x.counters[k] === 0) this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
+            controller: x.owner, name: `${x.name} — last ${k} counter`, auto: true, effects: [{ op: 'refineCast' }],
+            abilityText: `When the last ${k} counter is removed from this card, if it's exiled, you may cast it. It costs {${x.refineLess || 0}} less to cast this way.`,
+            triggerData: { event: 'refineGone', objectId: x.id } });
+          break;
+        }
+        // Uvilda: "When the last refine counter is removed from this card, if it's exiled, you may cast it. It costs {4} less to cast this way."
+        case 'refineCast': {
+          const x = src;
+          if (!x || x.zone !== 'exile' || x.refineBy == null) break;
+          const pid = x.owner, less = x.refineLess || 0;
+          const yes = this._ask({ type: 'confirm', playerId: pid, prompt: `Cast ${x.name}? It costs {${less}} less to cast this way.` }, 'rfc');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!(yes && yes.yes !== false)) break;
+          x.refineBy = null;
+          const cost = this._addGeneric(String((x.card && x.card.mana_cost) || ''), -less);
+          if (this.castSpell(pid, x.id, { costOverride: cost, alternative: 'resolution', auto: true, targets: [] }) === false)
+            this.logEvent('rules', `${x.name} could not be cast.`);
           break;
         }
         /* Alaundo the Seer: "Then remove a time counter from each other card you own in exile." — a last one off is its
