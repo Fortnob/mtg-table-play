@@ -57895,4 +57895,103 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, hand1, 'April: no spells — no cards');
   });
+  test('Commanders: Silver Surfer, Cosmic Voyager — exile any number of your other permanents; back at the next end step, lands tapped', (mk, t) => {
+    t.auto('Silver Surfer, Cosmic Voyager');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const forest = T.bf('A', 'Forest'), bears = T.bf('A', 'Grizzly Bears'), lions = T.bf('A', 'Savannah Lions');
+    const elves = T.bf('B', 'Llanowar Elves');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [forest.id, bears.id] }; });
+    const ss = T.bf('A', 'Silver Surfer, Cosmic Voyager', { etb: true });
+    T.resolve();
+    const offered = q ? (q.items || []).map(o => o.id) : [];
+    t.ok(q && q.purpose === 'anyTargets' && offered.includes(lions.id), 'Silver Surfer: any number of them, one question');
+    t.ok(!offered.includes(ss.id) && !offered.includes(elves.id), 'Silver Surfer: other permanents you control only');
+    t.zone(forest, 'exile', 'Silver Surfer: the Forest exiled');
+    t.zone(bears, 'exile', 'Silver Surfer: the Bears exiled');
+    t.zone(lions, 'battlefield', 'Silver Surfer: the Lions left alone');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(forest, 'battlefield', 'Silver Surfer: the Forest back');
+    t.zone(bears, 'battlefield', 'Silver Surfer: the Bears back');
+    t.ok(forest.tapped, 'Silver Surfer: a land enters tapped');
+    t.no(bears.tapped, 'Silver Surfer: the Bears untapped');
+  });
+  test('Commanders: Syrix, Carrier of the Flame — a creature card left your graveyard: a Phoenix bites any target; cast it from the graveyard as another Phoenix dies', (mk, t) => {
+    t.auto('Syrix, Carrier of the Flame');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const sy = T.bf('A', 'Syrix, Carrier of the Flame');
+    const ap = T.bf('A', 'Arclight Phoenix');
+    // nothing left the graveyard: no trigger
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('B'), 20, 'Syrix: no creature card left your graveyard — nothing');
+    T.nextTurn('B');
+    // a land card leaving: still nothing; a creature card: the trigger
+    const land = T.grave('A', 'Forest');
+    g.moveObject(land, 'hand');
+    T.toMain('B', 'end');
+    T.resolve();
+    t.eq(T.life('B'), 20, 'Syrix: a land card — nothing');
+    T.nextTurn('A');
+    const bears = T.grave('A', 'Grizzly Bears');
+    g.moveObject(bears, 'hand');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: sy.id }, { kind: 'player', id: 'B' }] }; });
+    T.toMain('A', 'end');
+    T.resolve();
+    t.ok(q && q.options[0].length === 2, 'Syrix: target Phoenix you control — Syrix or the Arclight Phoenix');
+    t.eq(T.life('B'), 17, 'Syrix: 3 damage to B, its power');
+    // in the graveyard: another Phoenix dies — cast it, paying its costs
+    T.nextTurn('B');
+    g.moveObject(sy, 'graveyard');
+    let asked = null;
+    T.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    T.mana('A', 'BR2');
+    const n0 = T.asked.length;
+    g.moveObject(ap, 'graveyard');
+    T.resolve();
+    t.ok(asked && /Syrix/.test(asked.prompt || ''), 'Syrix: asked — cast it?');
+    t.eq(T.asked.slice(n0).filter(c => c.type === 'confirm').length, 1, 'Syrix: one question, not a "may" and then the cast');
+    t.zone(sy, 'battlefield', 'Syrix: cast from the graveyard and resolved');
+  });
+  test('Commanders: Rhuk, Hexgold Nabber — another equipped creature of yours attacks or dies: you may move all its Equipment to Rhuk', (mk, t) => {
+    t.auto('Rhuk, Hexgold Nabber');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const rh = T.bf('A', 'Rhuk, Hexgold Nabber');
+    const bears = T.bf('A', 'Grizzly Bears'), lions = T.bf('A', 'Savannah Lions');
+    const bs = T.bf('A', 'Bonesplitter'), ss = T.bf('A', 'Short Sword'), bs2 = T.bf('A', 'Bonesplitter');
+    const attach = (eq, host) => {
+      const old = eq.attachedTo && g.obj(eq.attachedTo);
+      if (old) old.attachments = old.attachments.filter(id => id !== eq.id);
+      eq.attachedTo = host.id; host.attachments = (host.attachments || []).concat(eq.id); g.bumpBoard();
+    };
+    attach(bs, bears); attach(ss, bears); attach(bs2, rh);
+    let asked = 0;
+    T.answer('confirm', () => { asked++; return { yes: true }; });
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }, { attackerId: lions.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(asked, 1, 'Rhuk: asked once — the Bears are equipped, the Lions aren\'t');
+    t.eq(bs.attachedTo + ss.attachedTo, rh.id + rh.id, 'Rhuk: both Equipment moved to Rhuk');
+    t.eq(g.powerOf(rh), 2 + 2 + 2 + 1, 'Rhuk: +2, +2 and +1');
+    // Rhuk's own attack: not "other than Rhuk"
+    T.nextTurn('B'); T.nextTurn('A');
+    attach(ss, lions);
+    const n0 = T.asked.length;
+    T.answer('declareAttackers', () => [{ attackerId: rh.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(T.asked.slice(n0).filter(c => c.type === 'confirm').length, 0, 'Rhuk: Rhuk attacking — nothing asked');
+    // the Lions die equipped: the Short Sword moves to Rhuk
+    T.toMain('A', 'end');
+    T.answer('confirm', () => { asked++; return { yes: true }; });
+    g.moveObject(lions, 'graveyard');
+    T.resolve();
+    t.eq(asked, 2, 'Rhuk: the Lions died — asked');
+    t.eq(ss.attachedTo, rh.id, 'Rhuk: the Short Sword on Rhuk');
+  });
 };

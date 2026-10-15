@@ -3148,7 +3148,7 @@
       // (Jeleva, Nephalia's Scourge: "you may cast an instant or sorcery spell from among cards exiled with Jeleva" — pickOne)
       // (Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it" — becomeExiledWithCopy)
       // (Feather, Radiant Arbiter: "you may choose any number of other creatures … and pay {2} for each" — copySpellEachOther payEach)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.pickOne))) && !once;
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -14922,6 +14922,7 @@
         case 'notDiedTrigger': { const tdD = (ctx && ctx.triggerData) || {}; const xD = tdD.objectId && this.obj(tdD.objectId); return tdD.toZone ? tdD.toZone !== 'graveyard' : (!!xD && xD.zone !== 'graveyard'); }   // (as it left, not where it is now: leftToZone)
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
+        case 'creatureCardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).creatureLeftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
         case 'spellAllColors': { const tdA = (ctx && ctx.triggerData) || {}; const xA = tdA.objectId && this.obj(tdA.objectId);
           return !!xA && ((this.characteristics(xA) || {}).colors || ((xA.analysis() || {}).colors) || []).length >= 5; }
@@ -16974,6 +16975,8 @@
       if (event === 'leftGraveyard' && data.objController) {
         const hL = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         (hL.leftGraveyard = hL.leftGraveyard || {})[data.objController] = true;
+        // (Syrix, Carrier of the Flame: a creature card — creatureLeftGraveyard)
+        if (data.object && (data.object.analysis() || {}).isCreature) (hL.creatureLeftGraveyard = hL.creatureLeftGraveyard || {})[data.objController] = true;
       }
       // Thalisse: "the number of tokens you created this turn" — kept as they are made
       if (event === 'youCreateToken' && controllerId) {
@@ -26382,9 +26385,11 @@
           // (Teferi's Time Twist: the counter it enters with — enterExtraCounter)
           if (x && e.counterIfCreature) x._enterExtraCounter = { kind: e.counterIfCreature, n: 1, ifCreature: true };
           // (under your control when the words say so, or name nobody)
-          if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
+          // (Silver Surfer, Cosmic Voyager: "If a land enters this way, it enters tapped." — landsTapped)
+          if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner },
+            e.landsTapped && (x.analysis() || {}).isLand ? { tapped: true } : {}));
           // Nezahal: "Return it to the battlefield tapped …"
-          if (x && e.tapped && x.zone === 'battlefield') x.tapped = true;
+          if (x && (e.tapped || (e.landsTapped && (x.analysis() || {}).isLand)) && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
           // Gilraen, Dúnedain Protector: "with a vigilance counter and a lifelink counter on it"
@@ -29751,6 +29756,8 @@
               : e.from === 'exiledCounter' ? this._freeFromExiledCounter(e, ctx)
               // Oskar, Rubbish Reclaimer: "you may cast it from your graveyard" — the card discarded, still there (triggerObj)
               : e.from === 'triggerObj' ? [(ctx.triggerData || {}).objectId].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
+              // Syrix, Carrier of the Flame: "cast this card from your graveyard" — this card, still there (selfFromGrave)
+              : e.from === 'selfFromGrave' ? [src && src.id].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
               // Scarlet Witch, Chaotic Avenger: "from among cards exiled with Scarlet Witch" — this time's and before (exiledWith)
               : e.from === 'exiledWith' ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
@@ -29814,7 +29821,7 @@
             // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
             // (Oskar: paying its costs — what can't be paid for is not asked about)
-            if (e.from === 'triggerObj' && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
+            if ((e.from === 'triggerObj' || e.from === 'selfFromGrave') && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
             const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
@@ -31676,6 +31683,29 @@
             this.logEvent('attach', `${x.name} enters attached to ${hostB.name}.`);
           }
           if (moved.length) this.logEvent('rules', `${moved.join(', ')} ${moved.length === 1 ? 'is' : 'are'} attached to ${hostB.name}.`);
+          this.bumpBoard();
+          break;
+        }
+        /* Rhuk, Hexgold Nabber: "attach all Equipment attached to that creature to Rhuk" — what is on it now, or what was
+           on it as it died; one that can't legally be attached stays where it is (CR 701.3b) (attachAllToSelf) */
+        case 'attachAllToSelf': {
+          const x = this.obj((ctx.triggerData || {}).objectId);
+          if (!src || src.zone !== 'battlefield' || !x) break;
+          const ids = (x.zone === 'battlefield' ? x.attachments : x._lastAttachments) || [];
+          const moved = [];
+          for (const id of ids.slice()) {
+            const eq = this.obj(id);
+            if (!eq || eq.zone !== 'battlefield' || eq.phasedOut || !(eq.analysis() || {}).isEquipment || eq.attachedTo === src.id) continue;
+            if (eq.attachedTo && eq.attachedTo !== x.id) continue;
+            if (!this._attachableTo(eq, src, null)) continue;
+            const old = eq.attachedTo && this.obj(eq.attachedTo);
+            if (old) old.attachments = (old.attachments || []).filter(i => i !== eq.id);
+            eq.attachedTo = src.id;
+            eq.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+            src.attachments = (src.attachments || []).filter(i => i !== eq.id).concat(eq.id);
+            moved.push(eq.name);
+          }
+          if (moved.length) this.logEvent('rules', `${moved.join(', ')} ${moved.length === 1 ? 'is' : 'are'} attached to ${src.name}.`);
           this.bumpBoard();
           break;
         }

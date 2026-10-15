@@ -3391,6 +3391,10 @@
     /* Gravitic Punch: "to target player"; Soul's Fire: "to any target", a
        creature or planeswalker as much as a player; Origin of Thor: "to each
        opponent", every one of them */
+    // (Syrix, Carrier of the Flame: "target Phoenix you control deals damage equal to its power to any target")
+    { re: /^Target ([A-Z][a-z]+) you control deals damage equal to its power to any target\.?$/,
+      make: (m) => (/^(?:Creature|Artifact|Permanent)$/.test(m[1]) ? null
+        : { op: 'bite', anyTarget: true, targets: [Object.assign(targetSpec('target ' + m[1] + ' you control'), { type: 'creature' }), targetSpec('any target')] }) },
     { re: /^Target creature you control deals damage equal to its power to (target player|target opponent|any target|each opponent)\.?$/i,
       make: (m) => (/each/i.test(m[1]) ? { op: 'bite', toPlayer: true, eachOpponent: true, targets: [{ type: 'creature', controller: 'you' }] }
         : /any/i.test(m[1]) ? { op: 'bite', anyTarget: true, targets: [{ type: 'creature', controller: 'you' }, targetSpec('any target')] }
@@ -4769,6 +4773,9 @@
     { re: /^(?:You may )?cast the discarded card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'discarded', upTo: 1 }) },
     // Oskar, Rubbish Reclaimer: "Whenever you discard a nonland card, you may cast it from your graveyard." — paying its costs (triggerObj)
     { re: /^(?:You may )?cast it from your graveyard\.?$/i, make: () => ({ op: 'castFree', from: 'triggerObj', pay: true, upTo: 1 }) },
+    /* Syrix, Carrier of the Flame: "Whenever another Phoenix you control dies, you may cast this card from your graveyard." —
+       this card, from there, paying its costs, as the trigger resolves (selfFromGrave) */
+    { re: /^(?:You may )?cast (?:this card|CARDNAME) from your graveyard\.?$/i, make: () => ({ op: 'castFree', from: 'selfFromGrave', pay: true, upTo: 1 }) },
     // Hildibrand Manderville: "When Hildibrand Manderville dies, you may cast it from your graveyard as an Adventure until the end of your next turn." (graveAdventure)
     { re: /^(?:You may )?cast it from your graveyard as an Adventure until the end of your next turn\.?$/i, make: () => ({ op: 'graveAdventure' }) },
     { re: /^Each player discards their hand,? then draws seven cards\.?$/i, make: () => ({ op: 'wheel', n: 7 }) },
@@ -4803,6 +4810,9 @@
     { re: /^Exile the card that died with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
     // Grolnok, the Omnivore: "Whenever a permanent card is put into your graveyard from your library, exile it with a croak counter on it."
     { re: /^Exile it with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
+    /* Rhuk, Hexgold Nabber: "attach all Equipment attached to that creature to Rhuk" — the creature the trigger is about,
+       as it is, or as it was when it died (attachAllToSelf) */
+    { re: /^Attach all Equipment attached to that creature to CARDNAME\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     /* Zack Fair: "Put CARDNAME's counters on that creature and attach an Equipment that was attached to CARDNAME to
        that creature." — what it had as it was sacrificed (attachLeftEquipment) */
     { re: /^Put CARDNAME'?s counters on that creature and attach an Equipment that was attached to CARDNAME to that creature\.?$/,
@@ -10549,6 +10559,17 @@
     // Nihiloor: one for each opponent, a reflexive trigger for each one tapped (tapForEachOpponentReflex)
     { re: /^For each opponent, tap up to one untapped creature you control\. When you do, gain control of target creature that player controls with power less than or equal to the tapped creature'?s power for as long as you control CARDNAME\.?$/i,
       make: () => [{ op: 'tapForEachOpponentReflex' }] },
+    /* Silver Surfer, Cosmic Voyager: "exile any number of other target permanents you control. Return those cards to the
+       battlefield under their owner's control at the beginning of the next end step. If a land enters this way, it enters
+       tapped." — the two sentences as ever, the lands back tapped (landsTapped) */
+    { re: /^(exile [^.]+\.) (Return those cards to the battlefield[^.]* at the beginning of the next end step\.) If a land enters this way, it enters tapped\.$/i,
+      make: (m) => {
+        const tp = parseSentenceList([m[1].charAt(0).toUpperCase() + m[1].slice(1), m[2]]);
+        const back = tp.auto && tp.effects.length === 2 && tp.effects[1].op === 'delayed' && (tp.effects[1].effects || [])[0];
+        if (!back || back.op !== 'returnThat') return null;
+        back.landsTapped = true;
+        return tp.effects;
+      } },
     /* Kitt Kanto, Mayhem Diva: "you may tap two untapped creatures you control. When you do, target creature that player
        controls gets +2/+2 and gains trample until end of turn. Goad that creature." — the goad the reflexive trigger's too */
     { re: /^you may (tap (?:two|three|an?) untapped [a-z]+ you control)\. (When you do, (target creature that player controls [^.]+)\. Goad that creature\.)$/i,
@@ -14562,6 +14583,8 @@
     [/^it didn'?t die$/i, () => ({ kind: 'notDiedTrigger' })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
+    // Syrix, Carrier of the Flame: "if a creature card left your graveyard this turn" (creatureCardLeftYourGraveyard)
+    [/^a creature card left your graveyard this turn$/i, () => ({ kind: 'creatureCardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
     [/^that spell was all colou?rs$/i, () => ({ kind: 'spellAllColors' })],
     // Hazoret, Godseeker: "unless you have max speed" (maxSpeed)
@@ -15423,6 +15446,11 @@
       filt: (m) => ({ words: m[1].toLowerCase(), who: 'you' }), extra: { filterOnlyOn: 'permDies', selfOnEnter: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
       event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
+    // Rhuk, Hexgold Nabber: "Whenever an equipped creature you control other than Rhuk attacks or dies"
+    { re: /^Whenever an? ([a-z ]+?) you control other than CARDNAME attacks or dies,? /i,
+      event: 'permAttacks', also: 'permDies', filt: (m) => subjectFilter('another ' + m[1] + ' you control') },
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks or dies(?:,| )', 'i'),
+      event: 'permAttacks', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
     // Millicent, Restless Revenant: "Whenever Millicent or another nontoken Spirit you control dies or deals combat damage to a player"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or deals combat damage to a player(?:,| )', 'i'),
       event: 'permDies', also: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
@@ -18664,7 +18692,8 @@
       // (Senu, Keen-Eyed Protector: "if this card is exiled" — from exile only)
       if (ab.fromExile) { out.exileTriggers = true; continue; }
       if (/^When(?:ever)? (?:this creature|CARDNAME|this card) (?:dies|is put into)/i.test(ab.text)) continue;
-      if (/\b(?:return|exile) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
+      // (Syrix, Carrier of the Flame: "cast this card from your graveyard")
+      if (/\b(?:return|exile|cast) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
         ab.fromGraveyard = true;
         out.graveTriggers = true;
       }
