@@ -4800,6 +4800,18 @@
     { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s (?:that player|they) controls?\.?$/i,
       make: (m) => ({ op: 'damageEachByCount', what: m[2].toLowerCase(), mult: m[1] ? 2 : 1 }) },
     // Oswald Fiddlebender: "an artifact card with mana value equal to 1 plus the sacrificed artifact's mana value"
+    /* Ancient Cellarspawn: "if the amount of mana spent to cast it was less than its mana value, target opponent loses
+       life equal to the difference" — the spell's mana value less the mana spent on it (mvOverSpent) */
+    { re: /^Target opponent loses life equal to the difference\.?$/i,
+      make: () => ({ op: 'loseLife', who: 'target', n: { mvOverSpent: 'it' }, targets: [{ type: 'player', opponent: true }] }) },
+    /* Mimic Vat: "you may exile that card. If you do, return each other card exiled with this artifact to its owner's
+       graveyard." — all but the one just exiled, and only if it was (exiledWithToGrave exceptTrigger) */
+    { re: /^Return each other card exiled with (?:this artifact|this creature|this enchantment|CARDNAME) to its owner'?s graveyard\.?$/i,
+      make: () => ({ op: 'exiledWithToGrave', exceptTrigger: true }) },
+    // Ringsight: "Search your library for a card that shares a color with a legendary creature you control, reveal it, …" (sharesColorWith)
+    { re: /^Search your library for a card that shares a colou?r with an? (legendary creature|creature|commander) you control, reveal it, put it into your hand, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: 'any', to: 'hand', reveal: true, sharesColorWith: m[1].toLowerCase(),
+        prompt: `Search your library for a card that shares a color with a ${m[1].toLowerCase()} you control.` }) },
     // (Neoform: "… onto the battlefield with an additional +1/+1 counter on it" — enterCounters)
     { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?( with an additional \+1\/\+1 counter on it)?, then shuffle\.?$/i,
       make: (m) => Object.assign({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], mvOfSacrificedPlus: num(m[2]),
@@ -7707,7 +7719,8 @@
       make: (m) => ({ op: 'becomeCopyAll', of: 'exiledTarget', words: m[1].toLowerCase(), duration: /next end step/i.test(m[2]) ? 'nextEnd' : 'eot' }) },
     /* Shuri, Wakandan Inventor: "Target artifact you control becomes a copy of a second target artifact you control
        until end of turn, except it isn't legendary." — the first target changes (subjectTarget) */
-    { re: /^(Target [a-z ]+?) becomes a copy of a second (target [a-z ]+?) until end of turn(?:, except (.+?))?\.?$/,
+    // (Saheeli, Sublime Artificer: "becomes a copy of another target artifact or creature you control" — the same)
+    { re: /^(Target [a-z ]+?) becomes a copy of (?:a second|another) (target [a-z ]+?) until end of turn(?:, except (.+?))?\.?$/,
       make: (m) => {
         const a = targetSpec(m[1].toLowerCase()), b = targetSpec(m[2]);
         if (!a || !b || a.unknown || b.unknown || a.zone !== 'battlefield' || b.zone !== 'battlefield') return null;
@@ -9233,6 +9246,9 @@
     { re: /^Create (two|three|a) tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of the exiled card(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: /^a$/i.test(m[1]) ? 1 : num(m[1].toLowerCase()), grant: [], of: 'costExiled' },
         m[2] ? { addTypes: [U.titleCase(m[2])] } : {}) },
+    // Mimic Vat: "Create a token that's a copy of a card exiled with this artifact." — which, when there is more than one (exiledWith)
+    { re: /^Create a token that'?s a copy of a card exiled with (?:this artifact|this creature|CARDNAME)\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, grant: [], of: 'exiledWith' }) },
     // Feldon of the Third Path: "…a copy of target creature card in your graveyard, except it's an artifact in addition to its other types."
     { re: /^Create a token that'?s a copy of target (creature|artifact|permanent|creature or artifact) card in your graveyard(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [],
@@ -11770,6 +11786,14 @@
     { re: /^[Yy]ou may exile it\. If you do, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+) and it'?s an? ([A-Z][a-z]+) in addition to its other types\.$/,
       make: (m) => [{ op: 'may', then: [{ op: 'exileTriggerCard' },
         { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
+    /* Agitator Ant: "each player may put two +1/+1 counters on a creature they control. Goad each creature that had
+       counters put on it this way." (eachPlayerMayCounters) */
+    { re: /^each player may put (a|an|one|two|three|four|\d+) (\+1\/\+1|[a-z]+) counters? on a creature they control\.(?: (Goad each creature that had counters put on it this way)\.)?$/i,
+      make: (m) => [{ op: 'eachPlayerMayCounters', kind: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : /^\d+$/.test(m[1]) ? +m[1] : num(m[1].toLowerCase()), goad: !!m[3] }] },
+    // Mimic Vat: "you may exile that card. If you do, return each other card exiled with this artifact …" — the card that died
+    { re: /^you may exile (?:that card|it)\. If you do, (return each other card exiled with (?:this artifact|this creature|CARDNAME) to its owner'?s graveyard\.)$/i,
+      make: (m) => { const p = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        return p.auto && p.effects.length === 1 ? [{ op: 'may', then: [{ op: 'exileTriggerCard' }].concat(p.effects) }] : null; } },
     /* The Master, Gallifrey's End: "you may exile it. If you do, choose an opponent with the most life among your
        opponents. That player faces a villainous choice — They lose 4 life, or you create a token that's a copy of that
        card." — only once the card is exiled (ifExiled); a tie for the most life is yours to settle (mostLifeOpp) */

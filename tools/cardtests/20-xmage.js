@@ -69086,4 +69086,116 @@ module.exports = (test) => {
     g.moveObject(hazel, 'graveyard');
     t.no(food.analysis().abilities.some(a => /deals 1 damage/.test(a.text || '')), 'Brewmaster gone: no more');
   });
+  test('Cards: Ringsight — the Ring tempts you, then a card that shares a color with a legendary creature you control', (mk, t) => {
+    t.auto('Ringsight');
+    const T = mk();
+    T.bf('A', 'Isamaru, Hound of Konda');   // white, legendary
+    T.bf('A', 'Grizzly Bears');             // green, not legendary
+    const angel = T.top('A', 'Serra Angel'), bears = T.top('A', 'Llanowar Elves'), bolt = T.top('A', 'Lightning Bolt');
+    let offered = null;
+    T.answer('pickCard', (ch) => { if (ch.fromLibrary) offered = ch.cards.map(c => c.name); return { cardIds: ch.fromLibrary ? [angel.id] : [ch.cards[0].id] }; });
+    T.mana('A', '1UB');
+    T.cast('A', T.hand('A', 'Ringsight'));
+    t.ok(T.player('A').ringLevel >= 1, 'the Ring tempted A');
+    t.ok(offered && offered.includes('Serra Angel'), 'a white card');
+    t.no(offered && (offered.includes('Llanowar Elves') || offered.includes('Lightning Bolt')), 'not green or red ones');
+    t.zone(angel, 'hand');
+    t.zone(bears, 'library'); t.zone(bolt, 'library');
+  });
+  test('Cards: Mimic Vat — a dying creature card imprinted, the old one back to the graveyard; a hasty token copy exiled at end step', (mk, t) => {
+    t.auto('Mimic Vat');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    const vat = T.bf('A', 'Mimic Vat');
+    const giant = T.bf('B', 'Hill Giant'), bears = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [giant] });
+    t.zone(giant, 'exile', 'exiled with the Vat');
+    t.eq(giant.exiledWithId, vat.id);
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bears] });
+    t.zone(bears, 'graveyard', 'declined');
+    t.zone(giant, 'exile', 'the Giant stays');
+    // the copy
+    T.mana('A', '3');
+    T.activate('A', vat, 0);
+    const copy = T.bfOf('A').find(o => o.isToken && o.name === 'Hill Giant');
+    t.ok(copy, 'a token copy of the Hill Giant');
+    t.ok(g.hasKw(copy, 'haste'), 'with haste');
+    T.toMain('A', 'end'); T.resolve();
+    t.no(T.bfOf('A').some(o => o === copy && o.zone === 'battlefield'), 'exiled at the end step');
+    // another creature dies and is imprinted: the Giant goes to its owner's graveyard
+    T.nextTurn('B');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [elf] });
+    t.zone(elf, 'exile', 'the Elves imprinted');
+    t.zone(giant, 'graveyard', "the Giant to B's graveyard");
+    t.ok(T.zone('B', 'graveyard').includes(giant));
+  });
+  test('Cards: Agitator Ant — at your end step each player may put two +1/+1 counters on a creature of theirs, which is goaded', (mk, t) => {
+    t.auto('Agitator Ant');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const ant = T.bf('A', 'Agitator Ant');
+    const bb = T.bf('B', 'Grizzly Bears'), bg = T.bf('B', 'Hill Giant');
+    const cb = T.bf('C', 'Grizzly Bears');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [ant.id] }; });                 // A
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [bg.id] }; });                  // B
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [] }; });                       // C declines
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(asked.length, 3, 'each player asked');
+    t.eq(asked.map(c => c.playerId).join(), 'A,B,C', 'in turn order');
+    t.no(asked[1].items.some(x => x.id === cb.id), "only B's own creatures for B");
+    t.eq(ant.counters['+1/+1'], 2); t.eq(bg.counters['+1/+1'], 2);
+    t.no(cb.counters['+1/+1'], 'C declined');
+    t.eq(bg.goadedBy, 'A', "B's Giant goaded by A"); t.eq(ant.goadedBy, 'A');
+    t.no(cb.goadedBy, 'not C\'s'); t.no(bb.goadedBy);
+    // a bot puts them on its biggest creature
+    const T2 = mk({ players: ['A', 'B'] });
+    T2.bf('A', 'Agitator Ant');
+    T2.bf('B', 'Grizzly Bears'); const big = T2.bf('B', 'Craw Wurm');
+    T2.player('B').isBot = true;
+    const bot = new T2.MTG.bots.BotPlayer(T2.g, 'B', 8);
+    T2.answer('choose', (ch) => ({ picks: [] }));
+    T2.answer('choose', (ch) => bot.chooseGeneric(ch));
+    T2.toMain('A', 'end'); T2.resolve();
+    t.eq(big.counters['+1/+1'], 2, 'the bot chose its Craw Wurm');
+    t.eq(big.goadedBy, 'A');
+  });
+  test('Cards: Ancient Cellarspawn — a spell cast for less than its mana value: target opponent loses the difference', (mk, t) => {
+    t.auto('Ancient Cellarspawn');
+    const T = mk();
+    T.bf('A', 'Ancient Cellarspawn');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(T.life('B'), 20, 'paid in full: nothing');
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Ravenous Chupacabra'), { targets: [T.bf('B', 'Hill Giant')] });
+    t.eq(T.life('B'), 19, 'a Horror for {1} less: 1 life');
+    t.eq(T.life('A'), 20);
+  });
+  test('Cards: Saheeli, Sublime Artificer — −2: an artifact of yours becomes a copy of another artifact or creature of yours until end of turn, still an artifact', (mk, t) => {
+    t.auto('Saheeli, Sublime Artificer');
+    const T = mk();
+    const g = T.g;
+    const sah = T.bf('A', 'Saheeli, Sublime Artificer');
+    const thopter = T.bf('A', 'Ornithopter'), angel = T.bf('A', 'Serra Angel');
+    T.bf('B', 'Grizzly Bears');
+    const all = sah.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty');
+    T.activate('A', sah, all.findIndex(a => a.kind === 'loyalty'), { targets: [thopter, angel] });
+    t.eq(sah.counters.loyalty, 3);
+    t.eq(thopter.name, 'Serra Angel', 'the Ornithopter is a Serra Angel');
+    t.ok(g._cardFitsWords(thopter, 'artifact'), 'and an artifact');
+    t.eq(g.powerOf(thopter), 4);
+    t.zone(angel, 'battlefield');
+    // a noncreature spell: a Servo
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.bfOf('A').filter(o => o.isToken && /Servo/.test(o.name)).length, 1, 'a Servo');
+    T.nextTurn('B');
+    t.eq(thopter.name, 'Ornithopter', 'back at end of turn');
+  });
 };

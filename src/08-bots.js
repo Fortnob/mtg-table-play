@@ -1940,6 +1940,14 @@
       for (const x of order) for (let k = 0; k < (x.most || 0) && picks.length < s.max; k++) picks.push(x.i);
       return { picks };
     },
+    /* Agitator Ant: two +1/+1 counters, goaded until the Ant's controller's next turn — worth it on our biggest creature
+       that can attack anyway (eachPlayerCounters) */
+    eachPlayerCounters(s) {
+      const g = this.game;
+      const mine = (s.items || []).map(x => g.obj(x.id)).filter(o => o && o.controller === this.pid && !g.hasKw(o, 'defender'))
+        .sort((a, b) => g.powerOf(b) - g.powerOf(a));
+      return { picks: mine.length ? [mine[0].id] : [] };
+    },
     /* Sigurd, Jarl of Ravensthorpe: on to the next chapter, rather than back */
     loreAddOrRemove() { return { picks: [0] }; },
     /* Immard, the Stormcleaver: a counter off whenever there is one — the modes come only that way */

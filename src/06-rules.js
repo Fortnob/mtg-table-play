@@ -21460,6 +21460,13 @@
         }
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
+        // Ancient Cellarspawn: "equal to the difference" — the spell's mana value less the mana spent to cast it (mvOverSpent)
+        if (v && typeof v === 'object' && v.mvOverSpent) {
+          const x = this._spentOn(v.mvOverSpent, src, ctx.triggerData);
+          if (!x) return 0;
+          const mv = x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0);
+          return Math.max(0, mv - ((x.manaSpent || 0) - Math.floor((x._phyLife || 0) / 2)));
+        }
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
         // Volrath the Fallen: "the discarded card's mana value" — the card discarded as the cost (ofDiscarded)
         if (v && typeof v === 'object' && v.ofDiscarded) {
@@ -25335,7 +25342,12 @@
           const z = this.zones[e.libOf === 'target' ? ((firstPlayer() || seeker).id) : e.libOf === 'triggerPlayer' ? ((triggerPlayer() || seeker).id) : seeker.id];
           const want = String(e.filter || 'any').toLowerCase();
           const mvOf = (c) => (c.card && c.card.cmc) || 0;
+          // Ringsight: "a card that shares a color with a legendary creature you control" — the colours among them now (sharesColorWith)
+          const shareCols = e.sharesColorWith ? new Set(this.battlefield.filter(x => !x.phasedOut && x.controller === seeker.id &&
+            (e.sharesColorWith === 'commander' ? x.isCommander && (this.characteristics(x) || {}).isCreature : this._cardFitsWords(x, e.sharesColorWith)))
+            .flatMap(x => (this.characteristics(x) || {}).colors || (x.analysis() || {}).colors || [])) : null;
           const matches = (c) => {
+            if (shareCols && !((c.analysis() || {}).colors || []).some(k => shareCols.has(k))) return false;
             /* Transmute looks for a mana value, not a card type. */
             if (e.mv != null && mvOf(c) !== n(e.mv)) return false;
             if (e.maxMv != null && mvOf(c) > n(e.maxMv)) return false;
@@ -27131,6 +27143,19 @@
             }
             source = pick;
           }
+          // Mimic Vat: "a copy of a card exiled with this artifact" — which, asked when they are not all alike (exiledWith)
+          if (e.of === 'exiledWith') {
+            const pool = src ? this.players.flatMap(q => (this.zones[q.id] || {}).exile || []).filter(c => c.exiledWithId === src.id) : [];
+            if (!pool.length) break;
+            let pick = pool[0];
+            if (pool.length > 1 && !this._alike(pool)) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'copyWhich', kind: 'objects', zone: 'exile',
+                items: this._chooseItems(pool), min: 1, max: 1, prompt: `Choose a card exiled with ${src.name} to copy.` }, 'copyWhich');
+              if (got === SUSPEND) return SUSPEND;
+              pick = pool.find(x => x.id === ((got && got.picks) || [])[0]) || pool[0];
+            }
+            source = pick;
+          }
           // Cleaver Skaab: "copies of the sacrificed creature", as it last was
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // Grub, Notorious Auntie: "a copy of the blighted creature" — the one the counters just went on (copyBlighted)
@@ -27441,6 +27466,32 @@
           const list = [];
           for (const p of this._turnOrderFrom(ctx.controller)) for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }));
           if (list.length) this._spliceNext(list);
+          break;
+        }
+        /* Agitator Ant: "each player may put two +1/+1 counters on a creature they control. Goad each creature that had
+           counters put on it this way." — each player's pick asked in turn order, all put on together after (goad) */
+        case 'eachPlayerMayCounters': {
+          const picks = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            if (p.hasLost) continue;
+            const pool = this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+            if (!pool.length) continue;
+            const got = this._choose({ playerId: p.id, purpose: 'eachPlayerCounters', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 0, max: 1, optional: true, goad: !!e.goad,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put ${O.nounCount(e.n, e.kind + ' counter')} on a creature you control${e.goad ? ` (it will be goaded by ${me.name})` : ''}.` }, 'epc' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            const x = got && got.picks && got.picks[0] && this.obj(got.picks[0]);
+            if (x && pool.includes(x)) picks.push(x);
+          }
+          const goaded = [];
+          for (const x of picks) {
+            if (x.zone !== 'battlefield') continue;
+            const before = Number(x.counters[e.kind]) || 0;
+            this.addCounters(x, e.kind, e.n);
+            if ((Number(x.counters[e.kind]) || 0) > before) goaded.push(x);
+          }
+          if (e.goad) for (const x of goaded) { x.goadedBy = ctx.controller; this.logEvent('rules', `${x.name} is goaded.`); }
+          this.bumpBoard();
           break;
         }
         case 'forEachTargetPlayer': {
@@ -27961,6 +28012,18 @@
             if (c.zone === 'exile' && src && src.zone === 'battlefield') c.exiledWithId = src.id;
           }
           if (list.length) this.logEvent('exile', `${me.name} exiles ${list.map(c => c.name).join(', ')}${src ? ' with ' + src.name : ''}.`);
+          break;
+        }
+        /* Mimic Vat: "If you do, return each other card exiled with this artifact to its owner's graveyard." — "that
+           card" (the trigger's) now exiled with it, the rest go (exceptTrigger) */
+        case 'exiledWithToGrave': {
+          if (!src) break;
+          const keep = e.exceptTrigger ? this.obj((ctx.triggerData || {}).objectId) : null;
+          if (e.exceptTrigger && !(keep && keep.zone === 'exile' && keep.exiledWithId === src.id)) break;
+          const list = [];
+          for (const q of this.players) for (const c of (this.zones[q.id].exile || [])) if (c.exiledWithId === src.id && c !== keep) list.push(c);
+          for (const c of list) this.moveObject(c, 'graveyard');
+          if (list.length) this.logEvent('rules', `${list.map(c => c.name).join(', ')} ${list.length === 1 ? 'goes' : 'go'} from exile to ${list.length === 1 ? "its owner's graveyard" : "their owners' graveyards"}.`);
           break;
         }
         case 'exiledWithToGraveyardDamage': {
