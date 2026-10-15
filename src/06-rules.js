@@ -1623,7 +1623,10 @@
       // (Grolnok, the Omnivore: your own cards in exile that a permanent gives leave to cast — exiledCounter)
       const ownLeave = (z.exile || []).filter(o => !impulsed.includes(o) && !waiting.includes(o) && this._playFromRule(playerId, o, 'spell'));
       // (The Great Work: the instants and sorceries in other players' graveyards too)
-      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, this._borrowedGraveyard(playerId))) {
+      // (Mister Immortal: an ability that works from exile as well as the graveyard — alsoExile)
+      const exileActs = (z.exile || []).filter(o => !impulsed.includes(o) && !waiting.includes(o) && !ownLeave.includes(o) &&
+        (((o.analysis() || {}).abilities) || []).some(ab => ab.alsoExile));
+      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, exileActs, this._borrowedGraveyard(playerId))) {
         /* Cycling and flashback are things you can do with this card that
            are not "cast it for its mana cost", and a table that never
            offers them may as well not have printed them. */
@@ -5486,7 +5489,7 @@
       const a = o.analysis();
       const all = a ? a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty')) : [];
       const ab = all[i];
-      if (!ab || !ab.fromGraveyard || o.zone !== 'graveyard' || o.owner !== playerId) return { ok: false, reason: 'No such ability.' };
+      if (!ab || !ab.fromGraveyard || !(o.zone === 'graveyard' || (ab.alsoExile && o.zone === 'exile')) || o.owner !== playerId) return { ok: false, reason: 'No such ability.' };
       if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return { ok: false, reason: 'You do not have priority.' };
       const c = ab.cost || {};
       if ((c.other || []).length) return { ok: false, reason: 'That cost has to be paid by hand.' };
@@ -6044,10 +6047,11 @@
       /* An ability that works from the graveyard (Reassembling Skeleton):
          offered where flashback is, and activated rather than cast when it
          is chosen. */
-      if (o.zone === 'graveyard' && o.owner === playerId) {
+      // (Mister Immortal: "from your graveyard or from exile" — offered in exile too: alsoExile)
+      if ((o.zone === 'graveyard' || o.zone === 'exile') && o.owner === playerId) {
         const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
         acts.forEach((ab, i) => {
-          if (!ab.fromGraveyard) return;
+          if (!ab.fromGraveyard || (o.zone === 'exile' && !ab.alsoExile)) return;
           out.push({ kind: 'cast', via: 'ability:' + i, ability: i, cost: (ab.cost && ab.cost.mana) || '',
             label: truncate(MTG.oracle.named(ab.text, o) || MTG.oracle.abilityLabel(ab, o), 90) });
         });
@@ -9722,7 +9726,8 @@
       /* An ability printed to work from the graveyard works from there and
          nowhere else; the rest only work on the battlefield. */
       if (ab.fromGraveyard) {
-        if (o.zone !== 'graveyard' || o.owner !== playerId) return this.fail('That ability only works from your graveyard.');
+        // (Mister Immortal: "from your graveyard or from exile" — alsoExile)
+        if (!(o.zone === 'graveyard' || (ab.alsoExile && o.zone === 'exile')) || o.owner !== playerId) return this.fail(ab.alsoExile ? 'That ability only works from your graveyard or from exile.' : 'That ability only works from your graveyard.');
       } else if (o.zone === 'graveyard') return this.fail('That ability does not work from the graveyard.');
       // Derevi: an ability that works from the command zone works from there, and only there
       if (ab.fromCommandZone) {
@@ -15131,8 +15136,10 @@
           return cs.some(o => o.controller === me.id && this.powerOf(o) === best);
         }
         case 'opponentMoreHand': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].hand.length > this.zones[me.id].hand.length);
-        // Kosei, Penitent Warlord: "Kosei is enchanted" — an Aura on it
+        // Akuta, Born of Ash: "if you have more cards in hand than each opponent" (moreHandThanEachOpp)
+        case 'moreHandThanEachOpp': return !!me && this.opponentsOf(me.id).filter(p => !p.hasLost).every(p => this.zones[p.id].hand.length < this.zones[me.id].hand.length);
         case 'selfStartedUntapped': return !!src && src.zone === 'battlefield' && src.untappedAtStart === this.turn;
+        // Kosei, Penitent Warlord: "Kosei is enchanted" — an Aura on it
         case 'selfEnchanted': return !!src && src.zone === 'battlefield' && (src.attachments || []).some(id => { const at = this.obj(id); return at && this._auraNow(at); });
         case 'selfEquipped': {
           // Awaken the Sleeper: in a spell, "it" is the creature it aimed at
@@ -15744,6 +15751,8 @@
       if (typeof v === 'object' && v.greatestMvOf) {
         let best = 0;
         for (const x of this._scopeList(v.greatestMvOf, (src || o).controller, src || o, null, true)) best = Math.max(best, (x.card && x.card.cmc) || 0);
+        // (Dragon Man, Reformed Robot: "and noncreature cards in your graveyard" — gyWords)
+        if (v.gyWords) for (const c of ((this.zones[(src || o).controller] || {}).graveyard || [])) if (this._cardFitsWords(c, v.gyWords)) best = Math.max(best, (c.card && c.card.cmc) || 0);
         return best * (v.mult || 1);
       }
       // Bell Borca, Spectral Sergeant: "the greatest number noted for it this turn" (none noted: 0)
@@ -30519,7 +30528,8 @@
         case 'returnSelfFromGrave': {
           const x = src || (ctx.objId && this.obj(ctx.objId));
           // (Senu, Keen-Eyed Protector: "if this card is exiled" — from exile: fromZone)
-          if (!x || x.zone !== (e.fromZone || 'graveyard')) break;
+          // (Mister Immortal: "from your graveyard or from exile" — either: fromZones)
+          if (!x || !(e.fromZones ? e.fromZones.includes(x.zone) : x.zone === (e.fromZone || 'graveyard'))) break;
           // Tom, Bert, and William: "if they were a creature" — as they left (ifWasCreature)
           if (e.ifWasCreature && !x._leftAsCreature) break;
           // Fang, Roku's Companion: "if he wasn't a Spirit" — as he left (ifWasNot)
@@ -36837,11 +36847,14 @@
           // Mirror Box, Sakashima of a Thousand Faces: "the legend rule doesn't apply to permanents you control"
           // (Cadric: "… to tokens you control" — only those)
           const exempting = this.battlefield.map(x => (!x.phasedOut && this._staticOp(x, 'noLegendRule')) ? { x, r: this._staticOp(x, 'noLegendRule') } : null)
-            .filter(q => q && (q.r.all || q.x.controller === pid));
+            .filter(q => q && !q.r.exactlyTwo && (q.r.all || q.x.controller === pid));
           if (exempting.some(q => !q.r.words)) continue;
           const list = list0.filter(o => !exempting.some(q => this._cardFitsWords(o, q.r.words)));
           const byName = U.groupBy(list, o => U.frontName(o.name));
           for (const [name, dupes] of byName) {
+            // Brothers Yamazaki: "If there are exactly two permanents named Brothers Yamazaki on the battlefield" — on anyone's side (exactlyTwo)
+            if (dupes.length === 2 && dupes.some(o => (this._staticOp(o, 'noLegendRule') || {}).exactlyTwo) &&
+              this.battlefield.filter(x => !x.phasedOut && U.frontName(x.name) === name).length === 2) continue;
             if (dupes.length > 1) {
               // keep the newest, bin the rest (a real game gives the choice; we take the simple route and log it)
               const keep = dupes[dupes.length - 1];

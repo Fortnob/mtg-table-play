@@ -64073,4 +64073,183 @@ module.exports = (test) => {
     T.activate('A', gn, 0);
     t.ok(scryQ && /scry|bottom/i.test(JSON.stringify(scryQ)), 'Gnostro: scry 1 asked');
   });
+  test('Commanders: Dragon Man, Reformed Robot — power: the greatest mana value among noncreature permanents you control and noncreature cards in your graveyard; cast from the graveyard by discarding a card', (mk, t) => {
+    t.auto('Dragon Man, Reformed Robot');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const dm = T.grave('A', 'Dragon Man, Reformed Robot');
+    T.mana('A', '2WU');
+    t.no(g.castSpell('A', dm.id, { auto: true, targets: [], via: 'graveDiscard' }), 'Dragon Man: no card in hand — can\'t pay');
+    const isl = T.hand('A', 'Island');
+    t.ok(g.altUsesFor('A', dm.id).some(u => u.via === 'graveDiscard' && u.discardN === 1), 'Dragon Man: offered from the graveyard');
+    t.ok(g.castSpell('A', dm.id, { auto: true, targets: [], via: 'graveDiscard' }) !== false, 'Dragon Man: cast');
+    T.resolve();
+    t.zone(dm, 'battlefield', 'Dragon Man: cast from the graveyard');
+    t.zone(isl, 'graveyard', 'Dragon Man: the Island discarded');
+    t.eq(g.powerOf(dm), 0, 'Dragon Man: a land is mana value 0');
+    t.ok(g.hasKw(dm, 'Flying'));
+    T.bf('A', 'Sol Ring');
+    t.eq(g.powerOf(dm), 1, 'Dragon Man: Sol Ring — 1');
+    T.grave('A', 'Wrath of God'); g.bumpBoard();
+    t.eq(g.powerOf(dm), 4, 'Dragon Man: Wrath of God in the graveyard — 4');
+    T.grave('A', 'Craw Wurm'); g.bumpBoard();
+    T.bf('A', 'Ravenous Chupacabra');
+    T.bf('B', 'Darksteel Forge');
+    t.eq(g.powerOf(dm), 4, "Dragon Man: not creatures, not an opponent's permanent");
+    t.eq(g.toughnessOf(dm), 5);
+  });
+  test('Commanders: Brothers Yamazaki — exactly two: no legend rule, each +2/+2 and haste from the other; a third: the legend rule again', (mk, t) => {
+    t.auto('Brothers Yamazaki');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const b1 = T.bf('A', 'Brothers Yamazaki');
+    t.eq(g.powerOf(b1), 2, 'Brothers Yamazaki: alone, 2/1');
+    t.no(g.hasKw(b1, 'Haste'));
+    const b2 = T.hand('A', 'Brothers Yamazaki');
+    T.mana('A', '2R');
+    T.cast('A', b2);
+    g.checkStateBasedActions();
+    t.zone(b1, 'battlefield', 'Brothers Yamazaki: two — both stay');
+    t.zone(b2, 'battlefield');
+    t.eq(g.powerOf(b1), 4, 'Brothers Yamazaki: +2/+2 from the other');
+    t.eq(g.toughnessOf(b2), 3);
+    t.ok(g.hasKw(b2, 'Haste'), 'Brothers Yamazaki: haste from the other');
+    const b3 = T.hand('A', 'Brothers Yamazaki');
+    T.mana('A', '2R');
+    T.cast('A', b3);
+    g.checkStateBasedActions();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Brothers Yamazaki').length, 1, 'Brothers Yamazaki: three — the legend rule applies');
+    // an ordinary legend still follows the rule beside them
+    const T2 = mk({ library: Array(20).fill('Mountain') });
+    T2.bf('A', 'Brothers Yamazaki');
+    T2.bf('A', 'Brothers Yamazaki');
+    T2.bf('A', 'Isamaru, Hound of Konda');
+    T2.bf('A', 'Isamaru, Hound of Konda');
+    T2.g.checkStateBasedActions();
+    t.eq(T2.bfOf('A').filter(o => o.name === 'Brothers Yamazaki').length, 2, 'Brothers Yamazaki: two stay');
+    t.eq(T2.bfOf('A').filter(o => /^Isamaru/.test(o.name)).length, 1, 'Brothers Yamazaki: other legends are not spared');
+  });
+  test('Commanders: Rona, Disciple of Gix — exile a historic card from your graveyard; {4},{T}: exile your top card; cast spells from among them', (mk, t) => {
+    t.auto('Rona, Disciple of Gix');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ring = T.grave('A', 'Sol Ring');
+    const bears = T.grave('A', 'Grizzly Bears');
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: ring.id }] }));
+    const rona = T.bf('A', 'Rona, Disciple of Gix', { etb: true }); T.resolve();
+    t.zone(ring, 'exile', 'Rona: Sol Ring exiled');
+    t.zone(bears, 'graveyard', 'Rona: the Bears are not historic');
+    t.eq(ring.exiledWithId, rona.id, 'Rona: exiled with Rona');
+    T.mana('A', '1');
+    T.cast('A', ring);
+    t.zone(ring, 'battlefield', 'Rona: Sol Ring cast from exile');
+    // {4},{T}: the top card, then cast it
+    rona.summoningSick = false;
+    const bolt = T.top('A', 'Lightning Bolt');
+    T.mana('A', '4');
+    T.activate('A', rona, 0);
+    t.zone(bolt, 'exile', 'Rona: the Bolt exiled from the top');
+    t.ok(rona.tapped);
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'Rona: Bolt cast from exile');
+    // a land exiled with Rona can't be played
+    rona.tapped = false;
+    const forest = T.top('A', 'Forest');
+    T.mana('A', '4');
+    T.activate('A', rona, 0);
+    t.zone(forest, 'exile');
+    t.no(g.playLand('A', forest.id), 'Rona: only spells, not lands');
+    // Rona gone: no more casting
+    T.nextTurn('B'); T.nextTurn('A');
+    const giant = T.top('A', 'Hill Giant');
+    T.mana('A', '4');
+    T.activate('A', rona, 0);
+    g.moveObject(rona, 'graveyard'); T.resolve();
+    T.mana('A', '3R');
+    t.no(g.castSpell('A', giant.id, { auto: true }), 'Rona: gone — the Giant stays in exile');
+    // an opponent's own exiled card is not Rona's
+    const T2 = mk({ library: Array(20).fill('Island') });
+    const r2 = T2.bf('A', 'Rona, Disciple of Gix');
+    const other = T2.put('A', 'Grizzly Bears', 'exile');
+    T2.mana('A', '1G');
+    t.no(T2.g.castSpell('A', other.id, { auto: true }), 'Rona: a card not exiled with Rona');
+  });
+  test('Commanders: Akuta, Born of Ash — your upkeep, more cards in hand than each opponent: sacrifice a Swamp to return it from your graveyard', (mk, t) => {
+    t.auto('Akuta, Born of Ash');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const g = T.g;
+    const ak = T.grave('A', 'Akuta, Born of Ash');
+    const sw = T.bf('A', 'Swamp');
+    // A: 1 card, B: 1 card — not more than each opponent
+    T.hand('A', 'Island'); T.hand('B', 'Island');
+    for (const c of T.zone('C', 'hand').slice()) g.moveObject(c, 'graveyard');
+    T.nextTurn('B'); T.nextTurn('C');
+    for (const pid of ['A', 'B', 'C']) for (const c of T.zone(pid, 'hand').slice()) g.moveObject(c, 'graveyard');
+    T.hand('A', 'Island'); T.hand('B', 'Island');
+    const n0 = T.asked.length;
+    T.nextTurn('A');
+    t.zone(ak, 'graveyard', 'Akuta: tied with B — stays');
+    t.zone(sw, 'battlefield');
+    t.no(T.asked.slice(n0).some(q => q.type === 'sacrifice'), 'Akuta: nothing asked');
+    // now A has more than each opponent
+    T.nextTurn('B'); T.nextTurn('C');
+    for (const pid of ['A', 'B', 'C']) for (const c of T.zone(pid, 'hand').slice()) g.moveObject(c, 'graveyard');
+    T.hand('A', 'Island'); T.hand('A', 'Island'); T.hand('B', 'Island');
+    T.answer('sacrifice', () => ({ cardIds: [sw.id] }));
+    T.nextTurn('A');
+    t.zone(ak, 'battlefield', 'Akuta: returned');
+    t.zone(sw, 'graveyard', 'Akuta: the Swamp sacrificed');
+    t.ok(g.hasKw(ak, 'Haste'));
+    // on the battlefield: no trigger
+    T.bf('A', 'Swamp');
+    T.nextTurn('B'); T.nextTurn('C');
+    for (const pid of ['A', 'B', 'C']) for (const c of T.zone(pid, 'hand').slice()) g.moveObject(c, 'graveyard');
+    T.hand('A', 'Island'); T.hand('A', 'Island');
+    const n1 = T.asked.length;
+    T.nextTurn('A');
+    t.no(T.asked.slice(n1).some(q => q.type === 'sacrifice'), 'Akuta: on the battlefield — nothing');
+    // no Swamp: nothing happens
+    const T2 = mk({ library: Array(30).fill('Island') });
+    const ak2 = T2.grave('A', 'Akuta, Born of Ash');
+    T2.bf('A', 'Island');
+    T2.nextTurn('B');
+    for (const pid of ['A', 'B']) for (const c of T2.zone(pid, 'hand').slice()) T2.g.moveObject(c, 'graveyard');
+    T2.hand('A', 'Island');
+    T2.answer('confirm', { yes: true });
+    T2.nextTurn('A');
+    t.zone(ak2, 'graveyard', 'Akuta: no Swamp — stays');
+  });
+  test('Commanders: Mister Immortal — {2}{G}: back to the battlefield tapped from your graveyard or from exile', (mk, t) => {
+    t.auto('Mister Immortal');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    const mi = T.grave('A', 'Mister Immortal');
+    T.mana('A', '2G');
+    t.ok(g.altUsesFor('A', mi.id).some(u => u.via === 'ability:0'), 'Mister Immortal: offered from the graveyard');
+    t.ok(g.castSpell('A', mi.id, { auto: true, via: 'ability:0' }), 'Mister Immortal: activated from the graveyard');
+    T.resolve();
+    t.zone(mi, 'battlefield', 'Mister Immortal: back from the graveyard');
+    t.ok(mi.tapped, 'Mister Immortal: tapped');
+    // on the battlefield: the ability does nothing there
+    T.mana('A', '2G');
+    t.no(g.activateAbility('A', mi.id, 0, { auto: true }), 'Mister Immortal: not from the battlefield');
+    // exiled: back from exile
+    g.moveObject(mi, 'exile'); T.resolve();
+    t.zone(mi, 'exile');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.bf('A', 'Forest'); T.bf('A', 'Forest'); T.bf('A', 'Forest');
+    t.ok(g.playableNow('A').some(x => x.objId === mi.id), 'Mister Immortal: playable from exile');
+    t.ok(g.altUsesFor('A', mi.id).some(u => u.via === 'ability:0'), 'Mister Immortal: offered from exile');
+    t.ok(g.castSpell('A', mi.id, { auto: true, via: 'ability:0' }), 'Mister Immortal: activated from exile');
+    T.resolve();
+    t.zone(mi, 'battlefield', 'Mister Immortal: back from exile');
+    t.ok(mi.tapped);
+    // an opponent's: not theirs to activate
+    const T2 = mk({ library: Array(20).fill('Forest') });
+    const m2 = T2.grave('A', 'Mister Immortal');
+    T2.nextTurn('B');
+    T2.mana('B', '2G');
+    t.no(T2.g.castSpell('B', m2.id, { auto: true, via: 'ability:0' }), "Mister Immortal: not from another player's graveyard");
+  });
 };

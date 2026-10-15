@@ -2836,6 +2836,9 @@
     // (Winter Soldier, Icy Assassin: "with a finality counter on him" — read as "on CARDNAME")
     { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with a finality counter on (?:it|him|her|them|CARDNAME))?\.?$/i,
       make: (m) => (m[2] ? { op: 'returnSelfFromGrave', tapped: !!m[1], counter: 'finality' } : { op: 'returnSelfFromGrave', tapped: !!m[1] }) },
+    // Mister Immortal: "Return this card from your graveyard or from exile to the battlefield tapped." (fromZones)
+    { re: /^Return (?:CARDNAME|this card) from your graveyard or from exile to the battlefield( tapped)?\.?$/i,
+      make: (m) => ({ op: 'returnSelfFromGrave', tapped: !!m[1], fromZones: ['graveyard', 'exile'] }) },
     /* the self-dies return ("When this creature dies, return it to the
        battlefield tapped under its owner's control with a +1/+1 counter on
        it"), with the "it" already read as the creature itself */
@@ -7595,6 +7598,14 @@
         const v = { greatestMvOf: sc };
         return { op: 'continuous', layer: 7, cda: true, scope: { self: true },
           setPt: /toughness/i.test(m[1]) ? { p: v, t: v } : { p: v, t: null, keepToughness: true } };
+      } },
+    /* Dragon Man, Reformed Robot: "Dragon Man's power is equal to the greatest mana value among noncreature permanents
+       you control and noncreature cards in your graveyard." — the cards in the graveyard too (gyWords) */
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the greatest mana value among ([a-z ]+? you control) and ([a-z]+) cards in your graveyard\.?$/i,
+      make: (m) => {
+        const sc = scopeOf(m[1]);
+        if (!sc) return null;
+        return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { greatestMvOf: sc, gyWords: m[2].toLowerCase() }, t: null, keepToughness: true } };
       } },
     // Daxos, Blessed by the Sun: "CARDNAME's toughness is equal to your devotion to white."
     { re: /^(?:CARDNAME|This creature)'?s (power|toughness) is equal to your devotion to (white|blue|black|red|green)\.?$/i,
@@ -15023,6 +15034,8 @@
     // Beza: "an opponent has more life than you", "an opponent has more cards in hand than you"
     [/^an opponent has more life than you$/i, () => ({ kind: 'opponentMoreLife' })],
     [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
+    // Akuta, Born of Ash: "you have more cards in hand than each opponent"
+    [/^you have more cards in hand than each opponent$/i, () => ({ kind: 'moreHandThanEachOpp' })],
     // Merry, Esquire of Rohan: "it's equipped"
     [/^(?:it'?s|he'?s|she'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Krond the Dawn-Clad: "if it's enchanted"
@@ -17793,6 +17806,8 @@
         // (Kethis, the Hidden Hand: not words in quotation marks — "gains 'You may play this card from your graveyard'")
         if ((cost.exile && cost.exile.fromGraveyard) ||
             /\b(?:this card|CARDNAME)(?: and up to one other target creature card| and target land card)? from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
+        // (Mister Immortal: "Return this card from your graveyard or from exile …" — from exile as well: alsoExile)
+        if (ab.fromGraveyard && /\b(?:this card|CARDNAME) from your graveyard or from exile\b/i.test(m[2])) ab.alsoExile = true;
         for (const o of only.concat(onceFirst ? [onceFirst] : [])) {
           ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null,
             o.perTurn ? { perTurn: o.perTurn } : null);
@@ -21859,7 +21874,8 @@
         make: (m) => ({ op: 'graveAltCost', cost: m[1], exileGrave: num(m[2].toLowerCase()) }), auto: true },
       /* Rona, Sheoldred's Faithful: "You may cast this card from your graveyard by discarding two cards in addition to
          paying its other costs." (graveCastDiscard) */
-      { re: /^You may cast (?:this card|CARDNAME) from your graveyard by discarding (two|three|\d+) cards in addition to paying its other costs\.?$/i,
+      // (Dragon Man, Reformed Robot: "by discarding a card")
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard by discarding (a|two|three|\d+) cards? in addition to paying its other costs\.?$/i,
         make: (m) => ({ op: 'graveCastDiscard', n: num(m[1]) }), auto: true },
       // Brokkos, Apex of Forever: "You may cast this card from your graveyard using its mutate ability." (mutateFromGrave)
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its mutate ability\.?$/i, eff: { op: 'mutateFromGrave' }, auto: true },
@@ -22891,6 +22907,9 @@
       { re: /^The "legend rule" doesn'?t apply to ((?:creature )?tokens|creatures|artifacts|[A-Z][a-z]+s) you control\.?$/,
         make: (m) => ({ op: 'noLegendRule', words: m[1].toLowerCase() }), auto: true },
       { re: /^The "legend rule" doesn'?t apply\.?$/i, eff: { op: 'noLegendRule', all: true }, auto: true },
+      // Brothers Yamazaki: "If there are exactly two permanents named Brothers Yamazaki on the battlefield, the "legend rule" doesn't apply to them." (exactlyTwo)
+      { re: /^If there are exactly two permanents named CARDNAME on the battlefield, the "legend rule" doesn'?t apply to them\.?$/i,
+        eff: { op: 'noLegendRule', exactlyTwo: true }, auto: true },
       // Troll of Khazad-dûm, Pathrazer of Ulamog
       { re: /^(?:CARDNAME|This creature) can'?t be blocked except by (two|three|four|five) or more creatures\.?$/i,
         make: (m) => ({ op: 'minBlockers', n: num(m[1]) }), auto: true },
@@ -23369,6 +23388,8 @@
          they had flash. Mana of any type can be spent to cast those spells." (exiledWith, flash, anyMana) */
       { re: /^During your turn, you may cast cards exiled with CARDNAME and you may cast them as though they had flash\. Mana of any type can be spent to cast those spells\.?$/,
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell', duringYourTurn: true, flash: true, anyMana: true }, auto: true },
+      // Rona, Disciple of Gix: "You may cast spells from among cards exiled with Rona." (exiledWith)
+      { re: /^You may cast spells from among cards exiled with CARDNAME\.?$/, eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell' }, auto: true },
       /* Ian Malcolm, Chaotician: "During each player's turn, that player may cast a spell from among the cards they don't own
          exiled with Ian Malcolm, and mana of any type can be spent to cast it." — anybody's leave, on their own turn (anyPlayer) */
       { re: /^During each player's turn, that player may cast a spell from among the cards they don'?t own exiled with CARDNAME, and mana of any type can be spent to cast it\.?$/,
