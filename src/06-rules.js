@@ -3320,7 +3320,8 @@
       // (Feather, Radiant Arbiter: "you may choose any number of other creatures … and pay {2} for each" — copySpellEachOther payEach)
       // (Mairsil, the Pretender: "you may exile an artifact or creature card from your hand or graveyard …" — exileHandGraveCounter)
       // (Semblance Anvil, Chrome Mox: "you may exile a nonland card from your hand" — imprintFromHand)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
+      // (Cloudstone Curio: "you may return another permanent you control that shares a permanent type with it …" — returnOwn)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'returnOwn' && !only.self) ||only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -9756,11 +9757,14 @@
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
       let enterCounters = null;
-      if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
-          !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
+      /* (a clone is what it copies as it enters, the counters that card enters with included (CR 707.9, 614.12):
+         Flesh Duplicate's "it has vanishing 3" — so its words now, not the printed ones) */
+      const ewc = (o.analysis() || a).entersWithCounters;
+      if (ewc && !(ewc.ifKicked && !o.wasKicked) &&
+          !(ewc.cond && !this._condMet(ewc.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
         // (Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." — escapeN)
-        const raw = o._escaping && a.entersWithCounters.escapeN != null ? a.entersWithCounters.escapeN : a.entersWithCounters.n;
+        const raw = o._escaping && ewc.escapeN != null ? ewc.escapeN : ewc.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
           // Banquet Guests: "twice X"
           : (raw && typeof raw === 'object' && raw.xTimes) ? (o.chosenX || 0) * raw.xTimes
@@ -9773,12 +9777,12 @@
           : (raw && typeof raw === 'object' && raw.count) ? this._countValue(raw.count, o.controller, o) + (raw.count2 ? this._countValue(raw.count2, o.controller, o) : 0)
           : (parseInt(raw, 10) || 0);
         // Kavu Titan: "and with trample"
-        if (a.entersWithCounters.withKeywords) { o.effects.push({ keywords: a.entersWithCounters.withKeywords.slice(), until: null }); o._chr = null; }
+        if (ewc.withKeywords) { o.effects.push({ keywords: ewc.withKeywords.slice(), until: null }); o._chr = null; }
         if (n > 0) {
-          const kind = a.entersWithCounters.kind;
+          const kind = ewc.kind;
           /* Flycatcher Giraffid: the first kind for now; a person picks,
              and the answer swaps it */
-          const pick = a.entersWithCounters.choice;
+          const pick = ewc.choice;
           const pl = pick && this.player(o.controller);
           if (pl && !pl.isBot) {
             this.queueChoice({ type: 'mode', playerId: pl.id, count: 1, purpose: 'chooseCounterKind', objId: o.id,
@@ -11785,6 +11789,8 @@
               if (!e || e.op !== 'abilityCostMod') continue;
               if (e.nonMana && ab.kind === 'mana') continue;
               if (e.equip && !/^Equip\b/i.test(ab.text || '')) continue;
+              // (Inquisitive Glimmer: "Unlock costs you pay" — a Room's door only: unlock)
+              if (e.unlock && ab.special !== 'unlock') continue;
               // (Hulk, Gamma Goliath: "Power-up abilities of other creatures you control" — powerUp)
               if (e.powerUp && (ab.cost || {}).label !== 'power-up') continue;
               // (Firion, Wild Rose Warrior's copies: "This Equipment's equip abilities" — selfOnly)
@@ -13753,6 +13759,23 @@
     _targetedNth(x) {
       if (!x._targeted || x._targeted.turn !== this.turn) x._targeted = { turn: this.turn, n: 0 };
       return ++x._targeted.n;
+    }
+    /** Whether a player may not search a library now (the log says why). Stranglehold: "Your opponents can't search
+        libraries." Ashiok, Dream Render: "Spells and abilities your opponents control can't cause their controller to
+        search their library." (own) — their own spell or ability, their own library. */
+    _searchBanned(pid, ctx, libOf) {
+      const by = (ctx && ctx.controller) || null;
+      const ban = this.battlefield.find(o => {
+        if (o.phasedOut || o.controller === pid) return false;
+        const e = this._staticOp(o, 'noSearch');
+        if (!e) return false;
+        if (!e.own) return true;
+        return by === pid && (libOf || pid) === pid && this.opponentsOf(o.controller).some(q => q.id === pid);
+      });
+      if (!ban) return false;
+      const p = this.player(pid);
+      this.logEvent('rules', `${p ? p.name : 'That player'} can't search ${(this._staticOp(ban, 'noSearch') || {}).own ? 'their library' : 'libraries'} (${ban.name}).`);
+      return true;
     }
     /** Aven Mindcensor: how far down their library a player's search reaches. */
     _searchReach(pid) {
@@ -20896,7 +20919,10 @@
          becomes the target of a spell or ability, sacrifice it'": the
          copy's words, with that added */
       // (Moritte of the Frost: "if it's a creature, … has changeling" — creatureText)
-      const addText = (e.addText || []).concat(e.creatureText && /\bCreature\b/.test(String(card.type_line || '')) ? e.creatureText : []);
+      const addText = (e.addText || []).concat(e.creatureText && /\bCreature\b/.test(String(card.type_line || '')) ? e.creatureText : [])
+        // Flesh Duplicate: "it has vanishing 3 if that creature doesn't have vanishing" — its words, by keyword (addTextUnlessKw)
+        .concat(e.addTextUnlessKw && !new RegExp('(?:^|\\n|, )' + e.addTextUnlessKw.kw + '\\b', 'i').test(String(card.oracle_text || '')) &&
+          !(card.keywords || []).some(k => String(k).toLowerCase() === e.addTextUnlessKw.kw) ? [e.addTextUnlessKw.text] : []);
       if (addText.length) {
         const text = String(card.oracle_text || '') + '\n' + addText.join('\n');
         card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
@@ -25549,6 +25575,8 @@
             // Settle the Wreckage: "That player" — the one it targets
             : e.who === 'target' ? (firstPlayer() || me) : me;
           const z = this.zones[fb.id];
+          // Stranglehold, Ashiok, Dream Render: no search (the library is still shuffled)
+          if (this._searchBanned(fb.id, ctx)) { this.rng.shuffle(z.library); break; }
           if (!this._doneHere('searched')) this._searched(fb.id);
           let found = 0;
           /* "Mountaincycling" wants a Mountain, not any basic: the filter
@@ -25591,8 +25619,7 @@
             // Maralen of the Mornsong: "that player … searches their library" — whose draw step it is
             : e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           // Stranglehold: no searching for its controller's opponents (the library is still shuffled, as the effect says)
-          if (this.battlefield.some(o => !o.phasedOut && o.controller !== seeker.id && this._staticOp(o, 'noSearch'))) {
-            this.logEvent('rules', `${seeker.name} can't search libraries.`);
+          if (this._searchBanned(seeker.id, ctx, e.libOf === 'target' ? ((firstPlayer() || seeker).id) : e.libOf === 'triggerPlayer' ? ((triggerPlayer() || seeker).id) : seeker.id)) {
             this.rng.shuffle(this.zones[seeker.id].library);
             break;
           }
@@ -26416,15 +26443,22 @@
           // Blizzard Specter: "that player returns a permanent they control" — theirs, and their choice
           const owner = e.who === 'triggerPlayer' ? triggerPlayer() : e.who === 'target' ? firstPlayer() : me;
           if (!owner) break;
-          const list = this.battlefield.filter(o => o.controller === owner.id &&
-            !(e.other && o === src) && this._fitsFilter(o, e.filter || 'permanent'));
+          /* Cloudstone Curio: "another permanent you control that shares a permanent type with it" — with the one that
+             entered, not it (sharesTypeWithTrigger) */
+          const PERM_T = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Land', 'Planeswalker'];
+          const trigO = e.sharesTypeWithTrigger ? this.obj((ctx.triggerData || {}).objectId) : null;
+          const trigT = e.sharesTypeWithTrigger ? this._cardTypesOf(trigO).filter(x => PERM_T.includes(x)) : null;
+          const list = this.battlefield.filter(o => o.controller === owner.id && !o.phasedOut &&
+            !(e.other && o === src) && this._fitsFilter(o, e.filter || 'permanent') &&
+            (!trigT || (o !== trigO && this._cardTypesOf(o).some(x => trigT.includes(x)))));
           if (!list.length) break;
           const want = Math.min(n(e.n) || 1, list.length);
           const what = e.filter || 'permanent';
+          // (a "you may" trigger whose only effect this is: one pick that may be left empty — ownPick)
           const picked = this._ask({
-            type: 'pickCard', playerId: owner.id, count: want, worst: true,
+            type: 'pickCard', playerId: owner.id, count: want, worst: true, optional: !!e.optional,
             cards: list.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Return ${want === 1 ? this._aCard(what) : want + ' ' + what + 's'} you control to your hand.`,
+            prompt: `${e.optional ? 'You may return' : 'Return'} ${want === 1 ? this._aCard(what) : want + ' ' + what + 's'} you control${trigO ? ` that shares a permanent type with ${trigO.name}` : ''} to your hand.`,
           }, 'own');
           if (picked === SUSPEND) return SUSPEND;
           for (const id of (picked || []).slice(0, want)) {
@@ -28263,6 +28297,8 @@
         // Conflux and kin: one card for each description, revealed, into your hand
         case 'tutorEach': {
           const z = this.zones[ctx.controller];
+          // Stranglehold, Ashiok, Dream Render: no search (the library is still shuffled)
+          if (this._searchBanned(ctx.controller, ctx)) { this.rng.shuffle(z.library); break; }
           const got = [];
           for (let i = 0; i < (e.filters || []).length; i++) {
             const want = e.filters[i];
@@ -31070,7 +31106,8 @@
               (tCap == null || (parseInt((o.analysis() || {}).toughness, 10) || 0) <= tCap));
             if (!pool.length) continue;
             // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
-            if (!e.any && e.n != null && typeof e.n === 'object' && !(n(e.n) > 0)) continue;
+            // (Worldsoul's Rage: "up to X land cards" — none for X = 0)
+            if (!e.any && e.n != null && (typeof e.n === 'object' || e.n === 'X') && !(n(e.n) > 0)) continue;
             /* Michelangelo, Improviser: "you may put a creature card and/or a land card from your hand onto the
                battlefield" — one pick, each card standing for one of the kinds, no two for the same (oneEachType) */
             if (e.oneEachType) {
@@ -34225,6 +34262,8 @@
            opponent picks which of them go where */
         case 'searchOppChooses': {
           const lib = this.zones[ctx.controller].library;
+          // Stranglehold, Ashiok, Dream Render: no search (the library is still shuffled)
+          if (this._searchBanned(ctx.controller, ctx)) { this.rng.shuffle(lib); break; }
           const opp = firstPlayer() || this.opponentsOf(ctx.controller).find(p => !p.hasLost);
           const most = Math.min(n(e.n), lib.length);
           const got = most <= 0 ? { picks: [] } : this._choose({ playerId: ctx.controller, purpose: 'searchReveal', kind: 'objects', zone: 'library',

@@ -70728,4 +70728,153 @@ module.exports = (test) => {
     T2.nextTurn('B'); T2.toMain('A', 'upkeep');
     t.no(T2.g.altUsesFor('A', sh2.id).some(u => u.forecast), 'two white and/or blue creatures needed');
   });
+
+  test("Cards: Ashiok, Dream Render — an opponent's own spells can't make them search their library; anyone else's still can", (mk, t) => {
+    t.auto('Ashiok, Dream Render');
+    const T = mk({ library: Array(30).fill('Plains') });
+    T.bf('A', 'Ashiok, Dream Render');
+    T.toMain('B');
+    // B's own Demonic Tutor: no search
+    const h = T.zone('B', 'hand').length;
+    T.mana('B', '1B');
+    T.cast('B', T.hand('B', 'Demonic Tutor'));
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, h, 'nothing found');
+    t.ok(T.g.log.some(l => /can't search their library \(Ashiok/.test(l.text)), 'logged');
+    // B's own Path to Exile on B's own creature: no land
+    const own = T.bf('B', 'Grizzly Bears');
+    T.mana('B', 'W');
+    T.cast('B', T.hand('B', 'Path to Exile'), { targets: [own] });
+    t.zone(own, 'exile');
+    t.no(T.bfOf('B').some(o => o.name === 'Plains'), 'no land for B');
+    // A's Path on B's creature: B searches (A's spell, not B's)
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Path to Exile'), { targets: [bear] });
+    t.zone(bear, 'exile');
+    t.ok(T.bfOf('B').some(o => o.name === 'Plains'), 'B fetched a land');
+    // A searches freely
+    const ha = T.zone('A', 'hand').length;
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Demonic Tutor'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, ha + 1, 'A tutored');
+  });
+
+  test("Cards: Worldsoul's Rage — X damage, then up to X land cards from hand and/or graveyard onto the battlefield tapped", (mk, t) => {
+    t.auto("Worldsoul's Rage");
+    const T = mk();
+    const l1 = T.hand('A', 'Forest'), l2 = T.grave('A', 'Mountain'), l3 = T.grave('A', 'Island');
+    T.grave('A', 'Grizzly Bears');
+    let asked = null;
+    T.answer('pickCard', (ch) => { asked = ch; return { cardIds: ch.cards.map(c => c.id) }; });
+    T.mana('A', '2RG');
+    T.cast('A', T.hand('A', "Worldsoul's Rage"), { x: 2, targets: ['B'] });
+    t.eq(T.life('B'), 18, 'two damage');
+    t.ok(asked && asked.count === 2 && asked.cards.length === 3 && !asked.cards.some(c => c.name === 'Grizzly Bears'), 'up to two of the three lands');
+    const put = [l1, l2, l3].filter(o => o.zone === 'battlefield');
+    t.eq(put.length, 2, 'two lands put');
+    t.ok(put.every(o => o.tapped), 'tapped');
+    // X = 0: no lands
+    const T2 = mk();
+    const f = T2.hand('A', 'Forest');
+    T2.mana('A', 'RG');
+    T2.cast('A', T2.hand('A', "Worldsoul's Rage"), { x: 0, targets: ['B'] });
+    t.zone(f, 'hand', 'X = 0: none');
+  });
+
+  test('Cards: Inquisitive Glimmer — enchantment spells and unlock costs you pay cost {1} less', (mk, t) => {
+    t.auto('Inquisitive Glimmer');
+    const T = mk();
+    T.bf('A', 'Inquisitive Glimmer');
+    const r = T.hand('A', 'Funeral Room // Awakening Hall');
+    T.mana('A', '1B');
+    T.cast('A', r, { face: 0 });
+    t.zone(r, 'battlefield', 'cast for {1}{B}');
+    const a = r.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const ui = acts.findIndex(x => x.special === 'unlock');
+    t.eq(T.g._abilityMana(r, acts[ui]), '{5}{B}{B}', 'the unlock {1} less');
+    T.mana('A', '5BB');
+    T.activate('A', r, ui);
+    t.eq(r.face, 2, 'unlocked for {5}{B}{B}');
+    // another ability of an enchantment: not an unlock cost
+    t.eq(T.g._abilityMana(r, { cost: { mana: '{2}' }, text: '{2}: x' }), '{2}', 'other abilities as printed');
+    // an opponent's Glimmer: no help
+    const T2 = mk();
+    T2.bf('B', 'Inquisitive Glimmer');
+    const r2 = T2.bf('A', 'Funeral Room // Awakening Hall');
+    r2.face = 0;
+    const a2 = r2.analysis();
+    const acts2 = a2.manaAbilities.concat(a2.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const u2 = acts2.find(x => x.special === 'unlock');
+    t.eq(T2.g._abilityMana(r2, u2), '{6}{B}{B}', "an opponent's Glimmer doesn't");
+  });
+
+  test('Cards: Cloudstone Curio — a nonartifact permanent entering may return another of yours sharing a permanent type, in one pick', (mk, t) => {
+    t.auto('Cloudstone Curio');
+    const T = mk();
+    T.bf('A', 'Cloudstone Curio');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const ench = T.bf('A', 'Glorious Anthem');
+    const wall = T.bf('A', 'Ornithopter');
+    T.bf('B', 'Grizzly Bears');
+    let asked = null;
+    T.answer('pickCard', (ch) => { asked = ch; return { cardIds: [elf.id] }; });
+    T.mana('A', '1G');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.ok(asked && asked.optional, 'one optional pick, no yes/no first');
+    t.eq(asked.cards.map(c => c.name).sort().join(','), 'Llanowar Elves,Ornithopter', 'creatures only, not the Bear itself, not the Anthem');
+    t.zone(elf, 'hand', 'returned'); t.zone(bear, 'battlefield');
+    t.no(T.asked.some(q => q.type === 'confirm' || (q.purpose === 'may')), 'no yes/no question');
+    // may decline
+    T.answer('pickCard', () => ({ cardIds: [] }));
+    T.mana('A', 'G');
+    T.cast('A', elf);
+    t.zone(elf, 'battlefield'); t.zone(bear, 'battlefield', 'declined'); t.zone(wall, 'battlefield');
+    // an artifact entering: no trigger
+    const n0 = T.asked.length;
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    t.eq(T.asked.filter(q => q.type === 'pickCard').length, T.asked.slice(0, n0).filter(q => q.type === 'pickCard').length, 'artifact: no trigger');
+    t.zone(ench, 'battlefield');
+  });
+
+  test("Cards: Flesh Duplicate — a copy with vanishing 3 (three time counters, upkeep clock) unless what it copies has vanishing", (mk, t) => {
+    t.auto('Flesh Duplicate');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('B', 'Craw Wurm');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const fd = T.hand('A', 'Flesh Duplicate');
+    T.mana('A', 'UU');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Grizzly Bears').id] }));
+    T.cast('A', fd);
+    t.eq(fd.name, 'Grizzly Bears', 'a copy');
+    t.ok(g.hasKw(fd, 'vanishing'), 'with vanishing');
+    t.eq(fd.counters.time, 3, 'three time counters');
+    t.eq(g.powerOf(fd), 2);
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(fd.counters.time, 2, 'one removed in the upkeep');
+    t.zone(bears, 'battlefield');
+    // a creature with vanishing of its own: just that
+    const T2 = mk();
+    const km = T2.bf('A', 'Keldon Marauders');
+    const fd2 = T2.hand('A', 'Flesh Duplicate');
+    T2.mana('A', 'UU');
+    T2.answer('pickCard', (ch) => ({ cardIds: [km.id] }));
+    T2.cast('A', fd2);
+    t.eq(fd2.name, 'Keldon Marauders');
+    t.eq(fd2.counters.time, 2, "its own vanishing 2, no vanishing 3");
+    t.no(/Vanishing 3/.test(fd2.card.oracle_text || ''), 'not added');
+    // copying nothing: a 0/0 Flesh Duplicate
+    const T3 = mk();
+    T3.bf('B', 'Craw Wurm');
+    const fd3 = T3.hand('A', 'Flesh Duplicate');
+    T3.mana('A', 'UU');
+    T3.answer('pickCard', { cardIds: [] });
+    T3.cast('A', fd3);
+    t.zone(fd3, 'graveyard', 'a 0/0 dies');
+  });
 };

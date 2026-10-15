@@ -904,6 +904,9 @@
       // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
       else if ((c = ex.match(/^(?:it|he|she)'?s (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
       else if ((c = ex.match(/^(?:it )?has (toxic|afflict|bushido|rampage|annihilator) (\d+)(?=,? and |$)/i))) (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1).toLowerCase() + ' ' + c[2]);
+      // Flesh Duplicate: "it has vanishing 3 if that creature doesn't have vanishing" (addTextUnlessKw)
+      else if ((c = ex.match(/^it has (vanishing|fading) (\d+) if that creature doesn'?t have (vanishing|fading)(?=,? and |$)/i)) && c[1].toLowerCase() === c[3].toLowerCase())
+        e.addTextUnlessKw = { kw: c[1].toLowerCase(), text: c[1][0].toUpperCase() + c[1].slice(1).toLowerCase() + ' ' + c[2] };
       // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — those types and no others (setTypeLine)
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (legendary )?((?:[A-Z][a-z]+ )+)creature(?! in addition)/))) {
         e.setTypeLine = (c[1] ? 'Legendary ' : '') + 'Creature \u2014 ' + c[2].trim();
@@ -7069,8 +7072,10 @@
         return { op: 'sequence', list: [{ op: 'draw', who: 'you', n: k },
           Object.assign({ op: 'permanentFromHand', n: k, filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {})] };
       } },
-    { re: /^(?:[Yy]ou may )?[Pp]ut up to (two|three|four|five|six|seven) ([-a-z, ]*?)cards from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => Object.assign({ op: 'permanentFromHand', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}) },
+    // (Worldsoul's Rage: "Put up to X land cards from your hand and/or graveyard onto the battlefield tapped." — from)
+    { re: /^(?:[Yy]ou may )?[Pp]ut up to (two|three|four|five|six|seven|X) ([-a-z, ]*?)cards from your hand( and\/or graveyard)? onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', n: m[1] === 'X' ? 'X' : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' },
+        m[3] ? { from: ['hand', 'graveyard'] } : {}, m[4] ? { tapped: true } : {}) },
     /* Lively Dirge: "Return up to two creature cards with total mana value 4
        or less from your graveyard to the battlefield." Chosen, not targeted. */
     { re: /^Return up to (two|three|four) ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
@@ -8353,6 +8358,9 @@
       } },
     { re: /^(?:You may )?[Rr]eturn another (creature|permanent|land|artifact|enchantment) you control to its owner'?s hand\.?$/,
       make: (m) => ({ op: 'returnOwn', filter: m[1].toLowerCase(), n: 1, other: true }) },
+    // Cloudstone Curio: "return another permanent you control that shares a permanent type with it to its owner's hand"
+    { re: /^(?:You may )?[Rr]eturn another permanent you control that shares a permanent type with it to its owner'?s hand\.?$/,
+      make: () => ({ op: 'returnOwn', filter: 'permanent', n: 1, sharesTypeWithTrigger: true }) },
     { re: /^(?:This creature|CARDNAME) can attack this turn as though it didn'?t have defender\.?$/i,
       make: () => ({ op: 'restrict', flag: 'attackDespiteDefender', scope: 'self' }) },
     // the storage lands: "Add X mana in any combination of {G} and/or {W}" — X counters removed
@@ -23554,6 +23562,9 @@
       // Fighter Class, Arms Scavenger: "Equip abilities you activate cost {1} less to activate."
       { re: /^Equip abilities you activate cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'abilityCostMod', who: 'you', equip: true, amount: -(+m[1]) }), auto: true },
+      // Inquisitive Glimmer: "Unlock costs you pay cost {1} less." (unlock)
+      { re: /^Unlock costs you pay cost \{(\d+)\} less\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', who: 'you', unlock: true, amount: -(+m[1]) }), auto: true },
       // Hulk, Gamma Goliath: "Power-up abilities of other creatures you control cost {3} less to activate." (powerUp)
       { re: /^Power-up abilities of ((?:other )?creatures you control) cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'abilityCostMod', scope, powerUp: true, amount: -(+m[2]) } : null; }, auto: true },
@@ -23856,6 +23867,8 @@
         make: () => ({ op: 'evasion', oneBlocker: true }), auto: true },
       // Stranglehold: "Your opponents can't search libraries."
       { re: /^Your opponents can'?t search libraries\.?$/i, eff: { op: 'noSearch', who: 'opponents' }, auto: true },
+      // Ashiok, Dream Render: "Spells and abilities your opponents control can't cause their controller to search their library." (own)
+      { re: /^Spells and abilities your opponents control can'?t cause their controller to search their library\.?$/i, eff: { op: 'noSearch', who: 'opponents', own: true }, auto: true },
       // Tainted Remedy, Plague Drone: "If an opponent would gain life, that player loses that much life instead."
       { re: /^If an opponent would gain life, that player loses that much life instead\.?$/i, eff: { op: 'gainBecomesLoss' }, auto: true },
       // Krark's Thumb: one coin of two kept (flipTwoIgnoreOne)
