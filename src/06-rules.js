@@ -5476,6 +5476,8 @@
           if (e.nthEachTurn && ((p || {}).spellObjsThisTurn || []).some(x => x !== o && (!e.filter || this._cardFitsWords(x, e.filter)))) continue;
           // Kianne: "As long as Kianne's power is even (odd)" (selfPowerParity)
           if (e.selfPowerParity && (Math.abs(this.powerOf(src)) % 2 === 0) !== (e.selfPowerParity === 'even')) continue;
+          // Quicksilver, Speedster: "As long as Quicksilver is tapped" (whileTapped)
+          if (e.whileTapped && !src.tapped) continue;
           if (!e.filter || this._cardFitsWords(o, e.filter)) return true;
         }
       }
@@ -9528,6 +9530,8 @@
 
       // the storage lands: how many counters come off is the X of what it makes
       const rc = ab.cost && ab.cost.removeCounters;
+      // (Catti-brie of Mithral Hall: "Remove all +1/+1 counters" — X is every one it has)
+      if (rc && rc.n === 'all') opts = Object.assign({}, opts, { x: Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0 });
       if (rc && (rc.n === 'X' || rc.n === 'any')) {
         const have = Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0;
         if (rc.n === 'X' && (opts.x || 0) > have) return this.fail(`${o.name} does not have that many counters.`);
@@ -10924,7 +10928,7 @@
         // "Remove X", "Remove any number of": as many as were asked for, or all of them
         const rn = cost.removeCounters.n;
         const want = rn === 'X' ? Math.max(0, (opts && opts.x) || 0) : rn === 'any' ? Math.min(have, (opts && opts.x != null) ? opts.x : have)
-          // (Vish Kal, Blood Arbiter: "Remove all +1/+1 counters" — every one, none if there are none)
+          // (Vish Kal, Blood Arbiter; Catti-brie of Mithral Hall: "Remove all +1/+1 counters" — every one, none if there are none)
           : rn === 'all' ? have : (rn || 1);
         if (have < want) return this.fail(`${o.name} does not have ${want} ${kind} counter${want === 1 ? '' : 's'}.`);
         o.counters[kind] = have - want;

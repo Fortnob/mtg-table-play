@@ -458,6 +458,10 @@
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|\d+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|enchantment|land))$/i))) {
         cost.removeCounters = { n: WORDN(m[1]) || num(m[1]), kind: '*' }; continue;
       }
+      // Catti-brie of Mithral Hall: "Remove all +1/+1 counters from Catti-brie" — however many it has, none too (n 'all')
+      if ((m = p.match(/^Remove all (.+?) counters from (?:CARDNAME|this (?:creature|artifact|permanent))$/i))) {
+        cost.removeCounters = { n: 'all', kind: m[1] }; continue;
+      }
       // Arcee, Sharpshooter: "Remove one or more +1/+1 counters from Arcee" — any number, at least one (min)
       if ((m = p.match(/^Remove one or more (.+?) counters from (?:CARDNAME|this (?:creature|artifact|permanent))$/i))) {
         cost.removeCounters = { n: 'any', min: 1, kind: m[1] }; continue;
@@ -1972,6 +1976,11 @@
       make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    /* Human Torch: "until end of turn, whenever he deals combat damage to an opponent, he deals that much damage to each
+       other opponent" — a line it has for the turn (grantAbility, eot) */
+    { re: /^Until end of turn, whenever (?:he|she|it|CARDNAME) (deals combat damage to (?:a player|an opponent)), (?:he|she|it|CARDNAME) (deals that much damage to each other opponent)\.?$/i,
+      make: (m) => { const text = 'Whenever this creature ' + m[1] + ', it ' + m[2] + '.';
+        return grantableText(text) ? { op: 'grantAbility', ability: text, duration: 'eot', scope: 'self' } : null; } },
     /* Kellan, Planar Trailblazer: "If Kellan is a Scout, it becomes a Human Faerie Detective and gains "Whenever …"";
        "If Kellan is a Detective, it becomes a 3/2 Human Faerie Rogue and gains double strike." — for good, the
        creature types instead of its own (setCreatureTypes), what it gained before kept */
@@ -2390,6 +2399,9 @@
     // Fanatic of Mogis: "it deals damage to each opponent equal to your devotion to red"
     { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, each: 'opponent' } : null; } },
+    // Daredevil, Fearless Fighter: "Daredevil deals damage to you equal to that card's mana value." — the card just exiled
+    { re: /^(?:It|CARDNAME|This creature) deals damage to you equal to (that card'?s mana value)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, toSelf: true } : null; } },
     // Might of the Meek: "It also gets +1/+0 until end of turn if you control a Mouse."
     { re: /^It also gets ([+-]\d+)\/([+-]\d+) until end of turn if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[3]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'lastTarget' }] } : null; } },
@@ -9122,7 +9134,8 @@
     // Season of Loss: "for each creature that died under your control this turn"
     if (/^creatures? that died under your control this turn$/i.test(p)) return { diedThisTurn: true, yours: true, mult: k };
     // Fountain of Cho: "for each storage counter removed this way"
-    if (/^[a-z+\-0-9/]+ counters? removed this way$/i.test(p)) return { removedCounters: true, mult: k };
+    // (Catti-brie of Mithral Hall: "the number of counters removed this way" — no kind named)
+    if (/^(?:[a-z+\-0-9/]+ )?counters? removed this way$/i.test(p)) return { removedCounters: true, mult: k };
     // Rite of Flame: "for each card named CARDNAME in each graveyard"
     if (/^card named CARDNAME in (?:each graveyard|all graveyards)$/i.test(p)) return { namedInGraveyards: true, mult: k };
     // Culling Ritual: "for each permanent destroyed this way"
@@ -15672,6 +15685,9 @@
       event: 'permLeaves', extra: { notDying: true }, filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) exiled from the battlefield(?:,| )', 'i'),
       event: 'permLeaves', extra: { toZoneOnly: 'exile' }, filt: (m) => subjectFilter(m[1]) },
+    // Captain Marvel, Shooting Star: "Whenever a creature other than Captain Marvel is exiled from the battlefield" — another
+    { re: /^Whenever an? ([a-z]+) other than CARDNAME is exiled from the battlefield,? /i,
+      event: 'permLeaves', extra: { toZoneOnly: 'exile' }, filt: (m) => subjectFilter('another ' + m[1].toLowerCase()) },
     // Tameshi, Reality Architect: "Whenever one or more noncreature permanents are returned to hand" (toZoneOnly)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) returned to (?:its owner\'s |their owners\' )?hand(?:,| )', 'i'),
       event: 'permLeaves', extra: { toZoneOnly: 'hand' }, filt: (m) => subjectFilter(m[1]) },
@@ -22242,6 +22258,9 @@
       // Kianne, Corrupted Memory: "As long as Kianne's power is even, you may cast noncreature spells as though they had flash." (selfPowerParity)
       { re: /^As long as CARDNAME'?s power is (even|odd), you may cast (creature|noncreature|instant|sorcery|artifact|enchantment) spells as though they had flash\.?$/i,
         make: (m) => ({ op: 'flashGrant', filter: m[2].toLowerCase(), selfPowerParity: m[1].toLowerCase() }), auto: true },
+      // Quicksilver, Speedster: "As long as Quicksilver is tapped, you may cast spells as though they had flash." (whileTapped)
+      { re: /^As long as CARDNAME is tapped, you may cast spells as though they had flash\.?$/i,
+        eff: { op: 'flashGrant', filter: null, whileTapped: true }, auto: true },
       /* Leyline of Anticipation, Vedalken Orrery, Sigarda's Aid */
       { re: /^You may cast (spells|((?:[A-Za-z]+ )+?)spells(?: and ((?:[A-Za-z]+ )+?)spells)?) as though they had flash\.?$/i,
         make: (m) => ({ op: 'flashGrant', filter: m[2] ? [m[2], m[3]].filter(Boolean).map(x => x.trim().toLowerCase().replace(/ and /g, ' or ')).join(' or ') : null }), auto: true },

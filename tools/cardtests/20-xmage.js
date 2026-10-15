@@ -59161,4 +59161,142 @@ module.exports = (test) => {
     t.zone(bears, 'battlefield', 'Feldon: the chosen card played');
     t.no(g._impulseOpen(forest, 'A'), 'Feldon: not the other one');
   });
+  test('Commanders: Catti-brie of Mithral Hall — counters for its Equipment as it attacks; remove them all to hit an attacker that many', (mk, t) => {
+    t.auto('Catti-brie of Mithral Hall');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const cb = T.bf('A', 'Catti-brie of Mithral Hall');
+    const b1 = T.bf('A', 'Bonesplitter'), b2 = T.bf('A', 'Bonesplitter');
+    for (const eq of [b1, b2]) { eq.attachedTo = cb.id; cb.attachments = (cb.attachments || []).concat(eq.id); }
+    g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: cb.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(cb.counters['+1/+1'], 2, 'Catti-brie: a +1/+1 counter for each of two Equipment');
+    // B's turn: a Hill Giant attacks; the Bears stay home
+    T.nextTurn('B');
+    const giant = T.bf('B', 'Hill Giant'), bears = T.bf('B', 'Grizzly Bears');
+    giant.summoningSick = false; giant.entered = g.turn - 1;
+    cb.counters['+1/+1'] = 3; g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'declareBlockers');
+    T.resolve();
+    g.passPriority('B', true);
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', cb.id, 0, { targets: [{ kind: 'object', id: bears.id }] }), 'Catti-brie: not a creature out of combat');
+    T.mana('A', '1');
+    T.activate('A', cb, 0, { targets: [giant] });
+    t.eq(cb.counters['+1/+1'] || 0, 0, 'Catti-brie: all its +1/+1 counters removed');
+    t.zone(giant, 'graveyard', 'Catti-brie: 3 damage, one for each counter removed');
+    t.zone(bears, 'battlefield', 'Catti-brie: the Bears untouched');
+  });
+  test('Commanders: Human Torch — a noncreature spell cast: flying, double strike, haste; paying {R}{G}{W}{U}, his combat damage to an opponent hits each other opponent', (mk, t) => {
+    t.auto('Human Torch');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const g = T.g;
+    const ht = T.bf('A', 'Human Torch');
+    ht.summoningSick = false; ht.entered = g.turn - 1;
+    for (const l of ['Mountain', 'Forest', 'Plains', 'Island']) T.bf('A', l);
+    // no noncreature spell yet: nothing at the beginning of combat
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    t.no(g.hasKw(ht, 'flying'), 'Human Torch: no noncreature spell cast — no flying');
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['C'] });
+    let asked = 0;
+    T.answer('confirm', () => { asked++; return { yes: true }; });
+    T.answer('declareAttackers', () => [{ attackerId: ht.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers');
+    T.resolve();
+    t.ok(g.hasKw(ht, 'flying') && g.hasKw(ht, 'double strike') && g.hasKw(ht, 'haste'), 'Human Torch: flying, double strike and haste');
+    t.eq(asked, 1, 'Human Torch: asked to pay {R}{G}{W}{U}');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('B'), 14, 'Human Torch: 3 and 3 to B, double strike');
+    t.eq(T.life('C'), 20 - 3 - 3 - 3, 'Human Torch: that much to C each time, after the Bolt');
+    t.eq(T.life('A'), 20, 'Human Torch: not to you');
+    // next turn, not paid: the other opponent is left alone
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A');
+    T.answer('confirm', () => ({ yes: false }));
+    T.answer('declareAttackers', () => [{ attackerId: ht.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.life('B'), 11, 'Human Torch: 3 to B');
+    t.eq(T.life('C'), 11, 'Human Torch: not paid — C untouched');
+  });
+  test('Commanders: Captain Marvel, Shooting Star — a creature other than her exiled from the battlefield: you gain life equal to its power', (mk, t) => {
+    t.auto('Captain Marvel, Shooting Star');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const giant = T.bf('B', 'Hill Giant'), bears = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    const cm = T.bf('A', 'Captain Marvel, Shooting Star', { etb: true });
+    T.resolve();
+    t.zone(giant, 'exile', 'Captain Marvel: the Hill Giant exiled');
+    t.eq(T.life('B'), 23, "Captain Marvel: its controller gains 3");
+    t.eq(T.life('A'), 23, 'Captain Marvel: you gain 3, its power, as it is exiled');
+    // dying is not being exiled
+    g.moveObject(bears, 'graveyard');
+    T.resolve();
+    t.eq(T.life('A'), 23, 'Captain Marvel: a creature dying — nothing');
+    // a creature card exiled from a graveyard — not from the battlefield
+    g.moveObject(bears, 'exile');
+    T.resolve();
+    t.eq(T.life('A'), 23, 'Captain Marvel: exiled from a graveyard — nothing');
+    // her own exile does not count
+    g.moveObject(cm, 'exile');
+    T.resolve();
+    t.eq(T.life('A'), 23, 'Captain Marvel: herself exiled — nothing');
+  });
+  test('Commanders: Quicksilver, Speedster — while tapped, you may cast spells as though they had flash', (mk, t) => {
+    t.auto('Quicksilver, Speedster');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const qs = T.bf('A', 'Quicksilver, Speedster');
+    T.nextTurn('B');
+    g.passPriority('B', true);
+    const bears = T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    t.no(g.castSpell('A', bears.id, { auto: true, targets: [] }), 'Quicksilver: untapped — no flash for the Bears');
+    t.no(/priority/i.test(g.lastError || ''), 'Quicksilver: refused for its timing, not for priority');
+    qs.tapped = true; g.bumpBoard();
+    T.mana('A', 'G1');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield', "Quicksilver: tapped — the Bears cast on B's turn");
+    // not for an opponent
+    const lions = T.hand('B', 'Savannah Lions');
+    T.nextTurn('A');
+    g.passPriority('A', true);
+    T.mana('B', 'W');
+    t.no(g.castSpell('B', lions.id, { auto: true, targets: [] }), 'Quicksilver: not for an opponent');
+    t.no(/priority/i.test(g.lastError || ''), 'Quicksilver: B refused for its timing');
+  });
+  test("Commanders: Daredevil, Fearless Fighter — attacks: exile the top card, damage to you equal to its mana value, play it this turn; that damage comes back at an opponent", (mk, t) => {
+    t.auto('Daredevil, Fearless Fighter');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const dd = T.bf('A', 'Daredevil, Fearless Fighter');
+    dd.summoningSick = false; dd.entered = g.turn - 1;
+    const bolt = T.top('A', 'Lightning Bolt');
+    T.answer('declareAttackers', () => [{ attackerId: dd.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(bolt, 'exile', 'Daredevil: the top card exiled');
+    t.eq(T.life('A'), 19, 'Daredevil: 1 damage to you, the Bolt\'s mana value');
+    t.eq(T.life('B'), 19, 'Daredevil: a source you control dealt you 1 — 1 to the opponent');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.zone(bolt, 'graveyard', 'Daredevil: played this turn');
+    t.eq(T.life('B'), 16, 'Daredevil: the Bolt hits');
+    // a land on top: no damage
+    T.nextTurn('B'); T.nextTurn('A');
+    const land = T.top('A', 'Mountain');
+    T.answer('declareAttackers', () => [{ attackerId: dd.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(land, 'exile', 'Daredevil: the Mountain exiled');
+    t.eq(T.life('A'), 19, 'Daredevil: mana value 0 — no damage');
+  });
 };
