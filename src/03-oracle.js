@@ -2840,6 +2840,10 @@
        resolves, for "Return those cards …" to bring back (exileAnyOwn) */
     { re: /^Exile any number of other (nonland permanents|creatures|artifacts|enchantments|permanents) you own and control\.?$/i,
       make: (m) => ({ op: 'exileAnyOwn', filter: m[1].toLowerCase().replace(/s$/, '') }) },
+    /* The Master, Formed Anew: "When you cast this spell, you may exile a creature you control and put a takeover counter
+       on it." — one of yours, or none (exileAnyOwn one, counter) */
+    { re: /^Exile an? (creature|artifact|nonland permanent) you control and put an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => ({ op: 'exileAnyOwn', filter: m[1].toLowerCase(), one: true, counter: m[2].toLowerCase() }) },
     // Ixalan's Binding's kin, en masse: "exile all artifacts your opponents control until this … leaves"
     { re: /^Exile (all|each) ([a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => {
@@ -3717,8 +3721,10 @@
     { re: /^Return target creature card from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] }) },
     // Olivia, Crimson Bride: "… to the battlefield tapped and attacking" — beside the creature attacking
-    { re: /^Return target creature card from your graveyard to the battlefield tapped and attacking\.?$/i,
-      make: () => ({ op: 'reanimate', tapped: true, attacking: true, targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] }) },
+    // (Grim Reaper, Lethal Legionnaire: "… tapped and attacking with a finality counter on it")
+    { re: /^Return target creature card from your graveyard to the battlefield tapped and attacking(?: with an? ([a-z]+) counter on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'reanimate', tapped: true, attacking: true, targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] },
+        m[1] ? { counter: m[1].toLowerCase() } : {}) },
     { re: /^Return target card from your graveyard to your hand\.?$/i,
       make: () => ({ op: 'regrowth', targets: [{ type: 'card', zone: 'graveyard', controller: 'you' }] }) },
     { re: /^Exile target player'?s graveyard\.?$/i,
@@ -4042,7 +4048,8 @@
     // (Vincent, Vengeful Atoner: "it deals that much damage to each other opponent if Vincent's power is 7 or greater" — eachOtherIf)
     // (Davros, Dalek Creator: "create a 3/3 black Dalek artifact creature token with menace if an opponent lost 3 or more life this turn")
     // (Frodo, Sauron's Bane: "that player loses the game if the Ring has tempted you four or more times this game")
-    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?(?: with [a-z]+(?:(?:,| and|, and) [a-z]+)*)?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent|That player loses the game) if (.+?)\.?$/,
+    // (Lyzolda, the Blood Witch: "Lyzolda deals 2 damage to any target if the sacrificed creature was red")
+    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?(?: with [a-z]+(?:(?:,| and|, and) [a-z]+)*)?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent|CARDNAME deals \d+ damage to any target|That player loses the game) if (.+?)\.?$/,
       make: (m) => {
         const cond = condOf(m[2]);
         const inner = cond && parseEffectSentence(m[1] + '.', 1);
@@ -4745,8 +4752,9 @@
     // Rocco, Street Chef: "each player exiles the top card of their library"
     { re: /^Each player exiles the top card of their library\.?$/i, make: () => ({ op: 'exileTop', who: 'each', n: 1 }) },
     // Evelyn, the Covetous: "exile the top card of each player's library with a collection counter on it" (counter)
-    { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library( with an? ([a-z]+) counter on (?:it|each of them))?\.?$/i,
-      make: (m) => Object.assign({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }, m[4] ? { counter: m[4].toLowerCase() } : {}) },
+    // (Pako, Arcane Retriever: "exile the top card of each player's library and put a fetch counter on each of them")
+    { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library(?: with an? ([a-z]+) counter on (?:it|each of them)| and put an? ([a-z]+) counter on each of them)?\.?$/i,
+      make: (m) => Object.assign({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }, (m[3] || m[4]) ? { counter: (m[3] || m[4]).toLowerCase() } : {}) },
     // Jeleva, Nephalia's Scourge: "each player exiles the top X cards of their library, where X is the amount of mana spent to cast Jeleva"
     { re: /^Each player exiles the top X cards of their library, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && !k.unread ? { op: 'exileTop', who: 'each', n: k } : null; } },
@@ -9097,6 +9105,8 @@
     if (/^card in your graveyard$/i.test(p)) return { cardsInGraveyard: 'you', mult: k };
     // the Scents and Seers: "for each card revealed this way"
     if (/^cards? revealed this way$/i.test(p)) return { revealedCount: true, mult: k };
+    // Pako, Arcane Retriever: "for each noncreature card exiled this way" (exiledMatching)
+    if ((m = p.match(/^(noncreature|nonland|creature|land|artifact|instant|sorcery) cards? exiled this way$/i))) return { exiledMatching: m[1].toLowerCase(), mult: k };
     // Converge: "where X is the number of colors of mana spent to cast this spell"
     if ((m = p.match(/^colou?rs? of mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { colorsSpent: true, of: spentOf(m[1]), mult: k };
     // Verazol: "for each mana spent to cast it"
@@ -10495,6 +10505,9 @@
        put there from your library this turn. If you do, it gains haste until end of turn." (gyFromLibThisTurn) */
     { re: /^You may have CARDNAME enter as a copy of an? ([A-Z][a-z]+) card in your graveyard that was put there from your library this turn\. If you do, it gains haste until end of turn\.?$/,
       make: (m) => [{ op: 'etbAsCopy', what: m[1], gyFromLibThisTurn: true, haste: true }] },
+    // The Master, Formed Anew: "You may have The Master enter as a copy of a creature card in exile with a takeover counter on it." (exileCounter)
+    { re: /^You may have CARDNAME enter as a copy of a creature card in exile with an? ([a-z]+) counter on it\.?$/,
+      make: (m) => [{ op: 'etbAsCopy', what: 'creature', exileCounter: m[1] }] },
     /* Superior Spider-Man: "You may have Superior Spider-Man enter as a copy of any creature card in a graveyard, except
        his name is Superior Spider-Man and he's a 4/4 Spider Human Hero in addition to his other types. When you do,
        exile that card." — a card in any graveyard (fromGraveyard), exiled by a reflexive trigger (exileCopied) */
@@ -14517,6 +14530,8 @@
     // Baba Lysaga, Night Witch: "there were three or more card types among the sacrificed permanents" (sacrificedTypes)
     [/^there were (\w+) or more card types among the sacrificed permanents$/i, (m) => { const k = num(m[1]); return typeof k === 'number' ? { kind: 'sacrificedTypes', n: k } : null; }],
     [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment|commander)|an? [A-Z][a-z]+)$/, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
+    // Lyzolda, the Blood Witch: "if the sacrificed creature was red", "… was black" (sacrificedWas, a color)
+    [/^the sacrificed (?:creature|permanent) was (white|blue|black|red|green)$/, (m) => ({ kind: 'sacrificedWas', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]] })],
     // Twenty-Toed Toad: "there are twenty or more counters on it or you have twenty or more cards in hand"
     [/^there are (\w+) or more counters on (?:it|CARDNAME|this (?:creature|artifact|permanent))(?: or you have (\w+) or more cards in hand)?$/i, (m) => {
       const k = num(m[1]);
@@ -16039,6 +16054,10 @@
     // Erestor of the Council: "Whenever players finish voting," — any vote, whoever started it (votesFinished)
     { re: /^Whenever players finish voting,? /i, event: 'votesFinished' },
     { re: /^When(?:ever)? you surveil,? /i, event: 'youSurveil' },
+    /* Lo and Li, Royal Advisors: "Whenever an opponent discards a card or mills one or more cards" — each card
+       discarded, each opponent's mill once (batchOnlyOn) */
+    { re: /^Whenever an opponent discards a card or mills one or more cards,? /i, event: 'opponentDiscards', also: 'cardMilled',
+      extra: { batch: true, batchOnlyOn: 'cardMilled', activatorIsOpponent: true } },
     { re: /^When(?:ever)? an opponent discards a card,? /i, event: 'opponentDiscards' },
     /* battalion, by its words: "Whenever this creature and at least two other creatures attack" */
     // (Sokka, Lateral Strategist: "and at least one other creature attack" — battalionOne)

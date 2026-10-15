@@ -1774,6 +1774,15 @@
       });
       return { picks: picks.map(o => o.id) };
     },
+    /* The Master, Formed Anew: "exile a creature you control and put a takeover counter on it" — for the Master to
+       enter as a copy of: worth it only for a card with an enters ability, the costliest; never a token (gone) */
+    bodyThief(s) {
+      const g = this.game;
+      const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).filter(o => !o.isToken &&
+        ((o.analysis() || {}).abilities || []).some(ab => ab.kind === 'triggered' && ab.event === 'etb' && ab.self))
+        .sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0))[0];
+      return { picks: best ? [best.id] : [] };
+    },
     /* Yorion, Sky Nomad: what is worth entering again at the end step — a card with an enters ability, never a
        token (gone for good) */
     flickerAny(s) {

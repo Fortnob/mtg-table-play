@@ -2795,6 +2795,9 @@
       // The Fourteenth Doctor: "a Doctor card in your graveyard that was put there from your library this turn" (gyFromLibThisTurn)
       if (e.gyFromLibThisTurn) return ((this.zones[controller] || {}).graveyard || [])
         .filter(o => o !== src && o._toGraveFromLib === this.turn && this._cardFitsWords(o, what + ' card'));
+      // The Master, Formed Anew: "a creature card in exile with a takeover counter on it" — anyone's exile (exileCounter)
+      if (e.exileCounter) return this.players.flatMap(q => (this.zones[q.id] || {}).exile || [])
+        .filter(o => o !== src && !o.faceDown && (o.analysis() || {}).isCreature && (Number((o.counters || {})[e.exileCounter]) || 0) > 0);
       // Superior Spider-Man: "any creature card in a graveyard" (fromGraveyard)
       if (e.fromGraveyard) return this.players.filter(q => !q.hasLost).flatMap(q => (this.zones[q.id] || {}).graveyard || [])
         .filter(o => o !== src && (o.analysis() || {}).isCreature);
@@ -3157,7 +3160,7 @@
       // (Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it" — becomeExiledWithCopy)
       // (Feather, Radiant Arbiter: "you may choose any number of other creatures … and pay {2} for each" — copySpellEachOther payEach)
       // (Mairsil, the Pretender: "you may exile an artifact or creature card from your hand or graveyard …" — exileHandGraveCounter)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -10624,6 +10627,8 @@
           mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary,
           // (Tevesh Szat, Doom of Fools: "if the sacrificed permanent was a commander")
           commander: !!x.isCommander,
+          // (Lyzolda, the Blood Witch: "if the sacrificed creature was red")
+          colors: ((this.characteristics(x) || {}).colors || (x.card && x.card.colors) || []).slice(),
           // (Falkenrath Aristocrat: "if the sacrificed creature was a Human" — sacrificedSubtype)
           subtypes: ((x.analysis() || {}).subtypes || []).slice(),
           // (a changeling is every creature type, as it was sacrificed: CR 702.73a, 608.2h)
@@ -14521,6 +14526,8 @@
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
+          // (Lyzolda, the Blood Witch: "if the sacrificed creature was red" — its colors as it was sacrificed)
+          if (cond.color) return (sn.colors || []).includes(cond.color);
           if (cond.what === 'legendary') return !!sn.legendary;
           if (cond.what === 'commander') return !!sn.commander;
           if ((sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what)) return true;
@@ -17399,13 +17406,16 @@
         if (ab.revealDrawn && data.object) { this._know(data.object, '*'); this.logEvent('reveal', `${(this.player(o.controller) || {}).name} reveals ${data.object.name}.`); }
         /* "One or more creatures die" is one trigger for the lot of them,
            however many went at once. */
-        if (((ab.objFilter && ab.objFilter.batch) || ab.batch)) {
+        // (Lo and Li, Royal Advisors: "discards a card or mills one or more cards" — a lot for the mill only: batchOnlyOn)
+        if (((ab.objFilter && ab.objFilter.batch) || ab.batch) && !(ab.batchOnlyOn && ab.batchOnlyOn !== event)) {
           /* (Rev, Tithe Extractor: "one or more creatures you control deal combat damage to a player" — a
              lot for each player hit: batchPerPlayer) */
           const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i &&
             (!ab.batchPerPlayer || (t.triggerData || {}).player === tData.player) &&
             // The Red Terror: "a red source … deals damage to one or more permanents and/or players" — a lot for each source (batchPerSource)
-            (!ab.batchPerSource || (t.triggerData || {}).objectId === tData.objectId));
+            (!ab.batchPerSource || (t.triggerData || {}).objectId === tData.objectId) &&
+            // (Lo and Li: each opponent's mill a lot of its own, apart from the discards)
+            (!ab.batchOnlyOn || ((t.triggerData || {}).event === event && (t.triggerData || {}).playerId === tData.playerId)));
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
@@ -28319,16 +28329,21 @@
         /* Yorion, Sky Nomad: "exile any number of other nonland permanents you own and control" — one pick, those
            exiled for "Return those cards …" (exiledNow) */
         case 'exileAnyOwn': {
-          const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && o.owner === ctx.controller &&
+          // (The Master, Formed Anew: "exile a creature you control" — yours to control, one at most: one)
+          const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && (e.one || o.owner === ctx.controller) &&
             this._cardFitsWords(o, e.filter || 'nonland permanent'));
           if (!pool.length) break;
-          const got = this._choose({ playerId: ctx.controller, purpose: 'flickerAny', kind: 'objects', zone: 'battlefield',
-            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+          const got = this._choose({ playerId: ctx.controller, purpose: e.one ? 'bodyThief' : 'flickerAny', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: e.one ? 1 : pool.length, optional: true,
             prompt: `${src ? src.name + ': ' : ''}${whole(e.text || '').replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it')}` }, 'exOwn');
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'battlefield');
           this._leavingTogether = picks;
-          for (const o of picks) this.moveObject(o, 'exile');
+          for (const o of picks) {
+            this.moveObject(o, 'exile');
+            // (The Master: "and put a takeover counter on it" — on the card in exile; a token is gone)
+            if (e.counter && o.zone === 'exile') { o.counters = o.counters || {}; o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + 1; }
+          }
           this._leavingTogether = null;
           if (picks.length) this.logEvent('exile', `${me.name} exiles ${picks.map(o => o.name).join(', ')}.`);
           break;
