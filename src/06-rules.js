@@ -15715,6 +15715,11 @@
       // (Kinbinding: v.enteredYours — what entered under its controller's control this turn)
       if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.oppExileCards || v.party || v.enteredYours || v.unspentMana || v.opponentsBelowHalfLife)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
+      // Idris, Soul of the TARDIS: "where X is the exiled card's mana value" — while it is still in exile (chosenExiledMv)
+      if (typeof v === 'object' && v.chosenExiledMv) {
+        const s0 = src || o, c0 = s0 && s0.chosenExiled ? this.obj(s0.chosenExiled) : null;
+        return c0 && c0.zone === 'exile' ? ((c0.card && c0.card.cmc) || 0) * (v.mult || 1) : 0;
+      }
       // Emissary Escort: the greatest mana value among other artifacts you control, printed
       if (typeof v === 'object' && v.greatestMv) {
         let best = 0;
@@ -28952,8 +28957,9 @@
           if (!src || src.zone !== 'battlefield') break;
           const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && this._cardFitsWords(o, e.filter || 'nonland permanent'));
           if (!pool.length) break;
+          // (Idris, Soul of the TARDIS: "exile another artifact you control" — exactly one: one)
           const got = this._choose({ playerId: ctx.controller, purpose: 'exileUntilLeaves', kind: 'objects', zone: 'battlefield',
-            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            items: this._chooseItems(pool), min: e.one ? 1 : 0, max: e.one ? 1 : pool.length, optional: !e.one,
             prompt: `${src.name}: ${whole(e.text || '').replace(/CARDNAME/g, U.frontName(src.name))}` }, 'exAny');
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'battlefield');
@@ -28963,6 +28969,8 @@
             const token = o.isToken;
             this.moveObject(o, 'exile');
             if (o.zone === 'exile') o.exiledBy = src.id;
+            // Idris: "the exiled card" — the one its other words read (imprint)
+            if (e.imprint && o.zone === 'exile') src.chosenExiled = o.id;
             if (o.zone === 'exile' || (token && o.zone !== 'battlefield')) k++;
           }
           this._leavingTogether = null;
@@ -35046,6 +35054,32 @@
           break;
         }
         // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand."
+        // Livio, Oathsworn Sentinel: "Its controller may exile it with an aegis counter on it." — the creature chosen, its controller's choice
+        case 'controllerMayExileCounter': {
+          const t0 = targets.find(t => t && t.kind === 'object');
+          const x = (t0 && this.obj(t0.id)) || (this._lastAffected && this.obj(this._lastAffected.id));
+          if (!x || x.zone !== 'battlefield') break;
+          const who = this.player(x.controller);
+          if (!who || who.hasLost) break;
+          const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'mayExileCounter', objId: x.id, sourceId: src ? src.id : null,
+            prompt: `${src ? src.name + ': e' : 'E'}xile ${x.name} with ${/^[aeiou]/i.test(e.counter) ? 'an' : 'a'} ${e.counter} counter on it?` }, 'mxc');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes || x.zone !== 'battlefield') break;
+          this.moveObject(x, 'exile');
+          if (x.zone === 'exile') {
+            x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
+            this.logEvent('exile', `${who.name} exiles ${x.name} with ${/^[aeiou]/i.test(e.counter) ? 'an' : 'a'} ${e.counter} counter on it.`);
+          }
+          break;
+        }
+        // Livio, Oathsworn Sentinel: "Return all exiled cards with aegis counters on them to the battlefield under their owners' control."
+        case 'exiledCounteredToBf': {
+          const got = [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => Number((c.counters || {})[e.counter]) > 0);
+          // (a new object: the counters it had in exile stay behind)
+          for (const c of got) { c.counters = {}; this.moveObject(c, 'battlefield', { controller: c.owner }); }
+          if (got.length) this.logEvent('rules', `${got.map(c => c.name).join(', ')} ${got.length === 1 ? 'returns' : 'return'} to the battlefield.`);
+          break;
+        }
         case 'exiledCounteredToHand': {
           const got = this.zones[ctx.controller].exile.filter(c => c.owner === ctx.controller && Number((c.counters || {})[e.counter]) > 0);
           for (const c of got) this.moveObject(c, 'hand');

@@ -3062,6 +3062,8 @@
         const t = ch.objId ? g.obj(ch.objId) : null;
         return this.me.life - (ch.amount || 0) > 10 && (!t || this.permanentValue(t) >= (ch.amount || 0) * 0.5);
       }
+      // Livio, Oathsworn Sentinel: into exile with an aegis counter only for our own Livio (it brings it back)
+      if (ch.purpose === 'mayExileCounter') { const s0 = ch.sourceId ? g.obj(ch.sourceId) : null; return !!s0 && s0.controller === this.pid; }
       // Perplex: give up the hand only when there is little in it
       if (ch.purpose === 'unlessDiscardHand') return (g.zones[this.pid].hand || []).length <= 1;
       // Chandra: cast the exiled card only if it can be paid for

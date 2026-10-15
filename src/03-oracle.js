@@ -1755,7 +1755,8 @@
     { re: /^Attach (up to one )?target Equipment you control to that creature\.?$/i,
       make: (m) => ({ op: 'attachTargetToSelf', toTrigger: true, targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
     // Yuffie, Materia Hunter: "Then you may attach an Equipment you control to Yuffie." (attachYoursToSelf)
-    { re: /^(?:Then )?you may attach an Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachYoursToSelf' }) },
+    // (Winter Soldier, Icy Assassin: "… to him.")
+    { re: /^(?:Then )?you may attach an Equipment you control to (?:CARDNAME|this creature|him|her|it)\.?$/i, make: () => ({ op: 'attachYoursToSelf' }) },
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
@@ -2814,7 +2815,8 @@
     { re: /^Transform all Incubator tokens you control\.?$/i,
       make: () => ({ op: 'transformAll', scope: { who: 'you', what: 'artifact', token: true, subtype: 'incubator' } }) },
     /* Unearth-style: it gets itself back. */
-    { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with a finality counter on (?:it|him|her|them))?\.?$/i,
+    // (Winter Soldier, Icy Assassin: "with a finality counter on him" — read as "on CARDNAME")
+    { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with a finality counter on (?:it|him|her|them|CARDNAME))?\.?$/i,
       make: (m) => (m[2] ? { op: 'returnSelfFromGrave', tapped: !!m[1], counter: 'finality' } : { op: 'returnSelfFromGrave', tapped: !!m[1] }) },
     /* the self-dies return ("When this creature dies, return it to the
        battlefield tapped under its owner's control with a +1/+1 counter on
@@ -2893,6 +2895,10 @@
        them (exileAnyUntilLeaves) */
     { re: /^Exile any number of other (nonland permanents|creatures|artifacts|enchantments|permanents) you control until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileAnyUntilLeaves', filter: m[1].toLowerCase().replace(/s$/, '') }) },
+    /* Idris, Soul of the TARDIS: "exile another artifact you control until Idris leaves the battlefield" — one, chosen
+       as it resolves; "the exiled card" for its other words (one, imprint) */
+    { re: /^Exile another (artifact|creature|enchantment|nonland permanent) you control until (?:CARDNAME|this (?:creature|artifact|permanent)) leaves the battlefield\.?$/i,
+      make: (m) => ({ op: 'exileAnyUntilLeaves', filter: m[1].toLowerCase(), one: true, imprint: true }) },
     /* Yorion, Sky Nomad: "exile any number of other nonland permanents you own and control" — picked as it
        resolves, for "Return those cards …" to bring back (exileAnyOwn) */
     { re: /^Exile any number of other (nonland permanents|creatures|artifacts|enchantments|permanents) you own and control\.?$/i,
@@ -3775,6 +3781,9 @@
     { re: /^Exile your hand\.?$/i, make: () => ({ op: 'exileHand' }) },
     // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
     { re: /^(?:You )?[Dd]raw an additional card\.?$/, make: () => ({ op: 'draw', n: 1, who: 'you' }) },
+    // Rayne, Academy Chancellor: "You may draw an additional card if Rayne is enchanted." — asked on its own
+    { re: /^You may draw an additional card if CARDNAME is enchanted\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'selfEnchanted' }, then: [{ op: 'may', then: [{ op: 'draw', n: 1, who: 'you' }], text: 'You may draw an additional card.' }] }) },
     // Well of Ideas: "that player draws an additional card" — the player whose step it is
     { re: /^That player draws an additional card\.?$/i, make: () => ({ op: 'draw', n: 1, who: 'triggerPlayer' }) },
     // Contagion Engine: "Proliferate twice."
@@ -5046,6 +5055,12 @@
     // Amy Pond: "choose a suspended card you own and remove that many time counters from it." (removeTimeFromSuspended)
     { re: /^Choose a suspended card you own and remove that many time counters from it\.?$/i,
       make: () => ({ op: 'removeTimeFromSuspended', n: 'triggerAmount' }) },
+    // Livio, Oathsworn Sentinel: "Its controller may exile it with an aegis counter on it." — the creature just chosen (controllerMayExileCounter)
+    { re: /^Its controller may exile it with an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => ({ op: 'controllerMayExileCounter', counter: m[1].toLowerCase() }) },
+    // Livio, Oathsworn Sentinel: "Return all exiled cards with aegis counters on them to the battlefield under their owners' control." (exiledCounteredToBf)
+    { re: /^Return all exiled cards with ([a-z]+) counters on them to the battlefield under their owners'? control\.?$/i,
+      make: (m) => ({ op: 'exiledCounteredToBf', counter: m[1].toLowerCase() }) },
     // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand." (exiledCounteredToHand)
     { re: /^Put all exiled cards you own with ([a-z]+) counters on them into your hand\.?$/i,
       make: (m) => ({ op: 'exiledCounteredToHand', counter: m[1].toLowerCase() }) },
@@ -9433,8 +9448,8 @@
     if ((m = p.match(/^different mana value among (?:(?:([a-z]+) (?:and\/or|or|and) ([a-z]+)|([a-z]+)) )?cards in your graveyard$/i)))
       return { graveMvDistinct: m[3] ? m[3].toLowerCase() : m[1] ? m[1].toLowerCase() + ' or ' + m[2].toLowerCase() : 'card', mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
-    // (Whiplash, Vengeful Engineer: "the number of Equipment attached to him")
-    if ((m = p.match(/^(Aura|Equipment) attached to (?:it|him|her|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
+    // (Whiplash, Vengeful Engineer; Winter Soldier, Icy Assassin: "the number of Equipment attached to him")
+    if ((m = p.match(/^(Aura|Equipment) attached to (?:it|him|her|them|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
     // Thran Power Suit: "for each Aura and Equipment attached to it"
     if (/^Aura and Equipment attached to (?:it|this creature|CARDNAME)$/.test(p)) return { attachedOf: ['Aura', 'Equipment'], mult: k };
     /* Multani: "for each land you control and each land card in your
@@ -21716,6 +21731,11 @@
       /* Koh, the Face Stealer: "Koh has all activated and triggered abilities of the last chosen card." — the card
          chosen with its own ability, while it is still in exile (borrowChosen) */
       { re: /^(?:CARDNAME|This creature) has all activated and triggered abilities of the last chosen card\.?$/i, eff: { op: 'borrowActivated', chosenCard: true }, auto: true },
+      /* Idris, Soul of the TARDIS: "Idris has all activated and triggered abilities of the exiled card and gets +X/+X, where
+         X is the exiled card's mana value." — the card its own ability exiled (chosenCard, chosenExiledMv) */
+      { re: /^(?:CARDNAME|This creature) has all activated and triggered abilities of the exiled card and gets \+X\/\+X, where X is the exiled card'?s mana value\.?$/i,
+        make: () => [{ op: 'borrowActivated', chosenCard: true },
+          { op: 'continuous', layer: 7, scope: { self: true, what: 'permanent' }, pt: { p: { chosenExiledMv: true }, t: { chosenExiledMv: true } } }], auto: true },
       // Rex, Cyber-Hound: "Rex has all activated abilities of all cards in exile with brain counters on them." (exiledCounter)
       { re: /^(?:CARDNAME|This creature) has all activated abilities of all cards in exile with ([a-z]+) counters on them\.?$/i,
         make: (m) => ({ op: 'borrowActivated', exiledCounter: m[1].toLowerCase() }), auto: true },
