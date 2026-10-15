@@ -2888,7 +2888,9 @@
           const t = (item.targets || []).find(x => x.kind === 'object');
           const dead = t && this.obj(t.id);
           if (dead && dead.zone === 'graveyard') {
-            this.moveObject(dead, 'battlefield', { controller: item.controller });
+            // (Dance of the Dead: "onto the battlefield tapped" — auraReanimateTapped)
+            this.moveObject(dead, 'battlefield', Object.assign({ controller: item.controller }, a.auraReanimateTapped ? { tapped: true } : {}));
+            if (a.auraReanimateTapped && dead.zone === 'battlefield') dead.tapped = true;
             this.logEvent('reanimate', `${this.player(item.controller).name} returns ${dead.name} with ${o.name}.`);
           }
         }
@@ -26395,15 +26397,17 @@
             const mostX = ((triggerAbility().effects || []).filter(x => x && x.op === 'xCap').map(x => Math.max(0, n(x.n) || 0)).concat([60])).reduce((a, b) => Math.min(a, b));
             // Hawkeye, Master Marksman: "pay {1} up to three times" (maxX)
             const capAt = e.maxX != null ? Math.min(e.maxX, mostX) : mostX;
-            for (let k = 1; k <= capAt && this.couldPay(ctx.controller, '{' + k + '}' + restCost, srcsX); k++) capX = k;
+            // (Leyline Tyrant: "any amount of {R}" — X of that colour: xColor)
+            const costX = (k) => (pay.xColor ? ('{' + pay.xColor + '}').repeat(k) : '{' + k + '}') + restCost;
+            for (let k = 1; k <= capAt && this.couldPay(ctx.controller, costX(k), srcsX); k++) capX = k;
             if (!capX) { this._spliceNext(e.otherwise); break; }
             const gotX = this._choose({ playerId: ctx.controller, purpose: 'mayPayX', kind: 'number', number: { min: 0, max: capX },
               prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay {X}').replace(/^./, c => c.toUpperCase()), 110)} Choose X (0 pays nothing).` }, 'q');
             if (gotX === SUSPEND) return SUSPEND;
             const xPaid = Math.min(capX, Math.max(0, Number(gotX && gotX.number) || 0));
-            const sacYes = xPaid ? this._sacAskFirst(ctx.controller, '{' + xPaid + '}' + restCost, 'qs') : true;
+            const sacYes = xPaid ? this._sacAskFirst(ctx.controller, costX(xPaid), 'qs') : true;
             if (sacYes === SUSPEND) return SUSPEND;
-            if (!xPaid || !sacYes || !this.payMana(ctx.controller, '{' + xPaid + '}' + restCost, { auto: true })) { this._spliceNext(e.otherwise); break; }
+            if (!xPaid || !sacYes || !this.payMana(ctx.controller, costX(xPaid), { auto: true })) { this._spliceNext(e.otherwise); break; }
             ctx.x = xPaid;
             this.logEvent('rules', `${me.name} pays X = ${xPaid}.`);
             this._spliceNext(e.then);
@@ -26877,6 +26881,10 @@
           const affordable = typeof cost === 'string'
             ? this.couldPay(payer.id, cost)
             : payer.life > (cost.life || 0) && !((cost.life || 0) > 0 && this._lifeFrozen(payer));
+          /* Dance of the Dead: "that player may pay {1}{B}. If the player does, untap that creature." — not asked when
+             paying would untap nothing (ifPaid) */
+          if (e.ifPaid && e.ifPaid.length && e.ifPaid.every(x => x && x.op === 'untap' && x.scope === 'attached') &&
+              !((src && src.attachedTo && this.obj(src.attachedTo)) || {}).tapped) break;
           if (!affordable) {
             this.logEvent('rules', `${payer.name} cannot pay ${typeof cost === 'string' ? cost : cost.life + ' life'}.`);
             this._spliceNext(e.then);
@@ -26890,7 +26898,7 @@
             if (typeof cost === 'string') ok = this.payMana(payer.id, cost, { auto: true });
             else { this.changeLife(payer, -(cost.life || 0), 'cost'); ok = true; }
           }
-          if (ok) this.logEvent('rules', `${payer.name} pays.`);
+          if (ok) { this.logEvent('rules', `${payer.name} pays.`); if (e.ifPaid) this._spliceNext(e.ifPaid); }
           else this._spliceNext(e.then);
           break;
         }
@@ -29326,6 +29334,8 @@
             if (e.to === 'exile') {
               this.moveObject(c, 'exile');
               this._lastExiled = c.id; this._lastExiledList = [c.id];
+              // (Arcane Bombardment: one of the cards "exiled with this enchantment" — markSelf)
+              if (e.markSelf && src && c.zone === 'exile') c.exiledBy = src.id;
               this.logEvent('exile', `${me.name} exiles ${c.name} at random from their graveyard.`);
               /* Sin, Spira's Punishment: "then create a tapped token that's a copy of that card. If the exiled card is a
                  land card, repeat this process." — the copy next, and the whole again after it for a land (copyTapped) */
@@ -33580,6 +33590,13 @@
         /* Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." —
            each one, paying for it, as this resolves (castCopiesExiled) */
         case 'castCopiesExiled': {
+          /* Arcane Bombardment: "copy each card exiled with this enchantment. You may cast any number of the copies
+             without paying their mana costs." — whoever owns them, in the order they were exiled (exiledWith, free) */
+          if (e.exiledWith) {
+            const kept = src ? this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id && !x.isCopy) : [];
+            if (kept.length) this._spliceNext(kept.map(x => Object.assign({ op: 'castCopy', _forcedId: x.id }, e.free ? {} : { pay: true })));
+            break;
+          }
           const own = ((this.zones[ctx.controller] || {}).exile || []).filter(x => !x.faceDown && !x.isCopy && (Number((x.counters || {})[e.counter]) || 0) > 0);
           if (own.length) this._spliceNext(own.map(x => ({ op: 'castCopy', pay: true, _forcedId: x.id })));
           break;
@@ -37644,7 +37661,9 @@
       // Finneas, Ace Archer: "that's a token or a Rabbit"
       if (sc.thatIs && !this._cardFitsWords(o, sc.thatIs)) return false;
       // Whelming Wave: "except for Krakens, Leviathans, Octopuses, and Serpents"
-      if (sc.notSubtypes && (oa.subtypes || []).some(t => sc.notSubtypes.includes(t.toLowerCase()))) return false;
+      // (a changeling is each of those creature types too — Swarmyard Massacre's "isn't an Insect, Rat, Spider, or Squirrel")
+      if (sc.notSubtypes && ((oa.subtypes || []).some(t => sc.notSubtypes.includes(t.toLowerCase())) ||
+          (oa.keywordSet && oa.keywordSet.has('changeling') && sc.notSubtypes.some(t => CREATURE_TYPES_LOWER.has(t))))) return false;
       // (Season of Gathering: a card type chosen as it resolved)
       if (sc.chosenType && src && src.chosenCardType && !src.chosenType) { if (!(oa.types || []).includes(src.chosenCardType)) return false; }
       else if (sc.chosenType && !(src && src.chosenType && ((oa.subtypes || []).some(t => t.toLowerCase() === String(src.chosenType).toLowerCase()) ||

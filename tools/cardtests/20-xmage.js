@@ -69295,4 +69295,128 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(T.life('A'), 24, 'no loyalty ability this turn: 2 life');
   });
+
+  test('Cards: Swarmyard Massacre — two Squirrels, then -1/-1 to each non-Insect/Rat/Spider/Squirrel for each of yours', (mk, t) => {
+    t.auto('Swarmyard Massacre');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Typhoid Rats'); T.bf('A', 'Giant Spider');
+    const theirSpider = T.bf('B', 'Giant Spider');
+    const dread = T.bf('B', 'Colossal Dreadmaw'), giant = T.bf('B', 'Hill Giant'), shifter = T.bf('B', 'Changeling Outcast');
+    const mine = T.bf('A', 'Craw Wurm');
+    T.mana('A', '3BB');
+    T.cast('A', T.hand('A', 'Swarmyard Massacre'));
+    t.eq(T.bfOf('A').filter(o => o.name === 'Squirrel').length, 2, 'two Squirrels');
+    t.eq(g.powerOf(dread), 2, 'Dreadmaw: -4/-4 (two Squirrels, a Rat, a Spider)'); t.eq(g.toughnessOf(dread), 2);
+    t.zone(giant, 'graveyard', 'Hill Giant dies'); t.zone(mine, 'graveyard', 'my own non-Squirrel too');
+    t.eq(g.powerOf(theirSpider), 2, "a Spider isn't shrunk (and theirs doesn't count)");
+    t.eq(g.powerOf(shifter), 1, 'a changeling is a Squirrel');
+    t.ok(T.bfOf('A').filter(o => o.name === 'Squirrel').every(o => g.powerOf(o) === 1), 'the Squirrels are untouched');
+  });
+
+  test("Cards: Brainstealer Dragon — the end step exiles each opponent's top card to play with any mana; their permanent entering under your control costs them life", (mk, t) => {
+    t.auto('Brainstealer Dragon');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    T.bf('A', 'Brainstealer Dragon');
+    const bears = T.top('B', 'Grizzly Bears'), forest = T.top('C', 'Forest');
+    T.nextTurn('B');
+    t.zone(bears, 'exile'); t.zone(forest, 'exile');
+    T.nextTurn('A');
+    t.zone(bears, 'exile', 'still there on the next turn');
+    T.mana('A', 'BB');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield', 'cast with black mana'); t.eq(bears.controller, 'A');
+    t.eq(T.life('B'), 18, 'B, its owner, loses 2 (its mana value)');
+    t.eq(T.life('C'), 20); t.eq(T.life('A'), 20);
+    T.playLand('A', forest);
+    t.eq(forest.controller, 'A', "C's Forest played");
+    t.eq(T.life('C'), 20, 'a land: no life lost');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(T.life('A'), 20, 'its own: nothing');
+  });
+
+  test("Cards: Dance of the Dead — the creature card returns tapped with the Aura; {1}{B} at its controller's upkeep untaps it; the Aura gone, it's sacrificed", (mk, t) => {
+    t.auto('Dance of the Dead');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const giant = T.grave('B', 'Hill Giant');
+    T.bf('A', 'Swamp'); T.bf('A', 'Swamp');
+    const dance = T.hand('A', 'Dance of the Dead');
+    T.mana('A', '1B');
+    T.cast('A', dance, { targets: [giant] });
+    t.zone(giant, 'battlefield'); t.eq(giant.controller, 'A');
+    t.ok(giant.tapped, 'put onto the battlefield tapped');
+    t.eq(dance.attachedTo, giant.id, 'the Aura on it');
+    t.eq(g.powerOf(giant), 4, '+1/+1');
+    // A's next upkeep: it didn't untap; paying {1}{B} untaps it
+    T.answer('payOrDont', { pay: true });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(T.asked.some(c => c.type === 'payOrDont' && c.playerId === 'A'), 'asked to pay');
+    t.no(giant.tapped, 'paid: untapped');
+    // untapped already: nothing to pay for, not asked
+    const n0 = T.asked.filter(c => c.type === 'payOrDont').length;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.asked.filter(c => c.type === 'payOrDont').length, n0, 'untapped: not asked');
+    // tapped and not paid: stays tapped (no untap step for it)
+    giant.tapped = true;
+    T.answer('payOrDont', { pay: false });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(giant.tapped, "didn't pay: still tapped");
+    // the Aura leaves: the creature's controller sacrifices it
+    g.moveObject(dance, 'graveyard'); T.resolve();
+    t.zone(giant, 'graveyard', 'sacrificed'); t.ok(T.zone('B', 'graveyard').includes(giant), "to its owner's graveyard");
+  });
+
+  test('Cards: Leyline Tyrant — dying, any amount of {R} paid deals that much damage to any target', (mk, t) => {
+    t.auto('Leyline Tyrant');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ty = T.bf('A', 'Leyline Tyrant');
+    T.mana('A', 'RRR2');
+    let capX = null;
+    T.answer('choose', (ch) => { capX = ch.number && ch.number.max; return { number: 3 }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    g.moveObject(ty, 'graveyard'); T.resolve();
+    t.eq(capX, 3, 'up to the red there is: 3 (not the colourless)');
+    t.eq(T.life('B'), 17, '3 damage to B');
+    t.eq(T.player('A').pool.R, 0, 'the red spent'); t.eq(T.player('A').pool.C, 2, 'the colourless kept');
+    // no red: not asked
+    const U = mk({ library: Array(20).fill('Island') });
+    const ty2 = U.bf('A', 'Leyline Tyrant');
+    U.mana('A', '2');
+    U.g.moveObject(ty2, 'graveyard'); U.resolve();
+    t.no(U.asked.some(c => c.purpose === 'mayPayX'), 'no red: nothing asked');
+    t.eq(U.life('B'), 20);
+  });
+
+  test('Cards: Arcane Bombardment — the first instant or sorcery each turn exiles one at random from the graveyard, then every card it holds is copied and may be cast free', (mk, t) => {
+    t.auto('Arcane Bombardment');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bomb = T.bf('A', 'Arcane Bombardment');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.grave('A', 'Grizzly Bears');
+    const toB = () => ({ targets: [{ kind: 'player', id: 'B' }] });
+    T.answer('pickTarget', toB);
+    T.mana('A', 'R');
+    const shock = T.hand('A', 'Shock');
+    T.cast('A', shock, { targets: ['B'] });
+    t.zone(bolt, 'exile', 'Bolt exiled (the only instant or sorcery there)'); t.eq(bolt.exiledBy, bomb.id);
+    t.eq(T.life('B'), 15, 'a free copy of Bolt (3) and Shock (2)');
+    // a second one this turn: nothing
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.life('B'), 13, 'second spell: no trigger');
+    t.eq(T.zone('A', 'exile').filter(c => c.exiledBy === bomb.id).length, 1);
+    // next turn: one Shock exiled at random, then copies of both cards it holds
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('pickTarget', toB); T.answer('pickTarget', toB);
+    T.answer('confirm', { yes: true }); T.answer('confirm', { yes: false });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.zone('A', 'exile').filter(c => c.exiledBy === bomb.id).length, 2, 'two cards with it');
+    t.eq(T.life('B'), 8, 'Bolt copied and cast (3), the other copy declined, Shock (2)');
+    t.ok(g.zones.A.graveyard.filter(c => c.name === 'Shock').length >= 1, 'the Shock just cast to the graveyard');
+  });
 };

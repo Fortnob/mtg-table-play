@@ -2768,6 +2768,9 @@
     // The Frightful Four: "that player loses life equal to that spell's mana value" (triggerSpellMv)
     { re: /^(?:That player|They) loses? life equal to that spell'?s mana value\.?$/i,
       make: () => ({ op: 'loseLife', who: 'triggerPlayer', n: { triggerSpellMv: true } }) },
+    // Brainstealer Dragon: "they lose life equal to its mana value" — the permanent the trigger is about
+    { re: /^(?:That player|They) loses? life equal to its mana value\.?$/i,
+      make: () => ({ op: 'loseLife', who: 'triggerPlayer', n: { ofTrigger: 'mv' } }) },
     // Torgaar, Famine Incarnate: "up to one target player's life total becomes half their starting life total, rounded down" (targetHalfStarting)
     { re: /^(?:[Uu]p to one )?[Tt]arget player'?s life total becomes half their starting life total, rounded (up|down)\.?$/,
       make: (m) => ({ op: 'setLife', who: 'target', targets: [Object.assign({ type: 'player' }, /^up to one/i.test(m[0]) ? { upTo: true } : {})], n: { halfStartingLife: true, up: /up/i.test(m[1]) } }) },
@@ -3090,6 +3093,8 @@
       make: () => ({ op: 'noop', payLifeRider: true }) },
     // (Bloodsoaked Insight: "If you cast a spell this way, mana of any type can be spent to cast it.")
     { re: /^(?:Mana of any type can be spent to cast (?:a spell|spells) this way|If you cast a spell this way, mana of any type can be spent to cast it)\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
+    // (Brainstealer Dragon: "If you cast a spell this way, you may spend mana as though it were mana of any color to cast it.")
+    { re: /^If you cast a spell this way, you may spend mana as though it were mana of any colou?r to cast (?:it|that spell)\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
     // Durnan of the Yawning Portal: "That spell has undaunted." — on the leave before it (undauntedRider)
     { re: /^That spell has undaunted\.?$/i, make: () => ({ op: 'noop', undauntedRider: true }) },
     // Oubliette: "Tap that creature as it phases in this way."
@@ -5802,7 +5807,8 @@
        for each basic land type among lands you control" — counted once, as
        it resolves */
     // (Captain Vargus Wrath: "Pirates you control get +1/+1 until end of turn for each time you've cast a commander …")
-    { re: /^(All creatures|Creatures you control|Other creatures you control|Creatures your opponents control|[A-Z][a-z]+s you control) get ([+-])(\d+)\/([+-])(\d+) until end of turn for each ([^.]+?)\.?$/i,
+    // (Swarmyard Massacre: "Each creature that isn't an Insect, Rat, Spider, or Squirrel gets -1/-1 … for each creature you control that's …")
+    { re: /^(All creatures|Creatures you control|Other creatures you control|Creatures your opponents control|[A-Z][a-z]+s you control|Each creature that isn'?t an? (?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) gets? ([+-])(\d+)\/([+-])(\d+) until end of turn for each ([^.]+?)\.?$/i,
       make: (m) => {
         const c = countOf(m[6].replace(/ on the battlefield$/i, ''));
         if (!c) return null;
@@ -12009,6 +12015,12 @@
     // Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." (castCopiesExiled)
     { re: /^copy each exiled card you own with an? ([a-z]+) counter on it\. You may cast the copies\.?$/i,
       make: (m) => [{ op: 'castCopiesExiled', counter: m[1].toLowerCase() }] },
+    /* Arcane Bombardment: "exile an instant or sorcery card at random from your graveyard. Then copy each card exiled
+       with this enchantment. You may cast any number of the copies without paying their mana costs." — the card kept
+       with it (markSelf), then a copy of each one so far, each cast or not in turn (castCopiesExiled exiledWith, free) */
+    { re: /^exile an? ([a-z ]*?)card at random from your graveyard\. Then copy each card exiled with (?:CARDNAME|this enchantment|this artifact)\. You may cast any number of the copies without paying their mana costs\.?$/i,
+      make: (m) => [{ op: 'randomFromGraveyard', filter: m[1].trim() || 'card', to: 'exile', markSelf: true },
+        { op: 'castCopiesExiled', exiledWith: true, free: true }] },
     /* Leonardo da Vinci: "Draw a card, then discard a card. If the discarded card was an artifact card, exile it from
        your graveyard. If you do, create a token that's a copy of it, except it's a 0/2 Thopter artifact creature with
        flying in addition to its other types." — the card discarded, if still there (exileDiscarded) */
@@ -14039,6 +14051,8 @@
     { re: /^sacrifice (a|an|one|two|three|\d+) ([-a-z ]+?)$/i,
       make: (m) => (/ or (?:discard|pay|exile)\b/i.test(m[2]) ? null : { sacrifice: { n: num(m[1]), filter: m[2].trim() } }) },
     { re: /^pay (\d+) life$/i, make: (m) => ({ life: +m[1] }) },
+    // Leyline Tyrant: "you may pay any amount of {R}. When you do, …" — X red, X the amount (xColor)
+    { re: /^pay any amount of \{([WUBRG])\}$/i, make: (m) => ({ mana: '{X}', xColor: m[1].toUpperCase() }) },
     { re: /^blight (\d+)$/i, make: (m) => ({ blight: +m[1] }) },
     { re: /^forage$/i, make: () => ({ forage: true }) },
     { re: /^collect evidence (\d+)$/i, make: (m) => ({ evidence: +m[1] }) },
@@ -14677,6 +14691,17 @@
         i++;
         continue;
       }
+      // Dance of the Dead: "that player may pay {1}{B}. If the player does, untap that creature." — what paying buys (ifPaid)
+      const theyDoPay = theyMay && next.match(/^If (?:the player|they|that player|its controller) (?:does|do),?\s*(.+)$/i);
+      if (theyDoPay) {
+        const rest = U.titleCase(theyDoPay[1].charAt(0)) + theyDoPay[1].slice(1);
+        const inner = parseSentenceList(splitSentences(rest));
+        const cost = /life$/i.test(theyMay[2]) ? { life: parseInt(theyMay[2], 10) } : theyMay[2];
+        effects.push({ op: 'unlessPays', who: 'target', cost, then: [], ifPaid: inner.effects, text: s + ' ' + next });
+        if (!inner.auto) auto = false;
+        i++;
+        continue;
+      }
 
       /* Treasure Map, Primal Amulet, Charitable Levy: "Put a landmark
          counter on this artifact. Then if there are three or more landmark
@@ -15023,6 +15048,8 @@
           const g0 = thenPart.effects[k + 1];
           if (x && x.op === 'createToken' && g0 && g0.op === 'grantAbility' && /\bthe exiled card\b/i.test(g0.ability || '')) x.linkExiled = true;
         });
+        // (Leyline Tyrant: "it deals that much damage" — the amount paid)
+        if (cost && cost.xColor) for (const x of thenPart.effects) if (x && x.n === 'triggerAmount') { x.n = 'X'; delete x.fromTrigger; }
         if (cost) {
           effects.push({ op: 'mayPay', pay: cost, then: thenPart.effects, text: (thenMay && may[0] === s ? 'You may ' + thenMay[2] + '.' : s) + ' ' + next });
           if (!thenPart.auto) auto = false;
@@ -17388,6 +17415,9 @@
     // Millicent, Restless Revenant: "Whenever Millicent or another nontoken Spirit you control dies or deals combat damage to a player"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or deals combat damage to a player(?:,| )', 'i'),
       event: 'permDies', also: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
+    // Brainstealer Dragon: "Whenever a nonland permanent an opponent owns enters the battlefield under your control" (notOwned)
+    { re: /^Whenever an? (nonland permanent|permanent|creature|artifact) an opponent owns enters(?: the battlefield)? under your control,? /i, event: 'permEnters',
+      filt: (m) => ({ words: m[1].toLowerCase(), who: 'you', notOwned: true }) },
     // (Deep Gnome Terramancer: "lands enter under an opponent's control without being played" — not a land play: notPlayed)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?( without being played)?(?:,| )', 'i'),
       event: 'permEnters', filt: (m) => {
@@ -18322,6 +18352,13 @@
        itself when it says "non-Spirit creatures" or "each other Illusion". */
     const typeNamed = card.layout === 'token' && !!name && tl.subtypes.join(' ') === name;
     let text = normalizePunct(rawText);
+    /* Animate Dead, Dance of the Dead: "When this Aura enters, if it's on the battlefield, it loses "enchant creature card
+       in a graveyard" and gains "enchant creature put onto the battlefield with this Aura." Return enchanted creature card
+       to the battlefield under your control and attach this Aura to it." — what the Aura does as it resolves
+       (auraReanimates); "onto the battlefield tapped" (auraReanimateTapped) */
+    let auraReanimateTapped = false;
+    text = text.replace(/When (?:this Aura|CARDNAME|[A-Z][^.\n]*?) enters, if it's on the battlefield, it loses "enchant creature card in a graveyard" and gains "enchant creature put onto the battlefield with (?:this Aura|[A-Z][^."]*?)\.?"\.? (?:Return|Put) enchanted creature card (?:to|onto) the battlefield( tapped)? under your control and attach (?:this Aura|[A-Z][^.\n]*?) to it\. ?/,
+      (x, tp) => { if (tp) auraReanimateTapped = true; return ''; });
     /* Ozox, the Clattering King: a token's quoted "return target card named Ozox, the Clattering King" names this card,
        not the token that will say it — kept as it is printed (heldName) */
     const heldName = normalizePunct(U.frontName(name));
@@ -19289,7 +19326,8 @@
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
         // Nihiloor: "attack with a creature an opponent owns, … that player loses 2 life" — that creature's owner (triggerObjOwner)
-        if (trig.event === 'permAttacks' && objFilter && objFilter.notOwned) for (const e of parsed.effects) if (e && e.op === 'loseLife' && e.who === 'triggerPlayer') e.who = 'triggerObjOwner';
+        // (Brainstealer Dragon: "a nonland permanent an opponent owns enters … under your control, they lose life" — its owner too)
+        if ((trig.event === 'permAttacks' || trig.event === 'permEnters') && objFilter && objFilter.notOwned) for (const e of parsed.effects) if (e && e.op === 'loseLife' && e.who === 'triggerPlayer') e.who = 'triggerObjOwner';
         /* Madame Null, Power Broker: "you may pay life equal to its power. If you do, put that many +1/+1 counters on
            it" — a payment of life, and "that many" is the power paid (payLifePower) */
         if (parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'may') {
@@ -20532,6 +20570,13 @@
             ab.condition && ab.condition.kind === 'selfIs') e.scope = 'self';
       });
     }
+    /* Dance of the Dead: "At the beginning of the upkeep of enchanted creature's controller, that player may pay {1}{B}.
+       If the player does, untap that creature." — the enchanted one */
+    for (const ab of out.abilities) {
+      if (!ab.enchantedController) continue;
+      const walk = (list) => { for (const x of list || []) { if (!x) continue; if (x.op === 'untap' && (x.scope === 'lastTarget' || x.scope === 'triggerObject') && !(x.targets || []).length) x.scope = 'attached'; walk(x.then); walk(x.ifPaid); } };
+      walk(ab.effects);
+    }
     for (const ab of out.abilities) {
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
       // Unstable Mutation: "the upkeep of enchanted creature's controller, put a -1/-1 counter on that creature"
@@ -20840,6 +20885,7 @@
           ? { type: 'creature', zone: 'graveyard', filter: 'creature card' }
           : targetSpec(ef);
         if (/card in a graveyard$/i.test(ef)) out.auraReanimates = true;
+        if (out.auraReanimates && auraReanimateTapped) out.auraReanimateTapped = true;
         break;
       }
       if (!out.auraSpec) out.auraSpec = targetSpec('creature');
@@ -20942,6 +20988,16 @@
        a Zombie or Mutant" — a kind or a creature type (thatIs, read as words) */
     if ((mm0 = rest.match(/ that(?:'s| is| are) (?:an? )?(token|nontoken|legendary|artifact|enchantment|[A-Z][a-z]+)(?: or (?:an? )?(token|nontoken|legendary|artifact|enchantment|[A-Z][a-z]+))?$/))) {
       sc.thatIs = [mm0[1], mm0[2]].filter(Boolean).join(' or ').toLowerCase();
+      rest = rest.slice(0, mm0.index);
+    }
+    // Swarmyard Massacre: "each creature you control that's an Insect, Rat, Spider, or Squirrel" — any of the kinds (thatIs)
+    else if ((mm0 = rest.match(/ that(?:'s| is| are) an? ((?:[A-Z][a-z]+, )+(?:or )?[A-Z][a-z]+)$/))) {
+      sc.thatIs = mm0[1].toLowerCase();
+      rest = rest.slice(0, mm0.index);
+    }
+    // Swarmyard Massacre: "each creature that isn't an Insect, Rat, Spider, or Squirrel" (notSubtypes)
+    else if ((mm0 = rest.match(/ that(?: isn'?t| is not| aren'?t| are not) an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+)$/))) {
+      sc.notSubtypes = mm0[1].split(/,\s*(?:or\s+)?|\s+or\s+/).map(w => singularType(w.trim().toLowerCase())).filter(Boolean);
       rest = rest.slice(0, mm0.index);
     }
     // Oviya, Automech Artisan: "Each creature that's attacking one of your opponents" (attackingYourOppScope)

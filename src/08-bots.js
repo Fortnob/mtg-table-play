@@ -3357,6 +3357,17 @@
       const e = this._resolvingEffect();
       // a Pact's upkeep (Summoner's Pact and its kin): not paying loses the game, so it is always paid
       if (e && flatEffects(e.then).some(x => x && x.op === 'loseGame')) return true;
+      /* Dance of the Dead: "that player may pay {1}{B}. If the player does, untap that creature." — what paying buys
+         (ifPaid): the creature back in play when it's ours and worth it */
+      if (e && (e.ifPaid || []).length) {
+        const rc = g.resolving && g.resolving.ctx;
+        const src = rc && (rc.obj || (rc.objId && g.obj(rc.objId)));
+        const host = src && src.attachedTo && g.obj(src.attachedTo);
+        const gain = e.ifPaid.every(x => x && x.op === 'untap' && x.scope === 'attached')
+          ? (host && host.controller === this.pid ? this.permanentValue(host) : 0)
+          : U.sum(flatEffects(e.ifPaid).map(x => this._contextWorth(x, false)));
+        return gain > 1 && mv <= 3 + this.d / 3;
+      }
       // what happens if we do not pay
       const otherwise = e ? U.sum(flatEffects(e.then).map(x => this._contextWorth(x, true))) : -1;
       if (otherwise >= 0) return false;
