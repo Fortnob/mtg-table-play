@@ -38724,7 +38724,8 @@
     /** Who controls this player right now, for how long and why: { by, span ('turn', 'combat', 'resolve'), src }, or null. */
     _controlNow(pid) {
       const p = this.player(pid);
-      if (!p || p.hasLost || this.over) return null;
+      // (asked all the time — every isBot — and nearly always of nobody controlled: said at once)
+      if (!p || !(p.controlledBy || p.controlCombat || (p.controlRes && p.controlRes.length)) || p.hasLost || this.over) return null;
       let best = null;
       const take = (r, span) => {
         const c = r && this.player(r.by);

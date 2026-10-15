@@ -419,7 +419,8 @@ module.exports = (test) => {
     });
     T.answer('pickTarget', (ch) => {
       seen = { pid: ch.playerId, by: g.playerController('B'), view: g.viewFor('A'), vb: g.viewFor('B'), opts: ch.options[0].map(x => x.id),
-        ownAnswer: g.intentActor('B', { kind: 'choice', data: {} }), asA: g.intentActor('A', { kind: 'choice', data: {}, as: 'B' }) };
+        ownAnswer: g.intentActor('B', { kind: 'choice', data: {} }), asA: g.intentActor('A', { kind: 'choice', data: {}, as: 'B' }),
+        elfTap: g.tapForMana('B', elf.id), elfErr: g.lastError };
       return { targets: [{ kind: 'object', id: bear.id }] };
     });
     T.cast('A', woc, { targets: ['B'] });
@@ -435,6 +436,8 @@ module.exports = (test) => {
     t.ok(seen.view.controlling && seen.view.controlling[0].id === 'B', 'A has B\'s seat meanwhile');
     t.ok(seen.view.controlling[0].view.pendingChoice && !seen.view.controlling[0].view.pendingChoice.waiting, 'with the question in it');
     t.ok(seen.vb.pendingChoice.waiting, 'B only sees it waiting');
+    t.no(seen.elfTap, 'the Elves can\'t be tapped for mana meanwhile: lands only');
+    t.ok(/lands/i.test(seen.elfErr || ''), 'and that is why: ' + seen.elfErr);
     t.zone(bolt, 'graveyard', 'B\'s Bolt was cast and resolved');
     t.zone(bear, 'graveyard', 'at B\'s own Bears');
     t.ok(mtn.tapped, 'paid with B\'s Mountain');
@@ -463,6 +466,48 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.life('B'), 17, 'B Bolted itself');
     t.eq(g.player('B').controlRes, null, 'and the hold is gone');
+  });
+
+  test('Player control: Word of Command — a spell B cast this way that is countered: no hold left', (mk, t) => {
+    const { T, g, woc } = commanded(mk);
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.bf('B', 'Mountain');
+    T.answer('pickCard', { cardIds: [bolt.id] });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.cast('A', woc, { targets: ['B'], resolve: false });
+    for (let guard = 0; guard < 10 && woc.zone !== 'graveyard'; guard++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.settle();
+    const item = T.stackItem(bolt);
+    t.ok(item, 'the Bolt waits');
+    item.countered = true;
+    T.resolve();
+    t.zone(bolt, 'graveyard', 'countered');
+    t.eq(T.life('B'), 20, 'no damage');
+    t.eq(g.player('B').controlRes, null, 'the hold went with it');
+  });
+
+  test('Player control: Word of Command on a bot — its questions are the person\'s, its own runner keeps out', (mk, t) => {
+    const { T, g, woc } = commanded(mk);
+    const M = T.MTG;
+    g.player('B').isBot = true;
+    const botB = new M.bots.BotPlayer(g, 'B', 5, null, { personality: 'none' });
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.bf('B', 'Mountain');
+    T.bf('B', 'Grizzly Bears');
+    let seen = null;
+    T.answer('pickCard', { cardIds: [bolt.id] });
+    T.answer('pickTarget', (ch) => {
+      const v = g.stateVersion;
+      botB.tick();
+      seen = { bot: g.player('B').isBot, moved: g.stateVersion !== v, still: g.pendingChoice === ch };
+      return { targets: [{ kind: 'player', id: 'B' }] };
+    });
+    T.cast('A', woc, { targets: ['B'] });
+    t.ok(seen, 'B\'s target asked, not decided by B\'s bot');
+    t.no(seen.bot, 'B decides as a person (A) meanwhile');
+    t.ok(!seen.moved && seen.still, 'B\'s bot left the question alone');
+    t.ok(g.player('B').isBot, 'and B is a bot again afterwards');
+    t.eq(T.life('B'), 17);
   });
 
   test('Player control: Word of Command — a spell B\'s lands can\'t pay for stays in hand; the Elves are no help', (mk, t) => {

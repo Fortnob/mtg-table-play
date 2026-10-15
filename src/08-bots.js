@@ -409,6 +409,8 @@
         if (who === 'each' || who === 'all') return 0.2;
         return 0.9 * n;
       case 'discardChosen': case 'exileChosen': return 1.3;
+      // Word of Command: a card of theirs spent as we say, as they would hate it
+      case 'commandPlay': return 1.5;
       case 'handAttack': return 1.0;
       case 'mill': return who === 'you' ? 0.1 * n : 0.08 * n;
       case 'tutor': return e.to === 'battlefield' ? 2.0 : 1.4;
