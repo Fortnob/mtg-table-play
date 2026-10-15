@@ -544,6 +544,8 @@
       // "a d20", "two d6", "a d20 and two d6": each die rolled once (the one Wyll adds is shown, not counted)
       const NUM = ['', 'a', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
       const diceWords = (ds) => {
+        // (the planar die is "the planar die", whatever its number of faces: src/12k-ui-planechase.js)
+        if (ds.length && ds.every(e => e.planar)) return ds.length === 1 ? 'the planar die' : ds.length + ' planar dice';
         const by = new Map();
         for (const e of ds) by.set(e.sides, (by.get(e.sides) || 0) + 1);
         const parts = Array.from(by, ([s, n]) => (NUM[n] || String(n)) + ' d' + s);
@@ -604,16 +606,22 @@
           const out = di >= 0 && rolls.length > 1;
           if (out) dropped.splice(di, 1);
           const shown = r == null ? '?' : String(r);
-          const face = el('b', { text: motion ? String(1 + Math.floor(Math.random() * sides)) : shown });
-          const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : sides === 4 ? ' d4' : ''), 'data-sides': String(sides),
+          /* the planar die (Planechase): its faces are the Planeswalker symbol, chaos and four blanks, drawn
+             (UI.planarFace), and it lands on the face the engine rolled (e.planar) */
+          const planar = e.planar && UI.planarFace ? e.planar : null;
+          const face = el('b', { text: planar ? '' : motion ? String(1 + Math.floor(Math.random() * sides)) : shown });
+          if (planar && !motion) face.innerHTML = UI.planarFace(planar);
+          const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : sides === 4 ? ' d4' : '') + (planar ? ' planar' : ''), 'data-sides': String(sides),
             style: { animationDelay: delay + 'ms' } }, [face]);
-          const say = el('span', { class: 'lr-say', text: 'd' + sides });
+          const say = el('span', { class: 'lr-say', text: planar ? 'planar die' : 'd' + sides });
           // (room kept under every die for "dropped" when any may be, so nothing moves as they land)
           const wrap = el('div', { class: 'lr-die-wrap' }, [die, say, mayDrop ? el('span', { class: 'lr-drop', text: 'dropped' }) : null].filter(Boolean));
           set._line.appendChild(wrap);
           const land = () => {
-            face.textContent = shown;
-            die.dataset.result = shown;
+            if (planar) face.innerHTML = UI.planarFace(planar);
+            else face.textContent = shown;
+            die.dataset.result = planar || shown;
+            if (planar) say.textContent = UI.planarFaceWord(planar);
             die.style.animationDelay = '0ms';
             die.classList.add('landed');
             if (out) wrap.classList.add('ignored');
@@ -632,7 +640,8 @@
               if (k >= 1) { land(); return; }
               let n = 1 + Math.floor(Math.random() * sides);
               if (sides > 1 && String(n) === face.textContent) n = n % sides + 1;
-              face.textContent = String(n);
+              if (planar) { const f = ['pw', 'chaos', 'blank'][(n + (face.dataset.f === 'pw' ? 1 : 0)) % 3]; face.dataset.f = f; face.innerHTML = UI.planarFace(f); }
+              else face.textContent = String(n);
               // 32ms apart at first, a quarter of a second by the end
               wait = Math.max(16, Math.min((1 - k) * this._luckFlip, 32 + 240 * k * k));
               later(tick, wait);
@@ -640,7 +649,7 @@
             later(tick, delay);
             landing = Math.max(landing, delay + this._luckFlip + 250);
           } else land();
-          if (!out) results.push(`d${sides}: ${r == null ? 'rolled in secret' : r}`);
+          if (!out) results.push(planar ? `planar die: ${UI.planarFaceWord(planar)}` : `d${sides}: ${r == null ? 'rolled in secret' : r}`);
         }
       }
       if (counted.length > 1) box.appendChild(el('div', { class: 'lr-tally', style: { animationDelay: (motion ? at + 900 : 0) + 'ms' }, text: `${won} of ${counted.length} won` }));

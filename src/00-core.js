@@ -614,6 +614,8 @@ const MANA = MTG.mana = {
     if (s === 'Q') return '↺';
     if (s === 'S') return '❄';
     if (s === 'E') return '◆';
+    // Planechase's chaos symbol (planechase.css draws it)
+    if (s === 'CHAOS') return '\u2738';
     if (s.length === 1) return s;
     // hybrid and Phyrexian read as "W/U" and "W/@PHI@" so both halves stay legible
     const parts = s.split('/');
@@ -630,6 +632,7 @@ const MANA = MTG.mana = {
     else if (s === 'Q') cs.push('pip-tap', 'pip-untap');
     else if (s === 'S') cs.push('pip-snow');
     else if (s === 'E') cs.push('pip-energy');
+    else if (s === 'CHAOS') cs.push('pip-chaos');
     else {
       const cols = MANA.COLORS.filter(c => s.includes(c));
       if (cols.length === 1) cs.push('pip-' + cols[0].toLowerCase());
