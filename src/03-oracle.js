@@ -21201,7 +21201,7 @@
       /* Pithing Needle, Meddling Mage, Stuffy Doll, Talion: a name, a player
          or a number, chosen as it enters and kept on it */
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? (?:look at an opponent'?s hand, then )?choose (?:a|any) (nonland )?card name\.?$/i,
-        make: (m) => ({ op: 'chooseOnEnter', what: 'name', nonland: !!m[1] }), auto: true },
+        make: (m) => ({ op: 'chooseOnEnter', what: 'name', nonland: !!m[1], look: /look at an opponent/i.test(m[0]) || undefined }), auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose (a player|an opponent)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: /opponent/i.test(m[1]) ? 'opponent' : 'player' }), auto: true },
       // Gollum, Riddle Master: "As Gollum enters, choose odd or even." (chosenParity)

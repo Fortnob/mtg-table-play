@@ -165,6 +165,14 @@
   function check(spec, answer, hooks) {
     const s = spec && spec.kind && spec.constraints ? spec : normalize(spec);
     const a = answer || {};
+    // a card name typed in, where any card's name may be chosen (nameAny)
+    if (s.nameAny && a.name != null) {
+      const nm = cleanName(a.name);
+      if (!nm) return { ok: false, reason: 'Type a card name.' };
+      const why = hooks && hooks.nameProblem ? hooks.nameProblem(nm, s.nameAny) : null;
+      if (why) return { ok: false, reason: why };
+      return { ok: true, picks: [], number: null, order: null, name: nm };
+    }
     if (s.kind === 'number') {
       const n = Math.floor(num(a.number != null ? a.number : (Array.isArray(a.picks) ? a.picks[0] : NaN)));
       if (!isFinite(n) || (a.number == null && !Array.isArray(a.picks))) return { ok: false, reason: 'Choose a number.' };
@@ -188,6 +196,33 @@
       if (why) return { ok: false, reason: why };
     }
     return { ok: true, picks: picks.slice(), number: null, order: s.ordered ? picks.slice() : null };
+  }
+
+  /* ---------- naming a card ----------
+     "Choose a card name" may name any card there is (CR 201.3), seen or not, so a question that asks for
+     one (`nameAny`, saying what the card must be: { nonland, nonartifact, creature }) offers the names its
+     player can see, and takes a name typed in as well: the answer's `name`. */
+  const NAME_MAX = 150;
+  /** A typed card name made tidy — one line, no control characters, not too long — or null. */
+  function cleanName(v) {
+    if (typeof v !== 'string') return null;
+    const nm = v.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return nm && nm.length <= NAME_MAX ? nm : null;
+  }
+  /** What a card's front face is (a double-faced card is its front face away from the battlefield and the stack). */
+  function frontType(card) {
+    const f = card && card.card_faces && card.card_faces[0];
+    return String((f && f.type_line) || (card && card.type_line) || '').split(' // ')[0];
+  }
+  /** Why a card can't be the one named ("a nonland card name"), or null when it can. */
+  function nameMisfit(card, want) {
+    if (!card || !want || typeof want !== 'object') return null;
+    const t = frontType(card);
+    if (!t) return null;
+    if (want.nonland && /\bLand\b/.test(t)) return `${card.name} is a land card. Name a nonland card.`;
+    if (want.nonartifact && /\bArtifact\b/.test(t)) return `${card.name} is an artifact card. Name a nonartifact card.`;
+    if (want.creature && !/\bCreature\b/.test(t)) return `${card.name} isn't a creature card. Name a creature card.`;
+    return null;
   }
 
   /** Whether one more of this could join the picks without breaking a ceiling. */
@@ -297,7 +332,9 @@
       // "choose one or more", "choose up to one": a range, when the question gives one
       const min = ch.min != null ? Math.max(0, ch.min) : count, max = ch.max != null ? Math.max(min, ch.max) : count;
       return normalize(Object.assign(base, { kind: 'options', min, max, repeat: !!ch.repeatable,
-        options: (ch.options || []).map((o, k) => ({ label: o.label, i: o.i != null ? o.i : k })) }));
+        options: (ch.options || []).map((o, k) => Object.assign({ label: o.label, i: o.i != null ? o.i : k }, o.card ? { card: o.card } : {})) },
+        // (Pithing Needle's name: any card's may be typed in)
+        ch.nameAny ? { nameAny: ch.nameAny } : {}));
     }
     // pickCard: a face-up row of particular cards
     const cards = ch.cards || [];
@@ -308,6 +345,7 @@
 
   /** The old answer for an older question answered the new way. */
   function legacyData(ch, answer) {
+    if (ch.type === 'mode' && ch.nameAny && answer && answer.name != null) return { name: answer.name };
     const picks = (answer && answer.picks) || [];
     switch (ch.type) {
       case 'confirm': return { yes: picks[0] === 1 };
@@ -318,5 +356,6 @@
     }
   }
 
-  MTG.choice = { KINDS, normalize, candidates, entryFor, check, canAdd, progress, solve, fromLegacy, legacyData, LEGACY };
+  MTG.choice = { KINDS, normalize, candidates, entryFor, check, canAdd, progress, solve, fromLegacy, legacyData, LEGACY,
+    cleanName, nameMisfit, NAME_MAX };
 })(window.MTG);

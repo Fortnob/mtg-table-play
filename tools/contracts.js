@@ -207,8 +207,12 @@ const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
 const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'unionAtLeast', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
   with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str) });
 const Remember = opt(lit('turn', 'batch'));
+/* "choose a card name": what the card must be, where any card's name may be typed in (nameAny) */
+const NameWanted = obj({ nonland: opt(bool), nonartifact: opt(bool), creature: opt(bool) }, { closed: true });
+/* a card name typed in: a string of a sensible length */
+const TypedName = prim('a card name (1 to 150 characters)', v => typeof v === 'string' && v.trim().length > 0 && v.length <= 150);
 const ChooseAnswer = obj({ picks: opt(arr(either('an id or an option index', S.id, S.int))), number: opt(num),
-  order: opt(arr(either('an id or an option index', S.id, S.int))), remember: Remember }, { closed: true });
+  order: opt(arr(either('an id or an option index', S.id, S.int))), name: opt(TypedName), remember: Remember }, { closed: true });
 const CHOICES = {
   declareAttackers: choice({ candidates: arr(id), defenders: arr(Defender, { min: 1 }) }),
   declareBlockers: choice({ attackers: arr(id, { min: 1 }), candidates: arr(id), blockingPlayer: opt(id) }),
@@ -221,7 +225,8 @@ const CHOICES = {
   orderTriggers: choice({ cards: arr(obj({ id, name: opt(str), ids: opt(arr(id, { min: 2 })) }), { min: 2 }) }),
   pickCard: choice({ count: nat, cards: arr(ChoiceCard), optional: opt(bool), candidates: opt(arr(id)), fromLibrary: opt(bool) }),
   pickTarget: choice({ specs: arr(S.plainObj, { min: 1 }), options: arr(arr(Target)), count: nat }),
-  mode: choice({ count: int, options: arr(obj({ i: int, label: str }), { min: 1 }), repeatable: opt(bool) }),
+  /* (a card name, where any may be typed in, may offer none: nameAny) */
+  mode: choice({ count: int, options: arr(obj({ i: int, label: str, card: opt(maybe(Card)) })), repeatable: opt(bool), nameAny: opt(maybe(NameWanted)) }),
   /* sacMana: what paying would sacrifice for mana (Treasures), named in the question; redo: what a yes to
      "Sacrifice 3 Treasures to cast Lightning Bolt?" does again (purpose sacMana) */
   confirm: choice({ yesLabel: opt(str), noLabel: opt(str), payMana: opt(str), sacMana: opt(SacManaNote),
@@ -238,7 +243,7 @@ const CHOICES = {
     kind: lit('objects', 'players', 'options', 'number'), purpose: opt(maybe(str)),
     items: opt(maybe(arr(ChooseItem))), options: opt(maybe(arr(ChooseOption))), number: opt(ChooseNumber),
     min: opt(nat), max: opt(nat), optional: opt(bool), repeat: opt(bool), ordered: opt(bool),
-    constraints: opt(arr(ChooseConstraint)),
+    constraints: opt(arr(ChooseConstraint)), nameAny: opt(maybe(NameWanted)),
     then: opt(maybe(obj({ kind: lit('cast'), objId: id, opts: S.plainObj }))),
   }),
 };
@@ -284,7 +289,7 @@ const ANSWERS = {
   riot: obj({ haste: opt(bool) }, { closed: true }),
   byHand: obj({ done: opt(bool) }, { closed: true }),
   vote: obj({ choice: opt(str) }, { closed: true }),
-  mode: obj({ modes: opt(arr(int)), remember: Remember }, { closed: true }),
+  mode: obj({ modes: opt(arr(int)), name: opt(TypedName), remember: Remember }, { closed: true }),
   pickCard: obj({ cardIds: opt(ids), cardId: opt(id) }, { closed: true }),
   discard: obj({ cardIds: opt(ids) }, { closed: true }),
   discardToHandSize: obj({ cardIds: opt(ids) }, { closed: true }),
@@ -587,7 +592,8 @@ function checkChoice(ch, game, opts) {
     case 'mode': {
       const opts2 = ch.options || [];
       dup(opts2.map(o => o && o.i), '.options');
-      if (!ch.repeatable && ch.count > opts2.length) bad('.count', `asks for ${ch.count} of ${opts2.length} modes`);
+      if (!ch.nameAny && !opts2.length) bad('.options', 'a question with no modes to choose');
+      if (!ch.repeatable && !ch.nameAny && ch.count > opts2.length) bad('.count', `asks for ${ch.count} of ${opts2.length} modes`);
       if (ch.count < 1) bad('.count', 'asks for no modes at all');
       break;
     }
@@ -623,7 +629,7 @@ function checkChoice(ch, game, opts) {
     case 'vote': dup(ch.options, '.options'); break;
     case 'choose': {
       const C = globalThis.MTG && globalThis.MTG.choice;
-      if (ch.kind === 'options' && !(ch.options || []).length) bad('.options', 'an options question with no options');
+      if (ch.kind === 'options' && !(ch.options || []).length && !ch.nameAny) bad('.options', 'an options question with no options');
       if ((ch.kind === 'objects' || ch.kind === 'players') && !Array.isArray(ch.items)) bad('.items', `a ${ch.kind} question with no items`);
       if (ch.kind === 'number' && !ch.number) bad('.number', 'a number question with no range');
       if (ch.kind === 'number' && ch.number && ch.number.min > ch.number.max) bad('.number', `min ${ch.number.min} is more than max ${ch.number.max}`);
@@ -642,7 +648,37 @@ function checkChoice(ch, game, opts) {
     }
     default: break;
   }
+  if (ch.nameAny && game && game.viewFor) for (const x of namePrivacy(ch, game)) out.push(x);
   if (game && ch.sourceId && !game.obj(ch.sourceId)) bad('.sourceId', `${ch.sourceId} is no object in the game`);
+  return out;
+}
+
+/**
+ * "Choose a card name" (nameAny): every name it offers must be one its player can see or knows of — on their
+ * own view of the table, in their own library, or a card they were shown (knownTo) — never a name only an
+ * opponent's hidden hand or library holds, which the list (or its order) would give away.
+ */
+function namePrivacy(ch, game) {
+  const out = [];
+  const pid = ch.playerId;
+  if (!game.player || !game.player(pid)) return out;
+  let view;
+  try { view = game.viewFor(pid); } catch (e) { return out; }
+  const known = new Set();
+  const add = (c) => { if (c && c.name && c.id !== '__facedown__') known.add(c.name); };
+  for (const o of view.battlefield || []) add(o.card);
+  for (const st of view.stack || []) add(st.card);
+  for (const p of view.players || []) {
+    for (const z of ['hand', 'graveyard', 'exile', 'command']) for (const o of p[z] || []) if (!o.hidden) add(o.card);
+    if (p.topCard) add(p.topCard.card);
+  }
+  for (const q of game.players || []) for (const o of ((game.zones[q.id] || {}).library || [])) {
+    if (q.id === pid || (game._knows && game._knows(o, pid))) add(o.card);
+  }
+  (ch.options || []).forEach((op, k) => {
+    const nm = op && op.label;
+    if (nm && !known.has(nm)) out.push({ rule: 'choice.privacy', path: `choice.options[${k}]`, msg: `offers ${show(nm)} to ${pid}, a card hidden from them` });
+  });
   return out;
 }
 
@@ -667,6 +703,7 @@ function checkAnswer(ch, data, game) {
       break;
     }
     case 'mode': {
+      if (data.name != null && !ch.nameAny) bad('answer.sense', 'answer.name', 'a card name typed in, where none may be');
       const legal = (ch.options || []).map(o => o.i);
       within(data.modes, legal, 'answer.modes', 'one of the modes offered');
       if (Array.isArray(data.modes) && !ch.repeatable && new Set(data.modes).size !== data.modes.length) bad('answer.sense', 'answer.modes', 'picks a mode twice');
@@ -1010,6 +1047,11 @@ function selfTest() {
   expect('choose question with no options', checkChoice(Object.assign({}, ask, { options: [] })), true);
   expect('choose answer', run(ANSWERS.choose, { picks: [1] }, 'a'), false);
   expect('choose answer, old shape', run(ANSWERS.choose, { cardIds: ['o1'] }, 'a'), true);
+  // "choose a card name": nothing in sight to offer, and a name typed in
+  expect('card name question with nothing offered', checkChoice(Object.assign({}, ask, { options: [], min: 0, max: 0, nameAny: { nonland: true } })), false);
+  expect('card name typed in', run(ANSWERS.choose, { name: 'Lightning Bolt' }, 'a'), false);
+  expect('card name typed in, too long', run(ANSWERS.choose, { name: 'x'.repeat(151) }, 'a'), true);
+  expect('card name typed in where none may be', checkAnswer(mode, { name: 'Lightning Bolt' }), true);
   expect('cast with generic answers', checkIntent({ kind: 'cast', objId: 'o1', choices: { replicate: { number: 2 }, splice: { picks: ['o4'] } } }), false);
   expect('cast with the additional cost and the gift said', checkIntent({ kind: 'cast', objId: 'o1', payAdditional: true, gift: null, targets: [] }), false);
   expect('cast with a gift that is not yes or no', checkIntent({ kind: 'cast', objId: 'o1', gift: 'B' }), true);

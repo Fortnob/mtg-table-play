@@ -350,6 +350,16 @@
   App.editProfile = () => App.chooseAvatar(() => { if (App.screen === 'lobby' && App.session) renderLobby(); });
 
   const idList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 60) : undefined);
+  /* An answer to a question, from the table or a guest: a card name typed in ("choose a card name") is a
+     string of a sensible length, made tidy, or left out (MTG.choice.cleanName); the engine checks the rest. */
+  const choiceData = (d) => {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return {};
+    if (!('name' in d)) return d;
+    const out = Object.assign({}, d);
+    const nm = MTG.choice.cleanName(d.name);
+    if (nm) out.name = nm; else delete out.name;
+    return out;
+  };
   /* What a person chose to pay a cost the table would otherwise pick for
      them: graveyard cards for evidence, a Food or three cards to forage,
      cards to reveal, a creature to exile or take a counter from. */
@@ -4920,7 +4930,7 @@
           Array.isArray(intent.split) ? intent.split.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c)) : undefined); break;
         case 'declareAttackers': g.declareAttackers(actorId, intent.declarations || []); break;
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
-        case 'choice': g.resolveChoice(actorId, intent.data || {}); break;
+        case 'choice': g.resolveChoice(actorId, choiceData(intent.data)); break;
         case 'concede': g.concede(actorId); break;
         // leaving the table mid-game: out of it, for everyone to see
         case 'leave': g.concede(actorId, 'left'); break;

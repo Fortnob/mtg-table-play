@@ -10526,7 +10526,8 @@ module.exports = (test) => {
     t.auto('Cranial Extraction');
     const T = mk();
     const b1 = T.hand('B', 'Lightning Bolt'), b2 = T.hand('B', 'Lightning Bolt'), other = T.hand('B', 'Opt');
-    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'Lightning Bolt')] }));
+    // (B's hand is hidden from A, so the Bolt is not offered: its name is typed in)
+    T.answer('choose', (ch) => ({ name: 'Lightning Bolt' }));
     T.mana('A', 'B');
     T.cast('A', T.hand('A', 'Cabal Therapy'), { targets: ['B'] });
     t.eq(b1.zone, 'graveyard'); t.eq(b2.zone, 'graveyard');

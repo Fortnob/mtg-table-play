@@ -245,6 +245,8 @@
       return { name: m[1], text: m[2], leads: m[3] ? m[3].split(', ') : [] };
     });
   }
+  /* What is no card's name, for "choose a card name" (_nameablesFor). */
+  const NOT_CARD_LAYOUTS = new Set(['emblem', 'token', 'double_faced_token', 'art_series', 'dungeon']);
   /* What a face-down card looks like to anybody not allowed to look (CR 708.2). */
   const FACE_DOWN_VIEW = Object.freeze({ id: '__facedown__', name: 'Face-down card', type_line: 'Creature',
     oracle_text: '', mana_cost: '', cmc: 0, colors: [], color_identity: [], keywords: [], layout: 'normal',
@@ -9398,23 +9400,107 @@
       this.logEvent('rules', `${o.name}: ${md.name} is chosen.`);
     }
 
+    /* ---------- naming a card ----------
+       "Choose a card name" may name any card (CR 201.3), but the names a player is offered come only from
+       what they can see or know: every card in a public zone (the battlefield, the stack, graveyards, face-up
+       exile, the command zone), what was revealed to them or they looked at (knownTo), and their own cards
+       wherever they are. Never a card hidden from them — an opponent's hand or library — so the list gives
+       nothing away, its order included; any other name can be typed in (the question's nameAny). The bots
+       pick from the same list, so they name only what they could know of too. */
+
+    /** Whether this player can see or knows what this card is, where it is now. */
+    _cardSeenBy(o, pid) {
+      if (!o || !o.card) return false;
+      switch (o.zone) {
+        case 'battlefield': case 'stack': case 'exile': case 'command': return !this._faceSecret(o, pid);
+        case 'graveyard': return true;
+        case 'hand': return o.owner === pid || this._knows(o, pid) || this._handShown(o.owner, pid);
+        // (their own deck is theirs to know; somebody else's top card, only when it is shown to them)
+        case 'library': {
+          if (o.owner === pid || this._knows(o, pid)) return true;
+          const lib = (this.zones[o.owner] || {}).library || [];
+          return lib[0] === o && this._topCardVisible(o.owner, pid);
+        }
+        default: return false;
+      }
+    }
+    /**
+     * The card names a player may be offered to name, the likeliest first: [{ name, card, w, theirs }].
+     * `aim`: the player it is aimed at, whose cards come first (with none, the opponents'); `ok(card)`: what
+     * the card must be; `own`: what each of the chooser's own cards weighs (1); `field`: what more each of the
+     * aimed-at player's permanents weighs (0). A card known in the aimed-at player's hand weighs most.
+     */
+    _nameablesFor(pid, opts) {
+      opts = opts || {};
+      const seen = new Map();
+      const add = (o) => {
+        if (!o || !o.card || !this._cardSeenBy(o, pid)) return;
+        // (an emblem, a token's own card, a dungeon: no card's name)
+        if (NOT_CARD_LAYOUTS.has(o.card.layout)) return;
+        if (opts.ok && !opts.ok(o.card)) return;
+        const whose = o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner;
+        const theirs = opts.aim ? whose === opts.aim : whose !== pid;
+        const w = theirs ? 3 + (o.zone === 'battlefield' ? (opts.field || 0) : 0) + (o.zone === 'hand' ? 3 : 0)
+          : whose === pid ? (opts.own != null ? opts.own : 1) : 1;
+        const k = o.card.name;
+        if (!seen.has(k)) seen.set(k, { name: k, card: o.card, w: 0, theirs: false });
+        const e = seen.get(k);
+        e.w += w;
+        if (theirs) e.theirs = true;
+      };
+      for (const x of this.battlefield) add(x);
+      for (const it of this.stack) add(it.obj);
+      for (const q of this.players) {
+        const z = this.zones[q.id] || {};
+        for (const k of ['hand', 'library', 'graveyard', 'exile', 'command']) for (const c of (z[k] || [])) add(c);
+      }
+      // the aimed-at player's (or the opponents') first, however many of their own a player has
+      return [...seen.values()].sort((a, b) => (b.theirs - a.theirs) || b.w - a.w || a.name.localeCompare(b.name));
+    }
+    /** A card's data by its name: a card in the game of that name, else the card library's. */
+    _namedCard(nm) {
+      const k = U.normName(nm);
+      if (!k) return null;
+      for (const o of this.objects.values()) {
+        const c = o.card;
+        if (c && c.name && (U.normName(c.name) === k || U.normName(U.frontName(c.name)) === k)) return c;
+      }
+      return this._cardByName(nm);
+    }
+    /** A name typed in, as the card is called (its case, its whole name), when the card is known. */
+    _canonName(nm) {
+      const c = this._namedCard(nm);
+      return c && c.name ? c.name : nm;
+    }
+    /** Why this name can't be the one named ("a nonland card name"), when the card is known; null when it can. */
+    _nameProblem(nm, want) {
+      return MTG.choice.nameMisfit(this._namedCard(nm), want);
+    }
+    /** Do these name the same card? (a double-faced card by its whole name or its front face's, in any case) */
+    _sameCardName(a, b) {
+      if (!a || !b) return false;
+      const n = (x) => U.normName(x);
+      return n(a) === n(b) || n(U.frontName(a)) === n(U.frontName(b));
+    }
+
     /* "As this enters, choose a card name / a player / a number": the most
        likely answer at once, and a person asked to confirm or change it */
     _chooseValueFor(o, rule) {
       const p = this.player(o.controller);
       if (!p) return;
       let values = [], labels = [], field = 'chosenName';
+      let named = [];
       if (rule.what === 'name') {
-        const seen = new Map();
-        for (const q of this.players) for (const z of ['hand', 'library', 'graveyard', 'exile', 'command']) for (const c of ((this.zones[q.id] || {})[z] || [])) {
-          const ca = c.analysis();
-          if (!ca || (rule.nonland && ca.isLand)) continue;
-          const k = c.card ? c.card.name : c.name;
-          const w = (seen.get(k) || 0) + (q.id === p.id ? 0 : 3);
-          seen.set(k, w);
+        // Sorcerous Spyglass: "look at an opponent's hand, then choose any card name" — the next opponent's (look)
+        if (rule.look) {
+          const opp = this.opponentsOf(p.id).find(q => !q.hasLost);
+          if (opp) { this._knowHand(opp.id, p.id); this.logEvent('reveal', `${p.name} looks at ${opp.name}'s hand.`); }
         }
-        for (const x of this.battlefield) { const ca = x.analysis(); if (ca && !(rule.nonland && ca.isLand) && x.controller !== p.id) seen.set(x.card.name, (seen.get(x.card.name) || 0) + 10); }
-        values = [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(x => x[0]).slice(0, 40);
+        // the names its controller can see: an opponent's permanents first, then the rest of theirs, their own last
+        named = this._nameablesFor(p.id, { own: 0, field: 10, ok: (c) => { const ca = O.analyze(c, 0); return !!ca && !(rule.nonland && ca.isLand); } }).slice(0, 40);
+        // (a bot names what an opponent has, never a card of its own)
+        if (p.isBot) named = named.filter(e => e.theirs);
+        values = named.map(e => e.name);
         labels = values.slice();
       } else if (rule.what === 'player' || rule.what === 'opponent') {
         field = 'chosenPlayer';
@@ -9485,13 +9571,20 @@
         this.logEvent('rules', `${o.name}: ${o.chosenNumber} is chosen at random.`);
         return;
       }
-      if (!values.length) return;
-      o[field] = values[0];
-      this.bumpBoard();
-      this.logEvent('rules', `${o.name}: ${labels[0]} is chosen.`);
-      if (!p.isBot && values.length > 1) {
-        this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseValue', objId: o.id, field, values,
-          options: labels.map((label, i) => ({ i, label })), prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : rule.what === 'parity' ? 'odd or even' : rule.what === 'cardType' ? 'a card type' : 'a player'}.` });
+      /* a name: any card's may be typed in, so a person is always asked, even with nothing in sight to offer
+         (nameAny, saying what the card must be) */
+      const nameAny = rule.what === 'name' && !p.isBot ? (rule.nonland ? { nonland: true } : {}) : null;
+      if (!values.length && !nameAny) return;
+      if (values.length) {
+        o[field] = values[0];
+        this.bumpBoard();
+        this.logEvent('rules', `${o.name}: ${labels[0]} is chosen.`);
+      }
+      if (!p.isBot && (values.length > 1 || nameAny)) {
+        this.queueChoice(Object.assign({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseValue', objId: o.id, field, values,
+          options: labels.map((label, i) => Object.assign({ i, label }, named[i] ? { card: named[i].card } : {})),
+          prompt: `${o.name}: choose ${rule.what === 'name' ? 'a card name' : rule.what === 'number' ? 'a number' : rule.what === 'parity' ? 'odd or even' : rule.what === 'cardType' ? 'a card type' : 'a player'}.` },
+        nameAny ? { nameAny } : {}));
       }
     }
     _chooseColorFor(o) {
@@ -15007,7 +15100,7 @@
         // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — this object, since it last entered (marked in _evDamage)
         case 'selfNoDamageYet': return !!src && !src._dealtDamage;
         // Isperia the Inscrutable: the name chosen as this resolved, among the hand it revealed (chosenNameRevealed)
-        case 'chosenNameRevealed': return !!this._chosenNameNow && ((this._revealedHand || {}).names || []).includes(this._chosenNameNow);
+        case 'chosenNameRevealed': return !!this._chosenNameNow && ((this._revealedHand || {}).names || []).some(n0 => this._sameCardName(n0, this._chosenNameNow));
         case 'selfAttacking': return !!src && !!src.attacking;
         // Tromokratis: "unless it's attacking or blocking"
         case 'selfInCombat': return !!src && src.zone === 'battlefield' && !!(src.attacking || (src.blocking && src.blocking.length));
@@ -19104,6 +19197,11 @@
       const r = this.resolving;
       if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + (sub ? ':' + sub : ''))) return this._ask(s, sub);
       const hooks = this._chooseHooks(s.playerId);
+      /* a card name, where any card's may be typed in (nameAny): a person is asked whatever is on offer, even
+         nothing or one name; a bot names one of those on offer, or none */
+      const asker = this.player(s.playerId);
+      if (s.nameAny && asker && !asker.isBot) return r ? this._ask(s, sub) : this._decideChoose(s.playerId, s);
+      if (s.nameAny && !(s.options || []).length) return { picks: [], number: null, order: null };
       if (!C.solve(s, { hooks })) return null;
       // nothing to decide: one number, or every one of the things on offer
       if (s.kind === 'number' && s.number.min === s.number.max) return { picks: [], number: s.number.min, order: null };
@@ -19130,6 +19228,8 @@
       return {
         canPay: (cost) => this.couldPay(playerId, cost, this.manaSources(playerId)),
         alive: (id) => typeof id !== 'string' || !!this.player(id) || (!!this.obj(id) && !!this.obj(id).zone),
+        // a card name typed in: what the card must be, when it is known (_nameProblem)
+        nameProblem: (nm, want) => this._nameProblem(nm, want),
       };
     }
 
@@ -19162,7 +19262,7 @@
       try { if (MTG.bots && MTG.bots.answerChoose) ans = MTG.bots.answerChoose(this, playerId, s); } catch (e) { console.warn('[choose]', e); }
       let got = ans ? C.check(s, ans, hooks) : null;
       if (!got || !got.ok) got = C.check(s, C.solve(s, { hooks }) || { picks: [] }, hooks);
-      return got.ok ? { picks: got.picks, number: got.number, order: got.order } : { picks: [], number: null, order: null };
+      return got.ok ? Object.assign({ picks: got.picks, number: got.number, order: got.order }, got.name ? { name: this._canonName(got.name) } : {}) : { picks: [], number: null, order: null };
     }
 
     /**
@@ -33577,42 +33677,34 @@
           this.logEvent('reveal', `${me.name} reveals ${picks.length} card${picks.length === 1 ? '' : 's'}: ${picks.map(id => (this.obj(id) || {}).name).join(', ')}.`);
           break;
         }
-        /* "Choose a nonland card name": offered from the cards in the game, the likeliest first —
-           those of the player it is aimed at, the most copies first */
+        /* "Choose a nonland card name": offered from the cards its player can see or knows of (_nameablesFor), the
+           likeliest first — those of the player it is aimed at, the most copies first; any other card's name may
+           be typed in (nameAny) */
         case 'chooseName': {
           const aim = firstPlayer();
-          const seen = new Map();
-          const add = (c, w) => {
-            if (!c || !c.card) return;
-            const ca = O.analyze(c.card, 0) || {};
-            if (e.nonland && ca.isLand) return;
-            if (e.nonartifact && ca.isArtifact) return;
-            if (e.creature && !ca.isCreature) return;
-            const k = c.card.name;
-            if (!seen.has(k)) seen.set(k, { w: 0, card: c.card });
-            seen.get(k).w += w;
-          };
-          for (const q of this.players) {
-            const z = this.zones[q.id] || {};
-            const w = aim ? (q.id === aim.id ? 3 : 1) : (q.id === me.id ? 1 : 3);
-            for (const k of ['hand', 'library', 'graveyard', 'exile']) for (const c of (z[k] || [])) add(c, w);
-          }
-          for (const x of this.battlefield) add(x, x.controller === (aim || {}).id ? 3 : 1);
-          const names = [...seen].sort((a, b) => b[1].w - a[1].w || a[0].localeCompare(b[0])).slice(0, 60);
-          if (!names.length) break;
+          const want = { nonland: e.nonland || undefined, nonartifact: e.nonartifact || undefined, creature: e.creature || undefined };
+          const names = this._nameablesFor(me.id, { aim: aim ? aim.id : null, ok: (c) => {
+            const ca = O.analyze(c, 0) || {};
+            return !(e.nonland && ca.isLand) && !(e.nonartifact && ca.isArtifact) && !(e.creature && !ca.isCreature);
+          } }).slice(0, 60);
+          this._chosenNameNow = null;
+          if (!names.length && me.isBot) break;
           const got = this._choose({ playerId: me.id, purpose: 'chooseCardName', kind: 'options', min: 1, max: 1,
-            options: names.map(([k, v]) => ({ label: k, key: k, card: v.card })),
+            options: names.map(x => ({ label: x.name, key: x.name, card: x.card })), nameAny: JSON.parse(JSON.stringify(want)),
             prompt: `${ctx.name || 'Name a card'}: choose a card name.` }, 'nameIt');
           if (got === SUSPEND) return SUSPEND;
-          this._chosenNameNow = names[((got && got.picks) || [])[0] || 0][0];
-          this.logEvent('rules', `${me.name} names ${this._chosenNameNow}.`);
+          const pick = got && got.picks && got.picks.length ? names[got.picks[0]] : null;
+          const nm = (got && got.name) || (pick && pick.name) || null;
+          if (!nm) break;
+          this._chosenNameNow = nm;
+          this.logEvent('rules', `${me.name} names ${nm}.`);
           break;
         }
         // Cabal Therapy: every card with that name, from that player's hand
         case 'discardNamed': {
           const p = firstPlayer(); const nm = this._chosenNameNow;
           if (!p || !nm) break;
-          const hits = this.zones[p.id].hand.filter(c => c.card && c.card.name === nm);
+          const hits = this.zones[p.id].hand.filter(c => c.card && this._sameCardName(c.card.name, nm));
           this._knowHand(p.id, '*');
           this.logEvent('reveal', `${p.name} reveals their hand.`);
           for (const c of hits) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
@@ -33645,7 +33737,7 @@
           if (!p || !nm) break;
           const z = this.zones[p.id];
           let k = 0;
-          for (const zn of ['graveyard', 'hand', 'library']) for (const c of z[zn].slice()) if (c.card && c.card.name === nm) { this.moveObject(c, 'exile'); k++; }
+          for (const zn of ['graveyard', 'hand', 'library']) for (const c of z[zn].slice()) if (c.card && this._sameCardName(c.card.name, nm)) { this.moveObject(c, 'exile'); k++; }
           this.rng.shuffle(z.library);
           this.logEvent('exile', `${k} card${k === 1 ? '' : 's'} named ${nm} exiled from ${p.name}'s graveyard, hand and library.`);
           break;
@@ -33659,15 +33751,15 @@
           });
           if (!names.length) break;
           const got = this._choose({ playerId: me.id, purpose: 'chooseCardName', kind: 'options', min: 1, max: 1,
-            options: names.map(n0 => ({ label: n0, key: n0, card: (lib.find(c => c.name === n0) || {}).card })),
+            options: names.map(n0 => ({ label: n0, key: n0, card: (lib.find(c => c.name === n0) || {}).card })), nameAny: {},
             prompt: `${ctx.name || 'Demonic Consultation'}: name a card.` }, 'consultName');
           if (got === SUSPEND) return SUSPEND;
-          const name = names[((got && got.picks) || [])[0] || 0];
+          const name = (got && got.name) || names[((got && got.picks) || [])[0] || 0];
           for (let i = 0; i < (e.skip || 0) && lib.length; i++) this.moveObject(lib[0], 'exile');
           let found = null;
           while (lib.length) {
             const c = lib[0];
-            if (c.name === name) { found = c; this._know(c, '*'); this.moveObject(c, 'hand'); break; }
+            if (this._sameCardName(c.card ? c.card.name : c.name, name)) { found = c; this._know(c, '*'); this.moveObject(c, 'hand'); break; }
             this.moveObject(c, 'exile');
           }
           this.logEvent('reveal', found ? `${me.name} names ${name}, and finds it.` : `${me.name} names ${name}; it never comes, and the library is gone.`);
@@ -36666,7 +36758,7 @@
             else if (p && p.isBot) got = C.check(ch, any, hooks);
             if (!got.ok) return this.fail(got.reason);
           }
-          data = { picks: got.picks, number: got.number, order: got.order };
+          data = Object.assign({ picks: got.picks, number: got.number, order: got.order }, got.name ? { name: this._canonName(got.name) } : {});
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
           // Deadpool, Trading Card: the creature picked as it entered, if any, exchanges text boxes with it
@@ -37041,6 +37133,19 @@
             if (o && ch.field === 'chosenKeywords') {
               const got = [...new Set(((data && data.modes) || []).map(i => ch.values[i]).filter(x => x !== undefined))].slice(0, ch.count || 1);
               if (got.length === (ch.count || 1)) { o.chosenKeywords = got; o._chr = null; this.bumpBoard(); this.logEvent('rules', `${this.player(playerId).name} chooses ${got.join(' and ')} for ${o.name}.`); }
+              break;
+            }
+            // a card name typed in (nameAny): any card's, but what the card must be when it is known
+            if (ch.nameAny && data && data.name != null) {
+              const nm = MTG.choice.cleanName(data.name);
+              if (!nm) return this.fail('Type a card name.');
+              const why = this._nameProblem(nm, ch.nameAny);
+              if (why) return this.fail(why);
+              if (o) {
+                o[ch.field] = this._canonName(nm);
+                o._chr = null; this.bumpBoard();
+                this.logEvent('rules', `${this.player(playerId).name} chooses ${o[ch.field]} for ${o.name}.`);
+              }
               break;
             }
             if (o && idx != null && ch.values[idx] !== undefined) {
@@ -38295,7 +38400,7 @@
         case 'pickCard': return (data.cardIds || (data.cardId ? [data.cardId] : []));
         case 'pickTarget': return (data.targets || []);
         case 'arrange': return { top: (data.top || []) };
-        case 'choose': return { picks: (data.picks || []).slice(), number: data.number != null ? data.number : null, order: data.order || null };
+        case 'choose': return Object.assign({ picks: (data.picks || []).slice(), number: data.number != null ? data.number : null, order: data.order || null }, typeof data.name === 'string' ? { name: data.name } : {});
         default: return data;
       }
     }
@@ -38989,18 +39094,24 @@
       return String(f.oracle_text != null ? f.oracle_text : (c.oracle_text || '')).replace(/\bCARDNAME\b/g, o.name);
     }
 
+    /** Whether a face-down card (or a hidden agenda) is a secret from this player (viewFor). `seesDown`: _seesFaceDown. */
+    _faceSecret(o, playerId, seesDown) {
+      if (seesDown === undefined) seesDown = this._seesFaceDown(playerId);
+      return ((o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId &&
+          !(o.faceDown && o.zone === 'battlefield' && (seesDown || this._knows(o, playerId)))) ||
+        /* exiled face down, a card is nobody's to see but the player allowed to look at or play it, or
+           whose hideaway holds it (CR 406.3) — Gonti, Lord of Luxury's opponent included */
+        (o.zone === 'exile' && !!o.faceDownExile && o.lookableBy !== playerId && o.impulseBy !== playerId && o.freeCastBy !== playerId &&
+          !(o.hiddenBy && (this.obj(o.hiddenBy) || {}).controller === playerId));
+    }
+
     viewFor(playerId) {
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
          so the card cannot be read off the wire. */
       // Lens of Clarity, Keeper of the Lens: face-down creatures, to the one who may look at them (seeFaceDown)
       const seesDown = this._seesFaceDown(playerId);
-      const secret = (o) => ((o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId &&
-          !(o.faceDown && o.zone === 'battlefield' && (seesDown || this._knows(o, playerId)))) ||
-        /* exiled face down, a card is nobody's to see but the player allowed to look at or play it, or
-           whose hideaway holds it (CR 406.3) — Gonti, Lord of Luxury's opponent included */
-        (o.zone === 'exile' && !!o.faceDownExile && o.lookableBy !== playerId && o.impulseBy !== playerId && o.freeCastBy !== playerId &&
-          !(o.hiddenBy && (this.obj(o.hiddenBy) || {}).controller === playerId));
+      const secret = (o) => this._faceSecret(o, playerId, seesDown);
       /* a card face down off the battlefield (exiled face down: Gonti, hideaway, foretell) says nothing of itself to
          those who may not see it: no power, toughness, keywords or effects read off the card underneath */
       const blank = (o) => o.zone !== 'battlefield' && o.zone !== 'stack' && secret(o);

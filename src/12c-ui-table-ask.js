@@ -500,6 +500,7 @@
     chooseConfirm(ch) {
       const s = this.chooseSpec(ch);
       if (!s) return;
+      if (s.nameAny) return UI.error('Pick a card name, or type one.');
       if (!MTG.choice.solve(s)) return this.chooseSend(ch, { picks: [] });
       const ans = this.chooseReady(s);
       const sel = this.chooseSel(s);
@@ -538,6 +539,8 @@
     choosePrimary(ch) {
       const s = this.chooseSpec(ch);
       const sel = this.chooseSel(s);
+      // a card name is picked or typed in the panel, and that is the answer
+      if (s.nameAny) return { label: 'Choose', cls: 'idle', disabled: true, sub: 'pick or type a card name' };
       // cards only to look at
       if (s.kind === 'objects' && s.max === 0) return { label: 'Done', cls: 'go', sub: 'when you have looked' };
       if (!MTG.choice.solve(s)) return { label: 'Continue', cls: 'go', sub: 'nothing can be chosen' };
@@ -576,6 +579,8 @@
       const C = MTG.choice;
       const s = this.chooseSpec(ch);
       if (!s) return null;
+      // "choose a card name": the names you can see, and a field to find any other card's
+      if (s.nameAny && s.kind === 'options') return this.namePanel(ch, s, card, head);
       const sel = this.chooseSel(s);
       const board = this.chooseBoardIds(s);
       if (s.kind === 'players') return null;
@@ -651,6 +656,113 @@
           fn: () => this.chooseConfirm(ch) });
       }
       return this.panel(title, sub, body, buttons, { wide: s.kind === 'objects', card, foot: this.autoFoot(ch) });
+    },
+
+    /**
+     * "Choose a card name" (the question's nameAny): any card's name may be named, seen or not (CR 201.3).
+     * The names on offer are the ones you can see or know of in this game; the field above them narrows
+     * them as you type and suggests other card names from the whole card list (the card database when it
+     * is downloaded, else Scryfall), and, when nothing it knows matches, offers the name just as you typed
+     * it. A name you type is checked against what the card must be ("a nonland card name") when its card
+     * can be found, and the game checks it again.
+     */
+    namePanel(ch, s, card, head) {
+      const C = MTG.choice;
+      const sel = this.chooseSel(s);
+      const want = s.nameAny || {};
+      const [title, sub0] = head('Choose a card name', '');
+      const opts = s.options || [];
+      const norm = (x) => U.normName(x);
+      const known = new Set(opts.map(o => norm(o.label)));
+      const still = () => { const cur = this.chooseLive(); return !!cur && this.chooseSel(cur.s) === sel; };
+      let busy = false;
+      // a name not among those offered: its card looked up, to say so when it can't be the one named
+      const sendName = async (nm, row) => {
+        if (busy) return;
+        busy = true;
+        if (row) row.classList.add('busy');
+        let cd = null;
+        try {
+          if (MTG.scry && !MTG.scry.offline) cd = await Promise.race([MTG.scry.byName(nm).catch(() => null), new Promise(r => setTimeout(() => r(null), 3000))]);
+        } catch (e) { cd = null; }
+        busy = false;
+        if (row) row.classList.remove('busy');
+        if (!still()) return;
+        // (a fuzzy match for something else is no help: the name stays as typed)
+        if (cd && norm(cd.name) !== norm(nm) && norm(U.frontName(cd.name)) !== norm(nm)) cd = null;
+        const why = C.nameMisfit(cd, want);
+        if (why) return UI.error(why);
+        this.chooseSend(ch, { name: cd ? cd.name : nm });
+      };
+      const row = (label, fn, extra) => {
+        const b = el('button', { type: 'button', class: 'mode-opt' + (extra && extra.cls ? ' ' + extra.cls : ''), onclick: fn }, [
+          el('span', { class: 'mode-dot' }),
+          el('span', { class: 'mode-text', text: label }),
+          extra && extra.note ? el('span', { class: 'name-note', text: extra.note }) : null,
+        ].filter(Boolean));
+        if (extra && extra.card) UI.attachPreview(b, extra.card, 0);
+        return b;
+      };
+      const seenHead = el('div', { class: 'name-head', text: 'In this game' });
+      const seen = opts.map((o, k) => {
+        const b = row(o.label, () => this.chooseSend(ch, { picks: [k] }), { card: o.card || null });
+        b._name = o.label;
+        return b;
+      });
+      const moreHead = el('div', { class: 'name-head', text: 'Other cards', hidden: true });
+      const more = el('div', { class: 'name-more' });
+      const empty = el('div', { class: 'pp-empty name-empty', text: opts.length ? 'No name you have seen matches.' : 'There is nothing in sight to name. Type a card name above.', hidden: !!opts.length });
+      const list = el('div', { class: 'mode-list name-list' }, [opts.length ? seenHead : null].concat(seen, [empty, moreHead, more]).filter(Boolean));
+      const box = el('input', { type: 'search', class: 'mode-search name-search', value: sel.nameQ || '', placeholder: 'Type a card name…',
+        'aria-label': 'Card name', autocomplete: 'off', spellcheck: 'false', maxlength: String(C.NAME_MAX) });
+      let flight = null, timer = null;
+      const redraw = (q, names) => {
+        more.innerHTML = '';
+        const extra = (names || []).filter(nm => !known.has(norm(nm))).slice(0, 8);
+        for (const nm of extra) more.appendChild(row(nm, (e) => sendName(nm, e.currentTarget)));
+        // nothing anywhere called that: the name as typed
+        const typed = C.cleanName(q);
+        const exact = typed && (known.has(norm(typed)) || (names || []).some(nm => norm(nm) === norm(typed)));
+        if (typed && typed.length >= 2 && !exact && !extra.length) more.appendChild(row(typed, (e) => sendName(typed, e.currentTarget), { cls: 'typed', note: 'as typed' }));
+        moreHead.hidden = !more.children.length;
+      };
+      const filter = () => {
+        const q = box.value;
+        sel.nameQ = q;
+        const k = norm(q.trim());
+        let shown = 0;
+        for (const b of seen) { b.hidden = !!k && !norm(b._name).includes(k); if (!b.hidden) shown++; }
+        seenHead.hidden = !shown;
+        // (said when nothing seen matches what is typed; with nothing seen at all, until something is typed)
+        empty.hidden = opts.length ? !(k && !shown) : !!k;
+        if (flight) flight.abort();
+        flight = null;
+        clearTimeout(timer);
+        redraw(q, []);
+        if (k.length < 2 || !MTG.scry || !MTG.scry.autocomplete) return;
+        // other cards' names, from the card database or Scryfall; offline, none (the name as typed stays)
+        timer = setTimeout(() => {
+          flight = typeof AbortController === 'function' ? new AbortController() : null;
+          const asked = box.value;
+          MTG.scry.autocomplete(asked.trim(), flight ? { signal: flight.signal } : {}).then((names) => {
+            if (box.value !== asked) return;
+            redraw(asked, (names || []).filter(nm => !/^A-/.test(nm)));
+          }).catch(() => {});
+        }, 160);
+      };
+      box.addEventListener('input', filter);
+      // Enter takes the first name showing
+      box.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const first = [...list.querySelectorAll('.mode-opt')].find(b => !b.hidden);
+        if (first) first.click();
+      });
+      if (sel.nameQ) filter();
+      // (a phone's keyboard would cover the names: there, the field waits to be tapped)
+      if (!MTG.isTouch()) setTimeout(() => { try { box.focus(); } catch (e) {} }, 0);
+      const sub = [sub0, opts.length ? 'Pick a name you have seen, or type to find any card.' : 'Type to find any card.'].filter(Boolean).join('<br>');
+      return this.panel(title, sub, el('div', { class: 'mode-searchable name-pick' }, [box, list]), [], { card });
     },
 
     /**

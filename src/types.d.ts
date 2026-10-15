@@ -410,9 +410,15 @@ declare namespace MTG {
     aimedBy?: Array<Record<string, any>>;
   }
   interface ModeChoice extends ChoiceBase {
-    type: 'mode'; count: number; options: Array<{ i: number; label: string }>; repeatable?: boolean;
+    /** an option that is a card's name (Pithing Needle's) carries the card, to be shown on hover */
+    type: 'mode'; count: number; options: Array<{ i: number; label: string; card?: Card | null }>; repeatable?: boolean;
     values?: any[]; types?: string[]; colors?: string[]; field?: string; castOpts?: Record<string, any>;
+    /** "choose a card name": any card's name may be typed in as well (the answer's `name`) */
+    nameAny?: NameWanted | null;
   }
+  /** What a card named in answer to "choose a nonland card name" must be. Only the names a player can see or
+      knows of are offered (never a card hidden from them); any other is typed in, and checked when the card is known. */
+  interface NameWanted { nonland?: boolean; nonartifact?: boolean; creature?: boolean }
   /** What the game would sacrifice for mana to pay a price for you (Treasures and the like), said in the question
       that offers it or asks about it: their ids, how many, and the words ("2 Treasures and a Gold token"). Only
       the player asked sees it, as with the rest of their question. */
@@ -452,11 +458,14 @@ declare namespace MTG {
     max?: number;
     optional?: boolean;
     constraints?: ChooseConstraint[];
+    /** a card name may be typed in, besides the names offered (the answer's `name`) */
+    nameAny?: NameWanted | null;
     [k: string]: any;
   }
 
-  /** The answer to a generic question: ids or option indexes, a number, or the picks in order. */
-  interface ChooseAnswer { picks?: Array<Id | number>; number?: number; order?: Array<Id | number> }
+  /** The answer to a generic question: ids or option indexes, a number, or the picks in order; or, where a card
+      name may be typed in (nameAny), the name. */
+  interface ChooseAnswer { picks?: Array<Id | number>; number?: number; order?: Array<Id | number>; name?: string }
 
   /** The general question (src/06a-choice.js, docs/choices.md), as normalize() leaves it. */
   interface ChooseChoice extends ChoiceBase {
@@ -473,6 +482,8 @@ declare namespace MTG {
     repeat?: boolean;
     ordered?: boolean;
     constraints?: ChooseConstraint[];
+    /** "choose a card name": any card's name may be typed in as well (the answer's `name`) */
+    nameAny?: NameWanted | null;
     /** a question asked while casting starts the cast again with the answer */
     then?: { kind: 'cast'; objId: Id; opts: Record<string, any> };
     zone?: string;
