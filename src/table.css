@@ -292,11 +292,14 @@
   transition: transform .2s; }
 .life-orb.low .orb-life { color: #ff8a7d; border-color: #c2412f; }
 .life-orb.turn .orb-ring { box-shadow: 0 0 0 2px rgba(246,220,140,.25), 0 0 22px 4px rgba(246,200,110,.45), 0 6px 18px rgba(0,0,0,.6); }
-.life-orb.acting::before { content: ''; position: absolute; inset: -6px; border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0 70%, rgba(130,200,255,.9) 92%, transparent 100%);
-  -webkit-mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 2px)); mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 2px));
-  animation: orbSpin 1.3s linear infinite; }
-@keyframes orbSpin { to { rotate: 360deg; } }
+/* whoever is acting: a ring round their portrait that breathes, slowly (Arena's hourglass, calmer); still under
+   reduced motion (D4) */
+.life-orb.acting::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none;
+  border: 3px solid rgba(130,200,255,.9); box-shadow: 0 0 14px 2px rgba(120,180,255,.45), inset 0 0 8px rgba(120,180,255,.3);
+  animation: orbActing 2.6s ease-in-out infinite; }
+@keyframes orbActing { 0%, 100% { opacity: .3; scale: .97; } 50% { opacity: 1; scale: 1.03; } }
+@media (prefers-reduced-motion: reduce) { .life-orb.acting::before { animation: none; opacity: .85; } }
+:root[data-reduce-motion] .life-orb.acting::before { animation: none; opacity: .85; }
 .life-orb.targetable { cursor: crosshair; }
 .life-orb.targetable .orb-ring { box-shadow: 0 0 0 3px var(--aim), 0 0 28px 8px rgba(255,201,77,.6); animation: aimGlowOrb 1s ease-in-out infinite; }
 @keyframes aimGlowOrb { 50% { box-shadow: 0 0 0 4px var(--aim), 0 0 40px 14px rgba(255,201,77,.35); } }
@@ -1119,7 +1122,7 @@
 .life-orb.mini { --orb: 42px; cursor: pointer; }
 .life-orb.mini .orb-life { bottom: -6px; font-size: 11px; min-width: 26px; padding: 0 4px; border-width: 1.5px; }
 .life-orb.mini .orb-art { font-size: 17px; }
-.life-orb.mini.acting::before { inset: -4px; }
+.life-orb.mini.acting::before { inset: -4px; border-width: 2px; }
 .op-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .op-name { font: 600 12.5px/1.25 var(--serif); color: #f4f0e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .op-hand { flex: none; display: inline-flex; align-items: center; gap: 3px; font: 700 11px/1 var(--font); color: #cfd6e2;

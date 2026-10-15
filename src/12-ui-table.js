@@ -1402,7 +1402,7 @@
       const why = { life: 'no life left', poison: 'ten poison counters', deck: 'drew from an empty library', commander: '21 commander damage',
         concede: 'conceded', timeout: 'left the game', time: 'ran out of time' }[p.lossReason] || p.lossReason;
       if (p.hasLost) return 'Defeated' + (why ? ' — ' + why : '');
-      /* Who is acting is the ring turning round their portrait (paintOrb) and the line on the big button, said
+      /* Who is acting is the ring breathing round their portrait (paintOrb) and the line on the big button, said
          once; how good a bot is and how it plays is on the portrait, pointed at or held (botWords) */
       return p.connected === false ? 'disconnected' : '';
     }
