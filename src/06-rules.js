@@ -3689,9 +3689,11 @@
         return !!e && (e.who === 'all' || x.controller === pid);
       });
     }
-    /** How many card types there are among the cards in these graveyards ('all', 'you', 'opponents'). */
-    _typesAmongGraveyards(pid, whose) {
-      const TYPES = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Tribal', 'Land', 'Planeswalker', 'Sorcery'];
+    /** How many card types there are among the cards in these graveyards ('all', 'you', 'opponents'); only permanent types for
+     *  Korvold, Gleeful Glutton's "permanent types among cards in your graveyard" (permOnly). */
+    _typesAmongGraveyards(pid, whose, permOnly) {
+      const TYPES = permOnly ? ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Land', 'Planeswalker']
+        : ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Tribal', 'Land', 'Planeswalker', 'Sorcery'];
       const who = whose === 'all' ? this.players : whose === 'opponents' ? this.opponentsOf(pid) : [this.player(pid)].filter(Boolean);
       const seen = new Set();
       for (const p of who) for (const c of ((this.zones[p.id] || {}).graveyard || [])) {
@@ -4303,7 +4305,7 @@
         for (const p of this.players) for (const c of ((this.zones[p.id] || {}).exile || [])) if (!c.faceDownExile) best = Math.max(best, (c.card && c.card.cmc) || 0);
         return best * mult;
       }
-      if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
+      if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards, v.permanentTypes) * mult;
       // Summon: Bahamut: "the total mana value of other permanents you control"
       if (v.spellsCastThisTurn) return (((this.player(pid) || {}).spellsCastThisTurn) || 0) * mult;
       // Thrasta, Tempest's Roar: "each other spell cast this turn" — by any player; the one being cast is not yet counted
@@ -4340,6 +4342,13 @@
       // The Master of Lake-town: "each graveyard with seven or more cards in it" (graveyardsWithAtLeast)
       if (v.graveyardsWithAtLeast) return this.players.filter(q => !q.hasLost && (((this.zones[q.id] || {}).graveyard || []).length >= v.graveyardsWithAtLeast)).length * mult;
       // (Dargo, the Shipwrecker: "artifact or creature" — either one)
+      // Korvold, Gleeful Glutton: the card types among permanents you've sacrificed this turn (sacrificedTypesThisTurn)
+      if (v.sacrificedTypesThisTurn) {
+        const CARD_TYPES = ['artifact', 'battle', 'creature', 'enchantment', 'kindred', 'land', 'planeswalker'];
+        const seen = new Set();
+        for (const w of ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || [])) for (const t of CARD_TYPES) if (w.includes(t)) seen.add(t);
+        return seen.size * mult;
+      }
       if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || String(v.sacrificedThisTurn).split(' or ').some(t => w.includes(t))).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
@@ -12019,14 +12028,22 @@
         if (!lim) continue;
         // Mirri, Weatherlight Duelist: only while it is tapped (limitWhileTapped)
         if (lim.whileTapped && !s0.tapped) continue;
-        const hits = (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller;
-        let seen = 0;
-        const before = declarations.length;
-        // a person is told and declares again; a bot's extra attackers stay home
-        if (!(this.player(playerId) || {}).isBot && declarations.filter(hits).length > (lim.n || 1))
-          return this.fail(`${s0.name}: no more than ${lim.n || 1} creature${(lim.n || 1) === 1 ? '' : 's'} can attack${lim.you ? ' ' + this.player(s0.controller).name : ''} each combat.`);
-        declarations = declarations.filter(d => !hits(d) || ++seen <= (lim.n || 1));
-        if (declarations.length < before) this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} attacking${lim.you ? ' ' + this.player(s0.controller).name : ''}.`);
+        /* Tomik, Orzhov Lawmage: "Planeswalkers you control have 'No more than
+           one creature can attack this planeswalker each combat.'" — counted for each one (eachPlaneswalker) */
+        const groups = lim.eachPlaneswalker
+          ? this.battlefield.filter(pw => pw.controller === s0.controller && !pw.phasedOut && (pw.analysis() || {}).isPlaneswalker)
+            .map(pw => ({ hits: (d) => d.defenderId === pw.id, what: pw.name }))
+          : [{ hits: (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller,
+            what: lim.you ? this.player(s0.controller).name : '' }];
+        for (const { hits, what } of groups) {
+          let seen = 0;
+          const before = declarations.length;
+          // a person is told and declares again; a bot's extra attackers stay home
+          if (!(this.player(playerId) || {}).isBot && declarations.filter(hits).length > (lim.n || 1))
+            return this.fail(`${s0.name}: no more than ${lim.n || 1} creature${(lim.n || 1) === 1 ? '' : 's'} can attack${what ? ' ' + what : ''} each combat.`);
+          declarations = declarations.filter(d => !hits(d) || ++seen <= (lim.n || 1));
+          if (declarations.length < before) this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} attacking${what ? ' ' + what : ''}.`);
+        }
       }
       const legalDef = new Set(ch.defenders.map(d => d.id));
       for (const d of declarations) {
@@ -15047,6 +15064,8 @@
         case 'extraTurn': return !!this.isExtraTurn;
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
         case 'unspentMana': return !!me && this._unspentMana(me, '*') >= (cond.n || 1);
+        // Helmut Zemo, Mastermind: "If you cast a spell this way" — a spell cast as this resolves (castThisWay)
+        case 'castThisWay': return !!(this.resolving && (this.resolving.castThisWay || []).length);
         // Elanor Gardner: "if you sacrificed a Food this turn" (sacrificedThisTurn)
         case 'sacrificedThisTurn': {
           const sb = ((h.sacrificedBy || {})[me && me.id]) || [];
@@ -30304,8 +30323,13 @@
           break;
         case 'goad':
           // (Jon Irenicus, Shattered One: "goaded for the rest of the game" — forever)
-          applyToScope(e, (o) => { o.goadedBy = ctx.controller; if (e.forever) o.goadForever = ctx.controller; this.logEvent('rules', `${o.name} is goaded${e.forever ? ' for the rest of the game' : ''}.`); });
+        {
+          // (Kaima, the Fractured Calm: "for each creature goaded this way" — counted: lastSweep)
+          let k = 0;
+          applyToScope(e, (o) => { k++; o.goadedBy = ctx.controller; if (e.forever) o.goadForever = ctx.controller; this.logEvent('rules', `${o.name} is goaded${e.forever ? ' for the rest of the game' : ''}.`); });
+          this._lastSweep = k;
           break;
+        }
 
         case 'noUntap':
           applyToScope(e, (o) => {
@@ -30697,8 +30721,8 @@
             if (e.altMana && !this.couldPay(ctx.controller, e.altMana, this.manaSources(ctx.controller))) continue;
             // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
-            // (Oskar: paying its costs — what can't be paid for is not asked about)
-            if ((e.from === 'triggerObj' || e.from === 'selfFromGrave') && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
+            // (Oskar: paying its costs — what can't be paid for is not asked about; Helmut Zemo, Mastermind: a target card too)
+            if ((e.from === 'triggerObj' || e.from === 'selfFromGrave' || (e.from === 'targets' && !e.anyMana)) && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
             const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,

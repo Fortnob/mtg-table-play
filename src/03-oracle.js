@@ -291,6 +291,8 @@
     if (lab) { cost.label = lab[1].toLowerCase(); str = lab[2]; }
     // "from among other artifacts, creatures, and planeswalkers you control" is one part of the price
     str = String(str).replace(/from among [a-z ,]+? you control/i, (x) => x.replace(/,/g, '\u0001'));
+    // (The Archimandrite: "Tap three untapped Advisors, Artificers, and/or Monks you control" — one part too)
+    str = str.replace(/untapped [A-Za-z]+(?:, [A-Za-z]+)+, and\/or [A-Za-z]+ you control/i, (x) => x.replace(/,/g, '\u0001'));
     const parts = str.split(/,\s*(?![^{]*\})/);
     for (let p of parts) {
       p = p.replace(/\u0001/g, ',').trim();
@@ -488,7 +490,7 @@
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
          price, the way convoke taps them for a spell. */
-      if ((m = p.match(/^Tap (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (other )?untapped ([A-Za-z \/-]+?) you control$/i))) {
+      if ((m = p.match(/^Tap (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (other )?untapped ([A-Za-z ,\/-]+?) you control$/i))) {
         const word = m[1].toLowerCase();
         // "Elves" is an Elf and "Allies" an Ally; "Merfolk" is both
         const sing = (w) => w.trim().replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
@@ -502,6 +504,10 @@
             ? ao[0].trim().toLowerCase() + ' ' + sing(right[right.length - 1]) + ' or ' + sing(ao[1]).toLowerCase()
             : sing(ao[0]).toLowerCase() + ' or ' + sing(ao[1]).toLowerCase();
         }
+        // The Archimandrite: "Advisors, Artificers, and/or Monks" — any of them
+        const list = m[3].split(/, (?:and\/or )?/i);
+        if (list.length > 2 && list.every(w => /^[A-Za-z-]+$/.test(w))) noun = list.map(w => sing(w).toLowerCase()).join(' or ');
+        else if (/,/.test(m[3])) { cost.other.push(p); continue; }
         cost.tapCreatures = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word),
           filter: noun, another: word === 'another' || !!m[2] };
         continue;
@@ -2088,6 +2094,16 @@
        mana value rather than paying its mana cost" — one card, picked as this resolves (handOrGraveyard, payLifeMv) */
     { re: /^(?:You may )?[Cc]ast an? ([a-z]+) spell from your hand or graveyard by paying life equal to its mana value rather than paying its mana cost\.?$/,
       make: (m) => [{ op: 'castFree', from: 'handOrGraveyard', filter: m[1].toLowerCase(), upTo: 1, payLifeMv: true }] },
+    /* Helmut Zemo, Mastermind: "you may cast target instant or sorcery card with mana value less than or equal to his
+       power from your graveyard." — now, paying its mana cost; his power as it is when targeted (maxMvSourcePower) and as this resolves (maxMv) */
+    { re: /^(You may )?cast target ([a-z ,]+?) card with mana value less than or equal to (?:his|her|its|CARDNAME'?s|this creature'?s) power from your graveyard\.?$/i,
+      make: (m) => {
+        const words = m[2].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', controller: 'you', maxMvSourcePower: true });
+        if (spec.unknown) return null;
+        // (a trigger's "you may" is asked as it triggers: what is left is a must)
+        return { op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: false, maxMv: { ofSelf: 'power' }, targets: [spec] };
+      } },
     // Zul Ashur: "You may cast target Zombie creature card from your graveyard this turn."
     // (Heiko Yamazaki, the General: "…, you may cast target artifact card …" — read with its "may" taken off)
     { re: /^(?:You may )?[Cc]ast (target [A-Za-z ]+? card) from your graveyard this turn\.?$/,
@@ -7977,6 +7993,9 @@
           effects: [{ op: 'grantKeyword', keywords: ['Double Strike', 'Trample'], duration: 'eot', scope: 'triggerObject' }] }] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
+    // Kaima, the Fractured Calm: "goad each creature your opponents control that's enchanted by an Aura you control" (enchantedByYours)
+    { re: /^Goad each creature your opponents control that'?s enchanted by an Aura you control\.?$/i,
+      make: () => ({ op: 'goad', scope: { who: 'opponents', what: 'creature', enchantedByYours: true } }) },
     // (Kefnet's Monument: "target creature an opponent controls")
     { re: /^(Target (?:creature|permanent|land|artifact)(?: an opponent controls| you don'?t control)?|It|That creature|That permanent|That land|That artifact|This creature) doesn'?t untap during (?:its controller'?s|your) next untap step\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'noUntap', targets: [targetSpec(m[1])] }
@@ -9205,6 +9224,8 @@
     if (/^permanents? sacrificed this turn$/i.test(p)) return { sacrificedThisTurn: 'permanent', byAnyone: true, mult: k };
     // The Master of Lake-town: "for each graveyard with seven or more cards in it" (graveyardsWithAtLeast)
     if ((m = p.match(/^graveyards? with (\w+) or more cards in it$/i)) && typeof num(m[1]) === 'number') return { graveyardsWithAtLeast: num(m[1]), mult: k };
+    // Korvold, Gleeful Glutton: "for each card type among permanents you've sacrificed this turn" (sacrificedTypesThisTurn)
+    if (/^card types? among permanents you'?ve sacrificed this turn$/i.test(p)) return { sacrificedTypesThisTurn: true, mult: k };
     /* Gingerbehemoth: "for each Food you've sacrificed this turn"; Dargo, the Shipwrecker: "for each other artifact
        or creature you've sacrificed this turn" (sacrificedThisTurn: the type words, any one of them) */
     if ((m = p.match(/^(?:other )?([A-Za-z]+(?: or [A-Za-z]+)?) you'?ve sacrificed this turn$/i)))
@@ -9258,6 +9279,8 @@
     if (/^card named CARDNAME in (?:each graveyard|all graveyards)$/i.test(p)) return { namedInGraveyards: true, mult: k };
     // Culling Ritual: "for each permanent destroyed this way"
     if (/^(?:permanent|creature) (?:destroyed|exiled|returned) this way$/i.test(p)) return { lastSweep: true, mult: k };
+    // Kaima, the Fractured Calm: "for each creature goaded this way" (lastSweep)
+    if (/^creatures? goaded this way$/i.test(p)) return { lastSweep: true, mult: k };
     // "for each land card in your graveyard"
     if ((m = p.match(/^([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase(), mult: k };
     /* Aatchik, Emerald Radian: "for each artifact and/or creature card in your graveyard" (eitherCardInGraveyard);
@@ -9361,6 +9384,8 @@
     if (/^the number of times you chose a mode for that spell$/i.test(p)) return { triggerSpellModes: true };
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
+    // Korvold, Gleeful Glutton: "the number of permanent types among cards in your graveyard" (typesInGraveyards, permanentTypes)
+    if (/^the number of permanent types among cards in your graveyard$/i.test(p)) return { typesInGraveyards: 'you', permanentTypes: true, mult: 1 };
     // Niv-Mizzet, Guildpact: "the number of different color pairs among permanents you control that are exactly two colors"
     if (/^the number of different colou?r pairs among permanents you control that are exactly two colou?rs$/i.test(p)) return { colorPairsYours: true, mult: 1 };
     // Thraben Charm: "twice the number of creatures you control"
@@ -14979,6 +15004,8 @@
     // Nael, Avizoa Aeronaut: "if there are five basic land types among lands you control" (domainAtLeast)
     [/^there are (\w+) basic land types among lands you control$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'domainAtLeast', n: num(m[1]) } : null)],
     [/^you have (\w+) or more unspent mana$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'unspentMana', n: num(m[1]) } : null)],
+    // Helmut Zemo, Mastermind: "If you cast a spell this way, put a +1/+1 counter on Helmut Zemo." (castThisWay)
+    [/^you cast a spell this way$/i, () => ({ kind: 'castThisWay' })],
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
     [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
@@ -22306,6 +22333,9 @@
       // Silent Arbiter, Crawlspace, Caverns of Despair
       { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
+      // Tomik, Orzhov Lawmage: "Planeswalkers you control have "No more than one creature can attack this planeswalker each combat."" (eachPlaneswalker)
+      { re: /^Planeswalkers you control have "No more than (one|two|three) creatures? can attack this planeswalker each combat\.?"\.?$/i,
+        make: (m) => ({ op: 'attackLimit', n: num(m[1]), eachPlaneswalker: true }), auto: true },
       // The Necrobloom: "Land cards in your graveyard have dredge 2." (grantDredge)
       { re: /^Land cards in your graveyard have dredge (\d+)\.?$/i, make: (m) => ({ op: 'grantDredge', filter: 'land', n: +m[1] }), auto: true },
       // Lavinia, Azorius Renegade: "Each opponent can't cast noncreature spells with mana value greater than the number of lands that player controls." (mvLandCap)

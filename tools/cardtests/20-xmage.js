@@ -60734,4 +60734,137 @@ module.exports = (test) => {
     t.zone(drake, 'hand', 'Isperia: Lightning Bolt revealed — Wind Drake, a creature with flying, to hand');
     t.zone(bears, 'library', 'Isperia: not the Bears (no flying)');
   });
+  test('Commanders: Tomik, Orzhov Lawmage — no more than one creature can attack each of your planeswalkers', (mk, t) => {
+    t.auto('Tomik, Orzhov Lawmage');
+    const attack = (both) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.bf('A', 'Tomik, Orzhov Lawmage');
+      const pw = T.bf('A', 'Jace Beleren', { counters: { loyalty: 6 } });
+      const pw2 = T.bf('A', 'Chandra, Torch of Defiance', { counters: { loyalty: 6 } });
+      T.toMain('B');
+      const xs = [T.bf('B', 'Grizzly Bears'), T.bf('B', 'Hill Giant')];
+      for (const x of xs) x.summoningSick = false;
+      T.answer('declareAttackers', () => [{ attackerId: xs[0].id, defenderId: pw.id }, { attackerId: xs[1].id, defenderId: both ? pw.id : pw2.id }]);
+      try { T.toMain('B', 'endCombat'); return [pw.counters.loyalty, pw2.counters.loyalty]; } catch (e) { return String(e.message); }
+    };
+    t.ok(/no more than 1 creature can attack Jace Beleren/.test(String(attack(true))), 'Tomik: two attackers at one planeswalker refused');
+    t.eq(JSON.stringify(attack(false)), '[4,3]', 'Tomik: one at each planeswalker is fine');
+    // the player is not limited
+    const T = mk({ library: Array(10).fill('Island') });
+    T.bf('A', 'Tomik, Orzhov Lawmage');
+    T.toMain('B');
+    const xs = [T.bf('B', 'Grizzly Bears'), T.bf('B', 'Hill Giant')];
+    for (const x of xs) x.summoningSick = false;
+    T.answer('declareAttackers', () => xs.map(x => ({ attackerId: x.id, defenderId: 'A' })));
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 15, 'Tomik: both may attack the player');
+  });
+  test('Commanders: Korvold, Gleeful Glutton — {1} less for each card type among permanents you sacrificed this turn', (mk, t) => {
+    t.auto('Korvold, Gleeful Glutton');
+    const T = mk({ library: Array(10).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const kv = T.hand('A', 'Korvold, Gleeful Glutton');
+    T.mana('A', 'BRG2');
+    t.no(g.castSpell('A', kv.id, { auto: true }), 'Korvold: {B}{R}{G}{2} is not enough with nothing sacrificed');
+    // a creature, an artifact creature (two types), a land and another creature: three types
+    g._sacrificeNow('A', [T.bf('A', 'Grizzly Bears'), T.bf('A', 'Ornithopter'), T.bf('A', 'Forest'), T.bf('A', 'Hill Giant')]);
+    T.cast('A', kv);
+    T.resolve();
+    t.zone(kv, 'battlefield', 'Korvold: {3} less for creature, artifact and land');
+    // an opponent's sacrifices don't count
+    const T2 = mk({ library: Array(10).fill('Island') });
+    T2.toMain('A');
+    const kv2 = T2.hand('A', 'Korvold, Gleeful Glutton');
+    T2.g._sacrificeNow('B', [T2.bf('B', 'Grizzly Bears'), T2.bf('B', 'Forest')]);
+    T2.mana('A', 'BRG4');
+    t.no(T2.g.castSpell('A', kv2.id, { auto: true }), 'Korvold: not for permanents an opponent sacrificed');
+  });
+  test('Commanders: Korvold, Gleeful Glutton — combat damage: X counters and X cards, X the permanent types in your graveyard', (mk, t) => {
+    t.auto('Korvold, Gleeful Glutton');
+    const T = mk({ library: Array(10).fill('Island') });
+    const kv = T.bf('A', 'Korvold, Gleeful Glutton');
+    // creature + artifact (Ornithopter), land, and an instant that is no permanent type: three
+    for (const n of ['Ornithopter', 'Forest', 'Lightning Bolt', 'Grizzly Bears']) T.grave('A', n);
+    T.toMain('A');
+    const h = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: kv.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 16, 'Korvold: 4 combat damage');
+    t.eq(kv.counters['+1/+1'], 3, 'Korvold: three +1/+1 counters — artifact, creature, land');
+    t.eq(T.zone('A', 'hand').length - h, 3, 'Korvold: three cards');
+  });
+  test('Commanders: Helmut Zemo, Mastermind — attacks: cast an instant or sorcery with mana value up to his power from your graveyard, exiled after; a counter if cast', (mk, t) => {
+    t.auto('Helmut Zemo, Mastermind');
+    const run = (lands, cards) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      const hz = T.bf('A', 'Helmut Zemo, Mastermind');
+      const gy = cards.map(n => T.grave('A', n));
+      T.toMain('A');
+      for (const l of lands) T.bf('A', l);
+      T.answer('declareAttackers', () => [{ attackerId: hz.id, defenderId: 'B' }]);
+      // the trigger's target, then Shock's
+      T.answer('pickTarget', { targets: [{ kind: 'object', id: gy[0].id }] });
+      T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+      T.toMain('A', 'endCombat');
+      return { T, hz, gy };
+    };
+    const a = run(['Mountain'], ['Shock']);
+    t.zone(a.gy[0], 'exile', 'Zemo: the Shock cast, then exiled rather than put into the graveyard');
+    t.eq(a.T.life('B'), 15, 'Zemo: Shock dealt 2, then Zemo 3 with his counter');
+    t.eq(a.hz.counters['+1/+1'], 1, 'Zemo: a +1/+1 counter for casting it');
+    const b = run([], ['Shock']);
+    t.zone(b.gy[0], 'graveyard', 'Zemo: no mana — nothing cast');
+    t.no(b.hz.counters['+1/+1'], 'Zemo: no counter when no spell was cast');
+    const c = run(['Island', 'Island', 'Island'], ['Divination']);
+    t.zone(c.gy[0], 'graveyard', 'Zemo: Divination costs more than his power — not cast');
+    t.eq(c.T.zone('A', 'hand').length, 0, 'Zemo: no cards drawn');
+  });
+  test('Commanders: The Archimandrite — tap three untapped Advisors, Artificers, and/or Monks: draw a card; upkeep life, and +X/+0 and vigilance', (mk, t) => {
+    t.auto('The Archimandrite');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ar = T.bf('A', 'The Archimandrite');
+    const monk = T.bf('A', 'Monastery Swiftspear');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.toMain('A');
+    t.no(g.activateAbility('A', ar.id, 0, { auto: true, targets: [] }), 'Archimandrite: two of them and a Bear are not enough');
+    const art = T.bf('A', 'Etherium Sculptor');
+    const h = T.zone('A', 'hand').length;
+    T.activate('A', ar, 0);
+    t.eq(T.zone('A', 'hand').length - h, 1, 'Archimandrite: a card drawn');
+    t.ok(ar.tapped && monk.tapped && art.tapped, 'Archimandrite: itself, the Monk and the Artificer tapped');
+    t.no(bears.tapped, 'Archimandrite: not the Bear');
+    // upkeep: six cards in hand — 2 life; then the Advisors, Artificers and Monks get +2/+0 and vigilance
+    const T2 = mk({ library: Array(20).fill('Island') });
+    const ar2 = T2.bf('A', 'The Archimandrite');
+    const monk2 = T2.bf('A', 'Monastery Swiftspear');
+    const bears2 = T2.bf('A', 'Grizzly Bears');
+    for (let i = 0; i < 6; i++) T2.hand('A', 'Island');
+    T2.nextTurn('B'); T2.nextTurn('A');
+    t.eq(T2.life('A'), 22, 'Archimandrite: 2 life — six cards minus four');
+    t.eq(T2.g.powerOf(ar2), 2, 'Archimandrite: +2/+0 for the life gained');
+    t.eq(T2.g.powerOf(monk2), 3, 'Archimandrite: the Monk too');
+    t.ok(T2.g.hasKw(monk2, 'vigilance'), 'Archimandrite: and vigilance');
+    t.eq(T2.g.powerOf(bears2), 2, 'Archimandrite: not the Bear');
+  });
+  test("Commanders: Kaima, the Fractured Calm — end step: goad each opponent's creature under your Aura, a counter for each", (mk, t) => {
+    t.auto('Kaima, the Fractured Calm');
+    const T = mk({ library: Array(20).fill('Island') });
+    const ka = T.bf('A', 'Kaima, the Fractured Calm');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant'), b3 = T.bf('B', 'Craw Wurm'), b4 = T.bf('B', 'Wind Drake');
+    const au1 = T.bf('A', 'Pacifism'); au1.attachedTo = b1.id; b1.attachments = [au1.id];
+    const au2 = T.bf('A', 'Rancor'); au2.attachedTo = b2.id; b2.attachments = [au2.id];
+    const au3 = T.bf('B', 'Rancor'); au3.attachedTo = b3.id; b3.attachments = [au3.id];
+    const mine = T.bf('A', 'Grizzly Bears');
+    const au4 = T.bf('A', 'Rancor'); au4.attachedTo = mine.id; mine.attachments = [au4.id];
+    T.toMain('A');
+    T.nextTurn('B');
+    t.eq(b1.goadedBy, 'A', 'Kaima: the Bears under Pacifism goaded');
+    t.eq(b2.goadedBy, 'A', "Kaima: the Giant under A's Rancor goaded");
+    t.no(b3.goadedBy, "Kaima: not one under B's own Aura");
+    t.no(b4.goadedBy, 'Kaima: not one with no Aura');
+    t.no(mine.goadedBy, "Kaima: not A's own creature");
+    t.eq(ka.counters['+1/+1'], 2, 'Kaima: two +1/+1 counters');
+  });
 };
