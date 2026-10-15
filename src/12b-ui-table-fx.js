@@ -761,6 +761,9 @@
 
     _spotOn(sp, ghost) {
       this.spot = Object.assign({}, sp, { ghost: !!ghost });
+      /* a card being read at the side gives way to the one held up (it is opened again by moving the pointer):
+         a preview left open under a resting pointer covered the spotlight */
+      if (this.preview && this.preview.classList.contains('on')) { this.hidePreview(); this._hovering = null; clearTimeout(this._hoverT); }
       // said once, as it is held up; the game log's own line for it is then not read out again (D5)
       if (this.accessSay && sp.entry && sp.who !== this.meId && !sp.said) {
         sp.said = true;
