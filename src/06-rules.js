@@ -4037,7 +4037,8 @@
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'extraLand');
         // Rites of Flourishing gives every player the extra land
-        if (e && (o.controller === p.id || e.all)) k += Number(e.n) || 1;
+        // (Exploration Broodship: "3+ |" — only at that many charge counters: cond)
+        if (e && (o.controller === p.id || e.all) && (!e.cond || this._condMet(e.cond, { controller: o.controller, obj: o }))) k += Number(e.n) || 1;
       }
       return k;
     }
@@ -4163,7 +4164,7 @@
          to sacrifice gone (sacForLessN: so many); the cast puts back what the ones kept would have taken off */
       if (a && a.sacForLess) {
         const n = opts.sacForLessN != null ? opts.sacForLessN : this._sacForLessPool(pid, o).length;
-        if (n > 0) mana = this._addGeneric(mana, -n * (a.sacForLess.each || 1));
+        if (n > 0 && !a.sacForLess.copyEach) mana = this._addGeneric(mana, -n * (a.sacForLess.each || 1));
       }
       // convoke pays coloured mana too: a creature of the colour for each symbol it covers (_convokeColors)
       const cc = this._convokeColors(pid, o);
@@ -6103,6 +6104,13 @@
             if (src.controller !== playerId || src.phasedOut || src._graveExileTurn === this.turn) continue;
             const gx = this._staticOp(src, 'graveCastExile');
             if (!gx || (gx.filter && !this._cardFitsWords(o, gx.filter))) continue;
+            // Exploration Broodship: "by sacrificing a land" — one there to sacrifice (sacrifice)
+            if (gx.sacrifice) {
+              if (!this._graveCastSacPool(playerId, gx).length) continue;
+              out.push({ kind: 'cast', via: 'graveExile', cost: a.manaCost || '', after: null, sacrifice: gx.sacrifice, srcId: src.id,
+                label: `Cast it from your graveyard (${src.name}: sacrifice ${/^[aeiou]/.test(gx.sacrifice) ? 'an' : 'a'} ${gx.sacrifice})` });
+              break;
+            }
             out.push({ kind: 'cast', via: 'graveExile', cost: a.manaCost || '', after: null, exileGrave: gx.exileGrave, srcId: src.id,
               label: `Cast it from your graveyard (${src.name}: exile ${gx.exileGrave} other cards)` });
             break;
@@ -7262,6 +7270,14 @@
           items: this._chooseItems(pool), min: n, max: n, prefer: 'worst',
           prompt: `${o.name}: exile which ${n} other cards from your graveyard?` }) === 'asked') return 'asked';
       }
+      // Exploration Broodship: "by sacrificing a land" — which, asked with the cast when there is a choice (sacrificeCost)
+      if (opts.via === 'graveExile' && !(opts.choices && opts.choices.sacrificeCost)) {
+        const gv = this.altUsesFor(playerId, o.id).find(x => x.kind === 'cast' && x.via === opts.via);
+        const pool = gv && gv.sacrifice ? this._graveCastSacPool(playerId, { sacrifice: gv.sacrifice }) : [];
+        if (pool.length > 1 && !this._alike(pool) && this._castChoose(playerId, o, opts, { purpose: 'sacrificeCost', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems(pool), min: 1, max: 1, prefer: 'worst',
+          prompt: `${o.name}: sacrifice which ${gv.sacrifice}?` }) === 'asked') return 'asked';
+      }
       /* Rona, Sheoldred's Faithful: "by discarding two cards" — which two, asked with the cast when there is a choice
          (discardCost) */
       if (opts.via === 'graveDiscard' && !(opts.choices && opts.choices.discardCost)) {
@@ -7797,6 +7813,14 @@
           ? 'No land card in hand to discard.' : 'No card in hand to discard.');
         toDiscard = (opts.discardId && legal.find(c => c.id === opts.discardId)) || legal[0];
       }
+      // Exploration Broodship: "by sacrificing a land" — the one chosen with the cast, else, once the mana is paid, a tapped one, the least useful (sacrifice)
+      let toSacCost = null;
+      if (via && via.sacrifice) {
+        const pool = this._graveCastSacPool(playerId, via);
+        if (!pool.length) return this.fail(`There is no ${via.sacrifice} of yours to sacrifice.`);
+        const pick = (((opts.choices || {}).sacrificeCost || {}).picks || [])[0];
+        toSacCost = { pick: pool.find(x => x.id === pick) || null, pool };
+      }
       // Rona, Sheoldred's Faithful: "by discarding two cards" — the ones chosen with the cast, or the least useful (discardN)
       let toDiscardN = [];
       if (via && via.discardN) {
@@ -7955,7 +7979,8 @@
       /* Torgaar, Dargo: "you may sacrifice any number of …" — the ones chosen (or as few as the mana needs),
          the price having come with all of them gone; what the ones kept would have taken off goes back on */
       let sacForLess = [];
-      if (a && a.sacForLess && !opts.free && !via && opts.costOverride == null && !o.isCopy) {
+      // (Plumb the Forbidden: sacrifices that buy copies, not mana off — paid on a free cast too: copyEach)
+      if (a && a.sacForLess && !o.isCopy && (a.sacForLess.copyEach || (!opts.free && !via && opts.costOverride == null))) {
         const sp = this._sacForLessPlan(playerId, o, opts, cost);
         if (sp.error) return this.fail(sp.error);
         if (sp.back) cost = this._addGeneric(cost || '', sp.back);
@@ -8028,6 +8053,7 @@
         cost = wb.mana || '';
         if (optAddMana.waterbend) this._noteBend(playerId, 'water');
       }
+      o._treasureCast = null;
       if (!opts.free || cost) {
         // what taps for convoke is not there to tap for mana
         const held = (plan ? plan.tap : ccHeld).filter(x => !x.tapped);
@@ -8044,6 +8070,8 @@
         o.manaFromCreatures = this._spentAcc.creature || 0;
         // Kalain, Reclusive Painter: and how much Treasures made (manaFromTreasure)
         o.manaFromTreasure = this._spentAcc.treasure || 0;
+        // (Rain of Riches: the turn it was cast with mana from a Treasure — _treasureCast)
+        if (o.manaFromTreasure) o._treasureCast = this.turn;
         // Shadow the Hedgehog: and how much artifacts made (manaFromArtifact)
         o.manaFromArtifact = this._spentAcc.artifact || 0;
         o._phyLife = this._spentAcc.life || 0;
@@ -8126,6 +8154,10 @@
         this.moveObject(toDiscard, 'graveyard');
         this.logEvent('discard', `${p.name} discards ${toDiscard.name}.`);
         this._afterDiscard(playerId, toDiscard);
+      }
+      if (toSacCost) {
+        const x = toSacCost.pick || toSacCost.pool.find(y => y.zone === 'battlefield' && y.tapped) || toSacCost.pool.find(y => y.zone === 'battlefield');
+        if (x && x.zone === 'battlefield') this._sacrificeNow(playerId, [x], null);
       }
       if (toDiscardN.length) {
         for (const c of toDiscardN) this.moveObject(c, 'graveyard');
@@ -8388,6 +8420,8 @@
       });
       if (replicated) copyTrigger(replicated, 'replicate');
       if (conspired.length) copyTrigger(1, 'conspire');
+      // Plumb the Forbidden: "When you do, copy this spell for each creature sacrificed this way." (copyEach)
+      if (sacForLess.length && a.sacForLess.copyEach) copyTrigger(sacForLess.length, `${MTG.oracle.nounCount(sacForLess.length, a.sacForLess.filter)} sacrificed`);
       this._rippleTriggers(item, o, a, playerId);
       this._demonstrateTriggers(item, o, a, playerId, fromZone);
 
@@ -8984,6 +9018,9 @@
         if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) continue; }
         // Maelstrom Nexus: the first spell its controller casts this turn
         if (g.firstEachTurn && ((this.player(item.controller) || {}).spellsCastThisTurn || 0) !== 1) continue;
+        // Rain of Riches: the first spell this turn that mana from a Treasure was spent to cast (firstTreasure, _treasureCast)
+        if (g.firstTreasure && (item.isCopy || item.obj._treasureCast !== this.turn ||
+          ((this.player(item.controller) || {}).spellObjsThisTurn || []).some(x => x !== item.obj && x._treasureCast === this.turn))) continue;
         if (!g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter)) granted += g.times || 1;
       }
       // (Yidris, Maelstrom Wielder: "as you cast spells from your hand this turn, they gain cascade" — cascadeHand)
@@ -10283,6 +10320,11 @@
       this._fire('youCollectEvidence', pid, { playerId: pid });
       return true;
     }
+    /** Exploration Broodship: what could be sacrificed to cast a spell from the graveyard (graveCastExile sacrifice), the least valuable first. */
+    _graveCastSacPool(pid, gx) {
+      return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut &&
+        this._cardFitsWords(x, gx.sacrifice) && this._canSacrifice(x)));
+    }
     /** Torgaar, Famine Incarnate; Dargo, the Shipwrecker: what could be sacrificed as the spell is cast (sacForLess), the least valuable first. */
     _sacForLessPool(pid, o) {
       const sf = o && (o.analysis() || {}).sacForLess;
@@ -10299,6 +10341,9 @@
       const pool = this._sacForLessPool(pid, o);
       if (!pool.length) return [];
       const what = sf.filter.replace(/ or /g, ' and/or ').replace(/(\w+)(?= and\/or|$)/g, (w) => w + 's');
+      // Plumb the Forbidden: a copy for each, nothing off the price (copyEach)
+      if (sf.copyEach) return [{ kind: 'sacForLess', label: `Sacrifice one or more ${MTG.oracle.nounPlural(sf.filter)} (copy ${o.name} for each)`, cost: '',
+        key: 'sacrificeIds', need: 0, max: pool.length, each: 0, candidates: pool.map(x => x.id) }];
       return [{ kind: 'sacForLess', label: sf.exileGrave ? `Exile any number of ${sf.filter} cards from your graveyard ({${sf.each}} less for each)`
         : `Sacrifice any number of ${what} ({${sf.each}} less for each)`, cost: '',
         key: 'sacrificeIds', need: 0, max: pool.length, each: sf.each, candidates: pool.map(x => x.id) }];
@@ -15391,6 +15436,12 @@
           const host = src && src.attachedTo && this.obj(src.attachedTo);
           if (!host || host.zone !== 'battlefield') return false;
           if (cond.attacking) return !!host.attacking;
+          /* Sting, the Glinting Dagger: blocking or blocked by a Goblin or Orc — by the printed types (and changeling), so
+             the layers don't ask each other (combatWith) */
+          if (cond.combatWith) {
+            const fits = (x) => !!x && x.zone === 'battlefield' && (cond.combatWith.some(t => this._hasSubtype(x, t)) || !!(((x.analysis() || {}).keywordSet) || new Set()).has('changeling'));
+            return (host.blocking || []).some(id => fits(this.obj(id))) || (host.blockedBy || []).some(id => fits(this.obj(id)));
+          }
           const ha = O.analyze(host.card, host.face) || {};
           if (cond.color) return (ha.colors || []).includes(cond.color);
           if (cond.what === 'legendary') return (ha.supertypes || []).includes('Legendary');
@@ -21298,8 +21349,19 @@
             for (const c of shown) this._know(c, '*');
             this.logEvent('reveal', `${me.name} reveals ${shown.map(c => c.name).join(', ')}.`);
           }
-          const color = e.symbol ? e.symbol
+          let color = e.symbol ? e.symbol
             : ctx.manaChoice && MANA.COLORS.includes(ctx.manaChoice) ? ctx.manaChoice : this._preferredColor(me);
+          /* Carpet of Flowers: "add X mana of any one color" as a trigger resolves (it used the stack) — a person
+             names the colour, as Ashling, Rimebound's does above */
+          if (!e.symbol && k > 0 && this.resolving && this.resolving.ctx === ctx && !me.isBot && !(ctx.manaChoice && MANA.COLORS.includes(ctx.manaChoice))) {
+            const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+            const got = this._choose({ playerId: ctx.controller, purpose: 'manaColor', kind: 'options', min: 1, max: 1,
+              options: MANA.COLORS.map((x, i) => ({ i, label: `{${x}} ${NAMES[x]}` })),
+              prompt: `You add ${k === 1 ? 'one mana' : k + ' mana'} of any${k > 1 ? ' one' : ''} colour: choose the colour.` }, 'mcolx');
+            if (got === SUSPEND) return SUSPEND;
+            color = MANA.COLORS[(got && got.picks && got.picks[0]) || 0] || color;
+            this.logEvent('mana', `${me.name} adds ${('{' + color + '}').repeat(k)}.`);
+          }
           for (let i = 0; i < k; i++) me.pool.add(color);
           break;
         }
@@ -36692,6 +36754,7 @@
       o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
       // (Kadena, Slinking Sorcerer: whether it was cast face down, whatever it is later — castFaceDown)
       o._castFaceDown = !!o.faceDown;
+      o._treasureCast = null;
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)

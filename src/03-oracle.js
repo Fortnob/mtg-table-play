@@ -762,7 +762,8 @@
         const effs = (ab.effects || []).flatMap(e => (e.op === 'sequence' ? e.list : [e]));
         // (Vnwxt, Verbose Host: "Max speed — If you would draw a card, draw two cards instead" — the engine asks drawDouble's condition too)
         // (Far Fortune, End Boss: "Max speed — If a source you control would deal damage …" — a replacement asks it too: _replaceMatches)
-        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble' || e.op === 'replace')) { ok = false; ab.auto = false; }
+        // (Exploration Broodship: "3+ | You may play an additional land on each of your turns." — landAllowance asks it too)
+        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble' || e.op === 'replace' || e.op === 'extraLand')) { ok = false; ab.auto = false; }
         ab.effects = effs.map(e => Object.assign({}, e, { cond: both(e.cond) }));
       } else { ok = false; ab.auto = false; }
       out.abilities.push(ab);
@@ -13756,6 +13757,10 @@
        your graveyard. This spell costs {2} less to cast for each card exiled this way." — the cards exiled with it (exileGrave) */
     const g = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may exile any number of ([a-z]+) cards from your graveyard\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each card exiled this way\.?$/i);
     if (g) return { sac: { filter: g[1].toLowerCase(), each: +g[2], exileGrave: true }, self: null };
+    /* Plumb the Forbidden: "you may sacrifice one or more creatures. When you do, copy this spell for each creature
+       sacrificed this way." — chosen with the cast, nothing off the price, a copy for each (copyEach) */
+    const pc = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may sacrifice one or more ([a-z]+)s\. When you do, copy (?:this spell|CARDNAME) for each \1 sacrificed this way\.?$/i);
+    if (pc) return { sac: { filter: pc[1].toLowerCase(), each: 0, copyEach: true }, self: null };
     const m = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may sacrifice any number of ([a-z ,/]+?)\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each (?:[a-z]+) sacrificed this way(?: and \{(\d+)\} less to cast for each (.+?))?\.?$/i);
     if (!m) return null;
     const filter = m[1].replace(/\s+and\/or\s+|\s+or\s+|\s+and\s+/g, ' or ').replace(/s\b/g, '').trim();
@@ -15423,6 +15428,8 @@
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
     [/^(?:enchanted|equipped) (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
     [/^(?:equipped|enchanted) creature is attacking$/i, () => ({ kind: 'attachedIs', attacking: true })],
+    // Sting, the Glinting Dagger: "it's blocking or blocked by a Goblin or Orc" — "it" the equipped creature (combatWith)
+    [/^(?:equipped|enchanted) creature is blocking or blocked by an? ([A-Z][a-z]+(?:(?:, |,? or )[A-Z][a-z]+)*)$/, (m) => ({ kind: 'attachedIs', combatWith: m[1].split(/,? or |, /) })],
     // Sanwell, Avenger Ace: "an artifact creature you control is attacking" — one of that group attacking (control, scope)
     [/^an? ([a-z ]*?creature) you control is attacking$/i, (m) => { const sc = scopeOf('attacking ' + m[1] + 's you control'); return sc && !sc.self && sc.attacking ? { kind: 'control', scope: sc, n: 1 } : null; }],
     [/^it'?s your turn$/i, () => ({ kind: 'yourTurn' })],
@@ -16937,6 +16944,8 @@
     { re: /^Whenever enchanted (?:player|opponent) is dealt damage,? /i, event: 'playerDealtDamage', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of each player's end step,? /i, event: 'eachEndStep' },
     { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
+    // Carpet of Flowers: "At the beginning of each of your main phases" — the first and the second
+    { re: /^At the beginning of each of your main phases,? /i, event: 'yourMain1', also: 'yourMain2' },
     // Donna Noble: "Whenever Donna Noble or a creature it's paired with is dealt damage" (selfOrPaired)
     { re: /^Whenever (?:CARDNAME|this creature) or a creature it'?s paired with is dealt damage,? /i, event: 'anyDealtDamage', extra: { selfOrPaired: true } },
     // Wrathful Raptors: "Whenever a Dinosaur you control is dealt damage"
@@ -18299,6 +18308,11 @@
         if (/^(?:if [^,]+, )?you may .*\. Do this only once each turn\.?$/i.test(body)) {
           doOnce = true;
           body = body.replace(/\s*Do this only once each turn\.?$/i, '');
+        }
+        // Carpet of Flowers: "if you haven't added mana with this ability this turn, you may add …" — the same, a yes using it up
+        if (/^if you haven'?t added mana with this ability this turn, you may add /i.test(body)) {
+          doOnce = true;
+          body = body.replace(/^if you haven'?t added mana with this ability this turn, /i, '');
         }
         /* An intervening "if" clause (CR 603.4): the trigger only goes on the
            stack when it holds, and is checked again on resolution. */
@@ -21795,6 +21809,9 @@
     // (Toralf's Hammer: "Equipped creature gets +3/+0 as long as it's legendary" — "it" is the equipped creature)
     const its = tail && tail[1].match(/^(Equipped|Enchanted) creature\b/i) && tail[2].match(/^it'?s (an? )?(legendary|artifact|land|enchantment)$/i);
     if (its) tail[2] = tail[1].split(' ')[0].toLowerCase() + ' creature is ' + (its[1] || '') + its[2];
+    // (Sting, the Glinting Dagger: "Equipped creature has first strike as long as it's blocking or blocked by a Goblin or Orc")
+    const itsCombat = !its && tail && tail[1].match(/^(Equipped|Enchanted) creature\b/i) && tail[2].match(/^it'?s (blocking or blocked by .+)$/i);
+    if (itsCombat) tail[2] = tail[1].split(' ')[0].toLowerCase() + ' creature is ' + itsCombat[1];
     /* Depala, Pilot Exemplar: "Each Vehicle you control gets +1/+1 as long as it's a creature" — "it" is each of
        them: those that are creatures now, not a condition of the source's */
     const itsEach = tail && /^(?:Each |Other )?[A-Z][a-z]+ you control /.test(tail[1]) && tail[2].match(/^it'?s an? (creature|artifact|enchantment|land)$/i);
@@ -22340,6 +22357,9 @@
       { re: /^The first spell you cast( from exile)? each turn has cascade\.?$/i,
         make: (m) => (m[1] ? { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }
           : { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', firstEachTurn: true }), auto: true },
+      // Rain of Riches: "The first spell you cast each turn that mana from a Treasure was spent to cast has cascade." (firstTreasure)
+      { re: /^The first spell you cast each turn that mana from a Treasure was spent to cast has cascade\.?$/i,
+        eff: { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', firstTreasure: true }, auto: true },
       // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1."
       { re: /^Each (instant and sorcery|[a-z]+) spell you cast has casualty (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'casualty', n: +m[2], filter: m[1].toLowerCase().replace(' and ', ' or ') }), auto: true },
@@ -23690,6 +23710,9 @@
          exiling three other cards from your graveyard in addition to paying its other costs." (graveCastExile) */
       { re: /^Once during each of your turns, you may cast an? ([a-z]+) spell from your graveyard by exiling (\w+) other cards from your graveyard in addition to paying its other costs\.?$/i,
         make: (m) => ({ op: 'graveCastExile', filter: m[1].toLowerCase(), exileGrave: num(m[2].toLowerCase()) }), auto: true },
+      // Exploration Broodship: "… cast a permanent spell from your graveyard by sacrificing a land in addition to paying its other costs." (sacrifice)
+      { re: /^Once during each of your turns, you may cast an? ([a-z]+) spell from your graveyard by sacrificing an? (land|creature|artifact) in addition to paying its other costs\.?$/i,
+        make: (m) => ({ op: 'graveCastExile', filter: m[1].toLowerCase(), exileGrave: 0, sacrifice: m[2].toLowerCase() }), auto: true },
       /* Kagha, Shadow Archdruid: "Once during each of your turns, you may play a land or cast a permanent spell from among
          cards in your graveyard that were put there from your library this turn." — one leave for either (fromLibThisTurn) */
       { re: /^Once during each of your turns, you may play a land or cast a permanent spell from among cards in your graveyard that were put there from your library this turn\.?$/,

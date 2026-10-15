@@ -66430,4 +66430,142 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Strike It Rich'));
     t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Craw Wurm'), 'Esix: the bot copies the Wurm');
   });
+
+  test('Cards: Plumb the Forbidden — creatures sacrificed with the cast, a copy for each', (mk, t) => {
+    t.auto('Plumb the Forbidden');
+    const T = mk();
+    const g = T.g;
+    const b1 = T.bf('A', 'Grizzly Bears');
+    const b2 = T.bf('A', 'Llanowar Elves');
+    const ring = T.bf('A', 'Sol Ring');
+    const pf = T.hand('A', 'Plumb the Forbidden');
+    const ex = (g.viewFor('A').extras[pf.id] || []).find(x => x.kind === 'sacForLess');
+    t.eq(ex && ex.candidates.length, 2, 'Plumb: the creatures, not the Sol Ring');
+    t.eq(ex && ex.label, 'Sacrifice one or more creatures (copy Plumb the Forbidden for each)');
+    T.mana('A', 'B1');
+    t.no(g.castSpell('A', pf.id, { auto: true, targets: [], sacrificeIds: [ring.id] }), 'Plumb: an artifact can\'t go');
+    const hand0 = T.zone('A', 'hand').length;
+    T.mana('A', 'B1');
+    T.cast('A', pf, { sacrificeIds: [b1.id, b2.id], resolve: false });
+    t.zone(b1, 'graveyard'); t.zone(b2, 'graveyard');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 - 1 + 3, 'Plumb: the spell and two copies draw three');
+    t.eq(T.life('A'), 17, 'Plumb: three lives lost');
+    t.zone(ring, 'battlefield');
+    // none sacrificed: just the spell
+    const pf2 = T.hand('A', 'Plumb the Forbidden');
+    T.mana('A', 'B1');
+    T.cast('A', pf2, { sacrificeIds: [] });
+    t.eq(T.life('A'), 16, 'Plumb: no sacrifice, no copy');
+  });
+  test('Cards: Carpet of Flowers — each of your main phases, once a turn, X of a colour you name', (mk, t) => {
+    t.auto('Carpet of Flowers');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Carpet of Flowers');
+    T.bf('B', 'Island'); T.bf('B', 'Island'); T.bf('B', 'Forest');
+    T.nextTurn('B');
+    const base = T.asked.length;
+    const offers = () => T.asked.slice(base).filter(c => c.type === 'confirm' && /each of your main phases/.test(c.prompt || '')).length;
+    // declined in the first main phase: offered again in the second
+    T.answer('confirm', { yes: false });
+    T.nextTurn('A');
+    t.eq(offers(), 1, 'Carpet: asked at the first main phase');
+    t.eq(g.player('A').pool.total(), 0, 'Carpet: declined, no mana');
+    T.answer('confirm', { yes: true });
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'manaColor'); return { picks: [1] }; });
+    for (let i = 0; i < 60 && !(g.phase && g.phase.id === 'postcombat' && !g.stack.length && !g.pendingTriggers.length); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.settle();
+    t.eq(offers(), 2, 'Carpet: asked again at the second main phase');
+    t.eq(g.player('A').pool.snapshot().U, 2, 'Carpet: {U}{U} for two Islands');
+    // B's main phases: not B's Carpet; A's next turn: again
+    T.nextTurn('A');
+    t.eq(offers(), 3, 'Carpet: a new turn, a new offer, not in B\'s turn');
+    t.eq(g.player('A').pool.snapshot().W, 2, 'Carpet: the colour named');
+    // taken this turn: the second main phase has nothing
+    for (let i = 0; i < 60 && !(g.phase && g.phase.id === 'postcombat' && !g.stack.length && !g.pendingTriggers.length); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.settle();
+    t.eq(offers(), 3, 'Carpet: used this turn, no trigger at the second main phase');
+  });
+  test('Cards: Rain of Riches — two Treasures; the first spell paid with Treasure mana each turn cascades', (mk, t) => {
+    t.auto('Rain of Riches');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Rain of Riches', { etb: true });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 2, 'Rain of Riches: two Treasures');
+    // the first spell, paid from a Forest: no cascade
+    T.bf('A', 'Forest');
+    T.top('A', 'Grizzly Bears');
+    T.cast('A', T.hand('A', 'Llanowar Elves'));
+    t.zone(T.zone('A', 'library')[0], 'library', 'Rain of Riches: no Treasure mana, no cascade');
+    t.eq(T.zone('A', 'library')[0].name, 'Grizzly Bears');
+    // a Treasure helps pay: that one cascades into the Bears
+    T.bf('A', 'Mountain'); T.bf('A', 'Mountain');
+    T.cast('A', T.hand('A', 'Gray Ogre'));
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1, 'Rain of Riches: a Treasure was spent');
+    t.ok(T.bfOf('A').some(o => o.name === 'Grizzly Bears'), 'Rain of Riches: cascade into the Bears');
+    // the second such spell this turn: no cascade
+    T.top('A', 'Grizzly Bears');
+    T.bf('A', 'Mountain'); T.bf('A', 'Mountain');
+    T.cast('A', T.hand('A', 'Gray Ogre'));
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 0, 'Rain of Riches: the other Treasure spent');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 1, 'Rain of Riches: only the first each turn');
+  });
+  test('Cards: Exploration Broodship — an extra land at 3+; a permanent spell from the graveyard for a land, once a turn', (mk, t) => {
+    t.auto('Exploration Broodship');
+    const T = mk();
+    const g = T.g;
+    const ship = T.bf('A', 'Exploration Broodship');
+    t.eq(g.landAllowance(g.player('A')), 1, 'Broodship: no counters, no extra land');
+    ship.counters.charge = 3;
+    t.eq(g.landAllowance(g.player('A')), 2, 'Broodship: 3+, an extra land');
+    // Bears from the graveyard: {1}{G} and a land
+    const f1 = T.bf('A', 'Forest'); const f2 = T.bf('A', 'Forest'); const f3 = T.bf('A', 'Forest');
+    const bears = T.grave('A', 'Grizzly Bears');
+    T.grave('A', 'Lightning Bolt');
+    const use = g.altUsesFor('A', bears.id).find(x => x.via === 'graveExile');
+    t.ok(use && use.sacrifice === 'land', 'Broodship: offered from the graveyard');
+    t.eq(use && use.label, 'Cast it from your graveyard (Exploration Broodship: sacrifice a land)');
+    t.eq(g.altUsesFor('A', T.zone('A', 'graveyard')[1].id).filter(x => x.via === 'graveExile').length, 0, 'Broodship: not an instant');
+    T.cast('A', bears, { via: 'graveExile' });
+    t.zone(bears, 'battlefield', 'Broodship: Bears cast from the graveyard');
+    t.eq([f1, f2, f3].filter(x => x.zone === 'graveyard').length, 1, 'Broodship: one land sacrificed');
+    t.eq([f1, f2, f3].filter(x => x.zone === 'battlefield' && !x.tapped).length, 1, 'Broodship: a tapped land went, the untapped one kept');
+    // once each turn
+    const b2 = T.grave('A', 'Grizzly Bears');
+    t.eq(g.altUsesFor('A', b2.id).filter(x => x.via === 'graveExile').length, 0, 'Broodship: used this turn');
+    // not in another player's turn; next turn again
+    T.nextTurn('B');
+    t.eq(g.altUsesFor('A', b2.id).filter(x => x.via === 'graveExile').length, 0, "Broodship: not in B's turn");
+    T.nextTurn('A');
+    t.eq(g.altUsesFor('A', b2.id).filter(x => x.via === 'graveExile').length, 1, 'Broodship: a new turn');
+  });
+  test('Cards: Sting, the Glinting Dagger — first strike blocking or blocked by a Goblin or Orc', (mk, t) => {
+    t.auto('Sting, the Glinting Dagger');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const sting = T.bf('A', 'Sting, the Glinting Dagger');
+    sting.attachedTo = bear.id; bear.attachments = (bear.attachments || []).concat(sting.id);
+    g.bumpBoard();
+    t.eq(g.powerOf(bear), 3, 'Sting: +1/+1');
+    t.no(g.hasKw(bear, 'first strike'), 'Sting: no first strike out of combat');
+    // blocked by a Goblin: first strike, the Goblin dies first
+    const gob = T.bf('B', 'Raging Goblin');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: gob.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(g.hasKw(bear, 'first strike'), 'Sting: blocked by a Goblin');
+    T.toMain('A', 'combatDamage');
+    t.zone(gob, 'graveyard');
+    t.eq(bear.damage || 0, 0, 'Sting: the Goblin dealt no damage');
+    // blocked by a Bear: no first strike
+    T.nextTurn('A');
+    const bb = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bb.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(g.hasKw(bear, 'first strike'), 'Sting: not blocked by a Goblin or Orc');
+  });
 };
