@@ -184,6 +184,9 @@
     return /A deck can have any number of cards named/i.test(t);
   }
 
+  /** A joke or playtest card, which this game does not have (MTG.jokes): why not, or null. */
+  function jokeWhy(card) { return card && MTG.jokes && MTG.jokes.isCard(card) ? MTG.jokes.why(card) : null; }
+
   function legalityOf(card, fmt) {
     const key = fmt.scryKey;
     if (!key) return 'legal';                        // limited: anything in the pool
@@ -320,6 +323,8 @@
    */
   function cardProblem(card, fmt, ci, whose) {
     if (!card || !fmt) return null;
+    const joke = jokeWhy(card);
+    if (joke) return joke;
     if (fmt.scryKey) {
       const l = legalityOf(card, fmt);
       if (l === 'banned') return `Banned in ${fmt.name}`;
@@ -488,9 +493,28 @@
       }
     }
 
+    /* --- joke and playtest cards (Unfinity and the other Un-sets, the playtest cards) ---
+       Not in this game (src/02-scryfall.js, MTG.jokes), whatever the
+       format: a deck saved with one keeps it, marked, and is not played
+       until it is taken out. */
+    const jokes = new Set();
+    for (const [k, e] of byName) {
+      const why = jokeWhy(e.card);
+      if (!why) continue;
+      jokes.add(k);
+      errors.push(`${e.card.name}: ${why}.`);
+      flag(e.card, why);
+    }
+    const compWhy = jokeWhy(deck.companion);
+    if (compWhy) {
+      errors.push(`${deck.companion.name}: ${compWhy}.`);
+      flag(deck.companion, compWhy);
+    }
+
     /* --- legality --- */
     if (fmt.scryKey) {
-      for (const [, e] of byName) {
+      for (const [k, e] of byName) {
+        if (jokes.has(k)) continue;
         const l = legalityOf(e.card, fmt);
         if (l === 'banned') { errors.push(`${e.card.name} is banned in ${fmt.name}.`); flag(e.card, `Banned in ${fmt.name}`); }
         else if (l === 'restricted' && e.qty > 1) { errors.push(`${e.card.name} is restricted in ${fmt.name} (max 1).`); flag(e.card, `Restricted in ${fmt.name}: only 1 copy allowed`); }

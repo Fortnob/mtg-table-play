@@ -450,7 +450,7 @@
         const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
         wanted.forEach((pick, i) => {
           const card = cards[i];
-          if (!card || MTG.formats.isBasicLand(card)) return;
+          if (!MTG.scry.inPool(card) || MTG.formats.isBasicLand(card)) return;
           if (owned.has(U.normName(U.frontName(card.name)))) return;
           if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
           if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
@@ -467,7 +467,7 @@
           const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
           wanted.forEach((rec, i) => {
             const card = cards[i];
-            if (!card || MTG.formats.isBasicLand(card)) return;
+            if (!MTG.scry.inPool(card) || MTG.formats.isBasicLand(card)) return;
             if (owned.has(U.normName(U.frontName(card.name)))) return;
             if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
             if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
@@ -543,7 +543,7 @@
           const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
           wanted.forEach((rec, i) => {
             const card = cards[i];
-            if (!card || MTG.formats.isBasicLand(card)) return;
+            if (!MTG.scry.inPool(card) || MTG.formats.isBasicLand(card)) return;
             if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
             if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
             const cur = pool.get(card.id) || { card, hits: [], bestRank: 999 };
@@ -677,7 +677,7 @@
       cards = r.cards;
     } catch (e) { return []; }
     const byName = new Map();
-    names.forEach((n, i) => { if (cards[i]) byName.set(U.normName(n), cards[i]); });
+    names.forEach((n, i) => { if (MTG.scry.inPool(cards[i])) byName.set(U.normName(n), cards[i]); });
 
     const out = [];
     const seen = new Set();

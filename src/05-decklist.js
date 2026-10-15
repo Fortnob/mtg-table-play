@@ -17,7 +17,7 @@
     [/^(companion)\b[: ]*$/i, 'companion'],
     [/^(maybe ?board|considering|acquire)\b[: ]*$/i, 'maybeboard'],
     [/^(tokens?)\b[: ]*$/i, 'tokens'],
-    [/^(planes?|scheme|contraption|attractions?)\b[: ]*$/i, 'other'],
+    [/^(planes?|scheme)\b[: ]*$/i, 'other'],
     [/^(lands?|creatures?|instants?|sorceries|artifacts?|enchantments?|planeswalkers?|battles?|spells?|ramp|removal|draw|utility|other)\s*\(?\d*\)?[: ]*$/i, null], // category header inside main
   ];
 
@@ -162,10 +162,18 @@
 
     const res = { main: [], sideboard: [], commanders: [], maybeboard: [], companion: null, missing: [], warnings: [] };
     const needPref = [];
+    const jokes = [];
 
     for (let i = 0; i < flat.length; i++) {
       const { key, entry } = flat[i];
       let card = cards[i];
+      // a joke or playtest card (Unfinity's, say) is not in this game: not found, like any card that is not (MTG.jokes)
+      if (card && MTG.jokes.isCard(card)) { jokes.push(MTG.jokes.why(card)); card = null; }
+      // a real card asked for in a joke set's printing (Unhinged's Plains): its usual printing instead
+      if (card && !MTG.jokes.printOk(card)) {
+        const usual = await MTG.scry.byName(card.name).catch(() => null);
+        if (usual && MTG.jokes.printOk(usual)) card = usual;
+      }
       if (!card) { res.missing.push({ name: entry.name, qty: entry.qty }); continue; }
       // apply saved art preference unless the list pinned a specific printing
       if (!entry.collector_number && card.oracle_id && prefs[card.oracle_id] && prefs[card.oracle_id] !== card.id)
@@ -181,7 +189,8 @@
       const { cards: prefCards } = await MTG.scry.collection(needPref.map(p => ({ id: p.wantId })));
       needPref.forEach((p, k) => {
         const pc = prefCards[k];
-        if (!pc) return;
+        // (a joke printing, chosen before they left the game, is not used: MTG.jokes)
+        if (!pc || !MTG.jokes.printOk(pc)) return;
         const list = p.key === 'companion' ? [res.companion] : res[p.key];
         const item = list.find(x => x && x.requested === p.entry);
         if (item) item.card = pc;
@@ -204,6 +213,7 @@
 
     if (res.missing.length)
       res.warnings.push(`${res.missing.length} card${res.missing.length === 1 ? '' : 's'} could not be found on Scryfall.`);
+    for (const why of new Set(jokes)) res.warnings.push(`${why}: ${jokes.filter(w => w === why).length} of them could not be added.`);
     if (parsed.unparsed.length)
       res.warnings.push(`${parsed.unparsed.length} line${parsed.unparsed.length === 1 ? '' : 's'} were not understood and were skipped.`);
     return res;
@@ -358,7 +368,7 @@
     const missing = [];
     for (let i = 0; i < entries.length; i++) {
       const c = cards[i];
-      if (!c) { missing.push(entries[i].name); continue; }
+      if (!c || MTG.jokes.isCard(c)) { missing.push(entries[i].name); continue; }
       for (let k = 0; k < (entries[i].qty || 1); k++) out.push(c);
     }
     return { cards: out, missing };

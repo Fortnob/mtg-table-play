@@ -228,7 +228,7 @@
     for (const name of Object.keys(col)) {
       const e = col[name];
       const owned = Math.min(PLAYSET, e.n || 0);
-      if (!owned || isBasic(name)) continue;
+      if (!owned || isBasic(name) || joke(name, e.s)) continue;
       const n = owned - (held.get(name) || 0);
       if (n <= 0) continue;
       const need = needs && needs.get(name);
@@ -244,13 +244,15 @@
       if (!Array.isArray(row)) continue;
       const name = cleanCardName(row[0]);
       const n = count(row[1], 1, PLAYSET);
-      if (!name || !n || cards.has(name) || isBasic(name)) continue;
+      if (!name || !n || cards.has(name) || isBasic(name) || joke(name, cleanSet(row[4]))) continue;
       cards.set(name, { name, n, keep: count(row[2], 0, PLAYSET) || 0, r: cleanRarity(row[3]), s: cleanSet(row[4]), id: cleanId(row[5]) });
     }
     const wants = new Set();
     for (const w of Array.isArray(msg.wants) ? msg.wants.slice(0, MAX_WISH) : []) { const n = cleanCardName(w); if (n) wants.add(n); }
     return { cards, wants };
   }
+  /** A joke or playtest card (MTG.jokes), by its name and the set it came from: kept in a collection that had it, never traded. */
+  const joke = (name, set) => !!(MTG.jokes && MTG.jokes.isCard({ name, set }));
   /** One half of a deal as it arrives: a Map name -> copies, or null. */
   function readHalf(v) {
     if (!Array.isArray(v) || v.length > MAX_SIDE) return null;

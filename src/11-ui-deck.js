@@ -12,8 +12,8 @@
   const decks = MTG.decks = {
     /** How a deck's picture is chosen (UI.keyCard); a picture worked out the old way is worked out again. 2: no legendary creature for a deck with no commander. */
     ART_V: 2,
-    /** How the formats a deck is legal in are worked out (legalIn); a deck worked out the old way, or never, is worked out again. */
-    LEGAL_V: 1,
+    /** How the formats a deck is legal in are worked out (legalIn); a deck worked out the old way, or never, is worked out again. 2: a joke or playtest card is legal nowhere. */
+    LEGAL_V: 2,
     /**
      * Every format the deck can be played in as it is: its cards, its size
      * and its commanders all as that format asks (MTG.formats.validate). A
@@ -99,6 +99,13 @@
       const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
       const byId = new Map();
       ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
+      /* A real card saved in a joke set's printing (Unhinged's Plains, Unfinity's shock lands) is shown in its
+         usual printing now; a joke card itself stays as it was, marked (MTG.jokes, MTG.formats.validate) */
+      for (const [i, c] of byId) {
+        if (MTG.jokes.printOk(c) || MTG.jokes.isCard(c)) continue;
+        const usual = await MTG.scry.byName(c.name).catch(() => null);
+        if (usual && MTG.jokes.printOk(usual)) byId.set(i, usual);
+      }
       const hydrate = (list) => list.map(e => ({ card: byId.get(e.id), qty: e.q })).filter(e => e.card);
       return {
         id: slim.id, name: slim.name, format: slim.format,
@@ -770,6 +777,7 @@ Sideboard
      */
     const oathbreaker = () => !!(MTG.formats.get(deck.format) || {}).oathbreaker;
     function setCommander(card) {
+      if (MTG.jokes.isCard(card)) { UI.error(`${card.name}: ${MTG.jokes.why(card)}.`); return; }
       // an Oathbreaker's Signature Spell stays where it is when the planeswalker changes
       const sigs = oathbreaker() ? MTG.formats.commandParts(deck).signatures : [];
       const had = deck.commanders.filter(c => !sigs.includes(c));
@@ -1093,6 +1101,8 @@ Sideboard
        and should stay put when it has not. */
     function addCardObj(card, qty) {
       if (!card) return false;
+      // a joke or playtest card already in the deck stays there, marked; another is not added (MTG.jokes)
+      if (MTG.jokes.isCard(card)) { UI.error(`${card.name}: ${MTG.jokes.why(card)}.`); return false; }
       const fmt = MTG.formats.get(deck.format);
       const e = deck.main.find(x => x.card.id === card.id);
       // one of each in a singleton deck (basics aside), and one of a card Vintage restricts
@@ -1112,7 +1122,7 @@ Sideboard
     async function addByName(name) {
       try {
         const c = await MTG.scry.byName(name);
-        if (!c) return UI.error('No card called "' + name + '".');
+        if (!c || MTG.jokes.isCard(c)) return UI.error('No card called "' + name + '".');
         addCardObj(c, 1);
       } catch (err) { UI.error(err.message); }
     }
@@ -2051,7 +2061,7 @@ Sideboard
             if (mine !== token) return;
             // a name Scryfall's search could not read: the card of that name, if there is one
             if (!shownN && !got && lastText) {
-              try { const c = await MTG.scry.byName(lastText); if (c) got += draw([c]); } catch (e2) {}
+              try { const c = await MTG.scry.byName(lastText); if (MTG.scry.inPool(c)) got += draw([c]); } catch (e2) {}
             }
             pager.done = true;
             if (!shownN && !got) status.textContent = e && e.message ? e.message : 'The search did not work.';

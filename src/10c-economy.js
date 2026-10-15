@@ -595,12 +595,13 @@
     { id: 'art-omnath', name: 'Omnath', kind: 'art', card: 'Omnath, Locus of Creation', print: ['znr', '232'], rim: '#9fe0c0' },
     { id: 'art-ragavan', name: 'Ragavan', kind: 'art', card: 'Ragavan, Nimble Pilferer', print: ['mh2', '138'], at: '72% 40%', rim: '#ff8a3a' },
     { id: 'art-onering', name: 'The One Ring', kind: 'art', card: 'The One Ring', print: ['ltr', '246'], at: '55% 50%', rim: '#f3d27a' },
-    // the basic lands: John Avon's full art (Unhinged), and Wastes in its own
-    { id: 'art-plains', name: 'Plains', kind: 'art', card: 'Plains', print: ['unh', '136'], rim: '#f1e2b0' },
-    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', print: ['unh', '137'], rim: '#7fc4ff' },
-    { id: 'art-swamp', name: 'Swamp', kind: 'art', card: 'Swamp', print: ['unh', '138'], rim: '#a77ad8' },
-    { id: 'art-mountain', name: 'Mountain', kind: 'art', card: 'Mountain', print: ['unh', '139'], rim: '#ff8a3a' },
-    { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['unh', '140'], rim: '#8fd46a' },
+    /* the basic lands: John Avon's full art, as Double Masters reprinted it (first in Unhinged, a joke set, which
+       is not in the game: MTG.jokes), and Wastes in its own */
+    { id: 'art-plains', name: 'Plains', kind: 'art', card: 'Plains', print: ['2xm', '373'], rim: '#f1e2b0' },
+    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', print: ['2xm', '375'], rim: '#7fc4ff' },
+    { id: 'art-swamp', name: 'Swamp', kind: 'art', card: 'Swamp', print: ['2xm', '377'], rim: '#a77ad8' },
+    { id: 'art-mountain', name: 'Mountain', kind: 'art', card: 'Mountain', print: ['2xm', '379'], rim: '#ff8a3a' },
+    { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['2xm', '381'], rim: '#8fd46a' },
     { id: 'art-wastes', name: 'Wastes', kind: 'art', card: 'Wastes', print: ['ogw', '183'], rim: '#c8c0b0' },
     // your own picture
     { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
@@ -713,6 +714,8 @@
   }
 
   /* ---------------- the collection ---------------- */
+  /** A joke or playtest card, which this game does not have (MTG.jokes). */
+  const isJoke = (c) => !!c && !!MTG.jokes && MTG.jokes.isCard(c);
   function owned(name) {
     if (isBasic(name)) return Infinity;
     load();
@@ -727,7 +730,8 @@
     load();
     n = n || 1;
     const name = nameOf(card);
-    if (!name || isBasic(name)) return { isNew: false, shards: 0 };
+    // no joke or playtest card comes in (MTG.jokes); one held from before stays
+    if (!name || isBasic(name) || isJoke(card)) return { isNew: false, shards: 0 };
     const e = state.col[name] || (state.col[name] = { n: 0 });
     const isNew = e.n === 0;
     if (card.id && !e.id) e.id = card.id;
@@ -759,7 +763,7 @@
     load();
     const need = new Map();
     for (const c of (cards || [])) {
-      if (!c || !c.name || isBasic(c.name)) continue;
+      if (!c || !c.name || isBasic(c.name) || isJoke(c)) continue;
       const e = need.get(c.name) || { r: rarityOf(c), want: 0 };
       e.want = Math.min(PLAYSET, e.want + (c.qty || 1));
       need.set(c.name, e);
@@ -810,6 +814,7 @@
   /** A missing copy, made with a wildcard of the card's rarity. */
   function craft(card) {
     load();
+    if (isJoke(card)) return { ok: false, why: MTG.jokes.why(card) + '.' };
     const r = rarityOf(card);
     if (owned(nameOf(card)) >= PLAYSET) return { ok: false, why: 'You already have four.' };
     if (!useWildcard(r)) return { ok: false, why: `You have no ${r} wildcards.` };
@@ -1095,7 +1100,8 @@
   function missingFor(deck) {
     const want = new Map();
     const add = (c, n) => {
-      if (!c || isBasic(c.name)) return;
+      // a joke card held from before is not one to craft: the deck is not played with it (MTG.formats.validate)
+      if (!c || isBasic(c.name) || isJoke(c)) return;
       const w = want.get(c.name) || { n: 0, card: c };
       w.n += n;
       want.set(c.name, w);

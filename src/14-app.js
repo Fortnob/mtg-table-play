@@ -1031,7 +1031,7 @@
     commander: "Atraxa, Praetors' Voice", brawl: 'Kenrith, the Returned King', oathbreaker: 'Chandra, Torch of Defiance',
     booster: 'Cogwork Librarian', picktwo: 'Fact or Fiction', chaos: 'Possibility Storm',
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
-    sealed: 'Booster Tutor', jumpstart: 'Inspiring Overseer',
+    sealed: 'Pack Rat', jumpstart: 'Inspiring Overseer',
   };
   const TILE_ART = { home: 'Command Tower', formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe',
     profile: 'Jace, the Mind Sculptor' };
@@ -4153,7 +4153,8 @@
       const { cards } = await MTG.scry.collection(ids.map(id => ({ id })));
       ids.forEach((id, i) => {
         const print = cards[i];
-        if (!print) return;
+        // (a joke printing, chosen before they left the game, is not shown: MTG.jokes)
+        if (!print || !MTG.jokes.printOk(print)) return;
         for (const o of wanted.get(id)) o.card = print;
       });
     } catch (e) { /* the default printing is a fine fallback */ }

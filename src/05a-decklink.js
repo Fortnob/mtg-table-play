@@ -272,8 +272,9 @@
     };
     const missing = [];
     flat.forEach(({ key, e }, i) => {
-      const card = cards[i];
-      if (!card) { missing.push({ name: e.name || `${String(e.set).toUpperCase()} #${e.cn}`, qty: e.qty }); return; }
+      // a joke or playtest card is not in this game: not found, like any card that is not (MTG.jokes)
+      const card = cards[i] && !MTG.jokes.isCard(cards[i]) ? cards[i] : null;
+      if (!card) { missing.push({ name: (cards[i] && cards[i].name) || e.name || `${String(e.set).toUpperCase()} #${e.cn}`, qty: e.qty }); return; }
       if (key === 'commanders') deck.commanders.push(card);
       else if (key === 'companion') deck.companion = card;
       else {

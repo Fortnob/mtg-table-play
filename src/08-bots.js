@@ -699,8 +699,10 @@
       if (l !== 'legal' && l !== 'restricted') return false;
     }
     if (colors && (card.color_identity || []).some(c => !colors.includes(c))) return false;
-    // Attractions, stickers and the like need pieces the table does not have
-    if (/\b(Attraction|sticker|Contraption|dungeon)\b/i.test(card.oracle_text || '')) return false;
+    // nothing outside the card pool (a joke or playtest card, an ante card: MTG.scry.inPool)
+    if (MTG.scry && MTG.scry.inPool && !MTG.scry.inPool(card)) return false;
+    // a dungeon is a piece the table does not have
+    if (/\bdungeon\b/i.test(card.oracle_text || '')) return false;
     return true;
   }
 

@@ -876,8 +876,12 @@
     }
     return out;
   }
+  /** A card of an MTGJSON deck file, as much of it as tells a joke card (MTG.jokes): Saw in Half stays, Clown Car does not. */
+  const preconCard = (c) => ({ name: c.name, set: String(c.setCode || '').toLowerCase(), border_color: c.borderColor,
+    security_stamp: c.securityStamp, promo_types: c.promoTypes, oracle_id: c.identifiers && c.identifiers.scryfallOracleId });
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
+    .filter(c => !(c && MTG.jokes.isCard(preconCard(c))))
     .map(c => ({ name: c.name, rarity: c.rarity, qty: Math.max(1, c.count || 1) }));
   /**
    * What a tile shows: a picture of its own (its commander's, or failing
@@ -890,7 +894,7 @@
     const rest = (d.mainBoard || []).filter(c => !/\bLand\b/.test(c.type || ''))
       .sort((a, b) => (RANK[b.rarity] || 0) - (RANK[a.rarity] || 0));
     const pick = [].concat(d.commander || [], d.displayCommander || [], rest).map((c) => {
-      const id = c && c.identifiers && c.identifiers.scryfallId;
+      const id = c && !MTG.jokes.isCard(preconCard(c)) && c.identifiers && c.identifiers.scryfallId;
       return id ? { url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: c.name, ill: c.identifiers.scryfallIllustrationId || null } : null;
     });
     const art = claimArt('deck:' + p.file, pick);
@@ -907,7 +911,8 @@
     const commanders = [], main = [], all = [];
     rows.forEach(({ c, cmd }, i) => {
       const card = found[i];
-      if (!card) return;
+      // a card not in the pool (a joke card's reprint, Clown Car in a Secret Lair deck, say) is not sold with the deck
+      if (!card || !MTG.scry.inPool(card)) return;
       const qty = Math.max(1, c.count || 1);
       all.push({ card, qty });
       if (cmd) commanders.push(card); else main.push({ card, qty });
@@ -2813,8 +2818,11 @@
     const n = Math.min(4, S.owned(c.name));
     // its price, while prices are shown, in the bar under it with the copies (clear of a card not owned, which is greyed)
     const price = MTG.settings.showCardPrices ? U.priceOf(c) : undefined;
+    // a joke or playtest card held from before: kept, and marked as not in the game (MTG.jokes)
+    const pic = cardPic(c, 'col-img');
+    if (MTG.jokes.isCard(c) && UI.markIllegal) UI.markIllegal(pic, [MTG.jokes.why(c)]);
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
-      cardPic(c, 'col-img'),
+      pic,
       el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' })).concat(price === undefined ? []
         : [el('span', { class: 'col-price' + (price == null ? ' none' : ''), text: price == null ? 'No price' : U.money(price),
           title: price == null ? 'Scryfall has no price for this card' : 'Its price on Scryfall' })])),
@@ -2839,6 +2847,7 @@
         cardPic(c, 'col-detail-img'),
         el('div', {}, [
           el('p', { text: `${RAR_NAME[r]} · you own ${Math.min(4, have)} of 4.` }),
+          MTG.jokes.isCard(c) ? el('p', { style: { color: 'var(--warn)' }, text: `${MTG.jokes.why(c)}: kept in your collection, but not played, crafted or traded.` }) : null,
           el('p', { class: 'dim' }, [document.createTextNode('Crafting takes one '), wcIcon(r, null), document.createTextNode(` ${r} wildcard. You have ${wc}.`)]),
           UI.cardStyles(c, reopen),
           UI.wishButton ? UI.wishButton(c) : null,
@@ -2846,8 +2855,8 @@
       ]),
       buttons: [
         { label: 'Close', onClick: (mm) => mm.close() },
-        { label: have >= 4 ? 'You have a playset' : `Craft (${RAR_NAME[r]} wildcard)`, class: 'primary', onClick: (mm) => {
-          if (have >= 4) return mm.close();
+        { label: MTG.jokes.isCard(c) ? 'Not in this game' : have >= 4 ? 'You have a playset' : `Craft (${RAR_NAME[r]} wildcard)`, class: 'primary', onClick: (mm) => {
+          if (have >= 4 || MTG.jokes.isCard(c)) return mm.close();
           const res = S.craft(c);
           if (!res.ok) { MTG.sfx('reject'); return UI.error(res.why); }
           MTG.sfx('wildcard');
