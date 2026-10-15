@@ -14324,7 +14324,8 @@
     // (The Ancient One: "Descend 8 \u2014 \u2026" \u2014 a number after the word)
     // (Captain America, First Avenger: "... Catch — At the beginning of combat …" — a label that starts with an ellipsis)
     // (Duggan, Private Detective: "The Most Important Punch in History — {1}{G}, {T}: …" — 35 letters long)
-    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.,' -]{2,40}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Ace, Fearless Rebel: "Nitro-9 \u2014" \u2014 a number after a hyphen)
+    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.,' -]{2,40}?(?:[ -]\d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -17090,8 +17091,9 @@
     if (tl.supertypes.includes('Legendary') || card.wasLegendary) {
       const full = normalizePunct(U.frontName(name));
       // (Jedit Ojanen of Efrava: "Jedit Ojanen" — every word before "of": shortBeforeOf)
+      // (Sol'Kanar the Tainted: "Sol'Kanar" \u2014 a capital after the apostrophe)
       const short = full.includes(',') ? full.split(',')[0].trim()
-        : (/^((?:[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+ )*?[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
+        : (/^((?:[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+ )*?[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+(?:[A-Z][a-z\u00DF-\u00FF'-]+)?) (?:of|the|from|to)\b/.exec(full) || [])[1];
       // (Ao, the Dawn Sky: "When Ao dies" — two letters will do before a comma)
       if (short && (short.length >= 3 || (short.length === 2 && full.includes(','))) && short !== full && !/^(?:The|A|An)$/.test(short)) {
         // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
