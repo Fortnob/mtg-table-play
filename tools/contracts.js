@@ -161,6 +161,8 @@ const PlayerView = obj({
   librarySize: nat, topCard: maybe(ObjectView), handSize: nat, draftNotes: opt(maybe(S.plainObj)),
   /* Mindslaver: the player controlling them this turn (CR 722) */
   controlledBy: opt(id),
+  /* …for how long: the turn, this combat (Secret of Bloodbending), or while controlSrc resolves (Word of Command) */
+  controlSpan: opt(lit('turn', 'combat', 'resolve')), controlSrc: opt(str),
   hand: arr(AnyObject), graveyard: arr(ObjectView), exile: arr(ObjectView), command: arr(ObjectView),
 });
 const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str });
@@ -209,8 +211,10 @@ const ChooseItem = obj({ id, name: opt(maybe(str)), card: opt(maybe(Card)) });
 /* ids and cards: a pile of cards an option stands for (Fact or Fiction's piles), cards in the same order as ids */
 const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weight: opt(num), ids: opt(arr(id)), cards: opt(arr(maybe(Card))) });
 const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
-const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'unionAtLeast', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
-  with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str) });
+const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'unionAtLeast', 'sum', 'shareColour', 'mana', 'pays'), key: opt(str), min: opt(num), max: opt(num),
+  with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str),
+  /* Word of Command: the cost the lands picked have to pay, and the spell they pay for ('pays') */
+  cost: opt(str), forObj: opt(maybe(id)) });
 const Remember = opt(lit('turn', 'batch'));
 /* "choose a card name": what the card must be, where any card's name may be typed in (nameAny) */
 const NameWanted = obj({ nonland: opt(bool), nonartifact: opt(bool), creature: opt(bool) }, { closed: true });

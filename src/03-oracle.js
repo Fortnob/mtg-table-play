@@ -388,6 +388,8 @@
         cost.evidence = num(m[2]); cost.evidenceFilter = m[1].toLowerCase();
         cost.evidenceSymbol = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[3].toLowerCase()]; continue;
       }
+      // The Dominion Bracelet: "Exile The Dominion Bracelet" in the equipped creature's hands (exileGranter)
+      if (/^Exile the granting Equipment$/i.test(p)) { cost.exileGranter = true; continue; }
       if ((m = p.match(/^Exile (.+)$/i))) {
         /* The exile costs the table can pay by itself: the card doing the
            asking, or a few cards out of the graveyard. Anything else stays
@@ -790,8 +792,8 @@
   function granterWords(scope, text) {
     // (Grothama, All-Devouring: 'Other creatures have "… you may have it fight Grothama, All-Devouring."' — the granter)
     if (scope && !scope.attached && /\bfight CARDNAME\.?$/.test(text || '')) return String(text).replace(/\bfight CARDNAME\b/, 'fight the granting creature');
-    // (Toggo, Goblin Weaponsmith's Rock: "{1}, {T}, Sacrifice Rock: …")
-    if (!scope || !scope.attached || !/\b(?:Unattach|Sacrifice) CARDNAME\b/.test(text || '')) return text;
+    // (Toggo, Goblin Weaponsmith's Rock: "{1}, {T}, Sacrifice Rock: …"; The Dominion Bracelet: "{15}, Exile The Dominion Bracelet: …")
+    if (!scope || !scope.attached || !/\b(?:Unattach|Sacrifice|Exile) CARDNAME\b/.test(text || '')) return text;
     return String(text).replace(/\bCARDNAME\b/g, 'the granting Equipment');
   }
 
@@ -5435,10 +5437,29 @@
     { re: /^Target player takes (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     /* Mindslaver, Worst Fears, Sorin Markov: "You control target player during that player's next turn."; Emrakul, the
        Promised End: "you gain control of target opponent during that player's next turn." (controlPlayer; CR 722) */
-    { re: /^You (?:gain )?control (?:of )?target (player|opponent) during that player'?s next turn\.?$/i,
-      make: (m) => ({ op: 'controlPlayer', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
+    /* (Construct a Cosmic Cube, The Dominion Bracelet: "you control target opponent during their next turn"; Secret of
+       Bloodbending: "You control target opponent during their next combat phase." — a combat phase only: span) */
+    { re: /^You (?:gain )?control (?:of )?target (player|opponent) during (?:that player'?s|their) next (turn|combat phase)\.?$/i,
+      make: (m) => Object.assign({ op: 'controlPlayer', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] },
+        /combat/i.test(m[2]) ? { span: 'combat' } : {}) },
     // Emrakul, the Promised End: "After that turn, that player takes an extra turn." — the turn just controlled (extraAfter)
     { re: /^After that turn, that player takes an extra turn\.?$/i, make: () => ({ op: 'manual', controlExtraRider: true }) },
+    // Secret of Bloodbending: "If this spell's additional cost was paid, you control that player during their next turn instead." (spanIfKicked)
+    { re: /^If this spell'?s additional cost was paid, you control that player during their next turn instead\.?$/i,
+      make: () => ({ op: 'manual', controlTurnIfPaidRider: true }) },
+    /* Word of Command: "You control that player until Word of Command finishes resolving." — the player whose hand was
+       looked at, for as long as this resolves (controlWhileResolving; CR 722) */
+    { re: /^You control that player until CARDNAME finishes resolving\.?$/i, make: () => ({ op: 'controlWhileResolving' }) },
+    // Word of Command: "The player plays that card if able." — the card chosen from their hand, played now as they (commandPlay)
+    { re: /^(?:The|That) player plays that card if able\.?$/i, make: () => ({ op: 'commandPlay' }) },
+    /* Word of Command: "While doing so, the player can activate mana abilities only if they're from lands that player
+       controls and only if mana they produce is spent to activate other mana abilities of lands the player controls
+       and/or to play that card." (landsOnly) — and "If the chosen card is cast as a spell, you control the player while
+       that spell is resolving." (controlSpell): both said of the play before them */
+    { re: /^While doing so, the player can activate mana abilities only if they'?re from lands that player controls and only if mana they produce is spent to activate other mana abilities of lands the player controls and\/or to play that card\.?$/i,
+      make: () => ({ op: 'manual', commandRider: 'landsOnly' }) },
+    { re: /^If the chosen card is cast as a spell, you control the player while that spell is resolving\.?$/i,
+      make: () => ({ op: 'manual', commandRider: 'controlSpell' }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
     { re: /^Shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
@@ -8205,7 +8226,8 @@
     { re: /^This ability costs \{X\} less to activate, where X is (.+?)\.?$/i,
       make: (m) => {
         const k = amountOf(m[1]);
-        return k && typeof k === 'object' && (k.greatestPower || k.scope || k.countersAmong || k.domain) && !k.plus ? { op: 'noop', abilityDiscount: { amount: 1, per: k } } : null;
+        // (The Dominion Bracelet, handed out: "where X is this creature's power" — ofSelf)
+        return k && typeof k === 'object' && (k.greatestPower || k.scope || k.countersAmong || k.domain || k.ofSelf === 'power') && !k.plus ? { op: 'noop', abilityDiscount: { amount: 1, per: k } } : null;
       } },
     /* Grishnákh, Brash Instigator: "When you do, until end of turn, gain control of target nonlegendary creature an
        opponent controls with power less than or equal to the amassed Army's power." — the Army as it is now (maxPowerAmassed) */
@@ -15019,6 +15041,23 @@
         if (prevE && prevE.op === 'controlPlayer' && !prevE.extraAfter) { prevE.extraAfter = true; continue; }
         out.push({ op: 'manual', text: e.text || '' });
         continue;
+      }
+      // (Secret of Bloodbending: "If this spell's additional cost was paid, you control that player during their next turn instead.")
+      if (e && e.controlTurnIfPaidRider) {
+        if (prevE && prevE.op === 'controlPlayer' && prevE.span === 'combat' && !prevE.spanIfPaid) { prevE.spanIfPaid = 'turn'; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // (Word of Command: what the play before it is held to — lands' mana only, control while the spell resolves)
+      if (e && e.commandRider) {
+        if (prevE && prevE.op === 'commandPlay' && !prevE[e.commandRider]) { prevE[e.commandRider] = true; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // (Word of Command: the card chosen from the hand is the one to be played — said to whoever chooses it: forPlay)
+      if (e && e.op === 'commandPlay') {
+        const ch = out.slice().reverse().find(x => x && x.op === 'chooseFromHand');
+        if (ch) ch.forPlay = true;
       }
       // (Kang the Conqueror: "During that turn, power-up abilities can't be activated." — the extra turn before it)
       if (e && e.noPowerUpRider) {

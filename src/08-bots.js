@@ -1573,6 +1573,10 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Word of Command: X for the spell its owner is made to cast — as much as their lands pay for, their mana wasted
+       (commandX); and which of their lands pay — those the engine would tap, listed first (commandLands) */
+    commandX(s) { return { picks: [], number: s.number.max }; },
+    commandLands(s) { return { picks: (s.items || []).slice(0, s.min).map(it => it.id) }; },
     /* Harold and Bob, First Numens: the Forest of ours it enchants as it returns — an untapped one, so its new mana
        ability is there to use this turn, and one with nothing else on it */
     auraHostEnter(s) {
@@ -3399,6 +3403,20 @@
       if (ch.purpose === 'discardFromHand' || ch.purpose === 'exileFromHand') worst = false;
       // Tomorrow, Azami's Familiar: the card we would most like to draw of the ones looked at (drawLook)
       if (ch.purpose === 'drawLook') return cards.sort((x, y) => this.drawValue(y) - this.drawValue(x)).slice(0, 1).map(o => o.id);
+      /* Word of Command: the card its owner will be made to play, with this bot choosing everything for them — a
+         spell that hurts whatever it is aimed at (aimed at their own things), else their best spell spent at the
+         wrong time; a land only when nothing else can be played (commandCard) */
+      if (ch.purpose === 'commandCard') {
+        const harm = new Set(['damage', 'destroy', 'exile', 'bounce', 'tapTarget', 'counter', 'sacrificeTarget', 'loseLife', 'discard', 'mill', 'pump']);
+        const v = (o) => {
+          const a = o.analysis() || {};
+          if (!g._commandPlayable(o.owner, o)) return -1;
+          if (a.isLand) return 0.5;
+          const aims = (a.abilities || []).some(ab => ab.kind === 'spell' && (ab.effects || []).some(e => e && (e.targets || []).length && harm.has(e.op)));
+          return this.rating(o) + (aims ? 5 : 1);
+        };
+        return cards.sort((x, y) => v(y) - v(x)).slice(0, want).map(o => o.id);
+      }
       // Eladamri, Korvecdal: the best creature on offer, which then goes onto the battlefield free (revealHandOrTop)
       if (ch.purpose === 'revealHandOrTop') {
         const fits = cards.filter(o => g._cardFitsWords(o, (e && e.filter) || 'creature'));

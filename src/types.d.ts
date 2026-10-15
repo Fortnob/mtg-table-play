@@ -177,6 +177,10 @@ declare namespace MTG {
     draftNotes?: Record<string, any> | null;
     /** Mindslaver: the player controlling them this turn (CR 722); said only of a controlled player */
     controlledBy?: PlayerId;
+    /** …for how long: the turn, this combat phase (Secret of Bloodbending), or while controlSrc resolves (Word of Command) */
+    controlSpan?: 'turn' | 'combat' | 'resolve';
+    /** what that control comes from, or (span 'resolve') the spell it lasts while */
+    controlSrc?: string;
     life: number;
     poison?: number;
     energy?: number;
@@ -495,7 +499,9 @@ declare namespace MTG {
     | { kind: 'unionAtLeast'; key?: string; min: number; reason?: string; label?: string }
     | { kind: 'sum'; key: string; min?: number; max?: number; reason?: string; label?: string }
     | { kind: 'shareColour'; with?: string[]; reason?: string; label?: string }
-    | { kind: 'mana'; key?: string; base?: string; reason?: string; label?: string };
+    | { kind: 'mana'; key?: string; base?: string; reason?: string; label?: string }
+    /** Word of Command: the mana sources picked, tapped, pay `cost` (for the spell forObj) — engine only */
+    | { kind: 'pays'; cost: string; forObj?: Id | null; reason?: string; label?: string };
 
   /** What a generic question asks, before it is put to anybody. */
   interface ChooseSpec {

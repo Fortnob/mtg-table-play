@@ -980,6 +980,8 @@
       const endingTurnOf = this.turn > 0 ? this.activePlayer : null;
       // Mindslaver, Emrakul, the Promised End: a controlled turn is over, and Emrakul's extra turn comes next (CR 722)
       if (endingTurnOf) this._controlTurnEnds(endingTurnOf);
+      // (Word of Command: a hold on a spell that never got to resolve goes with it)
+      this._controlResSweep();
       // (Medomai the Ageless: "during extra turns" — extraTurnNow)
       this.isExtraTurn = false;
       // extra turns first
@@ -1095,7 +1097,11 @@
     _advanceStep() {
       if (this.over) return;
       this.holdFor = null;          // holding priority lasts for one step only
-      if (this.phase && this.phase.id === 'combat' && this.step === 'endCombat') this._endCombat();
+      if (this.phase && this.phase.id === 'combat' && this.step === 'endCombat') {
+        this._endCombat();
+        // Secret of Bloodbending: "during their next combat phase" — that phase is over
+        if (this.activePlayer && this.activePlayer.controlCombat) this._controlCombatEnds(this.activePlayer);
+      }
       if (this.step === 'upkeep') this._expireAtUpkeep(true);
       // clear mana pools between steps and phases (CR 500.4)
       for (const p of this.players) {
@@ -1268,6 +1274,8 @@
           // "if it's the first combat phase of the turn"
           this.combatsThisTurn = this._combatTurn === this.turn ? (this.combatsThisTurn || 0) + 1 : 1;
           this._combatTurn = this.turn;
+          // Secret of Bloodbending: "during their next combat phase" — this one, if it is theirs (_controlCombatBegins)
+          this._controlCombatBegins(this.activePlayer);
           this._fire('yourCombatBegin', this.activePlayer.id);
           // (Sentinel of the Eternal Watch: "that player" is the one whose combat it is)
           this._fire('eachCombatBegin', null, { playerId: this.activePlayer.id });
@@ -2619,6 +2627,8 @@
           else this.moveObject(item.obj, item.obj.isCommander && MTG.settings.commanderToZone !== false ? 'command'
             : item.exileIfCountered ? 'exile' : 'graveyard');
         }
+        // (Word of Command: a spell countered never resolves — no control while it does)
+        this._controlResDone(item.id);
         this.checkStateBasedActions();
         this._resetPriority();
         return;
@@ -2643,11 +2653,23 @@
         item.resolvedTargets = legal;
       } else item.resolvedTargets = [];
 
-      if (item.kind === 'spell') this._resolveSpell(item);
-      else this._resolveAbility(item);
+      // (Word of Command: what lasts "while that spell is resolving" knows which one is — _controlResLive)
+      const wasRes = this.__resItem;
+      this.__resItem = item.id;
+      for (const p of this.players) {
+        const w = (p.controlRes || []).find(x => x.stackId === item.id);
+        const c = w && this._controlNow(p.id);
+        if (c && c.span === 'resolve' && c.by === w.by) this.logEvent('rules', `${this.player(c.by).name} controls ${p.name} while ${item.name} resolves.`);
+      }
+      try {
+        if (item.kind === 'spell') this._resolveSpell(item);
+        else this._resolveAbility(item);
+      } finally { this.__resItem = wasRes; }
     }
 
     _afterResolve(item) {
+      // Word of Command: control that lasted while this resolved is over
+      this._controlResDone(item.id);
       // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
       if (item.finalChapter && item.obj) this._fire('finalChapterResolved', item.controller, { object: item.obj, objController: item.controller });
       // Time Stop, Sundial of the Infinite: the turn ends as this finishes resolving
@@ -2889,7 +2911,7 @@
       if (a && a.keywordSet && a.keywordSet.has('cipher') && !item.isCopy) effects = effects.concat([{ op: 'cipher' }]);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
-    _afterResolveNoGrave(item) { this.checkStateBasedActions(); this._resetPriority(); }
+    _afterResolveNoGrave(item) { this._controlResDone(item.id); this.checkStateBasedActions(); this._resetPriority(); }
 
     /** What a clone entering could copy ("any creature", "an artifact or creature you control"). */
     _clonePool(src, e, controller) {
@@ -3701,7 +3723,7 @@
 
     /** Targets for a spell cast in the middle of a resolution: asked for now; null if it has none it could take.
         A modal spell's modes are asked first, and kept for the cast that follows (_askedModes). */
-    _askSpellTargets(pid, c, key) {
+    _askSpellTargets(pid, c, key, opts) {
       const ca = c && c.analysis();
       this._askedModes = null;
       let specs = null, aimedBy = null;
@@ -3736,6 +3758,13 @@
       // an Aura's target is what it will enchant (Surging Might rippled, an Aura discovered), as castSpell reads it
       if (!specs) specs = ca ? (ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca)) : [];
       if (!specs.length) return [];
+      /* (Word of Command: what each target is for, so whoever answers — a bot controlling the caster, say — reads
+         it as the spell's own words: aim) */
+      if (!aimedBy && opts && opts.aim && ca && !(ca.isAura && ca.auraSpec)) {
+        const list = [];
+        for (const f of cardSpellEffects(ca)) for (let k = 0; k < (f.targets || []).length; k++) list.push({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
+        if (list.length === specs.length) aimedBy = list;
+      }
       this._castingSpell = c.id;
       const options = specs.map(spec => this._legalTargetsFor(spec, pid, c.id));
       this._castingSpell = null;
@@ -11054,6 +11083,14 @@
         const eq = this.obj(item.grantedBy);
         if (eq && eq.zone === 'battlefield' && eq.controller === pid) this._sacrificeNow(pid, [eq], item);
       }
+      // The Dominion Bracelet: "Exile The Dominion Bracelet" — the Equipment that handed the ability out (exileGranter)
+      if (cost.exileGranter && item && item.grantedBy) {
+        const eq = this.obj(item.grantedBy);
+        if (eq && eq.zone === 'battlefield' && eq.controller === pid) {
+          this.moveObject(eq, 'exile');
+          this.logEvent('exile', `${this.player(pid).name} exiles ${eq.name}.`);
+        }
+      }
       // "Pay {E}{E}"
       if (cost.energy) {
         const pe = this.player(pid);
@@ -11717,6 +11754,8 @@
       if (o.controller !== playerId) return this.fail('Not yours.');
       // Sen Triplets: "can't … activate abilities" — mana abilities too
       if (this._abilityLocked(playerId)) return this.fail("You can't activate abilities this turn.");
+      // Word of Command: "only if they're from lands that player controls" (landsOnly)
+      if (this._landManaOnly(playerId) && !this._matchesCategory(o, 'land')) return this.fail("Only lands' mana abilities can be activated while that card is being played.");
       const c = this.characteristics(o);
       if (c && c.setMana && !c.abilitiesLost) {
         // its type line has been rewritten, so it makes that mana instead
@@ -12061,8 +12100,10 @@
     _autoTapSources(playerId) {
       // (Sen Triplets: nothing to tap while that player can't activate abilities)
       if (this._abilityLocked(playerId)) return [];
+      // Word of Command: "can activate mana abilities only if they're from lands that player controls" (landsOnly)
+      const landsOnly = this._landManaOnly(playerId);
       return this.battlefield.filter(o =>
-        o.controller === playerId && !o.tapped && !o.phasedOut &&
+        o.controller === playerId && !o.tapped && !o.phasedOut && (!landsOnly || this._matchesCategory(o, 'land')) &&
         this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)));
     }
 
@@ -12476,7 +12517,8 @@
     _handManaGuides(playerId, opts) {
       const p = this.player(playerId);
       const z = this.zones[playerId];
-      if (!p || p.isBot || !z || this._abilityLocked(playerId)) return [];
+      // (Word of Command: lands' mana only — landsOnly)
+      if (!p || p.isBot || !z || this._abilityLocked(playerId) || this._landManaOnly(playerId)) return [];
       const self = opts ? (opts.forSpell || opts.forAbility || null) : null;
       return z.hand.filter(o => {
         if (o === self || o.controller !== playerId) return false;
@@ -20329,6 +20371,12 @@
         alive: (id) => typeof id !== 'string' || !!this.player(id) || (!!this.obj(id) && !!this.obj(id).zone),
         // a card name typed in: what the card must be, when it is known (_nameProblem)
         nameProblem: (nm, want) => this._nameProblem(nm, want),
+        // Word of Command: can these of the player's mana sources (tapped as they would be) pay `cost`? ('pays')
+        paysWith: (ids, cost, forObj) => {
+          const srcs = (ids || []).map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === playerId && !o.tapped);
+          if (srcs.length !== (ids || []).length) return false;
+          return !!this._planAutoTap(playerId, srcs, cost, { forSpell: forObj ? this.obj(forObj) : null });
+        },
       };
     }
 
@@ -31165,10 +31213,12 @@
           // (the hand was revealed, cards named, by the sentence before)
           if (!hand.length) break;
           // (Vendilion Clique: "You may choose a nonland card from it." — one pick that may be left empty: optional)
+          // (Word of Command: the card that player will be made to play — forPlay)
           const picked = this._ask(Object.assign({ type: 'pickCard', playerId: ctx.controller, count: 1,
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: e.optional ? `You may choose a ${words === 'any' ? '' : words + ' '}card from ${victim.name}'s hand.` : `Choose a card from ${victim.name}'s hand.` },
-            e.optional ? { optional: true } : {}));
+            prompt: e.forPlay ? `Choose a card from ${victim.name}'s hand. ${victim.name} plays it if able, with you making every choice for ${victim.name}.`
+              : e.optional ? `You may choose a ${words === 'any' ? '' : words + ' '}card from ${victim.name}'s hand.` : `Choose a card from ${victim.name}'s hand.` },
+            e.optional ? { optional: true } : {}, e.forPlay ? { purpose: 'commandCard' } : {}));
           if (picked === SUSPEND) return SUSPEND;
           this._chosenCard = (picked || [])[0] || null;
           break;
@@ -36799,10 +36849,27 @@
         }
         /* Mindslaver: "You control target player during that player's next turn." Emrakul, the Promised End: "…
            After that turn, that player takes an extra turn." (extraAfter; CR 722) */
+        /* Secret of Bloodbending: "You control target opponent during their next combat phase. If this spell's additional
+           cost was paid, you control that player during their next turn instead." (span, spanIfPaid) */
         case 'controlPlayer': {
           const who = firstPlayer();
           if (!who || who.hasLost) break;
-          this._controlNextTurn(me.id, who.id, src ? src.name : null, !!e.extraAfter);
+          const span = e.spanIfPaid && this._condMet({ kind: 'kicked', n: 1 }, ctx) ? e.spanIfPaid : (e.span || 'turn');
+          this._controlNextTurn(me.id, who.id, src ? src.name : (ctx.name || null), !!e.extraAfter, span);
+          break;
+        }
+        /* Word of Command: "You control that player until Word of Command finishes resolving." — the player it targets,
+           from now until it has resolved (controlWhileResolving; CR 722) */
+        case 'controlWhileResolving': {
+          const who = firstPlayer();
+          if (!who || who.hasLost || this._doneHere('ctlRes')) break;
+          this._controlWhileResolving(me.id, who.id, ctx.name || (src && src.name) || null, ctx.id);
+          break;
+        }
+        // Word of Command: "The player plays that card if able." (commandPlay)
+        case 'commandPlay': {
+          const got = this._commandPlay(e, ctx);
+          if (got === SUSPEND) return SUSPEND;
           break;
         }
         // "You gain hexproof until end of turn."
@@ -38650,33 +38717,61 @@
        player's next turn". The controlled player is still the one acting — their spells, their mana, their cards —
        but every choice and decision they would make is made by the player controlling them, who sees everything
        they could see. Kept as plain data on the controlled player: controlNext, the effects waiting for their next
-       turn ({ by, src, extra }), and controlledBy, the one running now ({ by, turn, src, extra }). */
+       turn or combat phase ({ by, src, extra, at, span }); controlledBy, the turn running now ({ by, turn, src, extra,
+       at }); controlCombat, the combat phase running now (Secret of Bloodbending: { by, turn, src, at }); and
+       controlRes, those that last while a spell resolves (Word of Command: { by, src, stackId, at, landsOnly }).
+       Of those in force, the newest (`at`) is the one that counts (CR 722.5). */
+    /** Who controls this player right now, for how long and why: { by, span ('turn', 'combat', 'resolve'), src }, or null. */
+    _controlNow(pid) {
+      const p = this.player(pid);
+      if (!p || p.hasLost || this.over) return null;
+      let best = null;
+      const take = (r, span) => {
+        const c = r && this.player(r.by);
+        // (a controller who has left the game controls nobody: CR 800.4a)
+        if (!c || c.hasLost) return;
+        if (!best || (r.at || 0) >= (best.r.at || 0)) best = { r, span };
+      };
+      if (p.controlledBy && p.controlledBy.turn === this.turn) take(p.controlledBy, 'turn');
+      // (that combat phase only: not another one later in the turn, n)
+      if (p.controlCombat && p.controlCombat.turn === this.turn && this.phase && this.phase.id === 'combat' && p.controlCombat.n === this.combatsThisTurn) take(p.controlCombat, 'combat');
+      for (const w of p.controlRes || []) if (this._controlResLive(w)) take(w, 'resolve');
+      // (gaining control of yourself does nothing — and, being the newest, ends the rest: Mindslaver's ruling)
+      if (!best || best.r.by === pid) return null;
+      return { by: best.r.by, span: best.span, src: best.r.src || null };
+    }
     /** The player making this player's decisions right now, or null when they make their own. */
     playerController(pid) {
-      const p = this.player(pid);
-      const r = p && p.controlledBy;
-      if (!r || r.turn !== this.turn || p.hasLost || this.over) return null;
-      const c = this.player(r.by);
-      // (gaining control of yourself does nothing; a controller who has left the game controls nobody: CR 800.4a)
-      if (!c || c.id === pid || c.hasLost) return null;
-      return c.id;
+      const c = this._controlNow(pid);
+      return c ? c.by : null;
     }
     /** Who decides for this player: whoever controls them, else they themselves. */
     deciderOf(pid) { return this.playerController(pid) || pid; }
     /** The players this one is controlling right now. */
     controlledPlayers(pid) { return this.players.filter(p => p.id !== pid && this.playerController(p.id) === pid).map(p => p.id); }
-    /** "You control target player during that player's next turn" — the last such effect is the one that counts. */
-    _controlNextTurn(byId, pid, src, extra) {
+    /** How long the control over this player lasts, for a sentence: "this turn", "during this combat", "while X resolves". */
+    _controlSpanWords(pid) {
+      const c = this._controlNow(pid);
+      if (!c) return '';
+      return c.span === 'combat' ? 'during this combat' : c.span === 'resolve' ? `while ${c.src || 'that'} resolves` : 'this turn';
+    }
+    _controlStamp() { return (this._ctlSeq = (this._ctlSeq || 0) + 1); }
+    /** "You control target player during that player's next turn" (Secret of Bloodbending: "next combat phase", span) —
+        the last such effect is the one that counts. */
+    _controlNextTurn(byId, pid, src, extra, span) {
       const p = this.player(pid), by = this.player(byId);
       if (!p || !by || p.hasLost) return;
-      (p.controlNext = p.controlNext || []).push({ by: by.id, src: src || null, extra: extra ? 1 : 0 });
-      if (by.id !== p.id) this.logEvent('rules', `${by.name} will control ${p.name} during ${p.name}'s next turn.`);
+      const combat = span === 'combat';
+      (p.controlNext = p.controlNext || []).push(Object.assign({ by: by.id, src: src || null, extra: extra ? 1 : 0, at: this._controlStamp() }, combat ? { span: 'combat' } : {}));
+      if (by.id !== p.id) this.logEvent('rules', `${by.name} will control ${p.name} during ${p.name}'s next ${combat ? 'combat phase' : 'turn'}.`);
       if (extra) this.logEvent('rules', `${p.name} takes an extra turn after that one.`);
     }
     /* A turn begins: what was waiting for this player's next turn takes hold (the newest one; each Emrakul's extra turn
        still counts), and a turn that ends lets go, with the extra turn Emrakul promised coming straight after it — unless
-       that player has left the game (Emrakul's ruling). */
+       that player has left the game (Emrakul's ruling). What waits for their next combat phase waits on for it. */
     _controlTurnEnds(p) {
+      // (a turn ended with its combat cut short: Secret of Bloodbending's hold is over too)
+      if (p && p.controlCombat) this._controlCombatEnds(p);
       const r = p && p.controlledBy;
       if (!r) return;
       p.controlledBy = null;
@@ -38685,13 +38780,187 @@
       if (!p.hasLost) for (let k = 0; k < (r.extra || 0); k++) this.extraTurnsQueue.unshift(p.id);
     }
     _controlTurnBegins(p) {
-      const recs = p.controlNext;
-      if (!recs || !recs.length) return;
-      p.controlNext = null;
+      const all = p.controlNext;
+      if (!all || !all.length) return;
+      const recs = all.filter(r => r.span !== 'combat');
+      const wait = all.filter(r => r.span === 'combat');
+      p.controlNext = wait.length ? wait : null;
+      if (!recs.length) return;
       const last = recs[recs.length - 1];
-      p.controlledBy = { by: last.by, turn: this.turn, src: last.src, extra: recs.reduce((t, r) => t + (r.extra || 0), 0) };
+      p.controlledBy = { by: last.by, turn: this.turn, src: last.src, extra: recs.reduce((t, r) => t + (r.extra || 0), 0), at: last.at || 0 };
       const by = this.playerController(p.id);
       if (by) this.logEvent('rules', `${this.player(by).name} controls ${p.name} during this turn${last.src ? ` (${last.src})` : ''}.`);
+    }
+    /* Secret of Bloodbending: "You control target opponent during their next combat phase." — the next one that player
+       actually takes (its ruling): from the beginning of combat to the end of combat of their turn. */
+    _controlCombatBegins(ap) {
+      const all = (ap && ap.controlNext) || [];
+      const recs = all.filter(r => r.span === 'combat');
+      if (!recs.length) return;
+      const rest = all.filter(r => r.span !== 'combat');
+      ap.controlNext = rest.length ? rest : null;
+      const last = recs[recs.length - 1];
+      ap.controlCombat = { by: last.by, turn: this.turn, n: this.combatsThisTurn, src: last.src, at: last.at || 0 };
+      const c = this._controlNow(ap.id);
+      if (c && c.span === 'combat') this.logEvent('rules', `${this.player(c.by).name} controls ${ap.name} during this combat${last.src ? ` (${last.src})` : ''}.`);
+    }
+    _controlCombatEnds(p) {
+      const r = p && p.controlCombat;
+      if (!r) return;
+      const was = this.playerController(p.id);
+      p.controlCombat = null;
+      if (was && was === r.by && !this.playerController(p.id)) this.logEvent('rules', `${this.player(was).name} no longer controls ${p.name}.`);
+    }
+    /* Word of Command: "You control that player until Word of Command finishes resolving." "If the chosen card is cast as
+       a spell, you control the player while that spell is resolving." — in force while that stack item is resolving
+       (its effects running, or a question it waits on as it arrives), gone once it has resolved. */
+    _controlResLive(w) {
+      const id = w && w.stackId;
+      if (!id) return false;
+      const r = this.resolving;
+      return !!((r && r.ctx && r.ctx.id === id) || this.__resItem === id || (this._cloneWait && this._cloneWait.id === id) || (this._enterWait && this._enterWait.id === id));
+    }
+    /** Control `pid` while the stack item `stackId` resolves (from now, if it is the one resolving). */
+    _controlWhileResolving(byId, pid, src, stackId) {
+      const p = this.player(pid), by = this.player(byId);
+      if (!p || !by || p.hasLost || !stackId) return null;
+      const w = { by: by.id, src: src || null, stackId, at: this._controlStamp() };
+      (p.controlRes = p.controlRes || []).push(w);
+      if (by.id !== p.id && this._controlResLive(w)) this.logEvent('rules', `${by.name} controls ${p.name} until ${src || 'it'} finishes resolving.`);
+      return w;
+    }
+    /** A stack item is done resolving (or gone): the control that lasted while it resolved ends. */
+    _controlResDone(itemId) {
+      for (const p of this.players) {
+        const list = p.controlRes;
+        const gone = (list || []).filter(w => w.stackId === itemId);
+        if (!gone.length) continue;
+        const keep = list.filter(w => w.stackId !== itemId);
+        p.controlRes = keep.length ? keep : null;
+        const by = this.player(gone[gone.length - 1].by);
+        if (by && by.id !== p.id && this.playerController(p.id) !== by.id) this.logEvent('rules', `${by.name} no longer controls ${p.name}.`);
+      }
+    }
+    /** What waits on a stack item no longer there is dropped (one exiled as a turn was ended, say). */
+    _controlResSweep() {
+      for (const p of this.players) {
+        if (!p.controlRes || !p.controlRes.length) continue;
+        const keep = p.controlRes.filter(w => this.stack.some(x => x.id === w.stackId) || this._controlResLive(w));
+        if (keep.length !== p.controlRes.length) p.controlRes = keep.length ? keep : null;
+      }
+    }
+    /** Word of Command: only lands' mana for this player while doing what it says (landsOnly)? */
+    _landManaOnly(pid) {
+      const p = this.player(pid);
+      return !!(p && (p.controlRes || []).some(w => w.landsOnly && this._controlResLive(w)));
+    }
+    /** Could this player play this card from their hand now, as an effect says they must (Word of Command), with the
+        mana of their lands alone? A land if they may play one; a spell if it could be cast, paid for and aimed. */
+    _commandPlayable(pid, o) {
+      const p = this.player(pid);
+      const a = o && o.analysis();
+      if (!p || !a || o.zone !== 'hand' || o.owner !== pid) return false;
+      if (a.isLand) return this._landPlayLeft(p);
+      if (!this.canCast(pid, o.id, 'resolution').ok) return false;
+      const lands = this._autoTapSources(pid).filter(x => this._matchesCategory(x, 'land'));
+      const cost = String(this.castCost(o, {}, pid) || '').replace(/\{X\}/g, '');
+      if (cost && !p.pool.canPay(cost, {}) && !this._planAutoTap(pid, lands, cost, { forSpell: o })) return false;
+      const specs = a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a);
+      this._castingSpell = o.id;
+      try { return specs.every(sp => !sp || sp.upTo || this._legalTargetsFor(sp, pid, o.id).length > 0); } finally { this._castingSpell = null; }
+    }
+    /**
+     * Word of Command: "The player plays that card if able. While doing so, the player can activate mana abilities only if
+     * they're from lands that player controls … If the chosen card is cast as a spell, you control the player while that
+     * spell is resolving." The card chosen from their hand (by the sentence before) is played now, as its owner, timing
+     * aside (CR 608.2g) — a land only on their turn with a land play left (CR 305.2–3, the card's ruling). Every choice
+     * casting it calls for — X, its modes and targets, an extra cost, which of their lands pay — is the owner's, and so
+     * asked of whoever controls them now (the player who cast Word of Command); only their lands' mana pays (landsOnly).
+     */
+    _commandPlay(e, ctx) {
+      const r = this.resolving;
+      const marks = r ? (r.marks = r.marks || {}) : {};
+      const mk = (r ? r.index : 0) + ':cmd';
+      // the card chosen (chooseFromHand), kept for this effect however often it stops to ask
+      if (!(mk + 'card' in marks)) marks[mk + 'card'] = this._chosenCard || null;
+      const o = this.obj(marks[mk + 'card']);
+      if (!o || o.zone !== 'hand') return null;
+      const who = this.player(o.owner);
+      if (!who || who.hasLost) return null;
+      const a = o.analysis();
+      if (!a) return null;
+      if (e.landsOnly) for (const w of who.controlRes || []) if (this._controlResLive(w)) w.landsOnly = true;
+      const cant = (why) => { if (!this._doneHere('cmdCant')) this.logEvent('rules', `${who.name} can't play ${o.name}${why ? ` (${why})` : ''}.`); return null; };
+      if (a.isLand) {
+        if (!this._landPlayLeft(who)) return cant(this.activePlayer && this.activePlayer.id === who.id ? 'no land play left this turn' : "it isn't their turn");
+        if (this._doneHere('cmdLand')) return null;
+        this._landPlayed(who, o, null);
+        return null;
+      }
+      if (!this.canCast(who.id, o.id, 'resolution').ok) return cant(this.canCast(who.id, o.id, 'resolution').reason.replace(/\.$/, ''));
+      const lands = () => this._autoTapSources(who.id).filter(x => this._matchesCategory(x, 'land'));
+      // (what the pool and their lands can pay, as the payment will: _payPlanNow, lands only while landsOnly holds)
+      const payable = (cost) => !cost || !MANA.cmc(cost) || !!this._payPlanNow(who.id, cost, { forSpell: o });
+      const base = String(this.castCost(o, {}, who.id) || '');
+      // X (CR 601.2b): as much as their lands could pay for, or none
+      let x = 0;
+      if (/\{X\}/.test(base)) {
+        let most = -1;
+        for (let k = 0; k <= 30 && payable(base.replace(/\{X\}/g, '{' + k + '}')); k++) most = k;
+        if (most < 0) return cant("their lands can't pay for it");
+        const got = this._choose({ playerId: who.id, purpose: 'commandX', kind: 'number', number: { min: 0, max: most }, sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+          prompt: `${o.name}: choose X (${who.name} casts it; their lands can pay for X up to ${most}).` }, 'cmdX');
+        if (got === SUSPEND) return SUSPEND;
+        x = Math.max(0, Math.min(most, (got && got.number) || 0));
+      }
+      const costNow = base.replace(/\{X\}/g, '{' + x + '}');
+      if (!payable(costNow)) return cant("their lands can't pay for it");
+      // its modes and targets (CR 601.2b–c)
+      this._specX = x;
+      const tg = this._askSpellTargets(who.id, o, 'cmdT', { aim: true });
+      this._specX = null;
+      if (tg === SUSPEND) return SUSPEND;
+      if (tg === null) return cant('nothing it could target');
+      // an optional extra cost (kicker, "you may … as an additional cost") — paid or not, as the controller says
+      const extra = {};
+      const add = a.additionalCost;
+      if (add && add.optional && !add.choice && !(add.mana && !payable(this._addGeneric(costNow, MANA.cmc(add.mana))))) {
+        const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'commandExtra', sourceId: o.id,
+          prompt: `${o.name}: pay its additional cost${add.label ? ` (${add.label})` : add.mana ? ` (${add.waterbend ? 'waterbend ' : ''}${add.mana})` : ''}?` }, 'cmdAdd');
+        if (yes === SUSPEND) return SUSPEND;
+        extra.payAdditional = !!yes;
+      } else if (add && add.optional && !add.choice) extra.payAdditional = false;
+      const kick = this.extraCostsFor(o.id, who.id).find(k => k.kind === 'kicker' && k.cost && !k.costs);
+      let kicked = false;
+      if (kick && payable(costNow + kick.cost)) {
+        const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'commandExtra', sourceId: o.id, prompt: `${o.name}: kick it (${kick.cost})?` }, 'cmdKick');
+        if (yes === SUSPEND) return SUSPEND;
+        if (yes) { extra.kick = 1; kicked = true; }
+      }
+      // which of their lands pay (the card's ruling: "You do get to choose which lands get tapped")
+      const need = costNow + (kicked ? kick.cost : '') + (extra.payAdditional && add.mana ? add.mana : '');
+      const plan = this._payPlanNow(who.id, need, { forSpell: o });
+      const srcs = lands();
+      if (Array.isArray(plan)) {
+        const used = [...new Set(plan.map(s => s.obj && s.obj.id).filter(Boolean))];
+        if (used.length && srcs.length > used.length) {
+          // (the lands paying would tap first in the list: the first legal answer anyone without the engine finds)
+          const order = srcs.filter(x => used.includes(x.id)).concat(srcs.filter(x => !used.includes(x.id)));
+          const got = this._choose({ playerId: who.id, purpose: 'commandLands', kind: 'objects', items: this._chooseItems(order), min: used.length, max: used.length,
+            constraints: [{ kind: 'pays', cost: need, forObj: o.id, reason: `Those lands can't pay ${need}.` }],
+            sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+            prompt: `${o.name}: choose the ${used.length === 1 ? 'land' : used.length + ' lands'} ${who.name} taps to pay ${need}.` }, 'cmdLands');
+          if (got === SUSPEND) return SUSPEND;
+          if (got && (got.picks || []).length) extra.tapIds = got.picks.slice();
+        }
+      }
+      if (this._doneHere('cmdCast')) return null;
+      const ok = this.castSpell(who.id, o.id, Object.assign({ alternative: 'resolution', targets: tg, x, auto: true, autoCost: true }, extra));
+      const item = ok && this.stack.find(st => st.objId === o.id && st.kind === 'spell');
+      if (!item) return cant(this.lastError ? String(this.lastError).replace(/\.$/, '') : '');
+      // "If the chosen card is cast as a spell, you control the player while that spell is resolving."
+      if (e.controlSpell) this._controlWhileResolving(ctx.controller, who.id, o.name, item.id);
+      return null;
     }
     /**
      * Who an intent from `senderId` acts as, or null when it is refused (the reason said through fail). An intent
@@ -38709,7 +38978,7 @@
         return as;
       }
       const by = this.playerController(senderId);
-      if (by && !['chat', 'concede', 'leave', 'autoPass'].includes(kind)) return this.fail(`${this.player(by).name} is controlling you this turn.`) || null;
+      if (by && !['chat', 'concede', 'leave', 'autoPass'].includes(kind)) return this.fail(`${this.player(by).name} is controlling you ${this._controlSpanWords(senderId)}.`) || null;
       return senderId;
     }
 
@@ -41533,6 +41802,10 @@
           botPersonality: p.botPersonality || null,
           // Mindslaver: who is controlling them this turn, for everyone to see (said only of a controlled player)
           controlledBy: this.playerController(p.id) || undefined,
+          /* …and for how long (Secret of Bloodbending: 'combat'; Word of Command: 'resolve', while controlSrc resolves),
+             and what it is (controlSrc) */
+          controlSpan: (this._controlNow(p.id) || {}).span || undefined,
+          controlSrc: (this._controlNow(p.id) || {}).src || undefined,
           life: p.life, poison: p.poison, energy: p.energy, experience: p.experience,
           pool: p.pool.snapshot(), landsPlayed: p.landsPlayed, maxLands: this.landAllowance(p),
           hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, lossFrom: p.lossFrom || null, connected: p.connected,

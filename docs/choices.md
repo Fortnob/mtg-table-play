@@ -97,6 +97,7 @@ would break one; floors only when the answer is sent.
 | `{ kind: 'sum', key: 'power', min?, max?, label? }` | the picks' values add up to at least `min` and at most `max` |
 | `{ kind: 'shareColour', with?: ['R'] }` | with `with`: each pick shares a colour with those; without: the picks share a colour with each other |
 | `{ kind: 'mana', key: 'cost', base?: '{1}{R}' }` | the picks' costs, on top of `base`, can be paid (engine only; the table shows the total) |
+| `{ kind: 'pays', cost: '{1}{G}', forObj? }` | the mana sources picked, tapped, pay `cost` between them (engine only: Word of Command's lands) |
 
 Every constraint takes an optional `reason`, the words used when it is broken,
 and an optional `label` for the running total.

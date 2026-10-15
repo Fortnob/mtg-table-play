@@ -150,6 +150,13 @@
           if (cost && !hooks.canPay(cost)) return c.reason || 'You cannot pay for all of that.';
           break;
         }
+        /* Word of Command: the lands chosen to be tapped have to be able to pay `cost` between them (with what is
+           already in the pool). Only the engine can say (hooks.paysWith); without it, taken on trust. */
+        case 'pays': {
+          if (!final || !hooks || !hooks.paysWith || !c.cost) break;
+          if (!hooks.paysWith(entries.map(e => e && e.id).filter(Boolean), c.cost, c.forObj || null)) return c.reason || `Those can't pay ${c.cost}.`;
+          break;
+        }
         default: break;
       }
     }

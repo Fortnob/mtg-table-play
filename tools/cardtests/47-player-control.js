@@ -311,4 +311,314 @@ module.exports = (test) => {
     t.eq(g.playerController('A'), null, 'nobody controls A');
     t.eq(g.intentActor('A', { kind: 'pass' }), 'A', 'A acts for itself');
   });
+
+  /* ---- a hold for part of a turn: Secret of Bloodbending (a combat phase), Word of Command (while it resolves) ---- */
+  const toStep = (T, step) => { const g = T.g; for (let guard = 0; guard < 30 && g.step !== step; guard++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); } };
+  const toPhase = (T, ph) => { const g = T.g; for (let guard = 0; guard < 40 && g.phase.id !== ph; guard++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); } };
+
+  test('Player control: Secret of Bloodbending — A controls B during B\'s next combat phase, and only then', (mk, t) => {
+    t.auto('Secret of Bloodbending');
+    const T = mk();
+    const g = T.g;
+    const sob = T.hand('A', 'Secret of Bloodbending');
+    T.mana('A', 'UUUU');
+    T.cast('A', sob, { targets: ['B'] });
+    t.zone(sob, 'exile', 'it exiles itself');
+    const rec = (g.player('B').controlNext || [])[0];
+    t.ok(rec && rec.span === 'combat', 'B\'s next combat phase is A\'s');
+    const bb = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B');
+    t.eq(g.playerController('B'), null, 'not in B\'s main phase');
+    t.eq(g.viewFor('A').controlling, undefined, 'no seat of B\'s yet');
+    // on to B's combat: A holds B from its beginning
+    toStep(T, 'beginCombat');
+    t.eq(g.step, 'beginCombat', 'the beginning of combat');
+    t.eq(g.playerController('B'), 'A', 'A controls B');
+    const vb = g.viewFor('A').players.find(p => p.id === 'B');
+    t.eq(vb.controlledBy, 'A', 'everyone is told');
+    t.eq(vb.controlSpan, 'combat', 'for this combat');
+    t.eq(vb.controlSrc, 'Secret of Bloodbending', 'by Secret of Bloodbending');
+    t.eq((g.viewFor('A').controlling || []).length, 1, 'A is sent B\'s seat');
+    t.eq(g.intentActor('B', { kind: 'pass' }), null, 'B can\'t act');
+    t.ok(/controlling you during this combat/.test(g.lastError), 'and is told for how long');
+    // B's attack is A's to declare
+    for (let guard = 0; guard < 20 && !(g.pendingChoice && g.pendingChoice.type === 'declareAttackers'); guard++) g.passPriority(g.priorityPlayer.id, true);
+    t.ok(g.pendingChoice && g.pendingChoice.playerId === 'B', 'B is asked to attack');
+    t.eq(g.intentActor('A', { kind: 'attack', attackers: [], as: 'B' }), 'B', 'A declares for B');
+    t.ok(g.declareAttackers('B', []), 'nothing attacks');
+    t.no(bb.attacking, 'the Bears stay home');
+    // the end of combat: B is B's own again
+    toPhase(T, 'postcombat');
+    t.eq(g.phase.id, 'postcombat', 'the second main phase');
+    t.eq(g.playerController('B'), null, 'B\'s own again');
+    t.eq(g.player('B').controlCombat, null, 'the hold is gone');
+    t.eq(g.viewFor('A').controlling, undefined, 'and A\'s seat of B with it');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    toStep(T, 'beginCombat');
+    t.eq(g.playerController('B'), null, 'B\'s combat after that is B\'s own');
+  });
+
+  test('Player control: Secret of Bloodbending — waterbent, the whole of B\'s next turn', (mk, t) => {
+    const T = mk();
+    const g = T.g;
+    const sob = T.hand('A', 'Secret of Bloodbending');
+    T.mana('A', 'UUUU10');
+    T.cast('A', sob, { targets: ['B'], payAdditional: true });
+    const rec = (g.player('B').controlNext || [])[0];
+    t.ok(rec && !rec.span, 'B\'s next turn, not just its combat');
+    T.nextTurn('B');
+    t.eq(g.playerController('B'), 'A', 'A controls B from the start of B\'s turn');
+    t.eq(g.viewFor('B').players.find(p => p.id === 'B').controlSpan, 'turn', 'for the turn');
+  });
+
+  test('Player control: holds for a turn and for a combat — the newest one counts', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    g._controlNextTurn('A', 'C', 'Secret of Bloodbending', false, 'combat');
+    g._controlNextTurn('B', 'C', 'Mindslaver', false);
+    T.nextTurn('C');
+    t.eq(g.playerController('C'), 'B', 'B\'s Mindslaver, all turn');
+    toStep(T, 'beginCombat');
+    t.eq(g.playerController('C'), 'B', 'still B in combat: Mindslaver is the newer');
+    const T2 = mk({ players: ['A', 'B', 'C'] });
+    const g2 = T2.g;
+    g2._controlNextTurn('B', 'C', 'Mindslaver', false);
+    g2._controlNextTurn('A', 'C', 'Secret of Bloodbending', false, 'combat');
+    T2.nextTurn('C');
+    t.eq(g2.playerController('C'), 'B', 'B before combat');
+    toStep(T2, 'beginCombat');
+    t.eq(g2.playerController('C'), 'A', 'A during combat: Secret is the newer');
+    toPhase(T2, 'postcombat');
+    t.eq(g2.playerController('C'), 'B', 'and B again after it');
+  });
+
+  /* Word of Command: A looks at B's hand and picks a card; B plays it, A choosing everything for B. */
+  const commanded = (mk, opts) => {
+    const T = mk(opts);
+    const g = T.g;
+    const woc = T.hand('A', 'Word of Command');
+    T.mana('A', 'BB');
+    return { T, g, woc };
+  };
+
+  test('Player control: Word of Command — B casts the chosen Bolt at its own Bears, A deciding, only while it resolves', (mk, t) => {
+    t.auto('Word of Command');
+    const { T, g, woc } = commanded(mk);
+    const bolt = T.hand('B', 'Lightning Bolt');
+    const land = T.hand('B', 'Island');
+    const mtn = T.bf('B', 'Mountain');
+    const elf = T.bf('B', 'Llanowar Elves');
+    const bear = T.bf('B', 'Grizzly Bears');
+    let seen = null;
+    T.answer('pickCard', (ch) => {
+      t.eq(ch.playerId, 'A', 'A chooses the card');
+      t.eq(ch.purpose, 'commandCard', 'one for B to play');
+      t.eq(g.playerController('B'), null, 'not yet controlling B');
+      return { cardIds: [bolt.id] };
+    });
+    T.answer('pickTarget', (ch) => {
+      seen = { pid: ch.playerId, by: g.playerController('B'), view: g.viewFor('A'), vb: g.viewFor('B'), opts: ch.options[0].map(x => x.id),
+        ownAnswer: g.intentActor('B', { kind: 'choice', data: {} }), asA: g.intentActor('A', { kind: 'choice', data: {}, as: 'B' }) };
+      return { targets: [{ kind: 'object', id: bear.id }] };
+    });
+    T.cast('A', woc, { targets: ['B'] });
+    t.ok(seen, 'B\'s Bolt asked for its target');
+    t.eq(seen.pid, 'B', 'B\'s question');
+    t.eq(seen.by, 'A', 'A controls B while Word of Command resolves');
+    t.eq(seen.ownAnswer, null, 'B can\'t answer it');
+    t.eq(seen.asA, 'B', 'A answers it as B');
+    t.ok(seen.opts.includes(bear.id) && seen.opts.includes('A'), 'any target B could choose');
+    const sb = seen.view.players.find(p => p.id === 'B');
+    t.eq(sb.controlSpan, 'resolve', 'for as long as it resolves');
+    t.eq(sb.controlSrc, 'Word of Command', 'Word of Command');
+    t.ok(seen.view.controlling && seen.view.controlling[0].id === 'B', 'A has B\'s seat meanwhile');
+    t.ok(seen.view.controlling[0].view.pendingChoice && !seen.view.controlling[0].view.pendingChoice.waiting, 'with the question in it');
+    t.ok(seen.vb.pendingChoice.waiting, 'B only sees it waiting');
+    t.zone(bolt, 'graveyard', 'B\'s Bolt was cast and resolved');
+    t.zone(bear, 'graveyard', 'at B\'s own Bears');
+    t.ok(mtn.tapped, 'paid with B\'s Mountain');
+    t.no(elf.tapped, 'not B\'s Elves: lands only');
+    t.zone(land, 'hand', 'the rest of B\'s hand stays');
+    t.eq(g.playerController('B'), null, 'B\'s own again');
+    t.eq(g.player('B').controlRes, null, 'no hold left');
+    t.zone(woc, 'graveyard');
+  });
+
+  test('Player control: Word of Command — A controls B again while the Bolt resolves, not while it waits', (mk, t) => {
+    const { T, g, woc } = commanded(mk);
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.bf('B', 'Mountain');
+    T.answer('pickCard', { cardIds: [bolt.id] });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.cast('A', woc, { targets: ['B'], resolve: false });
+    // Word of Command resolves; the Bolt waits on the stack above nothing
+    for (let guard = 0; guard < 10 && woc.zone !== 'graveyard'; guard++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.settle();
+    t.zone(woc, 'graveyard', 'Word of Command has resolved');
+    const item = T.stackItem(bolt);
+    t.ok(item && item.controller === 'B', 'B\'s Bolt on the stack');
+    t.eq(g.playerController('B'), null, 'nobody controls B while it waits');
+    t.ok((g.player('B').controlRes || []).some(w => w.stackId === item.id), 'but A will while it resolves');
+    T.resolve();
+    t.eq(T.life('B'), 17, 'B Bolted itself');
+    t.eq(g.player('B').controlRes, null, 'and the hold is gone');
+  });
+
+  test('Player control: Word of Command — a spell B\'s lands can\'t pay for stays in hand; the Elves are no help', (mk, t) => {
+    const { T, g, woc } = commanded(mk);
+    const bears = T.hand('B', 'Grizzly Bears');
+    T.bf('B', 'Forest');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.answer('pickCard', { cardIds: [bears.id] });
+    T.cast('A', woc, { targets: ['B'] });
+    t.zone(bears, 'hand', 'not cast');
+    t.no(elf.tapped, 'the Elves untapped');
+    t.ok(g.log.some(l => /B can't play Grizzly Bears/.test(l.text)), 'said so');
+    t.eq(g.playerController('B'), null);
+  });
+
+  test('Player control: Word of Command — A chooses which of B\'s lands pay, and X', (mk, t) => {
+    const { T, woc } = commanded(mk);
+    const bears = T.hand('B', 'Grizzly Bears');
+    const f1 = T.bf('B', 'Forest'), f2 = T.bf('B', 'Forest'), m1 = T.bf('B', 'Mountain');
+    T.answer('pickCard', { cardIds: [bears.id] });
+    let q = null;
+    T.answer('choose', { picks: [] });     // (the look at B's hand)
+    T.answer('choose', (ch) => { q = ch; return { picks: [f2.id, m1.id] }; });
+    T.cast('A', woc, { targets: ['B'] });
+    t.ok(q && q.purpose === 'commandLands' && q.playerId === 'B', 'B\'s lands to tap, asked as B');
+    t.eq(q.min, 2, 'two of them');
+    t.zone(bears, 'battlefield', 'B\'s Bears were cast');
+    t.eq(bears.controller, 'B', 'B\'s');
+    t.ok(f2.tapped && m1.tapped, 'with the lands A chose');
+    t.no(f1.tapped, 'not the other Forest');
+    // a choice the lands can't pay is refused
+    const { T: T2, g: g2, woc: w2 } = commanded(mk);
+    const b2 = T2.hand('B', 'Grizzly Bears');
+    T2.bf('B', 'Forest');
+    const m2 = T2.bf('B', 'Mountain'), m3 = T2.bf('B', 'Mountain');
+    T2.answer('pickCard', { cardIds: [b2.id] });
+    T2.answer('choose', { picks: [] });
+    let refused = null;
+    T2.answer('choose', (ch) => {
+      refused = ch.purpose === 'commandLands' && !g2.resolveChoice('B', { picks: [m2.id, m3.id] });
+      return { picks: [ch.items[0].id, ch.items[1].id] };
+    });
+    T2.cast('A', w2, { targets: ['B'] });
+    t.ok(refused, 'two Mountains can\'t pay {1}{G}: refused');
+    t.zone(b2, 'battlefield', 'the first lands on offer can');
+    // X: Blaze, with three Mountains — X up to 2
+    const { T: T3, g: g3, woc: w3 } = commanded(mk);
+    const blaze = T3.hand('B', 'Blaze');
+    for (let i = 0; i < 3; i++) T3.bf('B', 'Mountain');
+    T3.answer('pickCard', { cardIds: [blaze.id] });
+    let xq = null;
+    T3.answer('choose', { picks: [] });
+    T3.answer('choose', (ch) => { xq = ch; return { number: 2 }; });
+    T3.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T3.cast('A', w3, { targets: ['B'] });
+    t.ok(xq && xq.purpose === 'commandX' && xq.number.max === 2, 'X asked, up to 2');
+    t.eq(T3.life('B'), 18, 'Blaze for 2 at B');
+    t.zone(blaze, 'graveyard');
+    t.eq(g3.playerController('B'), null);
+  });
+
+  test('Player control: Word of Command — a land, played on B\'s turn only, with a land play left', (mk, t) => {
+    const { T, woc } = commanded(mk);
+    const isl = T.hand('B', 'Island');
+    T.answer('pickCard', { cardIds: [isl.id] });
+    T.cast('A', woc, { targets: ['B'] });
+    t.zone(isl, 'hand', 'not on A\'s turn (CR 305.3)');
+    // on B's turn, A casting it once B passes
+    const T2 = mk();
+    const g2 = T2.g;
+    const w2 = T2.hand('A', 'Word of Command');
+    const i2 = T2.hand('B', 'Island');
+    T2.nextTurn('B');
+    T2.mana('A', 'BB');
+    g2.passPriority('B');
+    T2.answer('pickCard', { cardIds: [i2.id] });
+    T2.cast('A', w2, { targets: ['B'] });
+    t.zone(i2, 'battlefield', 'B played it');
+    t.eq(g2.player('B').landsPlayed, 1, 'as B\'s land for the turn');
+  });
+
+  test('Player control: Word of Command — a bot casting it makes B aim B\'s spell at B; B\'s own bot is held still', (mk, t) => {
+    const { T, g, woc } = commanded(mk);
+    const M = T.MTG;
+    const was = M.settings.botSpeed;
+    M.settings.botSpeed = 0;
+    try {
+      g.player('A').isBot = true;
+      g.player('B').isBot = true;
+      const botA = new M.bots.BotPlayer(g, 'A', 5, null, { personality: 'none' });
+      const botB = new M.bots.BotPlayer(g, 'B', 5, null, { personality: 'none' });
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.hand('B', 'Island');
+      T.bf('B', 'Mountain');
+      const bear = T.bf('B', 'Grizzly Bears');
+      t.ok(g.castSpell('A', woc.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'A casts it');
+      let heldStill = true, picked = false;
+      for (let guard = 0; guard < 40 && (g.stack.length || g.pendingChoice); guard++) {
+        const ch = g.pendingChoice;
+        if (!ch) { g.passPriority(g.priorityPlayer.id, true); continue; }
+        if (ch.playerId === 'B') {
+          const v = g.stateVersion;
+          botB.tick();
+          if (g.stateVersion !== v) heldStill = false;
+          t.eq(g.deciderOf('B'), 'A', 'B\'s question is A\'s');
+          botA._controlChoice(ch, 'B');
+        } else { if (ch.type === 'pickCard') picked = true; botA.doChoice(ch, null); }
+      }
+      t.ok(picked, 'A\'s bot picked the card');
+      t.ok(heldStill, 'B\'s own bot left B\'s questions alone');
+      t.zone(bolt, 'graveyard', 'A\'s bot chose the Bolt over the Island, and B cast it');
+      t.ok(bear.zone === 'graveyard' || T.life('B') === 17, 'at B or B\'s Bears');
+      t.eq(T.life('A'), 20, 'never at A');
+    } finally { M.settings.botSpeed = was; }
+  });
+
+  test('Player control: Word of Command — the contracts take A\'s seat of B while it resolves', (mk, t) => {
+    const { T, g, woc } = commanded(mk);
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.bf('B', 'Mountain');
+    T.answer('pickCard', { cardIds: [bolt.id] });
+    let bad = null;
+    T.answer('pickTarget', () => {
+      bad = contracts.checkView(g.viewFor('A'), 'A', g);
+      return { targets: [{ kind: 'player', id: 'B' }] };
+    });
+    T.cast('A', woc, { targets: ['B'] });
+    t.ok(bad && bad.length === 0, 'no complaint: ' + JSON.stringify(bad));
+  });
+
+  test('Player control: Construct a Cosmic Cube and The Dominion Bracelet', (mk, t) => {
+    t.auto('Construct a Cosmic Cube');
+    t.auto('The Dominion Bracelet');
+    const T = mk();
+    const g = T.g;
+    const cube = T.bf('A', 'Construct a Cosmic Cube', { counters: { plan: 6 } });
+    g.addCounters(cube, 'plan', 1);
+    T.resolve();
+    t.zone(cube, 'graveyard', 'the seventh plan counter: sacrificed');
+    t.eq((g.player('B').controlNext || []).length, 1, 'B\'s next turn is A\'s');
+    T.nextTurn('B');
+    t.eq(g.playerController('B'), 'A', 'and so it is');
+    // The Dominion Bracelet: {15} less the creature's power, exiling the Bracelet, as a sorcery
+    const T2 = mk();
+    const g2 = T2.g;
+    const br = T2.bf('A', 'The Dominion Bracelet');
+    const giant = T2.bf('A', 'Hill Giant');
+    T2.mana('A', '1');
+    T2.activate('A', br, 0, { targets: [giant] });
+    t.eq(br.attachedTo, giant.id, 'equipped');
+    t.eq(g2.powerOf(giant), 4, '+1/+1');
+    T2.mana('A', '10');
+    t.no(g2.activateAbility('A', giant.id, 0, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'not for {10}: {15} less 4 is {11}');
+    T2.mana('A', '1');
+    T2.activate('A', giant, 0, { targets: ['B'] });
+    t.zone(br, 'exile', 'the Bracelet is exiled');
+    t.eq((g2.player('B').controlNext || []).length, 1, 'B\'s next turn is A\'s');
+  });
 };

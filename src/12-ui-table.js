@@ -457,6 +457,17 @@
       const me = v.players.find(p => p.id === this.ownId);
       return me && me.controlledBy ? (v.players.find(p => p.id === me.controlledBy) || { id: me.controlledBy, name: 'Another player' }) : null;
     }
+    /** For how long a player is controlled (CR 722), in words: the whole turn (Mindslaver), this combat (Secret of
+        Bloodbending), or while a spell resolves (Word of Command) — { now: 'this turn', until: 'until the turn ends' }. */
+    _ctlSpan(pid) {
+      const p = this.view && this.view.players.find(x => x.id === pid);
+      const src = (p && p.controlSrc) || 'that spell';
+      switch (p && p.controlSpan) {
+        case 'combat': return { now: 'during this combat', until: 'until combat ends' };
+        case 'resolve': return { now: `while ${src} resolves`, until: `until ${src} finishes resolving` };
+        default: return { now: 'this turn', until: 'until the turn ends' };
+      }
+    }
     /** The bar across the top while anyone at this table is being controlled by, or controlling, this player. */
     renderControl() {
       const v = this.view;
@@ -476,25 +487,28 @@
       this.arena.classList.toggle('acting-for', !!this._actAs);
       this.arena.classList.toggle('controlled', !!by);
       const acting = this._actAs && ctl.find(c => c.id === this._actAs);
-      const sig = by ? 'by:' + by.id : (acting ? 'as:' + acting.id : 'own') + '|' + ctl.map(c => c.id + ':' + c.name).join(',');
+      const span = (pid) => this._ctlSpan(pid);
+      const sig = (by ? 'by:' + by.id + ':' + span(this.ownId).now : (acting ? 'as:' + acting.id : 'own') + '|' + ctl.map(c => c.id + ':' + c.name + ':' + span(c.id).now).join(','));
       if (bar._sig === sig) return;
       bar._sig = sig;
       bar.innerHTML = '';
       if (by) {
         bar.className = 'ctl-bar controlled';
         bar.append(el('div', { class: 'ctl-text' }, [
-          el('b', { text: `${by.name} is controlling you this turn.` }),
-          el('span', { text: ` ${by.name} makes all your decisions until the turn ends. You can still concede.` }),
+          el('b', { text: `${by.name} is controlling you ${span(this.ownId).now}.` }),
+          el('span', { text: ` ${by.name} makes all your decisions ${span(this.ownId).until}. You can still concede.` }),
         ]));
         return;
       }
       bar.className = 'ctl-bar' + (acting ? ' acting' : '');
-      const names = ctl.map(c => c.name);
+      // (each for as long as theirs lasts; said once when it is the same for all)
+      const spans = ctl.map(c => span(c.id).now);
+      const names = spans.every(x => x === spans[0]) ? ctl.map(c => c.name).join(' and ') + ' ' + spans[0] : ctl.map((c, i) => `${c.name} ${spans[i]}`).join(' and ');
       bar.append(el('div', { class: 'ctl-text' }, acting ? [
-        el('b', { text: `You are controlling ${acting.name} this turn.` }),
+        el('b', { text: `You are controlling ${acting.name} ${span(acting.id).now}.` }),
         el('span', { text: ` This is ${possessive(acting.name)} seat: what you do here, ${acting.name} does, with ${possessive(acting.name)} cards and mana.` }),
       ] : [
-        el('b', { text: `You are controlling ${names.join(' and ')} this turn.` }),
+        el('b', { text: `You are controlling ${names}.` }),
         el('span', { text: ' You make their decisions; the table moves to their seat when one is theirs to make.' }),
       ]));
       const btns = el('div', { class: 'ctl-btns' });
