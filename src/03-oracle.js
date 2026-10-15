@@ -7857,7 +7857,8 @@
       } },
     /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could target.
        Each copy targets a different one of those creatures." */
-    { re: /^Copy that spell for each other creature you control that the spell could target\.?$/i,
+    // (Agrus Kos, Eternal Soldier: "copy that ability for each other creature you control that ability could target")
+    { re: /^Copy that (?:spell|ability) for each other creature you control that (?:the )?(?:spell|ability) could target\.?$/i,
       make: () => ({ op: 'copySpellEachOther', what: 'creature' }) },    { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
     // (Magus Lucea Kane: "copy that spell or ability")
@@ -9787,6 +9788,10 @@
     { re: /^Return (?:it|that card) to the battlefield face down under (its owner'?s|your) control\. It'?s an? (Plains|Island|Swamp|Mountain|Forest) land\.$/i,
       make: (m) => [{ op: 'returnTriggerCard', yours: /your/i.test(m[1]), triggerOnly: true, fromGrave: true,
         faceDownLand: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }] },
+    /* Yarus, Roar of the Old Gods: "return it to the battlefield face down under its owner's control if it's a permanent card,
+       then turn it face up." (faceDownThenUp, permanentOnly) */
+    { re: /^Return it to the battlefield face down under its owner'?s control if it'?s a permanent card, then turn it face up\.?$/i,
+      make: () => [{ op: 'returnTriggerCard', triggerOnly: true, fromGrave: true, permanentOnly: true, faceDownThenUp: true }] },
     /* Missy: "return it to the battlefield under your control face down and tapped. It's a 2/2 Cyberman artifact
        creature." — face down as that, and nothing more (faceDownLand, a whole type line) */
     { re: /^[Rr]eturn (?:it|that card) to the battlefield under your control face down( and tapped)?\. It'?s a 2\/2 ([A-Z][a-z]+) artifact creature\.$/,
@@ -13666,7 +13671,7 @@
     // Lavaborn Muse, Shrieking Affliction: "if that player has two or fewer cards in hand"
     [/^that player has (one|two|three|four|\d+) or (fewer|more) cards in hand$/i,
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[2]) ? 'atMost' : 'atLeast', who: 'triggerPlayer' })],
-    [/^you have (\w+) or (?:more|fewer) cards in hand$/i,
+    [/^you have (\w+) or (?:more|fewer) cards in (?:your )?hand$/i,
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[0]) ? 'atMost' : 'atLeast' })],
     [/^you have (\d+) or (?:more|less) life$/i,
       (m) => ({ kind: 'life', n: +m[1], cmp: /less/i.test(m[0]) ? 'atMost' : 'atLeast' })],
@@ -14297,6 +14302,9 @@
        activated one as it is activated, a triggered one as its targets are chosen (anyAbility) */
     { re: /^Whenever a player or permanent becomes the target of an ability you control,? /i,
       event: 'becomesTarget', extra: { targetedByYou: true, anyAbility: true } },
+    // Agrus Kos, Eternal Soldier: "Whenever Agrus Kos becomes the target of an ability that targets only it" (byAbilityOnly, targetsOnlySelf)
+    { re: /^Whenever (?:this creature|CARDNAME) becomes the target of an ability that targets only it,? /i,
+      event: 'becomesTarget', self: true, extra: { byAbilityOnly: true, targetsOnlySelf: true } },
     // (Opaline Sliver's granted "this permanent")
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
@@ -14891,6 +14899,12 @@
       event: 'countersPut', aboutObject: true,
       filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
+    /* Invisible Woman, Sue Storm: "Whenever you put one or more +1/+1 counters on one or more other Heroes you control" — one
+       trigger for the lot (batch) */
+    { re: /^Whenever you put one or more (\+1\/\+1) counters on one or more other ([A-Z][a-z]+?)(?:e?s) you control, /,
+      event: 'countersPut', aboutObject: true,
+      filt: (m) => ({ words: m[2].toLowerCase(), other: true, who: 'you', batch: true }),
+      extraOf: (m) => ({ putByYou: true, counterKind: m[1] }) },
     // Aragorn, Company Leader: "Whenever you put one or more counters on Aragorn" — of any kind, by you (putByYou)
     { re: /^Whenever you put one or more counters on (?:CARDNAME|this creature),? /i, event: 'countersPut', self: true, extra: { putByYou: true } },
     // Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — once for each counter

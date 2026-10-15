@@ -15436,6 +15436,8 @@
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null; o.mustAttackPw = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
+        // Yarus, Roar of the Old Gods: "Whenever a face-down creature you control dies" — as it left (wasFaceDown)
+        o._wasFaceDown = from === 'battlefield' && !!o.faceDown;
         o.faceDown = false; o.manifested = false; o.cloaked = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.ts = null;
@@ -16449,6 +16451,14 @@
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
+          /* Agrus Kos, Eternal Soldier: "becomes the target of an ability that targets only it" — an ability, with no target
+             but this permanent (byAbilityOnly, targetsOnlySelf) */
+          if (ab.byAbilityOnly && event === 'becomesTarget' && !data.byAbility) continue;
+          if (ab.targetsOnlySelf && event === 'becomesTarget') {
+            const it = data.stackId && this.stack.find(st => st.id === data.stackId);
+            const tg = (it && it.targets) || [];
+            if (!tg.length || !tg.every(x => x && x.kind === 'object' && x.id === o.id)) continue;
+          }
           if (event === 'becomesTarget' && data.onStack && !ab.spellsToo) continue;
           // Nicanzil, Current Conductor: "explores a land card", "explores a nonland card" (exploreKind)
           if (ab.exploreKind && event === 'youExplore' && (data.exploredLand ? 'land' : 'nonland') !== ab.exploreKind) continue;
@@ -26749,12 +26759,23 @@
           if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
           // Tergrid, God of Fright: "from a graveyard" — not from exile (sacOrDiscardAny)
           if (e.fromGrave && x.zone !== 'graveyard') break;
+          // (Yarus, Roar of the Old Gods: "if it's a permanent card" — permanentOnly)
+          if (e.permanentOnly && !(x.analysis() || {}).isPermanent) break;
+          if (e.faceDownThenUp) x.faceDown = true;
           // Yedora, Grave Gardener: "face down … It's a Forest land." — it enters as one, landfall and all (faceDownLand)
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           // (Vraska, the Silencer: "It's a Treasure artifact …" — what it is as it enters: enterEff)
           this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
           if (x.zone !== 'battlefield') break;
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
+          // (Yarus: "then turn it face up" — entered face down, a 2/2 with no enters abilities; turned up, "when turned face up" sees it)
+          if (e.faceDownThenUp && x.faceDown) {
+            x.faceDown = false; x.faceDownLand = null; x._chr = null;
+            this.logEvent('rules', `${me.name} turns ${x.name} face up.`);
+            this.emit('sfx', 'transform');
+            this._fire('turnedFaceUp', x.controller, { object: x, source: x });
+            this.bumpBoard();
+          }
           if (e.tapped) x.tapped = true;
           if (e.counter) this.addCounters(x, e.counter, 1);
           break;
@@ -33960,7 +33981,7 @@
       if (f.token && !x.isToken) return false;
       /* Ygra: "Whenever a Food is put into a graveyard from the battlefield"
          — what it was as it left (CR 603.10), a Food only while Ygra said so */
-      const asWas = x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x;
+      const asWas = x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis, faceDown: !!x._wasFaceDown }) : x;
       if (f.words && !this._cardFitsWords(asWas, f.words)) return false;
       // Ares, God of War: "an attacking creature … dies" — attacking as it left (wasAttacking)
       if (f.wasAttacking && !(x.zone === 'battlefield' ? x.attacking : x._wasAttacking)) return false;
