@@ -433,6 +433,8 @@
       if (/^Unattach the granting Equipment$/i.test(p)) { cost.unattachGranter = true; continue; }
       // Captain America, First Avenger: "Unattach an Equipment from Captain America" — one of those on it (unattachEquipment)
       if (/^Unattach an Equipment from (?:CARDNAME|this creature)$/i.test(p)) { cost.unattachEquipment = true; continue; }
+      // Sunforger: "Unattach this Equipment" — it has to be attached to pay it (unattachSelf)
+      if (/^Unattach (?:CARDNAME|this Equipment)$/i.test(p)) { cost.unattachSelf = true; continue; }
       // Toggo, Goblin Weaponsmith's Rock: "Sacrifice Rock" in the equipped creature's hands (sacGranter)
       if (/^Sacrifice the granting Equipment$/i.test(p)) { cost.sacGranter = true; continue; }
       // "Return this creature to its owner's hand": the permanent itself as the price
@@ -1151,10 +1153,14 @@
     // Kethek, Crucible Goliath: "a nonlegendary creature card with lesser mana value" — than the creature sacrificed (mvBelowSacrificed)
     const lesser = / card with lesser mana value(?=[,.])/i.test(t);
     if (lesser) t = t.replace(/ card with lesser mana value(?=[,.])/i, ' card');
+    // Wild Magic Surge: "a permanent card that shares a card type with that permanent" — the one destroyed (sharesTypeWithTarget)
+    const shares = / card that shares a card type with that permanent(?=[,.])/i.test(t);
+    if (shares) t = t.replace(/ card that shares a card type with that permanent(?=[,.])/i, ' card');
     const m = t.match(/until (?:you|they) reveal (an?|one|two|three|four|five|X) ([a-z ,]+?) cards?(?:, where X is (.+?))?(,|\.) ([\s\S]+)$/i);
     if (!m) return null;
     const e = { op: 'revealUntil', who, filter: m[2].replace(/,? or /g, ' or ').trim().toLowerCase() };
     if (lesser) e.mvBelowSacrificed = true;
+    if (shares) e.sharesTypeWithTarget = true;
     if (/^X$/i.test(m[1])) { if (m[3]) { const k = amountOf(m[3]); if (!k) return null; e.n = k; } else e.n = 'X'; }
     else e.n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
     if (who === 'target') e.targets = [{ type: 'player', opponent: /opponent/.test(w) }];
@@ -1177,7 +1183,7 @@
        permanent's mana value. That player puts the rest of the revealed cards on the bottom …" (loseMv) */
     if (w !== 'reveal' && /^You put that card onto the battlefield under your control and lose life equal to that permanent'?s mana value\. That player puts the rest of the revealed cards on the bottom of their library in a random order\.?$/i.test(rest))
       return Object.assign(e, { dest: 'battlefield', tapped: false, rest: 'bottom', loseMv: true });
-    const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library|, then shuffle)\.?$/i);
+    const put = rest.match(/^(?:(?:The|That) player puts?|They put|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library|, then shuffle)\.?$/i);
     if (!put) return null;
     // Dack Fayden, Helping Hand: "Put those creature cards onto the battlefield" — what follows speaks of them (group)
     if (/^(?:Put|(?:The|That) player puts?) those /i.test(rest)) e.group = true;
@@ -4159,6 +4165,11 @@
     { re: /^That source'?s controller exiles a card from their hand at random\.?$/i, make: () => ({ op: 'exileRandomFromHand', who: 'triggerPlayer' }) },
     { re: /^If it'?s a land card, you may put it onto the battlefield under your control\.?$/i, make: () => ({ op: 'putExiledLand' }) },
     { re: /^Otherwise, you may cast it without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
+    /* Sunforger: "Search your library for a red or white instant card with mana value 4 or less and cast that card without
+       paying its mana cost." — one picked from the library (none, if none is found), cast as this resolves (from library) */
+    { re: /^Search your library for an? (?:(red|white|blue|black|green) or (red|white|blue|black|green) )?(instant|sorcery|instant or sorcery) card with mana value (\d+) or less and cast that card without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFree', from: 'library', upTo: 1, pickOne: true, maxMv: +m[4], among: 'the cards in your library',
+        filter: m[1] ? m[1].toLowerCase() + ' ' + m[3].toLowerCase() + ' or ' + m[2].toLowerCase() + ' ' + m[3].toLowerCase() : m[3].toLowerCase() }) },
     // (To the Slaughter: "a creature and a planeswalker" is one of each, read by the rule further on)
     { re: /^[Tt]hat player sacrifices an? ([a-z ]+?) of their choice\.?$/,
       make: (m) => (/ and an? /.test(m[1]) ? null : { op: 'sacrificeChoice', who: 'triggerPlayer', n: 1, filter: m[1].toLowerCase() }) },
@@ -4616,6 +4627,13 @@
     { re: /^(Each player|Each opponent|That player) chooses (up to )?(a|an|one|two|three|four|five|six) (creatures?|lands?|permanents?)(?: they control)?,? (?:then |and )sacrifices the rest\.?$/i,
       make: (m) => ({ op: 'keepRest', who: /^each player/i.test(m[1]) ? 'each' : /^each opponent/i.test(m[1]) ? 'opponents' : 'triggerPlayer',
         n: num(m[3]), upTo: !!m[2], filter: m[4].toLowerCase().replace(/s$/, ''), rest: m[4].toLowerCase().replace(/s$/, '') }) },
+    // Single Combat: "Each player chooses a creature or planeswalker they control, then sacrifices the rest."
+    { re: /^Each player chooses a creature or planeswalker they control, then sacrifices the rest\.?$/i,
+      make: () => ({ op: 'keepRest', who: 'each', n: 1, filter: 'creature or planeswalker', rest: 'creature or planeswalker' }) },
+    /* Single Combat: "Players can't cast creature or planeswalker spells until the end of your next turn." — every
+       player, over as that turn ends (castBanUntil) */
+    { re: /^Players can'?t cast (creature|planeswalker|artifact|enchantment|creature or planeswalker) spells until the end of your next turn\.?$/i,
+      make: (m) => ({ op: 'castBanUntil', types: m[1].toLowerCase().split(' or ') }) },
     // Mount Doom: "Choose up to two creatures, then destroy the rest."
     { re: /^Choose up to (one|two|three) creatures, then destroy the rest\.?$/i,
       make: (m) => ({ op: 'keepRest', who: 'all', chooser: 'you', n: num(m[1]), upTo: true, filter: 'creature', rest: 'creature', destroy: true }) },
@@ -6433,6 +6451,10 @@
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /two/i.test(m[1]) ? 2 : 1, who: 'you' }] } : null; } },
     // Angel's Grace: "You can't lose the game this turn and your opponents can't win the game this turn."
     { re: /^You can'?t lose the game this turn and your opponents can'?t win the game this turn\.?$/i, make: () => ({ op: 'cantLoseTurn' }) },
+    /* Everybody Lives!: "Players can't lose life this turn and players can't lose the game or win the game this turn." —
+       every player; nobody losing is nobody winning (noLifeLossTurn, cantLoseTurn who 'each') */
+    { re: /^Players can'?t lose life this turn and players can'?t lose the game or win the game this turn\.?$/i,
+      make: () => [{ op: 'noLifeLossTurn', who: 'each' }, { op: 'cantLoseTurn', who: 'each' }] },
     // Angel's Grace: "Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead."
     { re: /^Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead\.?$/i, make: () => ({ op: 'lifeFloorTurn' }) },
     // Portal to Phyrexia: "It's a Phyrexian in addition to its other types."
@@ -7663,6 +7685,8 @@
     /* Dawn's Truce, Veil of Summer: the player as well as their things,
        for the rest of the turn. */
     { re: /^You gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou' }) },
+    // Everybody Lives!: "Players gain hexproof until end of turn." — every player (who 'each')
+    { re: /^Players gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou', who: 'each' }) },
     /* "You may play that card this turn", "Until the end of your next turn,
        you may play those cards", "You may cast that card for as long as it
        remains exiled, and mana of any type can be spent to cast that spell",
@@ -12907,7 +12931,7 @@
        bottom of your library in a random order." Dig until one fits (or
        two, or X); "Its controller reveals …" after a Polymorph. */
     // (Sméagol, Helpful Guide: "target opponent reveals cards … until they reveal a land card. Put that card onto the battlefield tapped under your control …")
-    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|You may put|The player puts|That player puts)[^.]+|\.\s+You put that card [^.]+\.\s+That player puts the rest of the revealed cards [^.]+)?\.?)(?:\s+([\s\S]+))?$/,
+    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|You may put|The player puts|That player puts|They put)[^.]+|\.\s+You put that card [^.]+\.\s+That player puts the rest of the revealed cards [^.]+)?\.?)(?:\s+([\s\S]+))?$/,
       make: (m) => {
         const e = revealUntilOf(m[2]);
         if (!e) return null;

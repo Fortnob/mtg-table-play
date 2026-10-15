@@ -1512,6 +1512,8 @@
 
     _cleanupStep() {
       const ap = this.activePlayer;
+      // Single Combat: "until the end of your next turn" — over as that turn ends (castBanUntil)
+      for (const q of this.players) if (q.castBanUntil) { q.castBanUntil = q.castBanUntil.filter(x => !(x.by === ap.id && this.turn > x.set)); if (!q.castBanUntil.length) q.castBanUntil = null; }
       this._returnDashed();
       // discard to hand size
       const hand = this.zones[ap.id].hand;
@@ -5223,6 +5225,11 @@
       // Hope of Ghirapur: "Until your next turn, … can't cast noncreature spells" (silenceUntil)
       if (!a.isCreature && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.noncreature))
         return { ok: false, reason: "You can't cast noncreature spells until the next turn of the player who stopped you." };
+      // Single Combat: "Players can't cast creature or planeswalker spells until the end of your next turn." (castBanUntil)
+      {
+        const ban = ((this.player(playerId) || {}).castBanUntil || []).find(x => (x.types || []).some(t => a['is' + t.charAt(0).toUpperCase() + t.slice(1)]));
+        if (ban) return { ok: false, reason: `You can't cast ${ban.types.join(' or ')} spells until the end of ${(this.player(ban.by) || {}).name || 'that player'}'s next turn.` };
+      }
       // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" (silenceOn)
       if ((a.isInstant || a.isSorcery) && ((this.player(playerId) || {}).silenceOn || []).some(x => x.on === this.turn && x.instantSorcery))
         return { ok: false, reason: "You can't cast instant or sorcery spells this turn." };
@@ -5381,7 +5388,8 @@
       return Math.max(0, p.life);
     }
     _lifeFrozen(p) {
-      return !!p && ((p.lifeLocked && p.lifeLocked.until === p.id && this._protectionLive(p.lifeLocked)) ||
+      // (Everybody Lives!: "Players can't lose life this turn" — no life paid either, CR 119.8: noLifeLossTurn)
+      return !!p && ((p.lifeLocked && p.lifeLocked.until === p.id && this._protectionLive(p.lifeLocked)) || p.noLifeLossTurn === this.turn ||
         this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')));
     }
     _noteSpent(plan) {
@@ -10916,6 +10924,8 @@
       }
       // Captain America, First Avenger: "Unattach an Equipment from Captain America" — one has to be on him
       if (cost.unattachEquipment && !this._equipmentOn(self).length) return `No Equipment attached to ${self ? self.name : 'it'}.`;
+      // Sunforger: "Unattach this Equipment" — only while it is attached (unattachSelf)
+      if (cost.unattachSelf && !(self && self.attachedTo)) return `${self ? self.name : 'It'} isn't attached to anything.`;
       if (cost.sacrifice) {
         const need = cost.sacrifice.upTo ? 0 : this._costCount(cost.sacrifice.n, opts);
         if (this._costSacPool(pid, cost.sacrifice, self, opts).length < need)
@@ -11003,6 +11013,14 @@
       opts = opts || {};
       // "Return this creature to its owner's hand" as the price
       if (cost.returnSelf && self && self.zone === 'battlefield') this.moveObject(self, 'hand');
+      // Sunforger: "Unattach this Equipment" as the price (unattachSelf)
+      if (cost.unattachSelf && self && self.attachedTo) {
+        const host = this.obj(self.attachedTo);
+        if (host) { host.attachments = (host.attachments || []).filter(x => x !== self.id); host._chr = null; }
+        self.attachedTo = null; self._chr = null;
+        this.bumpBoard();
+        this.logEvent('rules', `${self.name} is unattached${host ? ' from ' + host.name : ''}.`);
+      }
       // Toralf's Hammer: "Unattach Toralf's Hammer" as the price — the Equipment that handed the ability out
       if (cost.unattachGranter && item && item.grantedBy) {
         const eq = this.obj(item.grantedBy);
@@ -17279,7 +17297,8 @@
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
       const lossEv = this._replace({ kind: 'loseLife', n: amount, controller: p.id });
       // Platinum Emperion: the damage is dealt, but the life total stays
-      let lost = lossEv.cancelled || this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')) ? 0 : lossEv.n;
+      // (Everybody Lives!: "Players can't lose life this turn" — the damage is dealt, no life is lost: noLifeLossTurn)
+      let lost = lossEv.cancelled || p.noLifeLossTurn === this.turn || this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'lifeCantChange')) ? 0 : lossEv.n;
       // Worship, Angel's Grace: damage that would take you below 1 leaves you at 1
       if (lost > 0 && p.life - lost < 1 && this._lifeFloorFor(p)) lost = Math.max(0, p.life - 1);
       this._speedUp(p);
@@ -17335,6 +17354,11 @@
       // Teferi's Protection: "your life total can't change"
       if (p.lifeLocked && p.lifeLocked.until === p.id && this._protectionLive(p.lifeLocked)) {
         this.logEvent('life', `${p.name}'s life total can't change.`);
+        return;
+      }
+      // Everybody Lives!: "Players can't lose life this turn" (noLifeLossTurn)
+      if (delta < 0 && p.noLifeLossTurn === this.turn) {
+        this.logEvent('life', `${p.name} can't lose life this turn.`);
         return;
       }
       // Platinum Emperion: for as long as it's there
@@ -24377,10 +24401,14 @@
             let last = -1;
             // Kethek, Crucible Goliath: "with lesser mana value" — than the creature just sacrificed (mvBelowSacrificed)
             const sacMv = e.mvBelowSacrificed ? (((ctx.sacrificed || this._lastSacrificed || [])[0] || {}).mv || 0) : null;
+            // Wild Magic Surge: "a permanent card that shares a card type with that permanent" — the target, as it last was (sharesTypeWithTarget)
+            const tgtTypes = e.sharesTypeWithTarget ? ((firstObj() || {}).analysis ? (firstObj().analysis().types || []) : []).map(x => String(x).toLowerCase()) : null;
+            if (tgtTypes && !tgtTypes.length) continue;
             for (let i = 0; i < lib.length && found.length < want; i++) {
               if (sacMv != null && !(((lib[i].card && lib[i].card.cmc) || 0) < sacMv)) continue;
               // Plargg, Dean of Chaos: "with mana value 3 or less" (maxMv)
               if (e.maxMv != null && ((lib[i].card && lib[i].card.cmc) || 0) > e.maxMv) continue;
+              if (tgtTypes && !((lib[i].analysis() || {}).types || []).some(x => tgtTypes.includes(String(x).toLowerCase()))) continue;
               if (this._cardFitsWords(lib[i], e.filter || 'card')) { found.push(lib[i]); last = i; }
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
@@ -28782,6 +28810,12 @@
         /* Cataclysm, Tragic Arrogance, Razia's Purification, Mount Doom: some
            are chosen to stay, and the rest are sacrificed (or destroyed). One
            permanent may answer for two of the kinds asked for. */
+        // Single Combat: "Players can't cast creature or planeswalker spells until the end of your next turn."
+        case 'castBanUntil': {
+          for (const q of this.players) (q.castBanUntil = q.castBanUntil || []).push({ by: ctx.controller, set: this.turn, types: (e.types || []).slice() });
+          this.logEvent('rules', `Players can't cast ${(e.types || []).join(' or ')} spells until the end of ${me.name}'s next turn.`);
+          break;
+        }
         case 'keepRest': {
           const restFits = (o) => e.rest === 'permanent' ? true : e.rest === 'nonland' ? !(o.analysis() || {}).isLand : this._cardFitsWords(o, e.rest);
           const groups = e.who === 'all' ? [{ p: null, list: this.battlefield.filter(o => !o.phasedOut && restFits(o)) }]
@@ -32333,6 +32367,8 @@
               : e.from === 'graveyard' ? this._freeFromGraveyardPick(e, ctx, me, firstPlayer, n)
               : e.from === 'handOrGraveyard' ? this._freeFromHandOrGravePick(e, ctx, me)
               : e.from === 'looked' ? (this._looked || []).slice()
+              // Sunforger: "Search your library for … and cast that card" — the library, one picked (library)
+              : e.from === 'library' ? this.zones[ctx.controller].library.map(c => c.id)
               // The Ur-Sphinx: "a card that player milled this way" — those cards, named (ids)
               : e.from === 'ids' ? (e.ids || []).slice()
               // Malcolm, Alluring Scoundrel: "the discarded card" — what you discarded as this resolved, still in your graveyard (castDiscarded)
@@ -33120,7 +33156,13 @@
           break;
         }
         // Angel's Grace
-        case 'cantLoseTurn': me.cantLoseTurn = this.turn; break;
+        // (Everybody Lives!: "players can't lose the game or win the game this turn" — every player: who 'each')
+        case 'cantLoseTurn': for (const q of (e.who === 'each' ? this.players : [me])) q.cantLoseTurn = this.turn; break;
+        // Everybody Lives!: "Players can't lose life this turn." (noLifeLossTurn)
+        case 'noLifeLossTurn':
+          for (const q of (e.who === 'each' ? this.players : [me])) q.noLifeLossTurn = this.turn;
+          this.logEvent('rules', e.who === 'each' ? "Players can't lose life this turn." : `${me.name} can't lose life this turn.`);
+          break;
         case 'lifeFloorTurn': me.lifeFloorTurn = this.turn; break;
         // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
         case 'flashUntilNextTurn':
@@ -36730,7 +36772,11 @@
           break;
         }
         // "You gain hexproof until end of turn."
-        case 'hexproofYou': me.hexproofTurn = this.turn; this.logEvent('keyword', `${me.name} gains hexproof until end of turn.`); break;
+        case 'hexproofYou':
+          // (Everybody Lives!: "Players gain hexproof until end of turn." — who 'each')
+          for (const q of (e.who === 'each' ? this.players.filter(x => !x.hasLost) : [me])) q.hexproofTurn = this.turn;
+          this.logEvent('keyword', e.who === 'each' ? 'Players gain hexproof until end of turn.' : `${me.name} gains hexproof until end of turn.`);
+          break;
         /* Gift (CR 702.174): the opponent who was promised it gets it. */
         case 'giveGift': {
           const to = this.player(ctx.gift != null ? ctx.gift : (src && src.giftTo));
