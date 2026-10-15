@@ -1148,6 +1148,8 @@
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
         // (Ral, Crackling Wit: storm or cascade for your spells, which the engine looks for on emblems too)
         (e.op === 'grantCastKeyword' && (e.keyword === 'storm' || e.keyword === 'cascade')) ||
+        // (Wrenn and Realmbreaker: "You may play lands and cast permanent spells from your graveyard." — the graveyard's leave)
+        (e.op === 'playFrom' && e.zone === 'graveyard' && !e.anyGraveyard) ||
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
@@ -3608,6 +3610,8 @@
     { re: /^Any player may activate this ability\.?$/i, make: () => ({ op: 'activateOnly', anyPlayer: true }) },
     { re: /^(?:Untap|Tap) that creature\.?$/i, make: (m) => ({ op: /^Untap/i.test(m[0]) ? 'untap' : 'tap', scope: 'lastTarget' }) },
     { re: /^Then shuffle\.?$/i, make: () => ({ op: 'shuffle' }) },
+    // Genesis Hydra: "Then shuffle the rest into your library." — the revealed cards never left it: a shuffle
+    { re: /^Then shuffle the rest into your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
     // --- mass removal ---
     { re: /^Destroy all creatures\.?(?: They can'?t be regenerated\.?)?$/i,
@@ -3862,7 +3866,8 @@
        4/4 artifact creature until end of turn"; Destiny Spinner's "an X/X …
        where X is the number of enchantments you control". Without "until end
        of turn" it is for good. */
-    { re: /^(Until end of turn, )?((?:up to one |another )?target [a-z ]+?|each [a-z ]+? you control) (becomes an? (?:\d+\/\d+|X\/X) .+?)( until end of turn)?(?:, where X is ([^.]+?))?\.?$/i,
+    // (Wrenn and Realmbreaker: "… until your next turn" — nextTurn)
+    { re: /^(Until end of turn, )?((?:up to one |another )?target [a-z ]+?|each [a-z ]+? you control) (becomes an? (?:\d+\/\d+|X\/X) .+?)( until end of turn| until your next turn)?(?:, where X is ([^.]+?))?\.?$/i,
       make: (m) => {
         let body = m[3];
         let ptX = null;
@@ -3876,7 +3881,7 @@
         if (!eff || !eff.setPt) return null;
         const subj = /^each /i.test(m[2]) ? m[2].replace(/^each ([a-z ]+?) (artifact|land|creature|planeswalker|permanent|enchantment) you control$/i, 'each $1 $2s you control')
           .replace(/^each (artifact|land|creature|planeswalker|permanent|enchantment) you control$/i, 'each $1s you control') : m[2];
-        const out = becomesSubject(subj, eff, (m[1] || m[4]) ? 'eot' : 'permanent');
+        const out = becomesSubject(subj, eff, /next turn/i.test(m[4] || '') ? 'nextTurn' : (m[1] || m[4]) ? 'eot' : 'permanent');
         if (!out) return null;
         if (/^up to one /i.test(m[2]) && out.targets) out.targets[0].upTo = true;
         if (ptX) out.ptX = ptX;
@@ -7395,6 +7400,12 @@
       make: (m) => {
         const cond = condOf(m[1]);
         return cond ? { op: 'noop', insteadRider: { op: 'draw', cond, n: num(m[2]) } } : null;
+      } },
+    // Court of Cunning: "If you're the monarch, each of those players mills ten cards instead." — the mill above, inside its "each"
+    { re: /^If (.+?), each of those players mills (two|three|four|five|six|seven|eight|nine|ten|\d+) cards instead\.?$/i,
+      make: (m) => {
+        const cond = condOf(m[1]);
+        return cond ? { op: 'noop', insteadRider: { op: 'mill', cond, n: num(m[2]) } } : null;
       } },
     { re: /^If (.+?), (?:you )?(?:instead )?(?:draw|gain) .*instead\.?$/i, make: () => null },
     { re: /^Untap that (?:land|permanent|creature|artifact)\.?$/i, make: () => ({ op: 'untap', scope: 'lastAffected' }) },
@@ -15838,9 +15849,11 @@
       }
       /* Mizzix, Replica Rider: "copy that spell … If the copy is a permanent spell, it gains haste and "At the beginning
          of your end step, sacrifice this permanent."" — on the copy just made (permGrant) */
-      const permG = e && e.op === 'manual' && /^If the copy is a permanent spell, it gains haste(?: and "([^"]+)")?\.?$/i.exec(e.text || '');
+      // (Nalfeshnee: "If it's a permanent spell, the copy gains haste and "At the beginning of the end step, …"")
+      const permG = e && e.op === 'manual' && /^If (?:the copy is a permanent spell, it|it'?s a permanent spell, the copy) gains haste(?: and "([^"]+)")?\.?$/i.exec(e.text || '');
       if (permG) {
-        const last = out[out.length - 1];
+        // (Nalfeshnee: past "You may choose new targets for the copy.", which says nothing new)
+        const last = out[out.length - 1] && out[out.length - 1].op === 'noop' && /new targets for the copy/i.test(out[out.length - 1].text || '') ? out[out.length - 2] : out[out.length - 1];
         const host = last && last.op === 'copyThatSpell' ? last : last && (last.then || []).find(x => x && x.op === 'copyThatSpell');
         if (!host) { unrideable(); continue; }
         host.permGrant = { keywords: ['Haste'], text: permG[1] || null };
@@ -18219,6 +18232,8 @@
     { re: /^Whenever a source an opponent controls deals damage to you or a permanent you control,? /i, event: 'damagedByOpponentSource' },
     // Mila, Crafty Companion: "Whenever an opponent attacks one or more planeswalkers you control" (attacksYourPlaneswalkers)
     { re: /^Whenever an opponent attacks one or more planeswalkers you control,? /i, event: 'anyPlayerAttacks', extra: { attackerIsOpponent: true, attacksYourPlaneswalkers: true } },
+    // Cunning Rhetoric: "Whenever an opponent attacks you and/or one or more planeswalkers you control" — once for the attack (attacksYouOrWalkers)
+    { re: /^Whenever an opponent attacks you and\/or one or more planeswalkers you control,? /i, event: 'anyPlayerAttacks', extra: { attackerIsOpponent: true, attacksYourPlaneswalkers: true, attacksYouOrWalkers: true } },
     // Karazikar, the Eye Tyrant: "Whenever an opponent attacks another one of your opponents"
     { re: /^Whenever an opponent attacks another one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsOpponent: true, attackedIsYourOpponent: true } },
     /* Firemane Commando: "Whenever another player attacks with two or more creatures, they draw a card if none of those

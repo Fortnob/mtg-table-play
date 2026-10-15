@@ -5868,7 +5868,8 @@
         const ef = own.find(ab => ab.kind === 'static') && own.filter(ab => ab.kind === 'static').flatMap(ab => ab.effects || []).find(x => x && x.op === 'playFrom' && x.self);
         if (ef) return ef;
       }
-      for (const src of this.battlefield) {
+      // (Wrenn and Realmbreaker's emblem: "You may play lands and cast permanent spells from your graveyard." — this player's emblems too)
+      for (const src of this.battlefield.concat(this._emblems().filter(em => em.controller === playerId && em.card.layout === 'emblem'))) {
         if (src.phasedOut) continue;
         const a = src.analysis();
         if (!a) continue;
@@ -19587,7 +19588,9 @@
           // (Crimson Cowl, Master of Evil: "nontoken Villains" — attackersHereNontoken)
           if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && !(ab.attackersHereNontoken && x.isToken) && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
           // Mila, Crafty Companion: an attack on at least one of this player's planeswalkers (attacksYourPlaneswalkers)
+          // (Cunning Rhetoric: "attacks you and/or one or more planeswalkers you control" — either will do: attacksYouOrWalkers)
           if (ab.attacksYourPlaneswalkers && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => {
+            if (ab.attacksYouOrWalkers && x && x.attacking === o.controller) return true;
             const d = x && x.attacking && this.obj(x.attacking);
             return !!d && d.zone === 'battlefield' && d.controller === o.controller && !!(d.analysis() || {}).isPlaneswalker;
           })) continue;
@@ -27694,7 +27697,8 @@
           for (const t of targets) {
             const p = t.kind === 'player' && this.player(t.id);
             if (!p || p.hasLost) continue;
-            for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }));
+            // (Court of Cunning: "If you're the monarch, each of those players mills ten cards instead" — "you" is this ability's controller: settled now)
+            for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }, f.n && typeof f.n === 'object' && f.n.ifCond ? { n: n(f.n) } : {}));
           }
           if (list.length) this._spliceNext(list);
           break;
