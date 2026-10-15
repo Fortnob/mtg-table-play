@@ -1185,6 +1185,8 @@
     _untapStep() {
       const ap = this.activePlayer;
       let n = 0;
+      // Gideon, Battle-Forged: "attacks Gideon during its controller's next turn" — this turn is that one (mustAttackPw)
+      for (const o of this.battlefield) if (o.mustAttackPw && o.controller === ap.id && this.turn > o.mustAttackPw.after && o.mustAttackPw.turn == null) o.mustAttackPw.turn = this.turn;
       /* Stasis, "Skip your untap step": nothing untaps, but what has been
          under its controller's control since the turn began can still
          attack (CR 302.6) */
@@ -10683,10 +10685,18 @@
       const top = Math.max(...opps.map(p => p.life));
       return opps.filter(p => p.life === top).map(p => p.id);
     }
+    /** Gideon, Battle-Forged: the planeswalker this creature attacks this turn if able, while it can be attacked (mustAttackPw); else null. */
+    _mustAttackPwNow(o) {
+      const r = o && o.mustAttackPw;
+      if (!r || r.turn !== this.turn || !this.activePlayer || this.activePlayer.id !== o.controller) return null;
+      const pw = this.obj(r.id);
+      return pw && pw.zone === 'battlefield' && !pw.phasedOut && pw.controller !== o.controller && (pw.analysis() || {}).isPlaneswalker ? pw.id : null;
+    }
     mustAttack(o) {
       if (!o) return false;
       const a = o.analysis();
       if (!a) return false;
+      if (this._mustAttackPwNow(o)) return true;
       return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack' && !this._mustAttackExcused(o, e))) ||
         // (Alexios, Deimos of Kosmos: one of three standing rules on a line)
         (!!this._staticOp(o, 'mustAttack') && !this._mustAttackExcused(o, this._staticOp(o, 'mustAttack'))) ||
@@ -10820,6 +10830,16 @@
             if (d && others.length && !others.some(q => q.id === d.defenderId)) {
               if ((this.player(playerId) || {}).isBot) d.defenderId = others[0].id;
               else return this.fail(`${o.name} is goaded: it attacks a player other than ${goaders.map(g => (this.player(g) || {}).name || 'the one who goaded it').join(' or ')} if it can.`);
+            }
+          }
+          /* Gideon, Battle-Forged: "attacks Gideon during its controller's next turn if able" — at Gideon, a bot's
+             declaration turned that way, a person told (mustAttackPw) */
+          const pwId = o ? this._mustAttackPwNow(o) : null;
+          if (pwId && ch.defenders.some(x => x.id === pwId)) {
+            const d = declarations.find(x => x.attackerId === id);
+            if (d && d.defenderId !== pwId) {
+              if ((this.player(playerId) || {}).isBot) d.defenderId = pwId;
+              else return this.fail(`${o.name} attacks ${this.obj(pwId).name} if able.`);
             }
           }
           /* An encore token was made to go after one player in particular. */
@@ -13328,6 +13348,15 @@
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" — this one, not an earlier combat this turn
         case 'selfAttackedThisCombat': return !!src && src.attackedTurn === this.turn && (src.attackedCombatNo || 1) === (this.combatsThisTurn || 1);
+        /* Kytheon, Hero of Akros: "if Kytheon and at least two other creatures attacked this combat" — declared as attackers,
+           wherever they are now (its ruling) */
+        case 'selfAndOthersAttacked': {
+          const now = (x) => x.attackedTurn === this.turn && (x.attackedCombatNo || 1) === (this.combatsThisTurn || 1);
+          if (!src || !now(src)) return false;
+          let k = 0;
+          for (const x of this.objects.values()) if (x !== src && now(x)) k++;
+          return k >= (cond.n || 0);
+        }
         // Chandra, Fire of Kaladesh: "has dealt 3 or more damage this turn" (_noteNoncombatDamage keeps the tally)
         case 'selfDealtDamage': return !!src && !!src._dealtDmg && src._dealtDmg.turn === this.turn && src._dealtDmg.n >= (cond.n || 1);
         // Wolverine, Best There Is: "dealt damage to another creature this turn"
@@ -15028,7 +15057,8 @@
            it when the trigger looks back, and a copy dies as the copy. */
         const was = o.analysis();
         // (Ragnarok, Divine Deliverance: "When Ragnarok dies" is the melded permanent's, after its cards are Fang and Vanille again)
-        o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard || meldTo ? was : null;
+        // (Garland, Knight of Cornelia: "When Chaos dies" — a back face, which is gone once the card is its front again)
+        o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard || meldTo || (o.face || 0) !== 0 ? was : null;
         const lc = this.characteristics(o);
         o._leftAsCreature = !!(lc && lc.isCreature);
         // its power as it last existed, for "equal to its power" after it has gone
@@ -15167,7 +15197,7 @@
         o.licid = false; o.bandId = null;
         // (Plagon's "this turn" was said of the creature that left)
         o.toughDamageTurn = null;
-        o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null;
+        o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null; o.mustAttackPw = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
         o.faceDown = false; o.manifested = false; o.cloaked = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
@@ -16884,6 +16914,8 @@
           })
           // Krile Baldesion: "with mana value equal to that spell's mana value" (mvEqTrigger)
           .map(spec => (spec && spec.mvEqTrigger ? this._mvEqTriggerSpec(spec, td) : spec))
+          // Saruman of Many Colors: "with equal or lesser mana value than that spell" (mvAtMostTrigger)
+          .map(spec => (spec && spec.mvAtMostTrigger ? Object.assign({}, spec, { mvAtMostTrigger: false, maxMv: this._triggerSpellMv(td) }) : spec))
           // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
           .map(spec => {
             if (!spec || !spec.otherSpellType) return spec;
@@ -24186,6 +24218,8 @@
           // The Ancient One: "When you discard a card this way" — only if one was, and "its" is that card (ifDiscarded)
           const tossed = e.ifDiscarded ? (this._lastDiscarded || [])[0] : null;
           if (e.ifDiscarded && !tossed) break;
+          // Saruman of Many Colors: "When one or more cards are milled this way" — only if some were (ifMilled)
+          if (e.ifMilled && !(this._lastMilled || []).length) break;
           // Ratonhnhaké꞉ton: "create … token. When you do, …" — only if one was made, and "that token" is it (madeObject)
           const madeOne = e.madeObject ? (this._madeThisResolution || []).slice(-1)[0] : null;
           if (e.madeObject && !madeOne) break;
@@ -26404,6 +26438,12 @@
           });
           break;
 
+        /* Gideon, Battle-Forged: "Up to one target creature an opponent controls attacks Gideon during its controller's
+           next turn if able." (mustAttackPw) */
+        case 'mustAttackSelfNext':
+          if (!src) break;
+          applyToScope(e, (o) => { o.mustAttackPw = { id: src.id, after: this.turn }; this.logEvent('rules', `${o.name} attacks ${src.name} during its controller's next turn if able.`); });
+          break;
         case 'goad':
           // (Jon Irenicus, Shattered One: "goaded for the rest of the game" — forever)
           applyToScope(e, (o) => { o.goadedBy = ctx.controller; if (e.forever) o.goadForever = ctx.controller; this.logEvent('rules', `${o.name} is goaded${e.forever ? ' for the rest of the game' : ''}.`); });
@@ -27073,6 +27113,20 @@
           this.logEvent('rules', `${me.name} turns ${x.name} face up.`);
           this.emit('sfx', 'transform');
           this._fire('turnedFaceUp', ctx.controller, { object: x, source: x });
+          this.bumpBoard();
+          break;
+        }
+        /* Ixidor, Reality Sculptor: "Turn target face-down creature face up." — whoever's it is, for nothing; a
+           manifested instant or sorcery card stays face down */
+        case 'turnFaceUpTarget': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield' || !x.faceDown) break;
+          const real = (x.trueAnalysis ? x.trueAnalysis() : null) || {};
+          if (real.isInstant || real.isSorcery) break;
+          x.faceDown = false; x.faceDownLand = null; x._chr = null;
+          this.logEvent('rules', `${me.name} turns ${x.name} face up.`);
+          this.emit('sfx', 'transform');
+          this._fire('turnedFaceUp', x.controller, { object: x, source: x });
           this.bumpBoard();
           break;
         }

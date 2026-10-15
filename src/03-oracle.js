@@ -2838,8 +2838,9 @@
         : { op: 'selfToLibrary', shuffle: true, fromGraveyard: true }) },
     { re: /^Return (?:CARDNAME|this card) from your graveyard to your hand\.?$/i,
       make: () => ({ op: 'selfFromGraveyard', to: 'hand' }) },
-    { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield\.?$/i,
-      make: () => ({ op: 'selfFromGraveyard', to: 'battlefield' }) },
+    // (Garland, Knight of Cornelia: "Return this card from your graveyard to the battlefield transformed." — transformed)
+    { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( transformed)?\.?$/i,
+      make: (m) => Object.assign({ op: 'selfFromGraveyard', to: 'battlefield' }, m[1] ? { transformed: true } : {}) },
     { re: /^Sacrifice (?:CARDNAME|it)\.?$/i, make: () => ({ op: 'sacrificeSelf' }) },
     { re: /^Regenerate (?:CARDNAME|this permanent|this artifact|this land)\.?$/i, make: () => ({ op: 'regenerate', scope: 'self' }) },
 
@@ -4059,6 +4060,8 @@
     /* Zimone, Mystery Unraveler: "you may turn a permanent you control face up" — any face-down one, for nothing;
        none face down, nothing asked (turnFaceUpFree) */
     { re: /^You may turn a permanent you control face up\.?$/i, make: () => ({ op: 'turnFaceUpFree' }) },
+    // Ixidor, Reality Sculptor: "Turn target face-down creature face up." — anyone's (turnFaceUpTarget)
+    { re: /^Turn target face-down creature face up\.?$/i, make: () => ({ op: 'turnFaceUpTarget', targets: [targetSpec('target face-down creature')] }) },
     // Victor, Valgavoth's Seneschal: "surveil 2 if this is the first time this ability has resolved this turn" (surveilIf)
     { re: /^[Ss]urveil (\d+) if (this is the (?:first|second|third) time this ability has resolved this turn)\.?$/,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'surveil', n: +m[1] }] } : null; } },
@@ -6770,8 +6773,10 @@
     // Sontaran General, Sparkmage's Gambit: "Those creatures can't block this turn."
     { re: /^Those creatures can'?t block this turn\.?$/i, make: () => ({ op: 'restrict', flag: 'cantBlock', scope: 'lastGroup' }) },
     // Anzrag's Rampage, Zara: "Return it to your hand at the beginning of the next end step."
-    { re: /^Return (it|that creature|that card|that permanent) to (?:your|its owner'?s) hand at the beginning of the next end step\.?$/i,
-      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it to its owner\'s hand at end of turn', effects: [{ op: 'returnThatToHand' }] }) },
+    // (Greasefang, Okiba Boss: "Return it to its owner's hand at the beginning of your next end step." — yours)
+    { re: /^Return (it|that creature|that card|that permanent) to (?:your|its owner'?s) hand at the beginning of (the|your) next end step\.?$/i,
+      make: (m) => Object.assign({ op: 'delayed', event: /your/i.test(m[2]) ? 'yourEndStep' : 'eachEndStep', subject: 'lastTarget', name: 'Return it to its owner\'s hand at end of turn',
+        effects: [{ op: 'returnThatToHand' }] }, /your/i.test(m[2]) ? { forPlayer: 'you' } : {}) },
     { re: /^(?:Then )?[Vv]enture into the dungeon\.?$/, make: () => ({ op: 'venture' }) },
     // Acererak the Archlich: "return Acererak to its owner's hand and venture into the dungeon"
     { re: /^Return CARDNAME to its owner'?s hand and venture into the dungeon\.?$/, make: () => [{ op: 'selfFromGraveyard', to: 'hand' }, { op: 'venture' }] },
@@ -7204,6 +7209,14 @@
     { re: /^Each opponent who voted for a choice you voted for creates a Treasure token\.?$/i, make: () => ({ op: 'votedSameTreasure' }) },
     { re: /^You scry X, where X is the number of opponents who voted for a choice you didn'?t vote for\.?$/i,
       make: () => ({ op: 'scry', n: { votedOther: true, mult: 1 } }) },
+    // Gideon, Battle-Forged: "Up to one target creature an opponent controls attacks Gideon during its controller's next turn if able." (mustAttackPw)
+    { re: /^Up to one target creature an opponent controls attacks CARDNAME during its controller'?s next turn if able\.?$/,
+      make: () => ({ op: 'mustAttackSelfNext', targets: [Object.assign(targetSpec('target creature an opponent controls'), { upTo: true })] }) },
+    /* Gideon, Battle-Forged, Gideon Jura: "Until end of turn, Gideon becomes a 4/4 Human Soldier creature with
+       indestructible that's still a planeswalker." */
+    { re: /^Until end of turn, CARDNAME becomes an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )*[A-Z][a-z]+) creature(?: with ([a-z]+(?:(?:, | and )[a-z]+)*))? that'?s still a planeswalker\.?$/,
+      make: (m) => ({ op: 'animate', pt: m[1] + '/' + m[2], colorWords: [], subtypes: m[3], addTypes: [],
+        keywords: m[4] ? m[4].split(/, | and /).map(x => U.titleCase(x.trim())) : [], duration: 'eot' }) },
     // Kros, Defense Contractor: "Whenever you put one or more counters on a creature you don't control, tap that creature and goad it." (triggerObject)
     { re: /^Tap that creature and goad it\.?$/i, make: () => [{ op: 'tap', scope: 'triggerObject' }, { op: 'goad', scope: 'triggerObject' }] },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
@@ -9835,6 +9848,19 @@
         if (e.addCardTypes) { e.addTypes = e.addCardTypes; delete e.addCardTypes; }
         if ((e.addText || []).some(x => /\bthe exiled card\b/i.test(x))) e.holdExiled = true;
         return /^you may/i.test(m[1]) ? [{ op: 'may', then: [{ op: 'exileTriggerCard' }, e] }] : [{ op: 'exileTriggerCard' }, e];
+      } },
+    /* Saruman of Many Colors: "each opponent mills two cards. When one or more cards are milled this way, exile target
+       enchantment, instant, or sorcery card with equal or lesser mana value than that spell from an opponent's graveyard.
+       Copy the exiled card. You may cast the copy without paying its mana cost." — a reflexive trigger, if any were
+       milled (ifMilled); "that spell" the one the trigger is about (mvAtMostTrigger) */
+    { re: /^each opponent mills (two|three|\d+) cards\. When one or more cards are milled this way, (exile (target [a-z, ]+? card) with equal or lesser mana value than that spell from an opponent'?s graveyard\. Copy the exiled card\. You may cast the copy without paying its mana cost\.)$/i,
+      make: (m) => {
+        const sp = targetSpec(m[3], 'graveyard');
+        if (!sp || sp.unknown) return null;
+        return [{ op: 'mill', n: num(m[1]), who: 'opponents' },
+          { op: 'reflexive', ifMilled: true, text: 'When one or more cards are milled this way, ' + m[2],
+            effects: [{ op: 'exile', targets: [Object.assign(sp, { type: 'card', controller: 'opponent', mvAtMostTrigger: true })] },
+              { op: 'castCopy', of: 'last', fromRes: true }] }];
       } },
     // Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." (castCopiesExiled)
     { re: /^copy each exiled card you own with an? ([a-z]+) counter on it\. You may cast the copies\.?$/i,
@@ -13009,6 +13035,9 @@
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" (selfAttackedThisCombat)
     [/^(?:it|this creature|CARDNAME) attacked this combat$/i, () => ({ kind: 'selfAttackedThisCombat' })],
+    // Kytheon, Hero of Akros: "if Kytheon and at least two other creatures attacked this combat" (selfAndOthersAttacked)
+    [/^CARDNAME and at least (\w+) other creatures attacked this combat$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfAndOthersAttacked', n: num(m[1]) } : null)],
     // Chandra, Fire of Kaladesh: "Chandra has dealt 3 or more damage this turn" (selfDealtDamage)
     [/^(?:this creature|CARDNAME) has dealt (\w+) or more damage this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfDealtDamage', n: num(m[1]) } : null)],
     // Wolverine, Best There Is: "if Wolverine dealt damage to another creature this turn" (selfDamagedCreatureThisTurn)
