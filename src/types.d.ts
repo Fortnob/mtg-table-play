@@ -124,6 +124,9 @@ declare namespace MTG {
     /** Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, for its controller; each by
         the index activateAbility takes, and where its own activated abilities start */
     gained?: { manaBase: number; list: Array<{ i: number; mana?: boolean; ability: any }> } | null;
+    /** a card in a hand or on top of a library that others know: 'all' when it was revealed (or the library is
+        played revealed), else the players who looked at it. An opponent's card is shown to you only while you know it. */
+    seenBy?: 'all' | PlayerId[];
   }
   type AnyObjectView = ObjectView | HiddenObjectView;
 
@@ -185,10 +188,11 @@ declare namespace MTG {
     /** the companion's {3} into hand has been used this game */
     companionUsed?: boolean;
     librarySize: number;
-    /** the top of your own library, when something lets you see it */
+    /** the top of a library, when something lets you see it, or you know that card (revealed, looked at) and it is
+        still there; its `seenBy` is 'all' when everybody sees it */
     topCard: ObjectView | null;
     handSize: number;
-    /** your own hand in full; everybody else's as hidden objects */
+    /** your own hand in full; everybody else's as hidden objects, but for the cards you know (revealed to you) */
     hand: AnyObjectView[];
     graveyard: ObjectView[];
     exile: ObjectView[];

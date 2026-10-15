@@ -109,7 +109,8 @@
       if (p.id === viewer) { rng.shuffle(z.library); continue; }
       const open = [];
       const hidden = [];
-      z.hand.forEach((o, i) => { if (!(known && known.has(o.id)) && !o.revealedTo) { open.push(i); hidden.push(o); } });
+      // (a card revealed to the viewer, still in that hand, is that card: knownTo)
+      z.hand.forEach((o, i) => { if (!(known && known.has(o.id)) && !g._knows(o, viewer)) { open.push(i); hidden.push(o); } });
       if (!open.length) { rng.shuffle(z.library); continue; }
       const pool = hidden.concat(z.library);
       rng.shuffle(pool);

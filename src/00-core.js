@@ -158,6 +158,12 @@ class RNG {
   pick(arr) { return arr[this.int(arr.length)]; }
   chance(p) { return this.next() < p; }
   shuffle(arr) {           // Fisher–Yates, in place
+    this._mix(arr);
+    // (a game hears of it: what anybody knew of where its cards were is gone)
+    if (this.onShuffle) this.onShuffle(arr);
+    return arr;
+  }
+  _mix(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = this.int(i + 1);
       [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -166,7 +172,7 @@ class RNG {
   }
   sample(arr, n) {         // n distinct items
     const copy = arr.slice();
-    this.shuffle(copy);
+    this._mix(copy);
     return copy.slice(0, n);
   }
   // weighted pick: entries [[item, weight], ...]

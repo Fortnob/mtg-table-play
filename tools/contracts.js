@@ -131,6 +131,9 @@ const ObjectView = obj({
   manaExtra: opt(maybe(arr(obj({ i: nat, label: str })))),
   /* Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, by the index activateAbility takes */
   gained: opt(maybe(obj({ manaBase: nat, list: arr(obj({ i: nat, mana: opt(bool), ability: S.plainObj })) }))),
+  /* a card in a hand or on top of a library: who besides its owner knows it — 'all' when it was revealed (or the
+     library is played revealed), else the players who looked */
+  seenBy: opt(either("'all' or player ids", lit('all'), arr(id))),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({
@@ -458,9 +461,18 @@ function checkView(view, viewer, game) {
     if ((p.hand || []).length !== p.handSize) bad('view.sense', `${p.id}.handSize`, `is ${p.handSize} but the hand has ${(p.hand || []).length}`);
     /* hidden information */
     if (p.id !== viewer) {
-      for (const o of p.hand || []) if (!o.hidden) bad('view.privacy', `${p.id}.hand ${o.id}`, `${viewer}'s view shows a card in ${p.id}'s hand (${(o.card || {}).name})`);
-      // unless it is played revealed ("play with the top card of your library revealed")
-      if (p.topCard && !(game && game._topCardShown && game._topCardShown(p.id, viewer))) bad('view.privacy', `${p.id}.topCard`, `${viewer}'s view shows the top of ${p.id}'s library`);
+      /* unless the hand is played revealed (Telepathy), or the viewer knows that card: it was revealed, or they
+         looked at the hand, and it has not moved since (knownTo) */
+      const mayHand = (o) => !!game && ((game._handShown && game._handShown(p.id, viewer)) || (game._knows && game._knows(game.obj(o.id), viewer)));
+      for (const o of p.hand || []) if (!o.hidden && !mayHand(o)) bad('view.privacy', `${p.id}.hand ${o.id}`, `${viewer}'s view shows a card in ${p.id}'s hand (${(o.card || {}).name})`);
+      // unless it is played revealed ("play with the top card of your library revealed"), or known to the viewer
+      if (p.topCard && !(game && game._topCardVisible && game._topCardVisible(p.id, viewer))) bad('view.privacy', `${p.id}.topCard`, `${viewer}'s view shows the top of ${p.id}'s library`);
+    }
+    // nobody is shown a top card they may not see (their own included: a library's order is nobody's to know)
+    if (p.id === viewer && p.topCard && game && game._topCardVisible && !game._topCardVisible(p.id, viewer)) bad('view.privacy', `${p.id}.topCard`, `${viewer}'s view shows the top of their own library`);
+    // (and what is said of who knows a card is said only of a card shown)
+    for (const o of (p.hand || []).concat(p.topCard ? [p.topCard] : [])) {
+      if (o.seenBy != null && o.seenBy !== 'all' && !(Array.isArray(o.seenBy) && o.seenBy.every(x => pids.has(x)))) bad('view.sense', `${p.id} ${o.id}.seenBy`, `${show(o.seenBy)} is not 'all' or players at the table`);
     }
   }
   /* A face-down card is a secret from everyone but the one who controls

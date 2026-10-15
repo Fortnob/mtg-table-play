@@ -101,10 +101,19 @@
       this.chosenX = 0;
       this.targets = [];
       this.manualNote = '';
-      this.revealedTo = null;          // array of player ids, for face-down reveals
+      /* who knows this card while it stays in a hidden zone (a hand, a library): player ids, or ['*'] for
+         everybody — it was revealed, or looked at. Gone once the card moves or its library is shuffled. */
+      this.knownTo = null;
       this.castFromCommandZone = false;
       this.foretold = false;
       this.note = '';
+    }
+    /* Where it is. However it gets somewhere else — moveObject, a draw, a library put back together — it is a
+       new object there (CR 400.7), and what anybody knew of it stays behind (knownTo). */
+    get zone() { return this._zone; }
+    set zone(z) {
+      if (z !== this._zone && this.knownTo) this.knownTo = null;
+      this._zone = z;
     }
     get name() {
       if (this.faceDown) return 'Face-down card';
@@ -274,7 +283,7 @@
   /* What a snapshot leaves out of an object, a player and the game: what it already writes its own way,
      what is worked out again (the _chr, _dyn, _borrow caches and the epochs they are checked against), and,
      for a player, the deck it sat down with (not game state, and large). */
-  const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis)/;
+  const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis|_zone$)/;
   const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn)$/;
   const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring)$/;
   const NOT_PLAIN = Symbol('not plain data');
@@ -314,6 +323,8 @@
         rulesEnforcement: 'full',      // 'full' | 'relaxed'
       }, config || {});
       this.rng = new MTG.RNG(this.config.seed);
+      // a shuffled library is in an order nobody knows (_forgetOrder)
+      this.rng.onShuffle = (arr) => this._forgetOrder(arr);
       this.players = [];
       this.zones = {};                 // playerId -> {library, hand, graveyard, exile, command}
       this.battlefield = [];
@@ -9535,7 +9546,7 @@
         const fits = this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter));
         const named = (opts.revealIds || []).map(id => fits.find(c => c.id === id)).filter((c, i, l) => c && l.indexOf(c) === i);
         const shown = (named.length >= need ? named : fits).slice(0, need);
-        if (shown.length) this.logEvent('rules', `${this.player(pid).name} reveals ${shown.map(c => c.name).join(', ')}.`);
+        if (shown.length) { this._know(shown, '*'); this.logEvent('rules', `${this.player(pid).name} reveals ${shown.map(c => c.name).join(', ')}.`); }
       }
       /* Jhoira of the Ghitu: the card from the hand the player named, or the costliest — what the ability does
          with it is worth more the more it costs (exiledCost) */
@@ -14966,8 +14977,83 @@
       }
     }
 
+    /* ---------- what players know of hidden cards ----------
+       A card revealed, or looked at, stays known to those who saw it for as
+       long as it stays where it is: a card revealed from a hand is still
+       that card in that hand, the top card of a library is still that card
+       until it moves or the library is shuffled. Kept as plain data on the
+       card (knownTo), so it survives undo and saving, and viewFor shows the
+       card to those who know it and to nobody else. */
+
+    /** Has player `pid` seen this card where it is now? (Its owner always knows their own hand.) */
+    _knows(o, pid) {
+      if (!o) return false;
+      if (o.zone === 'hand' && o.owner === pid) return true;
+      const k = o.knownTo;
+      return !!k && (k.includes('*') || (pid != null && k.includes(pid)));
+    }
+    _setKnown(o, who) {
+      const add = [].concat(who || []).filter(x => x != null);
+      if (!add.length || !o) return;
+      if (add.includes('*') || (o.knownTo || []).includes('*')) { o.knownTo = ['*']; return; }
+      const cur = (o.knownTo || []).slice();
+      for (const id of add) if (!cur.includes(id)) cur.push(id);
+      // (everybody at the table is everybody)
+      o.knownTo = this.players.length && this.players.every(p => cur.includes(p.id)) ? ['*'] : cur;
+    }
+    /**
+     * Cards revealed (who: '*', everybody) or looked at (who: the looker's id, or several): known where they are,
+     * and — moved on by the same resolution, into a hand or onto a library — known there too (_knowAfterMove:
+     * "reveal it and put it into your hand").
+     */
+    _know(objs, who) {
+      const ids = who === 'all' ? ['*'] : [].concat(who || []).filter(x => x != null);
+      if (!ids.length) return;
+      const r = this.resolving;
+      for (const o of [].concat(objs || [])) {
+        if (!o || o.isToken) continue;
+        if (o.zone === 'hand' || o.zone === 'library') this._setKnown(o, ids);
+        if (r) {
+          const sh = (r.shown = r.shown || {});
+          const had = sh[o.id] || [];
+          sh[o.id] = had.includes('*') || ids.includes('*') ? ['*'] : had.concat(ids.filter(x => !had.includes(x)));
+        }
+      }
+    }
+    /** "Reveal your hand", "look at target player's hand": the whole hand. */
+    _knowHand(pid, who) { this._know(((this.zones[pid] || {}).hand || []).slice(), who); }
+    /* What is known of a card once it has moved: what this resolution showed of it goes along into a hand or onto
+       a library (a tutor's "reveal it, put it into your hand"; Mystical Tutor's "then put it on top"); a card put
+       on top of a library from where everybody saw it is known to everybody, and one put there from a hand to
+       its owner (Brainstorm). Anywhere else, or at the bottom of a library, nothing is shown. */
+    _knowAfterMove(o, from, to, opts, inSight) {
+      if (o.zone !== to || (to !== 'hand' && to !== 'library') || o.isToken) return;
+      if (to === 'library' && opts && opts.toBottom) return;
+      const r = this.resolving;
+      let who = (r && r.shown && r.shown[o.id]) || [];
+      if (to === 'library' && from !== 'library') {
+        if (inSight) who = ['*'];
+        else if (from === 'hand') who = who.concat([o.owner]);
+      }
+      if (who.length) this._setKnown(o, who);
+    }
+    /** A library shuffled (or cards put in a random order): nobody knows where its cards are any more. */
+    _forgetOrder(arr) {
+      for (const o of arr || []) if (o && o.zone === 'library' && o.knownTo) o.knownTo = null;
+    }
+    /** The players who know a card besides its owner, for the table: 'all', a list, or undefined. */
+    _seenByView(o) {
+      const k = o.knownTo;
+      if (!k || !k.length) return undefined;
+      if (k.includes('*')) return 'all';
+      const others = k.filter(id => id !== o.owner || o.zone === 'library');
+      return others.length ? others.slice() : undefined;
+    }
+
     /* ---------- zones ---------- */
     _removeFromZone(o) {
+      // a card that changes zones is a new object (CR 400.7): what anybody knew of it stays behind (_knowAfterMove)
+      o.knownTo = null;
       if (o.zone === 'battlefield') {
         const i = this.battlefield.indexOf(o);
         if (i >= 0) this.battlefield.splice(i, 1);
@@ -15001,6 +15087,8 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      // (where everybody could see it go from, face up: _knowAfterMove)
+      const inSight = from !== 'hand' && from !== 'library' && !o.faceDown && !(from === 'exile' && o.faceDownExile);
       /* Kunoros, Hound of Athreos, Grafdigger's Cage: "Creature cards in graveyards can't enter the battlefield." —
          it stays where it is */
       if (from === 'graveyard' && toZone === 'battlefield' && (this._anyStatic('graveCreaturesStay') || this._anyStatic('cageGraveyards')) &&
@@ -15400,6 +15488,7 @@
         const z = this.zones[o.owner].library;
         if (opts.toBottom) z.push(o); else z.unshift(o);
       }
+      this._knowAfterMove(o, from, toZone, opts, inSight);
 
       if (from === 'battlefield' && toZone !== 'battlefield') {
         // whatever this permanent was holding in exile comes back (CR 610.3)
@@ -15821,7 +15910,7 @@
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
         // Keranos, God of Storms: "Reveal the first card you draw on each of your turns."
-        if (ab.revealDrawn && data.object) this.logEvent('reveal', `${(this.player(o.controller) || {}).name} reveals ${data.object.name}.`);
+        if (ab.revealDrawn && data.object) { this._know(data.object, '*'); this.logEvent('reveal', `${(this.player(o.controller) || {}).name} reveals ${data.object.name}.`); }
         /* "One or more creatures die" is one trigger for the lot of them,
            however many went at once. */
         if (((ab.objFilter && ab.objFilter.batch) || ab.batch)) {
@@ -19009,6 +19098,8 @@
           const cards = this._topOfLibrary(whose.id, k);
           if (!cards.length) break;
           if (whose === me) this._looked = cards.map(c => c.id);
+          // (known to the one who looked for as long as they stay there — shown on the library to that player)
+          this._know(cards, ctx.controller);
           const seen = this._ask({ type: 'arrange', playerId: ctx.controller, count: cards.length,
             cards, look: true, prompt: `Look at the top ${k === 1 ? 'card' : k + ' cards'} of ${whose === me ? 'your' : whose.name + "'s"} library.` });
           if (seen === SUSPEND) return SUSPEND;
@@ -19127,6 +19218,7 @@
             this.logEvent('rules', `${who ? who.name : me.name} explores: ${top.name} stays on top.`);
             break;
           }
+          this._know(top, '*');
           if (!this._doneHere('exploreReveal')) this.logEvent('rules', `${who ? who.name : me.name} explores: ${top.name}.`);
           if (ta && ta.isLand) {
             z.library.shift();
@@ -20525,6 +20617,7 @@
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
             // (Hei Bai, Forest Guardian: "You may put that card onto the battlefield" — asked once it is shown: optional)
+            this._know(shown, '*');
             if (shown.length && !this._doneHere('ruShown' + p.id)) this.logEvent('rules', `${p.name} reveals ${shown.map(c => c.name).join(', ')}.`);
             // Madcap Experiment: "the number of cards revealed this way" (revealedCountUntil)
             this._revealedCount = shown.length;
@@ -21210,6 +21303,8 @@
             this.rng.shuffle(z.library);
             break;
           }
+          // "Search your library for a card, reveal it, put it into your hand": known there to everybody (text: as read)
+          if (taken.length && (e.reveal || /\breveal/i.test(e.text || ''))) this._know(taken, '*');
           for (const c of taken) {
             const i = z.library.indexOf(c);
             if (i >= 0) z.library.splice(i, 1);
@@ -21245,6 +21340,8 @@
               // Long-Term Plans: "third from the top" (depth)
               if (where === 'top' && e.depth > 1) z.library.splice(Math.min(e.depth - 1, z.library.length), 0, c);
               else if (where === 'top') z.library.unshift(c); else z.library.push(c);
+              // (the one who searched knows where they put it)
+              if (where === 'top') this._setKnown(c, [seeker.id]);
             } else this.moveObject(c, 'hand', { controller: seeker.id });
           }
           this._lastSearched = taken.map(c => c.id);
@@ -21673,6 +21770,7 @@
           const want = ((order && order.top) || []).map(id => top.find(o => o.id === id)).filter(Boolean);
           for (const o of top) if (!want.includes(o)) want.push(o);
           z.library.splice(0, top.length, ...want);
+          for (const o of want) { o.knownTo = null; this._setKnown(o, [ctx.controller]); }
           this.logEvent('rules', `${me.name} puts the top ${top.length} back in the order they choose.`);
           break;
         }
@@ -23128,7 +23226,7 @@
              still in the library; nothing drawn otherwise (revealedOnly) */
           const top = e.revealedOnly ? this.obj(this._lastRevealed) : this.zones[ctx.controller].library[0];
           if (!top || top.zone !== 'library') break;
-          if (!e.revealedOnly) this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
+          if (!e.revealedOnly) { this._know(top, '*'); this.logEvent('reveal', `${me.name} reveals ${top.name}.`); }
           if ((top.analysis() || {}).isLand) { this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) top.tapped = true; }
           else if (!e.revealedOnly) this._drawCards(me, 1);
           break;
@@ -23150,6 +23248,7 @@
             if (got === SUSPEND) return SUSPEND;
             pick = ((got || []).map(id => this.obj(id)).find(o => o && pool.includes(o))) || pool.find(fits);
           }
+          this._know(pick, '*');
           this.logEvent('reveal', `${me.name} reveals ${pick.name}${pick === top ? ' from the top of their library' : ' from their hand'}.`);
           if (fits(pick)) this.moveObject(pick, e.to || 'battlefield', { controller: ctx.controller });
           break;
@@ -23346,7 +23445,7 @@
         case 'exileFromOppHandsUntil': {
           for (const q of this.opponentsOf(ctx.controller)) {
             const hand = this.zones[q.id].hand;
-            if (!ctx['_vkShown' + q.id]) { ctx['_vkShown' + q.id] = true; this.logEvent('reveal', `${q.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`); }
+            if (!ctx['_vkShown' + q.id]) { ctx['_vkShown' + q.id] = true; this._knowHand(q.id, '*'); this.logEvent('reveal', `${q.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`); }
             if (!src || src.zone !== 'battlefield') continue;
             const pool = hand.filter(c => this._cardFitsWords(c, e.filter || 'card'));
             if (!pool.length) continue;
@@ -23770,6 +23869,7 @@
           for (const q of this.players.filter(p => !p.hasLost)) {
             const top = this.zones[q.id].library[0];
             if (!top) continue;
+            this._know(top, '*');
             this.logEvent('reveal', `${q.name} reveals ${top.name}.`);
             if (this._cardFitsWords(top, e.filter || 'nonland')) k++;
             // Phabine, Boss's Confidant: "Then … for each nonland card revealed this way" (alsoFor)
@@ -24102,6 +24202,7 @@
             if (yes === SUSPEND) return SUSPEND;
             if (yes === false) break;
             st = marks[slot] = { shown: z.library.slice(0, k).map(c => c.id), order: null, at: 0 };
+            this._know(st.shown.map(id => this.obj(id)), '*');
             this.logEvent('reveal', `${me.name} reveals ${st.shown.map(id => this.obj(id).name).join(', ')} for ripple.`);
           }
           if (!st.order) {
@@ -24210,6 +24311,7 @@
             for (const q of this.players.filter(q => sacBy.includes(q.id))) {
               const top = this.zones[q.id].library[0];
               if (!top) continue;
+              this._know(top, '*');
               this.logEvent('reveal', `${q.name} reveals ${top.name}.`);
               if (this._cardFitsWords(top, 'permanent')) this.moveObject(top, 'battlefield', { controller: q.id });
             }
@@ -24512,6 +24614,7 @@
           const p = e.who === 'defending' ? (this._defenderOf(src) || triggerPlayer()) : me;
           const top = p && this.zones[p.id].library[0];
           if (!top) break;
+          this._know(top, '*');
           this.logEvent('reveal', `${p.name} reveals ${top.name}.`);
           if (this._cardFitsWords(top, e.filter || 'card')) {
             this.moveObject(top, e.to === 'hand' ? 'hand' : 'graveyard');
@@ -24538,6 +24641,7 @@
             prompt: `Reveal your hand? It has cards with ${mvs.size} different mana values, so ${tp.name} loses the game.` }, 'rhm');
           if (yes === SUSPEND) return SUSPEND;
           if (yes === false || (yes && yes.yes === false)) break;
+          this._knowHand(me.id, '*');
           this.logEvent('reveal', `${me.name} reveals their hand: ${hand.map(c => c.name).join(', ')}.`);
           this.playerLoses(tp, `${me.name} revealed cards with ${mvs.size} different mana values`);
           this.checkStateBasedActions();
@@ -24572,7 +24676,7 @@
             if (!this._doneHere('gtkGuessed')) this.logEvent('rules', `${q.name} guesses ${yes ? 'it is' : 'it is not'} a ${word} card.`);
           }
           const top = this.zones[ctx.controller].library[0];
-          if (top) { this._lastRevealed = top.id; this.logEvent('reveal', `${me.name} reveals ${top.name}.`); }
+          if (top) { this._lastRevealed = top.id; this._know(top, '*'); this.logEvent('reveal', `${me.name} reveals ${top.name}.`); }
           const right = !!top && !!q && yes === (!!(top.analysis() || {}).isLand === land);
           this.logEvent('rules', right ? `${q.name} guessed right.` : `${q ? q.name : 'Nobody'} guessed wrong.`);
           this._spliceNext((right ? e.right : e.wrong) || []);
@@ -24624,6 +24728,7 @@
         case 'reveal': {
           const from = this.zones[ctx.controller][e.from === 'library' ? 'library' : 'hand'] || [];
           const shown = from.slice(0, n(e.n)).map(o => o.name);
+          this._know(from.slice(0, n(e.n)), '*');
           // "Reveal the top card of your library. If it's a creature card, …"
           if (from.length) this._lastRevealed = from[0].id;
           /* Nissa's Revelation, Interpret the Signs, Sifter Wurm: "equal to its power", "that card's mana
@@ -24669,7 +24774,7 @@
             if (yes === SUSPEND) return SUSPEND;
             reveal = !!(yes && (yes.yes || yes === true));
           }
-          if (reveal) this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
+          if (reveal) { this._know(top, '*'); this.logEvent('reveal', `${me.name} reveals ${top.name}.`); }
           this.moveObject(top, 'hand');
           if (reveal) this._spliceNext([{ op: 'addManaAny', amount: e.amount || 3, allowedColors: cols }]);
           break;
@@ -24848,8 +24953,8 @@
           if (!lookP) break;
           this._looked = this.zones[lookP.id].library.slice(0, cnt).map(o => o.id);
           // Gishath, Sun's Avatar: "reveal that many cards" — what everybody sees
-          if (e.reveal) this.logEvent('reveal', `${lookP.name} reveals ${this._looked.map(id => this.obj(id).name).join(', ') || 'nothing'}.`);
-          else this.logEvent('look', `${me.name} looks at the top ${cnt}.`);
+          if (e.reveal) { this._know(this._looked.map(id => this.obj(id)), '*'); this.logEvent('reveal', `${lookP.name} reveals ${this._looked.map(id => this.obj(id).name).join(', ') || 'nothing'}.`); }
+          else { this._know(this._looked.map(id => this.obj(id)), ctx.controller); this.logEvent('look', `${me.name} looks at the top ${cnt}.`); }
           break;
         }
 
@@ -24979,6 +25084,9 @@
             if (picked === SUSPEND) return SUSPEND;
             taken = (picked || []).slice(0, want).map(id => this.obj(id)).filter(Boolean);
           }
+          /* "You may reveal a creature card from among them and put it into your hand": shown to everybody, and
+             known in that hand (what the sentence says, as it was read: text) */
+          if (taken.length && (e.reveal || /\breveal/i.test(e.text || ''))) this._know(taken, '*');
           // Florian, Voldaren Scion: "You may play the exiled card this turn" — the card this exiled, for what follows
           if (e.to === 'exile') { this._lastExiledList = taken.map(o => o.id); this._lastExiled = taken.length ? taken[taken.length - 1].id : null; }
           // Gilgamesh, Master-at-Arms: "When you put one or more Equipment onto the battlefield this way" (attachOneOfTaken)
@@ -25057,6 +25165,8 @@
           const seq = ids.map(id => this.obj(id)).filter(Boolean);
           for (const o of pool) this._removeFromZone(o);
           for (let i = seq.length - 1; i >= 0; i--) { seq[i].zone = 'library'; z.library.unshift(seq[i]); }
+          // (put back in an order only the one who looked knows)
+          for (const o of seq) { o.knownTo = null; this._setKnown(o, [ctx.controller]); }
           this._looked = null;
           break;
         }
@@ -25725,6 +25835,7 @@
             const o = this.zones[ctx.controller].library[0];
             if (!o) break;
             const mv = (o.card && o.card.cmc) || 0;
+            this._know(o, '*');
             this.logEvent('reveal', `${me.name} reveals ${o.name}.`);
             this.moveObject(o, 'hand');
             if (e.loseLifeForMv) this.changeLife(me, -mv, 'card');
@@ -25889,6 +26000,7 @@
             prompt: `${ctx.name ? ctx.name + ': ' : ''}reveal ${top.name} and transform ${(src && src.name) || 'it'}?` }, 'revealTop');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) break;
+          this._know(top, '*');
           this.logEvent('reveal', `${me.name} reveals ${top.name} from the top of their library.`);
           this._spliceNext([{ op: 'transformSelf' }]);
           break;
@@ -25909,7 +26021,9 @@
           }
           if (top.zone !== 'library') break;
           // Galadriel of Lothlórien: "reveal the top card of your library" — shown whatever it is (reveal)
-          if (e.reveal) this.logEvent('zone', `${me.name} reveals ${top.name} from the top of their library.`);
+          if (e.reveal) { this._know(top, '*'); this.logEvent('zone', `${me.name} reveals ${top.name} from the top of their library.`); }
+          // (looked at, not revealed: its controller knows what stays on top)
+          else this._know(top, ctx.controller);
           if (put) {
             this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) });
             if (e.tapped && top.zone === 'battlefield') top.tapped = true;
@@ -25993,9 +26107,12 @@
           if (!p) break;
           const hand = this.zones[p.id].hand;
           if (!e.look) {
+            this._knowHand(p.id, '*');
             this.logEvent('reveal', `${p.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`);
             break;
           }
+          // (looked at: the one who looked knows these cards for as long as they stay in that hand)
+          this._knowHand(p.id, ctx.controller);
           if (hand.length && p.id !== ctx.controller) {
             const seen = this._choose({ playerId: ctx.controller, kind: 'objects', min: 0, max: 0,
               items: hand.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: `${p.name}'s hand.` }, 'lookHand');
@@ -26195,6 +26312,7 @@
             if (got === SUSPEND) return SUSPEND;
             pick = ((got || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'hand'))[0] || null;
           }
+          this._knowHand(victim.id, ctx.controller);
           this.logEvent('reveal', `${me.name} looks at ${victim.name}'s hand.`);
           if (!pick) break;
           this.moveObject(pick, 'battlefield', { controller: ctx.controller, tapped: !!e.tapped });
@@ -26238,6 +26356,7 @@
           this._chosenCard = null;
           if (!o || o.zone !== 'hand') break;
           const owner = this.player(o.owner);
+          this._know(o, '*');
           this.logEvent('reveal', `${owner.name} reveals ${o.name} and puts it on the bottom of their library.`);
           this.moveObject(o, 'library', { toBottom: true });
           this._drawCards(owner, 1);
@@ -26404,7 +26523,7 @@
           const shown = hand.find(c => (e.types || []).some(t => this._matchesCategory(c, t)));
           const held = e.orControl && this.battlefield.some(o => o !== src &&
             o.controller === ctx.controller && this._matchesCategory(o, e.orControl));
-          if (shown) this.logEvent('rules', `${this.player(ctx.controller).name} reveals ${shown.name}.`);
+          if (shown) { this._know(shown, '*'); this.logEvent('rules', `${this.player(ctx.controller).name} reveals ${shown.name}.`); }
           if (!shown && !held) src.tapped = true;
           break;
         }
@@ -26631,6 +26750,7 @@
             const theirs = foe ? (this.zones[foe.id].library || [])[0] : null;
             st = { foe: foe ? foe.id : null, mine: mine ? mine.id : null, theirs: theirs ? theirs.id : null };
             if (r) { r.marks = r.marks || {}; r.marks[ck] = st; }
+            this._know([mine, theirs], '*');
             this.logEvent('reveal', `Clash: ${me.name} reveals ${mine ? mine.name : 'nothing'} (${mv(mine)})` +
               (foe ? `, ${foe.name} reveals ${theirs ? theirs.name : 'nothing'} (${mv(theirs)}).` : '.'));
           }
@@ -27791,7 +27911,7 @@
             const k = e.n && typeof e.n === 'object' && e.n.of === 'X' ? (n('X') || 0) + (e.n.plus || 0) : n(e.n);
             ids = lib.slice(0, Math.max(0, k || 0)).map(o => o.id);
             if (r) r.marks[slot] = ids;
-            if (ids.length) this.logEvent('reveal', `${me.name} reveals ${ids.map(id => this.obj(id).name).join(', ')}.`);
+            if (ids.length) { this._know(ids.map(id => this.obj(id)), '*'); this.logEvent('reveal', `${me.name} reveals ${ids.map(id => this.obj(id).name).join(', ')}.`); }
           }
           const cards = ids.map(id => this.obj(id)).filter(c => c && c.zone === 'library');
           if (!cards.length) break;
@@ -28098,7 +28218,7 @@
             prompt: `Search your library for ${e.upTo ? 'up to ' : ''}${n(e.n)} cards${e.distinct ? ' with different names' : ''} to reveal.` }, 'socFind');
           if (got === SUSPEND) return SUSPEND;
           const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'library');
-          if (picked.length) this.logEvent('reveal', `${me.name} reveals ${picked.map(c => c.name).join(', ')}.`);
+          if (picked.length) { this._know(picked, '*'); this.logEvent('reveal', `${me.name} reveals ${picked.map(c => c.name).join(', ')}.`); }
           const k = Math.min(n(e.k), picked.length);
           const ch = !opp || picked.length <= k ? { picks: picked.map(c => c.id) } : this._choose({ playerId: opp.id, purpose: 'opponentPicks',
             kind: 'objects', zone: 'library', panel: true, items: this._chooseItems(picked), min: k, max: k, forPlayer: ctx.controller,
@@ -29501,6 +29621,7 @@
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).filter(id => pool.some(c => c.id === id));
           this._revealedCount = picks.length;
+          this._know(picks.map(id => this.obj(id)), '*');
           this.logEvent('reveal', `${me.name} reveals ${picks.length} card${picks.length === 1 ? '' : 's'}: ${picks.map(id => (this.obj(id) || {}).name).join(', ')}.`);
           break;
         }
@@ -29540,6 +29661,7 @@
           const p = firstPlayer(); const nm = this._chosenNameNow;
           if (!p || !nm) break;
           const hits = this.zones[p.id].hand.filter(c => c.card && c.card.name === nm);
+          this._knowHand(p.id, '*');
           this.logEvent('reveal', `${p.name} reveals their hand.`);
           for (const c of hits) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
           this.logEvent('discard', `${p.name} discards ${hits.length} card${hits.length === 1 ? '' : 's'} named ${nm}.`);
@@ -29573,7 +29695,7 @@
           let found = null;
           while (lib.length) {
             const c = lib[0];
-            if (c.name === name) { found = c; this.moveObject(c, 'hand'); break; }
+            if (c.name === name) { found = c; this._know(c, '*'); this.moveObject(c, 'hand'); break; }
             this.moveObject(c, 'exile');
           }
           this.logEvent('reveal', found ? `${me.name} names ${name}, and finds it.` : `${me.name} names ${name}; it never comes, and the library is gone.`);
@@ -29601,7 +29723,7 @@
               options: [{ label: `Put ${c.name} into your hand`, key: 'take', card: c.card }, { label: 'Exile another', key: 'next' }],
               cardId: c.id, prompt: `${ctx.name || 'Tainted Pact'}: keep ${c.name}?` }, slot + 'q' + st.step);
             if (got === SUSPEND) return SUSPEND;
-            if ((((got && got.picks) || [])[0] || 0) === 0) { this.moveObject(c, 'hand'); this.logEvent('reveal', `${me.name} keeps ${c.name}.`); break; }
+            if ((((got && got.picks) || [])[0] || 0) === 0) { this._know(c, '*'); this.moveObject(c, 'hand'); this.logEvent('reveal', `${me.name} keeps ${c.name}.`); break; }
             st.cur = null;
           }
           break;
@@ -29625,6 +29747,7 @@
             }
             const top = this.zones[me.id].library[0];
             if (!top) break;
+            this._know(top, '*');
             this.moveObject(top, 'hand');
             const mv = (top.card && top.card.cmc) || 0;
             this.logEvent('reveal', `${me.name} reveals ${top.name} and puts it into their hand${mv ? `, losing ${mv} life` : ''}.`);
@@ -30168,6 +30291,7 @@
             return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
           // (revealed once, however many times this resumes)
+          this._knowHand(victim.id, '*');
           if (!this._doneHere('handShown')) this.logEvent('reveal', `${victim.name} reveals their hand: ${this.zones[victim.id].hand.map(o => o.name).join(', ') || 'no cards'}.`);
           // Memory Leak: "from that player's graveyard or hand" (alsoGraveyard)
           if (e.alsoGraveyard) hand.push(...this.zones[victim.id].graveyard.filter(o => words === 'any' || words === 'card' || this._cardFitsWords(o, words)));
@@ -30189,6 +30313,7 @@
           const who = e.who === 'lastOwner' ? (this.player((this._lastAffected || {}).owner) || me) : me;
           const top = this.zones[who.id].library[0];
           if (!top) break;
+          this._know(top, '*');
           this.logEvent('reveal', `${who.name} reveals ${top.name}.`);
           if (this._cardFitsWords(top, e.filter || 'permanent')) this.moveObject(top, 'battlefield', { controller: who.id });
           break;
@@ -30220,10 +30345,11 @@
           const top = this.zones[ctx.controller].library[0];
           if (!top) break;
           const fits = this._cardFitsWords(top, e.filter || 'card') && (!e.chosenType || (src && this._hasCreatureType(top, src.chosenType)));
-          if (!fits) { this.logEvent('rules', `${me.name} looks at the top card and leaves it there.`); break; }
+          if (!fits) { this._know(top, ctx.controller); this.logEvent('rules', `${me.name} looks at the top card and leaves it there.`); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Reveal ${top.name} and put it into your hand?` }, 'top');
           if (yes === SUSPEND) return SUSPEND;
-          if (yes) { this.moveObject(top, 'hand'); this.logEvent('reveal', `${me.name} reveals ${top.name} and puts it into their hand.`); }
+          if (yes) { this._know(top, '*'); this.moveObject(top, 'hand'); this.logEvent('reveal', `${me.name} reveals ${top.name} and puts it into their hand.`); }
+          else this._know(top, ctx.controller);
           break;
         }
         /* "Change the target of target spell or ability with a single
@@ -32320,9 +32446,30 @@
       this.choiceQueue.push(ch);
       if (!this.pendingChoice) this._nextChoice();
     }
+    /* A question that shows a player cards from somebody else's hand (Thoughtseize's pick, Gitaxian Probe's look)
+       or the top of a library to put back (scry, "look at the top three … in any order") shows them those cards:
+       that player knows them now, for as long as they stay there (_know). A search's list is not a look at the
+       library's order, and is left alone. */
+    _seenInQuestion(ch) {
+      const pid = ch.playerId;
+      if (pid == null || !this.player(pid) || ch.fromLibrary) return;
+      const ids = [];
+      for (const c of ch.cards || []) if (c && c.id) ids.push(c.id);
+      if (ch.type === 'choose') for (const it of ch.items || []) if (it && it.id) ids.push(it.id);
+      const libraryOrder = ch.type === 'arrange' || ch.type === 'scry' || ch.type === 'surveil';
+      const seen = [];
+      for (const id of ids) {
+        const o = this.obj(id);
+        if (!o) continue;
+        if (o.zone === 'hand' && o.owner !== pid) seen.push(o);
+        else if (o.zone === 'library' && libraryOrder) seen.push(o);
+      }
+      if (seen.length) this._know(seen, pid);
+    }
     _nextChoice() {
       this.choiceQueue = this.choiceQueue || [];
       this.pendingChoice = this.choiceQueue.shift() || null;
+      if (this.pendingChoice) this._seenInQuestion(this.pendingChoice);
       if (this.pendingChoice) this.emit('choice', this.pendingChoice);
       /* The Leyline questions are asked before the game starts, so the
          first turn waits for the last answer. */
@@ -32430,6 +32577,8 @@
           for (const id of top) { const o = byId.get(id); if (o) { byId.delete(id); kept.push(o); } }
           const rest = kept.concat(Array.from(byId.values()));
           for (let i = rest.length - 1; i >= 0; i--) { rest[i].zone = 'library'; z.library.unshift(rest[i]); }
+          // (what stays on top is known to the one who looked, in the order they chose; what went under, to nobody)
+          for (const o of looked) if (o.zone === 'library') { o.knownTo = null; if (rest.includes(o)) this._setKnown(o, [playerId]); }
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
           // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
           this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId, amount: looked.length });
@@ -33781,7 +33930,7 @@
           attacking: o.attacking, blocking: o.blocking.slice(), blockedBy: o.blockedBy.slice(),
           blockOrder: o.blockOrder.slice(), removedFromCombat: o.removedFromCombat, blockedNoBlocker: o.blockedNoBlocker || null,
           chosenX: o.chosenX, targets: JSON.parse(JSON.stringify(o.targets || [])),
-          manualNote: o.manualNote, revealedTo: o.revealedTo, isCommander: !!o.isCommander, isSignature: !!o.isSignature,
+          manualNote: o.manualNote, knownTo: o.knownTo ? o.knownTo.slice() : null, isCommander: !!o.isCommander, isSignature: !!o.isSignature,
           companion: !!o.companion,
           castFromCommandZone: o.castFromCommandZone, foretold: o.foretold, note: o.note,
           shields: o.shields || 0, preventShield: o.preventShield || 0,
@@ -33891,6 +34040,8 @@
           discBy: this.resolving._discBy ? JSON.parse(JSON.stringify(this.resolving._discBy)) : undefined,
           manual: JSON.parse(JSON.stringify(this.resolving.manual)),
           afterKind: this.resolving.afterKind,
+          // what it has revealed so far, known wherever it puts them (_know)
+          shown: this.resolving.shown ? JSON.parse(JSON.stringify(this.resolving.shown)) : undefined,
         } : null,
         stateVersion: this.stateVersion, isDay: this.isDay === undefined ? null : this.isDay,
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
@@ -33979,7 +34130,7 @@
         if (ctx.objId) ctx.obj = byId(ctx.objId);
         this.resolving = {
           ctx, effects: rs.effects, index: rs.index, answers: rs.answers,
-          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy, _discBy: rs.discBy,
+          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy, _discBy: rs.discBy, shown: rs.shown || undefined,
           // the callback is a closure, so it is rebuilt from what it was for
           after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx)
             // a trigger's targets being chosen as it goes on the stack: the next one's, then priority (_aimNext)
@@ -34210,15 +34361,49 @@
         .map(g => ((this.zones[g.from] || {}).library || [])[0]).filter(Boolean);
     }
 
+    /* "You may look at it any time" said only of some top cards: Oura, the Imitator's "As long as the top card of
+       your library is a Faerie or instant card" (filter); a card's own words about itself are read elsewhere (self) */
+    _peekTopFits(e, src, top) {
+      if (e.self) return false;
+      if (!e.filter) return true;
+      return !!top && this._cardFitsWords(top, e.filter);
+    }
+    /** Is the top card of `ownerId`'s library shown to everybody: played revealed, or revealed and still there? */
+    _topCardPublic(ownerId) {
+      const top = (this.zones[ownerId] || { library: [] }).library[0];
+      if (!top) return false;
+      if ((top.knownTo || []).includes('*')) return true;
+      return this.battlefield.some(o => {
+        if (o.phasedOut) return false;
+        const e = this._staticOp(o, 'peekTop');
+        return !!e && this._peekTopFits(e, o, top) && (e.who === 'all' || (e.revealed && o.controller === ownerId));
+      });
+    }
+    /** May `viewer` see the top card of `ownerId`'s library now: something lets them, or they know that card. */
+    _topCardVisible(ownerId, viewer) {
+      const top = (this.zones[ownerId] || { library: [] }).library[0];
+      return !!top && (this._topCardShown(ownerId, viewer) || this._knows(top, viewer));
+    }
+
     _topCardShown(ownerId, viewer) {
       if (viewer !== ownerId && this._oppTops(viewer).some(c => c.owner === ownerId)) return true;
+      const top = (this.zones[ownerId] || { library: [] }).library[0];
       for (const o of this.battlefield) {
-        if (o.controller !== ownerId || o.phasedOut) continue;
+        if (o.phasedOut) continue;
         const e = this._staticOp(o, 'peekTop');
-        if (e && (e.revealed || viewer === ownerId)) return true;
+        if (!e || !this._peekTopFits(e, o, top)) continue;
+        // Wizened Snitches: "Players play with the top card of their libraries revealed." — every library, to everybody
+        if (e.who === 'all') return true;
+        if (o.controller !== ownerId) continue;
+        if (e.revealed || viewer === ownerId) return true;
+      }
+      /* Pearl Lake Warden: "As long as this card is the top card of your library, you may look at it any time" —
+         the card's own words, from the top of the library (peekTop self) */
+      if (top && viewer === ownerId) {
+        const ta = top.analysis();
+        if (ta && ta.abilities.some(ab => ab.kind === 'static' && (ab.effects || []).some(x => x && x.op === 'peekTop' && x.self))) return true;
       }
       if (viewer !== ownerId) return false;
-      const top = this.zones[ownerId].library[0];
       return !!top && !!(this._playFromRule(ownerId, top, 'land') || this._playFromRule(ownerId, top, 'spell') || this._playFromRule(ownerId, top, 'any'));
     }
 
@@ -34268,6 +34453,13 @@
       /* a card face down off the battlefield (exiled face down: Gonti, hideaway, foretell) says nothing of itself to
          those who may not see it: no power, toughness, keywords or effects read off the card underneath */
       const blank = (o) => o.zone !== 'battlefield' && o.zone !== 'stack' && secret(o);
+      // a card in a hand or a library with who knows it said (said only of such a card: _seenByView)
+      const known = (o, all) => {
+        const v = ser(o);
+        const by = all ? 'all' : this._seenByView(o);
+        if (by) v.seenBy = by;
+        return v;
+      };
       const ser = (o, hidden) => hidden ? { id: o.id, hidden: true, owner: o.owner, zone: o.zone } : {
         id: o.id, cardId: secret(o) ? FACE_DOWN_VIEW.id : o.card.id, card: secret(o) ? FACE_DOWN_VIEW : o.card,
         owner: o.owner, controller: o.controller,
@@ -34466,10 +34658,15 @@
              permanent that lets them play it, shows it to that player and
              nobody else; "play with the top card of your library revealed"
              shows it to everybody. The table shows it face up on the library. */
-          topCard: this.zones[p.id].library.length && this._topCardShown(p.id, playerId) ? ser(this.zones[p.id].library[0]) : null,
+          /* A card revealed from the top, or looked at there, stays shown to those who saw it for as long as it is
+             still the top card (knownTo); `seenBy` on it says who else sees it ('all': it is revealed). */
+          topCard: this._topCardVisible(p.id, playerId) ? known(this.zones[p.id].library[0], this._topCardPublic(p.id)) : null,
           handSize: this.zones[p.id].hand.length,
           // Telepathy: a hand played revealed is shown face up to whoever may see it
-          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => ser(o)) : this.zones[p.id].hand.map(o => ser(o, true)),
+          /* …and a card revealed from it, or seen by a player who looked at the hand, stays face up to those who
+             know it for as long as it stays there; `seenBy` says who besides its owner knows it */
+          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o))
+            : this.zones[p.id].hand.map(o => this._knows(o, playerId) ? known(o) : ser(o, true)),
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),
           /* A card exiled from somebody else that you may play (an
              opponent's card Dauthi Voidwalker let you have, the top of a
