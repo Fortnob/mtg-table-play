@@ -249,6 +249,7 @@ const defaultSettings = {
   autoPassUntilStackChange: true,
   alwaysFullControl: false,      // nothing is ever passed for you
   orderMyTriggers: false,        // choose the order your own triggers go on the stack
+  keepSeenOnTop: true,           // a scry showing only the cards you already kept on top, untouched since, keeps them without asking
   stops: null,                   // null means "use the defaults below"
   confirmAttacks: true,
   showPhaseBar: true,
@@ -396,6 +397,8 @@ MTG.autoPassConfig = function () {
     fullControl: !!S.alwaysFullControl,
     fullControlSticky: !!S.alwaysFullControl,
     orderTriggers: !!S.orderMyTriggers,
+    // a scry or surveil showing exactly what you already kept on top, with nothing done to the library since, isn't asked
+    keepSeenOnTop: S.keepSeenOnTop !== false,
     // stop only at your stops and when somebody else acts, not wherever you could
     smart: S.stopWhenAble !== true,
   };

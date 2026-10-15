@@ -2722,6 +2722,7 @@
       toggle('autoPassUntilStackChange', 'Stop when something new goes on the stack', 'Otherwise you only stop at the steps below.', pushAutoPass),
       toggle('alwaysFullControl', 'Never pass priority for me (full control)', 'Nothing is ever passed for you. At the table, Ctrl turns it on for one step and Ctrl+Shift locks it on.', pushAutoPass),
       toggle('orderMyTriggers', 'Let me order my own triggers', 'When several of your triggers go on the stack at once, choose the order instead of having it chosen for you.', pushAutoPass),
+      toggle('keepSeenOnTop', 'Don\u2019t ask again about cards I kept on top', 'When a scry or surveil would show you exactly the cards you last chose to keep on top, in the same order, and nothing has been done to your library since, they stay on top without asking. The log says so.', pushAutoPass),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Always stop at' }),
         el('div', { class: 'opt-help', text: 'Tap a square to stop there — or click a step on the phase strip at the table. Space passes, Enter yields until somebody responds, Shift+Enter yields the turn, Ctrl keeps priority for this step. ? at the table lists every key.' }),

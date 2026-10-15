@@ -323,8 +323,9 @@
         rulesEnforcement: 'full',      // 'full' | 'relaxed'
       }, config || {});
       this.rng = new MTG.RNG(this.config.seed);
-      // a shuffled library is in an order nobody knows (_forgetOrder)
-      this.rng.onShuffle = (arr) => this._forgetOrder(arr);
+      /* a shuffled library is in an order nobody knows (_forgetOrder), and a library touched, even when it
+         happens to come out the same way (_keepsSeenOnTop) */
+      this.rng.onShuffle = (arr) => { this._forgetOrder(arr); this._libraryShuffled(arr); };
       this.players = [];
       this.zones = {};                 // playerId -> {library, hand, graveyard, exile, command}
       this.battlefield = [];
@@ -15258,6 +15259,8 @@
         // Whip of Erebos: "if it would leave the battlefield, exile it instead"
         if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && (o.leaveExile || this._staticOp(o, 'leaveExileSelf'))) toZone = 'exile';
       }
+      // a card taken from a library or put into one: what its owner knew of its top is out of date (_keepsSeenOnTop)
+      if (from === 'library' || toZone === 'library') this._libraryTouched(o.owner);
       /* A mutated pile is several cards; each of them goes where the
          permanent went (CR 702.140f). */
       if (from === 'battlefield' && toZone !== 'battlefield' && o.mutateCards) {
@@ -15795,6 +15798,7 @@
         // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
         const o = this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawFromBottom')) ? z.library.pop() : z.library.shift();
         o.zone = 'hand';
+        this._libraryTouched(p.id);
         // (Sylvan Library: "cards in your hand drawn this turn")
         o.drawnTurn = this.turn;
         z.hand.push(o);
@@ -19848,6 +19852,14 @@
             this.logEvent(e.op, `${who.name} has no cards to ${e.op}.`);
             break;
           }
+          /* Rumor Gatherer's scry 1 again and again: the very cards this player last chose to keep on top, in
+             that order, with nothing done to their library since, are nothing new to decide — they stay */
+          if (this._keepsSeenOnTop(who.id, e.op, cards)) {
+            if (r) r.answers[r.index + ':' + e.op] = { top: cards.map(c => c.id), bottom: [], seen: true };
+            this.logEvent(e.op, `${who.name} keeps ${cards.length === 1 ? '1 card' : cards.length + ' cards'} on top (seen already).`);
+            this._afterScry(e.op, who.id, cards.length);
+            break;
+          }
           const q = { type: e.op, playerId: who.id, count: cards.length, cards,
             prompt: (e.op === 'scry' ? 'Scry ' : 'Surveil ') + want + '.' };
           if (r) { if (this._ask(q, e.op) === SUSPEND) return SUSPEND; break; }
@@ -22154,6 +22166,11 @@
           const k = Math.max(1, n(e.n) || 1);
           const cards = this._topOfLibrary(ctx.controller, k);
           if (!cards.length) break;
+          // the cards this player last put on top in this very order, untouched since: they stay as they are
+          if (this._keepsSeenOnTop(ctx.controller, 'arrange', cards)) {
+            this.logEvent('rules', `${me.name} keeps ${cards.length === 1 ? '1 card' : cards.length + ' cards'} on top (seen already).`);
+            break;
+          }
           const order = this._ask({ type: 'arrange', playerId: ctx.controller, count: cards.length, cards,
             prompt: `Put the top ${cards.length === 1 ? 'card' : cards.length + ' cards'} back in any order.` }, 'arr');
           if (order === SUSPEND) return SUSPEND;
@@ -22163,6 +22180,7 @@
           for (const o of top) if (!want.includes(o)) want.push(o);
           z.library.splice(0, top.length, ...want);
           for (const o of want) { o.knownTo = null; this._setKnown(o, [ctx.controller]); }
+          this._rememberKeptOnTop(ctx.controller, 'arrange', want.map(o => o.id));
           this.logEvent('rules', `${me.name} puts the top ${top.length} back in the order they choose.`);
           break;
         }
@@ -33051,11 +33069,9 @@
           for (let i = rest.length - 1; i >= 0; i--) { rest[i].zone = 'library'; z.library.unshift(rest[i]); }
           // (what stays on top is known to the one who looked, in the order they chose; what went under, to nobody)
           for (const o of looked) if (o.zone === 'library') { o.knownTo = null; if (rest.includes(o)) this._setKnown(o, [playerId]); }
+          this._rememberKeptOnTop(playerId, ch.type, rest.map(o => o.id));
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
-          // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
-          this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId, amount: looked.length });
-          // River Song: "Whenever an opponent scries, surveils, …" (opponentScrySurveil)
-          this._fire('opponentScrySurveil', null, { except: playerId, player: playerId, playerId });
+          this._afterScry(ch.type, playerId, looked.length);
           break;
         }
         case 'sacrifice': {
@@ -34234,6 +34250,62 @@
       const z = this.zones[playerId];
       if (!z) return [];
       return z.library.slice(0, Math.max(0, n)).map(o => ({ id: o.id, name: o.name, card: o.card }));
+    }
+
+    /* ---------- what a player already knows about the top of their library ----------
+       Rumor Gatherer scries 1 every time a creature of yours enters: keep the card on top, and the next scry
+       shows you the same card again, and the next. A scry or surveil that would show exactly the cards this
+       player last chose to keep on top, in the same order, with nothing done to their library since, has
+       nothing new to decide, and they stay where they are (keepSeenOnTop, a setting of theirs, on unless
+       they turn it off). "Nothing done" is a count of everything that took a card from that library or put
+       one into it, and every shuffle (_libTouches), with the order of the whole library besides, so a card
+       drawn and put back, or the library reordered by hand, is something new. */
+    _libraryTouched(pid) {
+      if (pid == null) return;
+      const t = this._libTouches = this._libTouches || {};
+      t[pid] = (t[pid] || 0) + 1;
+    }
+    _libraryShuffled(arr) {
+      for (const pid of Object.keys(this.zones || {})) if (this.zones[pid] && this.zones[pid].library === arr) this._libraryTouched(pid);
+    }
+    /** Where a library stands: how often it has been touched, and its order (a hash of it: a snapshot carries it). */
+    _libraryMark(pid) {
+      const z = this.zones[pid];
+      return ((this._libTouches || {})[pid] || 0) + ':' + U.hash(z ? z.library.map(o => o.id).join(',') : '');
+    }
+    /** The cards a player has just kept on top, in order (scry, surveil or arrange), and the library as it stood then. */
+    _rememberKeptOnTop(pid, kind, ids) {
+      const all = this._keptOnTop = this._keptOnTop || {};
+      const mine = all[pid] = all[pid] || {};
+      if (ids && ids.length) mine[kind] = { ids: ids.slice(), mark: this._libraryMark(pid) };
+      else delete mine[kind];
+    }
+    /**
+     * Whether `cards` (the top of this player's library, about to be shown to them by a `kind` — scry, surveil
+     * or arrange) are the very ones they last kept on top, in that order, with nothing done since. A scry's
+     * cards must have been kept by a scry and a surveil's by a surveil: putting a card on the bottom is not the
+     * same choice as putting it into the graveyard. Putting them back in any order is a choice any of the
+     * three has made already. A bot has no use for this; asking it changes nothing.
+     */
+    _keepsSeenOnTop(pid, kind, cards) {
+      const p = this.player(pid);
+      if (!p || p.isBot || !cards || !cards.length) return false;
+      const cfg = ((this.config && this.config.autoPass) || {})[pid];
+      if (cfg && cfg.keepSeenOnTop === false) return false;
+      const mine = (this._keptOnTop || {})[pid];
+      if (!mine) return false;
+      const mark = this._libraryMark(pid);
+      return (kind === 'arrange' ? ['scry', 'surveil', 'arrange'] : [kind]).some(k => {
+        const m = mine[k];
+        return !!m && m.mark === mark && cards.length <= m.ids.length && cards.every((c, i) => c.id === m.ids[i]);
+      });
+    }
+    /** What follows a scry or surveil however it was made: the triggers that count them. */
+    _afterScry(kind, pid, n) {
+      // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
+      this._fire(kind === 'scry' ? 'youScry' : 'youSurveil', pid, { playerId: pid, amount: n });
+      // River Song: "Whenever an opponent scries, surveils, …" (opponentScrySurveil)
+      this._fire('opponentScrySurveil', null, { except: pid, player: pid, playerId: pid });
     }
 
     /** Reduce a raw choice reply to the one value the waiting effect wants. */
