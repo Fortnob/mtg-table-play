@@ -890,6 +890,15 @@
 .log-line b.me { color: var(--gold-hi); font-weight: 600; }
 .log-line b.them { color: #9cc7ff; font-weight: 600; }
 .log-line.t-cast, .log-line.t-stack { border-left-color: rgba(212,175,71,.6); }
+/* the short log: an outcome on the line, and the rest behind its "…" */
+.log-tag { color: #f1b2a6; font-size: .92em; }
+.log-more { display: inline; }
+.log-more > summary { display: inline-block; list-style: none; cursor: pointer; margin-left: 4px; padding: 0 6px; border-radius: 6px;
+  color: #9aa4b5; background: rgba(255,255,255,.07); font-weight: 700; line-height: 1.3; }
+.log-more > summary::-webkit-details-marker { display: none; }
+.log-more[open] > summary { color: #fff; }
+.log-sub { margin: 3px 0 0 2px; font-size: .92em; color: #a9b3c3; }
+.dtab.detail { font-size: 11.5px; padding: 5px 10px; }
 .log-line.t-combat, .log-line.t-damage { border-left-color: rgba(255,91,69,.6); }
 .log-line.t-sba, .log-line.t-sacrifice { border-left-color: rgba(255,107,92,.45); }
 .log-line.t-life { border-left-color: rgba(111,227,160,.5); }

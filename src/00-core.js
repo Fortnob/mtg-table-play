@@ -770,5 +770,21 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
    (settings.botSpeed), named here for Options and the game menu. Very
    fast is the pace the bots used to keep; Normal is the default. */
 MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'Slow'], [3200, 'Very slow']];
+/* One game speed for both: how long the table dwells on each moment (animSpeed) and how long a bot pauses
+   (botSpeed) go together, since the one waits for the other. Options keeps each on its own as well. */
+MTG.GAME_SPEEDS = [['relaxed', 'Relaxed', 1.6, 2200], ['normal', 'Normal', 1, 1500], ['fast', 'Fast', 0.5, 1000]];
+/** The game speed the two settings make, or null when they were set apart (Options). */
+MTG.gameSpeed = function () {
+  const S = MTG.settings;
+  const anim = S.animSpeed == null ? 1 : +S.animSpeed, bot = S.botSpeed == null ? 1500 : +S.botSpeed;
+  const g = MTG.GAME_SPEEDS.find(x => x[2] === anim && x[3] === bot);
+  return g ? g[0] : null;
+};
+MTG.setGameSpeed = function (id) {
+  const g = MTG.GAME_SPEEDS.find(x => x[0] === id);
+  if (!g) return;
+  MTG.settings.animSpeed = g[2];
+  MTG.setSetting('botSpeed', g[3]);
+};
 
 

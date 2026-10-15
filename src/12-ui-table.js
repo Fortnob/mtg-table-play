@@ -3932,10 +3932,9 @@
         UI.keyboardHelp && keys ? ['Keyboard  (?)', () => UI.keyboardHelp()] : null,
         MTG.net && MTG.net.online ? ['Chat', () => this.toggleDrawer(true, 'chat')] : null,
         [`Sort hand by ${nextSort[1]}`, () => { MTG.setSetting('handSort', nextSort[0]); this.render(); }],
-        [`Pace: ${paceName(MTG.settings.animSpeed)}  → ${paceName(nextPace(MTG.settings.animSpeed))}`,
-          () => MTG.setSetting('animSpeed', nextPace(MTG.settings.animSpeed))],
-        [`Bots: ${botPaceName(MTG.settings.botSpeed)}  → ${botPaceName(nextBotPace(MTG.settings.botSpeed))}`,
-          () => MTG.setSetting('botSpeed', nextBotPace(MTG.settings.botSpeed))],
+        // one speed for the table and the bots together (each on its own in Options)
+        [`Game speed: ${speedName(MTG.gameSpeed())}  → ${speedName(nextSpeed(MTG.gameSpeed()))}`,
+          () => MTG.setGameSpeed(nextSpeed(MTG.gameSpeed()))],
         [live.fullControl ? 'Full control: on' : 'Full control: off' + key('(Ctrl)'), () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
         this.isReplay ? null : ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
         MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
@@ -4034,17 +4033,33 @@
           onclick: () => { this.drawerTab = id; this._drawerSig = null; this.renderDrawer(); } }));
       }
       d._tabs.appendChild(el('span', { class: 'grow' }));
+      // the log in short (one line for each spell and trigger, its outcome on it), or every line the game wrote
+      const detail = !!MTG.settings.logDetail;
+      if (this.drawerTab === 'log') d._tabs.appendChild(el('button', { type: 'button', class: 'dtab detail' + (detail ? ' on' : ''), text: 'Details',
+        'aria-pressed': detail ? 'true' : 'false', title: detail ? 'Every line of the log. Click for the short log.' : 'The short log. Click for every line.',
+        onclick: () => { MTG.setSetting('logDetail', !detail); this._drawerSig = null; this.renderDrawer(); } }));
       d._tabs.appendChild(el('button', { type: 'button', class: 'dtab close', text: '✕', title: 'Close (L)', onclick: () => this.toggleDrawer(false) }));
       d._input.style.display = this.drawerTab === 'chat' ? '' : 'none';
-      const sig = this.drawerTab + (this.drawerTab === 'log' ? v.log.length + ':' + (v.log.length ? v.log[v.log.length - 1].text : '') : this.chat.length);
+      const sig = this.drawerTab + (detail ? '+' : '') + (this.drawerTab === 'log' ? v.log.length + ':' + (v.log.length ? v.log[v.log.length - 1].text : '') : this.chat.length);
       if (sig === this._drawerSig) return;
       this._drawerSig = sig;
       d._body.innerHTML = '';
       if (this.drawerTab === 'log') {
         let turn = null;
-        for (const e of v.log.slice(-200)) {
+        const rows = detail ? v.log.slice(-200).map(e => ({ e, more: [], tags: [] })) : compactLog(v.log.slice(-300));
+        for (const r of rows) {
+          const e = r.e;
           if (e.turn !== turn && e.turn) { turn = e.turn; d._body.appendChild(el('div', { class: 'log-turn', text: 'Turn ' + turn })); }
-          d._body.appendChild(el('div', { class: 'log-line t-' + e.type, html: this.logHtml(e.text) }));
+          const line = el('div', { class: 'log-line t-' + e.type, html: this.logHtml(r.text || e.text) +
+            (r.tags.length ? ` <span class="log-tag">(${escapeHtml(r.tags.join(', '))})</span>` : '') });
+          // what came of it, and a trigger's words: there to open, not in the way
+          if (r.more.length) {
+            line.appendChild(el('details', { class: 'log-more' }, [
+              el('summary', { title: 'More', 'aria-label': 'More about this' }, [el('span', { 'aria-hidden': 'true', text: '…' })]),
+              ...r.more.map(t => el('div', { class: 'log-sub', html: this.logHtml(t) })),
+            ]));
+          }
+          d._body.appendChild(line);
         }
       } else {
         for (const c of this.chat.slice(-100)) {
@@ -4110,15 +4125,76 @@
     }
   }
 
-  /* How long the table dwells on each moment, and how long a bot thinks
-     before it acts: three steps each, cycled from the game menu. */
-  const PACES = [[0.55, 'quick'], [1, 'normal'], [1.6, 'relaxed']];
-  const paceName = (v) => (PACES.find(p => p[0] === (v == null ? 1 : v)) || [0, 'custom'])[1];
-  const nextPace = (v) => { const i = PACES.findIndex(p => p[0] === (v == null ? 1 : v)); return PACES[(i + 1) % PACES.length][0]; };
-  // the bots' speed: the same named steps as Options (MTG.BOT_PACES), one setting for every bot
-  const BOT_PACES = MTG.BOT_PACES;
-  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 1500 : v)) || [0, 'custom'])[1].toLowerCase();
-  const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 1500 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
+  /* The game speed, cycled from the game menu: normal, fast, relaxed (MTG.GAME_SPEEDS); a speed set apart in
+     Options is "custom", and goes on to normal. */
+  const SPEED_CYCLE = ['normal', 'fast', 'relaxed'];
+  const speedName = (id) => id ? (MTG.GAME_SPEEDS.find(g => g[0] === id) || [0, 'custom'])[1].toLowerCase() : 'custom';
+  const nextSpeed = (id) => id ? SPEED_CYCLE[(SPEED_CYCLE.indexOf(id) + 1) % SPEED_CYCLE.length] : 'normal';
+
+  /**
+   * The short log (B9): one line for each spell, ability and trigger, with what came of it on that line or behind
+   * its "…"; the lines nobody reads left out (untapping, the draw step's card, tapping for mana, "no attackers").
+   * Rows: { e, text?, more: [text], tags: [word] }. The Details toggle shows the log as the game wrote it.
+   */
+  function compactLog(entries) {
+    const rows = [];
+    const open = [];         // spells and triggers on their way, newest last: { name, row }
+    let turn = null, acted = false, into = null;
+    const find = (name) => {
+      for (let i = open.length - 1; i >= 0; i--) {
+        const o = open[i];
+        if (o.name === name || name.startsWith(o.name + ' \u2014') || o.name.startsWith(name + ' \u2014')) return open.splice(i, 1)[0].row;
+      }
+      return null;
+    };
+    const tag = (row, w) => { if (!row.tags.includes(w)) row.tags.push(w); };
+    for (const e of entries) {
+      const t = String(e.text || '');
+      if (e.turn !== turn) { turn = e.turn; acted = false; into = null; }
+      if (/^--- Turn /.test(t) || e.type === 'mana') continue;
+      if (e.type === 'step' && /( untaps( \(\d+\))?| skips the first draw| skips their draw)\.$/.test(t)) continue;
+      if (e.type === 'combat' && /(declares no attackers|has no creatures that can attack)\.$/.test(t)) continue;
+      // the draw step's card (the first single draw of a turn, before anything is played)
+      if (e.type === 'draw' && !acted && /^.+ draws 1 card\.$/.test(t)) continue;
+      if (e.type === 'resolve') {
+        const m = t.match(/^.+? resolves (.+)\.$/) || t.match(/^(.+) resolves\.$/);
+        const row = m && find(m[1]);
+        if (row) { into = row; continue; }
+      }
+      const ctr = (e.type === 'stack' || e.type === 'counter') && t.match(/^(.+?) (?:was|is) countered( on resolution)?/);
+      if (ctr) {
+        const row = find(ctr[1]);
+        if (row) { tag(row, ctr[2] ? 'fizzled' : 'countered'); into = null; continue; }
+      }
+      const cast = e.type === 'cast' && t.match(/ casts (.+?)(?: \([^)]*\))?(?: targeting .+)?\.$/);
+      const trig = e.type === 'trigger' && t.match(/^Triggered: (.+)$/);
+      if (cast || trig || e.type === 'ability' || e.type === 'combat') {
+        acted = true; into = null;
+        const row = { e, more: [], tags: [] };
+        if (trig) {
+          // "Bitterblossom triggers", its words behind the "…"
+          const name = trig[1];
+          const [src, ...words] = trig[1].split(' \u2014 ');
+          row.text = `${src} triggers`;
+          if (words.length) row.more.push(words.join(' \u2014 '));
+          open.push({ name, row });
+        } else if (cast) open.push({ name: cast[1], row });
+        else if (e.type === 'ability') { const m = t.match(/ activates (.+?)(?::|\.$)/); if (m) open.push({ name: m[1], row }); }
+        rows.push(row);
+        continue;
+      }
+      if (['zone', 'land', 'cast'].includes(e.type)) acted = true;
+      if (into) {
+        into.more.push(t);
+        if (/ is destroyed\b/.test(t)) tag(into, 'destroyed');
+        else if (/ dies\b/.test(t)) tag(into, 'dies');
+        else if (/\bexiles?\b|\bis exiled\b/.test(t)) tag(into, 'exiled');
+        continue;
+      }
+      rows.push({ e, more: [], tags: [] });
+    }
+    return rows;
+  }
 
   function toggleIn(list, id, max) {
     const i = list.indexOf(id);

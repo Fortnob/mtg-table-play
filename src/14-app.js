@@ -2681,6 +2681,14 @@
     sections.push(group('rules', 'House rules', 'Sets of house rules with a name, kept for a format. Pick one in the quick game, or in a table\u2019s House rules when you host.',
       rulePresetRows(() => renderOptions())));
     sections.push(group('pace', 'Pace', 'How quickly the table moves. Nothing here changes the rules.', [
+      // both at once, as the game menu has it; the two below set each apart
+      el('div', { class: 'opt-row stacked' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label' }, [el('span', { text: 'Game speed' })]),
+          el('div', { class: 'opt-help', text: 'The table and the bots together: how long each moment stays on screen and how long a bot pauses before it acts. Set apart below, it is custom.' }),
+          segmented(MTG.GAME_SPEEDS.map(g => [g[0], g[1]]), MTG.gameSpeed() || '', (v) => { MTG.setGameSpeed(v); renderOptions(); }, 'Game speed'),
+        ]),
+      ]),
       pick('animSpeed', 'Table animations', ANIM_PACE,
         'How long cards take to fly, flip and land. Fast keeps games brisk; relaxed lets you follow every move.', 1),
       el('div', { class: 'opt-row stacked' }, [
