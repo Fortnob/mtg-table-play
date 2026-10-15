@@ -2835,7 +2835,8 @@
       if (rc && (rc.n === 'X' || rc.n === 'any')) {
         const kind = String(rc.kind || '').replace(/\s+counters?$/i, '').trim();
         const have = Number((o.counters || {})[kind]) || 0;
-        return { label: `remove how many ${kind} counters?`, sub: `It has ${have}.`, max: have };
+        // (Arcee, Sharpshooter: "Remove one or more" — from one: min)
+        return Object.assign({ label: `remove how many ${kind} counters?`, sub: `It has ${have}.`, max: have }, rc.min ? { min: rc.min } : {});
       }
       // Gix, Yawgmoth Praetor: "Discard X cards" — up to the cards in your hand
       if (c.discard && c.discard.n === 'X') {

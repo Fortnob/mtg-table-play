@@ -455,6 +455,10 @@
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|\d+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|enchantment|land))$/i))) {
         cost.removeCounters = { n: WORDN(m[1]) || num(m[1]), kind: '*' }; continue;
       }
+      // Arcee, Sharpshooter: "Remove one or more +1/+1 counters from Arcee" — any number, at least one (min)
+      if ((m = p.match(/^Remove one or more (.+?) counters from (?:CARDNAME|this (?:creature|artifact|permanent))$/i))) {
+        cost.removeCounters = { n: 'any', min: 1, kind: m[1] }; continue;
+      }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
         // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
         cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
@@ -3596,6 +3600,9 @@
     // Augusta, Dean of Order: "untap each creature you control, then tap any number of creatures you control" (tapAnyYours)
     { re: /^Untap each creature you control, then tap any number of (?:untapped )?creatures you control\.?$/i,
       make: () => [{ op: 'untapAll', scope: { who: 'you', what: 'creature' } }, { op: 'tapAnyYours', filter: 'creature' }] },
+    // Patron of the Orochi: "Untap all Forests and all green creatures." — two groups, everyone's
+    { re: /^Untap all ((?:[A-Za-z]+ )*?[A-Za-z]+s) and all ((?:[a-z]+ )*?(?:creatures|lands|artifacts|permanents))\.?$/,
+      make: (m) => { const a = scopeOf(m[1]), b = scopeOf(m[2]); return a && b && !a.self && !b.self && a.who === 'all' && b.who === 'all' ? [{ op: 'untapAll', scope: a }, { op: 'untapAll', scope: b }] : null; } },
     // Akki Battle Squad: "Untap all modified creatures you control." — any group the words name
     { re: /^Untap all ((?:[a-z]+ )+?(?:creatures|lands|artifacts|permanents)(?: you control)?)\.?$/,
       make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
@@ -4170,6 +4177,10 @@
     // Simic Ascendancy: "put that many growth counters on this enchantment"
     { re: /^Put that many ([a-z]+|\+1\/\+1) counters on (?:this enchantment|this creature|this artifact|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'self' }) },
+    /* Arcee, Sharpshooter: "{1}, Remove one or more +1/+1 counters from Arcee: It deals that much damage to target
+       creature." — the counters removed (removedCounters) */
+    { re: /^It deals that much damage to target creature\.?$/i,
+      make: () => ({ op: 'damage', n: { removedCounters: true, mult: 1 }, targets: [targetSpec('target creature')] }) },
     // Shalai and Hallar: "deals that much damage to target opponent"
     { re: /^(?:CARDNAME|This creature|This enchantment|It) deals that much damage to (target opponent|target player|any target|each opponent)\.?$/i,
       make: (m) => (/each opponent/i.test(m[1]) ? { op: 'damage', n: 'triggerAmount', each: 'opponent' }
@@ -7694,6 +7705,10 @@
     // Skullcrack: "Players can't gain life this turn."
     { re: /^(Players|Your opponents|Each opponent) can'?t gain life this turn\.?$/i,
       make: (m) => ({ op: 'noLifeGainTurn', who: /^players/i.test(m[1]) ? 'all' : 'opponents' }) },
+    // Stitcher Geralf: "Exile up to two creature cards put into graveyards this way." — the milled ones, anyone's (takeFromMilled to exile)
+    { re: /^Exile up to (one|two|three) ([a-z]+) cards put into graveyards this way\.?$/i,
+      make: (m) => ({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].toLowerCase(), anyOwner: true, to: 'exile',
+        prompt: `Choose up to ${m[1].toLowerCase()} ${m[2].toLowerCase()} cards put into graveyards this way to exile.` }) },
     // Starfall Invocation: "return a creature card put into your graveyard this way to the battlefield under your control"
     { re: /^[Rr]eturn an? ([a-z]+) card put into your graveyard this way to the battlefield under your control\.?$/,
       make: (m) => ({ op: 'returnSwept', filter: m[1].toLowerCase() }) },
@@ -9083,6 +9098,8 @@
     if ((m = p.match(/^the greatest toughness among ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ greatestToughness: sc }); }
     // All-Fates Scroll, Emil: "the number of differently named lands you control" — the count Awakened Amalgam's words already make
     if ((m = p.match(/^the number of (differently named (?:lands|artifact tokens|creature tokens|tokens|artifacts|creatures))(?: you control)$/i))) return done(countSpec(m[1], 1, 'you'));
+    // Stitcher Geralf: "the total power of the cards exiled this way" (exiledPower)
+    if (/^the total power of the cards exiled this way$/i.test(p)) return done({ exiledPower: true });
     // Towering Titan: "the total toughness of other creatures you control" (totalStat)
     // (Klauth, Unrivaled Ancient: "the total power of attacking creatures" — everyone's attackers)
     if ((m = p.match(/^the total (power|toughness) of ((?:other )?creatures you control|attacking creatures)$/i))) { const sc = scopeOf(m[2]); if (sc) return done({ totalStat: m[1].toLowerCase(), of: sc }); }
@@ -11076,6 +11093,9 @@
        bottom of their library in any order, then draws that many cards." */
     { re: /^That player puts the cards in their hand on the bottom of their library in any order, then draws that many cards\.$/i,
       make: () => [{ op: 'handToBottomRedraw' }] },
+    // Arjun, the Shifting Flame: "put the cards in your hand on the bottom of your library in any order, then draw that many cards." (who: you)
+    { re: /^put the cards in your hand on the bottom of your library in any order, then draw that many cards\.?$/i,
+      make: () => [{ op: 'handToBottomRedraw', who: 'you' }] },
     /* Odric, Lunarch Marshal: "creatures you control gain first strike until
        end of turn if a creature you control has first strike. The same is
        true for flying, …" */
@@ -15057,9 +15077,11 @@
        sorcery spell that targets a creature"; Storm, Windrider: "a spell that
        targets one or more creatures"; Legolas: "… a creature you don't control" */
     // (Pearl-Ear, Imperial Advisor: "an Aura spell that targets a modified permanent you control" — affinityWords)
-    { re: /^Whenever you cast an? (instant or sorcery |noncreature |Aura )?spell that targets (?:one or more |an? )(creatures?|artifact or land|modified permanent)( you control| you don'?t control| an opponent controls)?,? /i,
+    // (Arcee, Acrobatic Coupe: "… one or more creatures or Vehicles you control, put that many …" — targetsCount)
+    { re: /^Whenever you cast an? (instant or sorcery |noncreature |Aura )?spell that targets (?:one or more |an? )(creatures or Vehicles|creatures?|artifact or land|modified permanent)( you control| you don'?t control| an opponent controls)?,? /i,
       event: 'youCastSpell',
-      extraOf: (m) => Object.assign({ targetsWhat: m[2].toLowerCase().replace(/s$/, '') },
+      extraOf: (m) => Object.assign({ targetsWhat: /vehicles/i.test(m[2]) ? 'creature or vehicle' : m[2].toLowerCase().replace(/s$/, '') },
+        /vehicles/i.test(m[2]) ? { targetsCount: true } : {},
         m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {},
         m[3] ? { targetsWhose: /don|opponent/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
     // Edgewall Innkeeper, Wandermare: "Whenever you cast a creature spell that has an Adventure"
@@ -21306,6 +21328,8 @@
          equal to the card's mana cost plus exile three other cards from your graveyard." (grantEscape, words) */
       { re: /^Each (nonland|enchantment|creature|artifact|instant and sorcery|permanent) card in your graveyard has escape\. The escape cost is equal to (?:the card'?s|its) mana cost plus exile (\w+) other cards from your graveyard\.?$/i,
         make: (m) => (typeof num(m[2]) === 'number' ? { op: 'grantEscape', exile: num(m[2]), words: m[1].toLowerCase().replace(' and ', ' or ') } : null), auto: true },
+      // Niv-Mizzet, Supreme: "Each instant and sorcery card in your graveyard that's exactly two colors has jump-start." (grantJumpStart)
+      { re: /^Each instant and sorcery card in your graveyard that'?s exactly two colors has jump-start\.?$/i, eff: { op: 'grantJumpStart', colors: 2 }, auto: true },
       // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
       { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality

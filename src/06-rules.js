@@ -5787,6 +5787,11 @@
           this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
+      // Niv-Mizzet, Supreme: "Each instant and sorcery card in your graveyard that's exactly two colors has jump-start." (grantJumpStart)
+      if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) && !out.some(u => u.via === 'jump-start') &&
+          fbGrant('grantJumpStart', e => !e.colors || (a.colors || []).length === e.colors)) {
+        out.push({ kind: 'cast', via: 'jump-start', cost: a.manaCost || '', after: 'exile', discard: 'any', label: 'Jump-start (discard a card)' });
+      }
       /* The Transformers: cast converted, back face up, for the More Than Meets the Eye cost */
       const mtm = o.zone === 'hand' && o.card.card_faces && o.card.card_faces.length > 1 ? (O.analyze(o.card, 0) || {}).mtmte : null;
       if (mtm) out.push({ kind: 'cast', via: 'mtmte', cost: mtm, face: 1, label: 'More Than Meets the Eye ' + mtm });
@@ -9216,6 +9221,8 @@
         const have = Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0;
         if (rc.n === 'X' && (opts.x || 0) > have) return this.fail(`${o.name} does not have that many counters.`);
         opts = Object.assign({}, opts, { x: Math.min(have, opts.x != null ? opts.x : have) });
+        // Arcee, Sharpshooter: "Remove one or more" — not none (min)
+        if (rc.min && opts.x < rc.min) return this.fail(`${o.name} needs at least ${rc.min} counter${rc.min === 1 ? '' : 's'} removed.`);
       }
       // (Mr. House, President and CEO: "each mana from Treasures spent to activate this ability" — manaFromTreasure)
       const accWas = this._spentAcc;
@@ -17015,6 +17022,11 @@
               ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {},
               ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {},
               ab.batchPlayers && tData.player ? { players: [tData.player] } : {},
+              // Arcee, Acrobatic Coupe: "put that many +1/+1 counters" — the creatures and Vehicles of yours it targets (targetsCount)
+              ab.targetsCount ? { amount: new Set(((data.spell && data.spell.targets) || []).filter(t => {
+                const x = t.kind === 'object' && this.obj(t.id);
+                return x && x.zone === 'battlefield' && this._cardFitsWords(x, ab.targetsWhat) && (ab.targetsWhose !== 'you' || x.controller === o.controller);
+              }).map(t => t.id)).size } : {},
               // Cecil, Dark Knight: how many times it had transformed as this triggered (CR 701.28f; sinceTrigger)
               o.xformN ? { srcXf: o.xformN } : {}),
             lossExactly: ab.lossExactly || undefined,
@@ -19361,6 +19373,11 @@
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
         // Balin, Loremaster: "the number of cards discarded this way" — by this player, as this resolves (discardedThisRes)
         if (v && typeof v === 'object' && v.discardedThisRes) return (((this.resolving || {})._discBy) || []).filter(d => d.pid === ctx.controller).length * (v.mult || 1);
+        // Stitcher Geralf: "the total power of the cards exiled this way" — as the cards say (exiledPower)
+        if (v && typeof v === 'object' && v.exiledPower) {
+          const ids = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
+          return ids.reduce((k, id) => { const c = this.obj(id); return k + (c && c.zone === 'exile' ? Math.max(0, parseInt((c.card || {}).power, 10) || 0) : 0); }, 0);
+        }
         // Tymaret, Chosen from Death: "for each creature card exiled this way" (exiledMatching)
         if (v && typeof v === 'object' && v.exiledMatching) {
           const ids = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
@@ -21068,6 +21085,8 @@
               took++; this.logEvent('rules', `${me.name} puts ${o.name} onto the battlefield.`);
               continue;
             }
+            // Stitcher Geralf: "Exile up to two creature cards put into graveyards this way."
+            if (e.to === 'exile') { this.moveObject(o, 'exile'); took++; this.logEvent('exile', `${me.name} exiles ${o.name}.`); continue; }
             // Lluwen, Imperfect Naturalist: "on top of your library"
             if (e.to === 'top') { this.moveObject(o, 'library'); took++; this.logEvent('rules', `${me.name} puts ${o.name} on top of their library.`); continue; }
             this.moveObject(o, 'hand'); took++; this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`);
@@ -24884,7 +24903,7 @@
         }
         // Teferi's Puzzle Box: the hand to the bottom, and as many drawn
         case 'handToBottomRedraw': {
-          const p = triggerPlayer() || me;
+          const p = (e.who !== 'you' && triggerPlayer()) || me;
           const z = this.zones[p.id];
           const hand = this.rng.shuffle(z.hand.slice());
           for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }

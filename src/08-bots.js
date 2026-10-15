@@ -4056,7 +4056,7 @@
       if (cost.untap && !o.tapped) return null;
       if (cost.tap && this._isCreature(o) && o.summoningSick && !g.hasKw(o, 'haste')) return null;
       if (cost.life && this.me.life <= cost.life + 5) return null;
-      if (cost.removeCounters && (Number(o.counters[String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0) < (cost.removeCounters.n || 1)) return null;
+      if (cost.removeCounters && (Number(o.counters[String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0) < (cost.removeCounters.min || cost.removeCounters.n || 1)) return null;
       // Shelob, Dread Weaver: a card exiled with it to put into a graveyard (processWith)
       if (cost.processWith && !g._exiledWithPool(o, cost.processWith.filter).length) return null;
       const sorcery = ab.sorcerySpeed || ab.kind === 'loyalty';

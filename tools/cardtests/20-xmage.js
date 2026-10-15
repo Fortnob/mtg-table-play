@@ -56730,4 +56730,108 @@ module.exports = (test) => {
     t.no(g.battlefield.some(o => o.isToken), 'all tokens created this way are sacrificed at the end step');
     t.eq(ran.attachedTo, st.id, "Stangg's own Rancor stays");
   });
+
+  test('Commanders: Niv-Mizzet, Supreme — two-colored instants and sorceries in your graveyard have jump-start', (mk, t) => {
+    t.auto('Niv-Mizzet, Supreme');
+    const T = mk();
+    const g = T.g;
+    const helix = T.grave('A', 'Lightning Helix'), bolt = T.grave('A', 'Lightning Bolt');
+    t.no(g.altUsesFor('A', helix.id).some(u => u.via === 'jump-start'), 'no Niv-Mizzet: no jump-start');
+    T.bf('A', 'Niv-Mizzet, Supreme');
+    t.ok(g.altUsesFor('A', helix.id).some(u => u.via === 'jump-start' && u.cost === '{R}{W}'), 'Lightning Helix (two colors): jump-start for {R}{W}');
+    t.no(g.altUsesFor('A', bolt.id).some(u => u.via === 'jump-start'), 'Lightning Bolt (one color): none');
+    t.no(g.altUsesFor('B', helix.id).some(u => u.via === 'jump-start'), 'not for another player');
+    const junk = T.hand('A', 'Island');
+    T.mana('A', 'RW');
+    T.cast('A', helix, { via: 'jump-start', targets: ['B'] });
+    t.eq(T.life('B'), 17, 'three damage');
+    t.eq(T.life('A'), 23, 'three life');
+    t.zone(junk, 'graveyard', 'a card discarded');
+    t.zone(helix, 'exile', 'then exiled');
+  });
+
+  test('Commanders: Arcee, Sharpshooter — remove one or more +1/+1 counters: that much damage, convert; the Coupe counts the targets of yours', (mk, t) => {
+    t.auto('Arcee, Sharpshooter // Arcee, Acrobatic Coupe');
+    const T = mk();
+    const g = T.g;
+    const ar = T.bf('A', 'Arcee, Sharpshooter // Arcee, Acrobatic Coupe');
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', ar.id, 0, { targets: [T.tgt(wurm)], auto: true }), 'no counters: not even one to remove');
+    ar.counters['+1/+1'] = 3;
+    T.mana('A', '1');
+    T.activate('A', ar, 0, { targets: [wurm], x: 2 });
+    t.eq(wurm.damage, 2, 'two counters off: two damage');
+    t.eq(ar.counters['+1/+1'], 1, 'one left');
+    t.eq(ar.face, 1, 'converted: Arcee, Acrobatic Coupe');
+    t.ok(g.characteristics(ar).isCreature, 'living metal: a creature on your turn');
+    const bear = T.bf('A', 'Grizzly Bears'), foe = T.bf('B', 'Hill Giant');
+    T.mana('A', 'GW');
+    T.cast('A', T.hand('A', 'Seeds of Strength'), { targets: [ar, bear, foe] });
+    t.eq(ar.counters['+1/+1'], 3, 'Arcee and the Bears are yours, the Giant is not: two counters');
+    t.eq(ar.face, 0, 'converted back');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [foe] });
+    t.eq(ar.counters['+1/+1'], 3, 'a spell aimed only at theirs: nothing');
+  });
+
+  test('Commanders: Stitcher Geralf — each player mills three; exile up to two creature cards milled; an X/X Zombie of their total power', (mk, t) => {
+    t.auto('Stitcher Geralf');
+    const T = mk();
+    const g = T.g;
+    const sg = T.bf('A', 'Stitcher Geralf');
+    T.top('A', 'Island'); const wurm = T.top('A', 'Craw Wurm'); T.top('A', 'Island');
+    const bear = T.top('B', 'Grizzly Bears'); const giant = T.top('B', 'Hill Giant'); T.top('B', 'Island');
+    T.answer('pickCard', (ch) => {
+      t.eq(ch.cards.map(c => c.name).sort().join(','), 'Craw Wurm,Grizzly Bears,Hill Giant', 'the creature cards milled, anyone\'s');
+      t.eq(ch.count, 2, 'up to two');
+      return { cardIds: [wurm.id, giant.id] };
+    });
+    T.mana('A', 'U2');
+    T.activate('A', sg, 0);
+    t.eq(T.zone('A', 'graveyard').length + T.zone('B', 'graveyard').length, 4, 'six milled, two exiled');
+    t.zone(wurm, 'exile', 'the Wurm exiled'); t.zone(giant, 'exile', 'the Giant exiled'); t.zone(bear, 'graveyard', 'the Bears stay');
+    const z = g.battlefield.find(o => o.isToken && o.name.includes('Zombie'));
+    t.ok(z && g.powerOf(z) === 9 && g.toughnessOf(z) === 9, 'a 9/9 Zombie (6 + 3)');
+    t.ok(z && (z.analysis().colors || []).includes('U'), 'blue');
+  });
+
+  test('Commanders: Arjun, the Shifting Flame — whenever you cast a spell, your hand goes to the bottom and you draw that many', (mk, t) => {
+    t.auto('Arjun, the Shifting Flame');
+    const T = mk({ library: ['Island'] });
+    const g = T.g;
+    T.bf('A', 'Arjun, the Shifting Flame');
+    const h1 = T.hand('A', 'Grizzly Bears'), h2 = T.hand('A', 'Hill Giant');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const bHand = T.zone('B', 'hand').length;
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.zone('A', 'hand').length, 2, 'two cards in hand, two drawn');
+    t.ok(T.zone('A', 'hand').every(o => o.name === 'Island'), 'new cards');
+    const lib = T.zone('A', 'library');
+    t.eq(lib.slice(-2).map(o => o.name).sort().join(','), 'Grizzly Bears,Hill Giant', 'the old hand on the bottom');
+    t.zone(h1, 'library', 'Bears'); t.zone(h2, 'library', 'Giant');
+    t.eq(T.zone('B', 'hand').length, bHand, 'the opponent\'s hand untouched');
+    // an opponent's spell: nothing
+    T.nextTurn('B'); T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.ok(T.zone('A', 'hand').every(o => o.name === 'Island') && T.zone('A', 'hand').length === 2, 'not for their spells');
+  });
+
+  test('Commanders: Patron of the Orochi — {T}: untap all Forests and all green creatures, once each turn', (mk, t) => {
+    t.auto('Patron of the Orochi');
+    const T = mk();
+    const g = T.g;
+    const po = T.bf('A', 'Patron of the Orochi');
+    const f1 = T.bf('A', 'Forest', { tapped: true }), f2 = T.bf('B', 'Forest', { tapped: true });
+    const isl = T.bf('A', 'Island', { tapped: true });
+    const bear = T.bf('B', 'Grizzly Bears', { tapped: true }), giant = T.bf('A', 'Hill Giant', { tapped: true });
+    const elf = T.bf('A', 'Llanowar Elves', { tapped: true });
+    T.activate('A', po, 0);
+    t.ok(!f1.tapped && !f2.tapped, 'every Forest, anyone\'s');
+    t.ok(!bear.tapped && !elf.tapped, 'every green creature');
+    t.ok(isl.tapped && giant.tapped, 'not the Island or the red Giant');
+    t.ok(!po.tapped, 'the Patron is green too: untapped by its own ability');
+    t.no(g.activateAbility('A', po.id, 0, { auto: true }), 'only once each turn');
+  });
 };
