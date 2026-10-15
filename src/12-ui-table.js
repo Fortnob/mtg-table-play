@@ -635,8 +635,8 @@
         gone.push({ id, node });
       }
       this._fitAll();
-      // a card that has gone cannot still be the one you are reading
-      if (this._hoverNode && !this._hoverNode.isConnected) this.hidePreview();
+      // a card that has gone cannot still be the one you are reading, nor one that has moved out from under the pointer
+      if (this._hoverNode && (!this._hoverNode.isConnected || !this._underPointer(this._hoverNode))) this.hidePreview();
       // and a note about a card is only as good as the moment it was made in
       if (this._tipFor && (!this._tipFor.isConnected || this._tipFor.closest('.hslot'))) this.hideTip();
       if (before) this._flip(before, gone);
@@ -2361,19 +2361,29 @@
         const cv = e.target.closest('.cv');
         if (cv) this.showCard(cv.dataset.id);
       });
-      // hover: the side preview for the board and the stack, a lift for the hand
-      a.addEventListener('pointerover', (e) => {
+      /* hover: the side preview for the board and the stack, a lift for the hand. Only for a pointer that moves:
+         a card sliding in under a pointer left resting (a bot's creature arriving, the board shifting) opens
+         nothing, as Arena's hover goes with the hand that moves */
+      let rest = null;
+      a.addEventListener('pointermove', (e) => {
         if (e.pointerType === 'touch') return;
-        const cv = e.target.closest('.cv');
-        const chip = e.target.closest('.ability-chip, .hist-item');
-        if (cv) this.hoverCard(cv, e);
-        // (an ability on the stack: the card it came from, with the ability's words)
-        else if (chip && (chip.dataset.preview || chip.dataset.stack)) this.hoverCard(chip, e);
-      });
+        if (rest && rest.x === e.clientX && rest.y === e.clientY) return;      // the page moved, not the pointer
+        rest = { x: e.clientX, y: e.clientY };
+        let node = e.target.closest('.cv');
+        if (!node) {
+          // (an ability on the stack: the card it came from, with the ability's words)
+          const chip = e.target.closest('.ability-chip, .hist-item');
+          if (chip && (chip.dataset.preview || chip.dataset.stack)) node = chip;
+        }
+        if (node === this._hovering) return;
+        this._hovering = node;
+        if (node) this.hoverCard(node, e);
+      }, { passive: true });
       a.addEventListener('pointerout', (e) => {
         const cv = e.target.closest('.cv, .ability-chip, .hist-item');
         if (!cv) return;
         if (e.relatedTarget && cv.contains(e.relatedTarget)) return;
+        if (this._hovering === cv) this._hovering = null;
         this.unhoverCard(cv);
       });
       a.addEventListener('pointerdown', (e) => this.onPointerDown(e));
@@ -3543,7 +3553,14 @@
       if (this.tipEl) this.tipEl.classList.remove('on');
       if (this._tipFor) { this._tipFor.removeAttribute('aria-describedby'); this._tipFor = null; }
     }
-    hidePreview() { this.preview.classList.remove('on'); }
+    hidePreview() { this.preview.classList.remove('on'); this._hoverNode = null; }
+    /** Whether the pointer, where it last moved to, is over this element (true when it is not known). */
+    _underPointer(node) {
+      const p = this._pointer;
+      if (!p || !node.getBoundingClientRect) return true;
+      const r = U.rect(node);
+      return p.x >= r.left - 2 && p.x <= r.right + 2 && p.y >= r.top - 2 && p.y <= r.bottom + 2;
+    }
 
     /**
      * The big card at the side of the screen, and underneath it what is true
