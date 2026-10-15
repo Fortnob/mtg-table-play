@@ -4642,6 +4642,9 @@
       // (Sunbird's Invocation: cards revealed, not exiled — the ones just looked at)
       make: (m) => Object.assign({ op: 'castFree', upTo: 1 }, m[2] ? { maxMv: num(m[2]) } : {},
         /revealed/i.test(m[0]) ? { from: 'looked' } : {}) },
+    /* Nathan Drake, Treasure Hunter: "exile the top card of each player's library. You may cast a spell from among those
+       cards." — now, paying its costs; one picked or none (pickOne pay) */
+    { re: /^You may cast a spell from among those cards\.?$/i, make: () => ({ op: 'castFree', upTo: 1, pickOne: true, pay: true }) },
     // Malcolm, Alluring Scoundrel: "you may cast the discarded card without paying its mana cost" — the card just discarded (castDiscarded)
     { re: /^(?:You may )?cast the discarded card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'discarded', upTo: 1 }) },
     // Oskar, Rubbish Reclaimer: "Whenever you discard a nonland card, you may cast it from your graveyard." — paying its costs (triggerObj)
@@ -4657,6 +4660,9 @@
     // Incendiary Command, Collective Defiance, Borrowed Knowledge: the same with other words
     { re: /^(Each player|Target player) discards all the cards in their hand, then draws that many cards\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'wheel', who: 'target', n: 'sameDiscarded', targets: [{ type: 'player' }] } : { op: 'wheel', n: 'sameDiscarded' }) },
+    // Malfegor: "Discard your hand. Each opponent sacrifices a creature of their choice for each card discarded this way." (discardedThisRes)
+    { re: /^Each opponent sacrifices a creature of their choice for each card discarded this way\.?$/i,
+      make: () => ({ op: 'sacrificeChoice', who: 'opponents', filter: 'creature', n: { discardedThisRes: true } }) },
     { re: /^Discard your hand, then draw cards equal to the number of cards discarded this way\.?$/i, make: () => ({ op: 'wheel', who: 'you', n: 'sameDiscarded' }) },
     // Dromoka's Command, Shieldmage Elder: "Prevent all damage target (instant or sorcery) spell would deal this turn."
     { re: /^Prevent all damage target (instant or sorcery )?spell would deal this turn\.?$/i,
@@ -8662,6 +8668,8 @@
     if (/^permanents? you own that (?:your opponents|an opponent) controls?$/i.test(p)) return { ownedOppControlled: true, mult: k };
     // Rose, Cutthroat Raider: "for each opponent you attacked (this turn)" (opponentsAttacked)
     if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
+    // Kellan, Daring Traveler // Journey On: "the number of opponents who control an artifact" (opponentsControlling)
+    if ((m = p.match(/^opponents? (?:who|that) controls? an? (artifact|creature|enchantment|planeswalker|land)$/i))) return { opponentsControlling: m[1].toLowerCase(), mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
     if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
     // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
@@ -9782,6 +9790,10 @@
     { re: /^Exile any number of other target creatures controlled by different players until CARDNAME leaves the battlefield\. When an exiled card enters under your control this way, put (two|three) \+1\/\+1 counters on it\.?$/i,
       make: (m) => [{ op: 'exileUntilLeaves', returnCounters: { kind: '+1/+1', n: num(m[1]) },
         targets: [1, 2, 3, 4, 5, 6, 7, 8].map(() => Object.assign(targetSpec('target creature'), { another: true, upTo: true, distinct: true, differentControllers: true })) }] },
+    /* Kellan, Daring Traveler: "reveal the top card of your library. If it's a creature card with mana value 3 or less, put
+       it into your hand. Otherwise, you may put it into your graveyard." (revealTopIf elseMayGrave) */
+    { re: /^Reveal the top card of your library\. If it'?s an? ([a-z]+) card with mana value (\d+) or less, put it into your hand\. Otherwise, you may put it into your graveyard\.?$/i,
+      make: (m) => [{ op: 'revealTopIf', who: 'you', filter: m[1].toLowerCase() + ' with mana value ' + m[2] + ' or less', to: 'hand', elseMayGrave: true }] },
     // Rex, Cyber-Hound: "Choose target creature card in a graveyard. Exile it with a brain counter on it."
     { re: /^Choose (target [a-z ]+? card) in a graveyard\. Exile it with an? ([a-z]+) counter on it\.(?: Activate only as a sorcery\.)?$/i,
       make: (m) => {
@@ -19220,6 +19232,10 @@
       make: (m) => Object.assign({ op: 'replace', id: 'gyExile', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile',
         who: 'all', owner: /opponent/i.test(m[3]) ? 'opponents' : /your/i.test(m[3]) ? 'you' : null }, m[5] ? { withCounter: m[5].toLowerCase() } : {},
         /token/i.test(m[1]) ? {} : { cardsOnly: true }, m[2] ? { notYours: true } : {}) },
+    /* Anafenza, the Foremost: "If a nontoken creature an opponent owns would die or a creature card not on the battlefield
+       would be put into an opponent's graveyard, exile that card instead." — a creature, as it is where it is (creatureCards) */
+    { re: /^If a nontoken creature an opponent owns would die or a creature card not on the battlefield would be put into an opponent'?s graveyard, exile that card instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'gyExileCreature', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile', who: 'all', owner: 'opponents', cardsOnly: true, creatureCards: true }) },
     /* Lae'zel, Vlaakith's Champion: "If you would put one or more counters on
        a creature or planeswalker you control or on yourself, put that many
        plus one of each of those kinds of counters on that permanent or player
@@ -20057,6 +20073,10 @@
       { re: /^The first card you foretell each turn costs \{0\} to foretell\.?$/i, make: () => ({ op: 'foretellCost', firstFree: true }), auto: true },
       { re: /^Foretelling cards from your hand costs \{(\d+)\} less( and can be done on any player'?s turn)?\.?$/i,
         make: (m) => Object.assign({ op: 'foretellCost', amount: -(+m[1]) }, m[2] ? { anyTurn: true } : {}), auto: true },
+      /* Nathan Drake, Treasure Hunter: "You may spend mana as though it were mana of any color to cast spells you don't own
+         or to activate abilities of permanents you control but don't own." (spendAnyNotOwned) */
+      { re: /^You may spend mana as though it were mana of any colou?r to cast spells you don'?t own or to activate abilities of permanents you control but don'?t own\.?$/i,
+        eff: { op: 'spendAnyNotOwned' }, auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },

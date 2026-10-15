@@ -54389,4 +54389,138 @@ module.exports = (test) => {
     t.eq(Number(jar.counters['+1/+1']) || 0, 2, 'Jared: two +1/+1 counters instead');
     t.eq(jar.damage || 0, 0, 'Jared: no damage marked');
   });
+  test('Commanders: Nathan Drake, Treasure Hunter — attacking, the top of each library exiled and one cast, paid for; mana of any colour for what you don\'t own', (mk, t) => {
+    t.auto('Nathan Drake, Treasure Hunter');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const nd = T.bf('A', 'Nathan Drake, Treasure Hunter');
+    const bolt = T.top('B', 'Lightning Bolt');
+    const bears = T.top('A', 'Grizzly Bears');
+    // your own spell: colours as usual
+    const own = T.hand('A', 'Shock');
+    T.mana('A', 'G');
+    t.no(g.canPayNow('A', '{R}', { forSpell: own }), "Nathan Drake: your own Shock still wants red");
+    t.ok(g.canPayNow('A', '{R}', { forSpell: bolt }), "Nathan Drake: B's Bolt takes any colour");
+    T.bf('A', 'Forest');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [bolt.id] }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('declareAttackers', () => [{ attackerId: nd.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(q && q.purpose === 'castFreePick', 'Nathan Drake: which to cast');
+    t.no(q && q.items.some(i => i.id === bears.id), 'Nathan Drake: not the Bears — one Forest cannot pay {1}{G}');
+    t.zone(bolt, 'graveyard', "Nathan Drake: B's Lightning Bolt cast");
+    t.eq(T.life('B'), 17, 'Nathan Drake: Bolt to B');
+    t.ok(T.bfOf('A').find(o => o.name === 'Forest').tapped, 'Nathan Drake: paid for with the Forest');
+    t.zone(bears, 'exile', 'Nathan Drake: the Bears stay in exile');
+    // a permanent you control but don't own: its abilities paid with any colour
+    const ad = T.bf('A', 'Prodigal Pyromancer');
+    ad.owner = 'B';
+    T.nextTurn('A');
+    T.mana('A', 'U');
+    ad.summoningSick = false;
+    T.activate('A', ad, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 17 - 3 - 1, "Nathan Drake: B's Pyromancer pinged B — Nathan hit for 3 first");
+  });
+  test('Commanders: Kellan, Daring Traveler // Journey On — attacking, a small creature off the top to hand, else maybe the graveyard; Maps for opponents with artifacts', (mk, t) => {
+    t.auto('Kellan, Daring Traveler // Journey On');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    // Journey On: one plus the opponents who control an artifact
+    T.bf('B', 'Mind Stone');
+    T.bf('B', 'Sol Ring');
+    const k = T.hand('A', 'Kellan, Daring Traveler // Journey On');
+    T.mana('A', 'G');
+    T.cast('A', k, { face: 1 });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Map').length, 2, 'Journey On: two Maps — one, plus B (C has no artifact)');
+    t.zone(k, 'exile', 'Journey On: Kellan on an adventure');
+    T.mana('A', 'W1');
+    T.cast('A', k);
+    t.zone(k, 'battlefield', 'Kellan cast from exile');
+    k.summoningSick = false;
+    // a creature with mana value 3 or less: to hand, nothing asked
+    const bears = T.top('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: k.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(bears, 'hand', 'Kellan: Grizzly Bears into your hand');
+    t.eq(T.asked.filter(x => x.purpose === 'revealTopGrave').length, 0, 'Kellan: nothing asked');
+    // a bigger creature: you may put it into the graveyard — declined, it stays
+    T.nextTurn('A');
+    const giant = T.top('A', 'Craw Wurm');
+    T.answer('confirm', () => ({ yes: false }));
+    T.answer('declareAttackers', () => [{ attackerId: k.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(T.zone('A', 'library')[0], giant, 'Kellan: declined — Craw Wurm stays on top');
+    // accepted: into the graveyard
+    T.nextTurn('A');
+    const forest = T.top('A', 'Forest');
+    let q = null;
+    T.answer('confirm', (ch) => { q = ch; return { yes: true }; });
+    T.answer('declareAttackers', () => [{ attackerId: k.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(q && q.purpose === 'revealTopGrave' && /Forest/.test(q.prompt), 'Kellan: asked about the Forest');
+    t.zone(forest, 'graveyard', 'Kellan: the Forest into the graveyard');
+  });
+  test('Commanders: Malfegor — discard your hand; each opponent sacrifices a creature for each card discarded', (mk, t) => {
+    t.auto('Malfegor');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    const bs = ['Grizzly Bears', 'Hill Giant', 'Wind Drake', 'Serra Angel'].map(n => T.bf('B', n));
+    const cs = T.bf('C', 'Llanowar Elves');
+    const mf = T.hand('A', 'Malfegor');
+    ['Island', 'Shock', 'Divination'].forEach(n => T.hand('A', n));
+    let q = null;
+    T.answer('sacrifice', (ch) => { q = ch; return { cardIds: bs.slice(1, 4).map(x => x.id) }; });
+    T.mana('A', 'BBRR2');
+    T.cast('A', mf);
+    t.zone(mf, 'battlefield');
+    t.eq(T.zone('A', 'hand').length, 0, 'Malfegor: hand discarded');
+    t.eq(T.zone('A', 'graveyard').length, 3, 'Malfegor: three cards');
+    t.ok(q && q.playerId === 'B' && q.count === 3, 'Malfegor: B sacrifices three');
+    t.eq(bs.filter(x => x.zone === 'graveyard').length, 3, 'Malfegor: three of B\'s creatures gone');
+    t.zone(bs[0], 'battlefield', 'Malfegor: B keeps the one it chose to keep');
+    t.zone(cs, 'graveyard', 'Malfegor: C sacrifices its only creature');
+  });
+  test('Commanders: Malfegor — an empty hand: nothing discarded, nothing sacrificed', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const bears = T.bf('B', 'Grizzly Bears');
+    const mf = T.hand('A', 'Malfegor');
+    T.mana('A', 'BBRR2');
+    T.cast('A', mf);
+    t.zone(bears, 'battlefield', 'Malfegor: nothing discarded — Bears stay');
+    t.eq(T.asked.filter(x => x.type === 'sacrifice').length, 0, 'Malfegor: nothing asked');
+  });
+  test("Commanders: Anafenza, the Foremost — an opponent's creatures and creature cards are exiled instead of going to the graveyard; attacking, a counter on another tapped creature", (mk, t) => {
+    t.auto('Anafenza, the Foremost');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const an = T.bf('A', 'Anafenza, the Foremost');
+    const bears = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Llanowar Elves');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [bears] });
+    t.zone(bears, 'exile', "Anafenza: B's Bears exiled instead of dying");
+    T.cast('A', T.hand('A', 'Shock'), { targets: [mine] });
+    t.zone(mine, 'graveyard', 'Anafenza: your own creature dies as usual');
+    const wurm = T.hand('B', 'Craw Wurm');
+    const isl = T.hand('B', 'Island');
+    g._discardNow('B', [wurm, isl]);
+    t.zone(wurm, 'exile', "Anafenza: a creature card discarded by B — exiled");
+    t.zone(isl, 'graveyard', 'Anafenza: a land card goes to the graveyard');
+    const myWurm = T.hand('A', 'Craw Wurm');
+    g._discardNow('A', [myWurm]);
+    t.zone(myWurm, 'graveyard', 'Anafenza: your own creature card discarded goes to your graveyard');
+    // attacking: a +1/+1 counter on another tapped creature you control
+    const tapped = T.bf('A', 'Hill Giant', { tapped: true });
+    T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: an.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(Number(tapped.counters['+1/+1']) || 0, 1, 'Anafenza: the tapped Hill Giant gets a counter');
+    t.no(Number(an.counters['+1/+1']) || 0, 'Anafenza: not herself');
+  });
 };

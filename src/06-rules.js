@@ -578,6 +578,8 @@
     _anyColorCost(pid, o, cost) {
       // (Tibalt, Cosmic Impostor's emblem: "… and you may spend mana as though it were mana of any color to cast those spells")
       if (o && this._exiledWithLinkEmblem(pid, o)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // Nathan Drake, Treasure Hunter: "… to cast spells you don't own" (spendAnyNotOwned)
+      if (o && o.owner !== pid && this._anyStaticOf(pid, 'spendAnyNotOwned')) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Hostage Taker: "mana of any type can be spent to cast that spell"
       if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Tinybones, Bauble Burglar: "and mana of any type can be spent to cast those spells" (exiledCounter)
@@ -4096,6 +4098,8 @@
       // Azula, Ruthless Firebender: "for each player who discarded a card this turn" (playersDiscarded)
       if (v.playersDiscarded) { const by = ((this.turnHistory || {}).discardsBy) || {}; return this.players.filter(q => (by[q.id] || 0) > 0).length * mult; }
       if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
+      // Kellan, Daring Traveler // Journey On: "the number of opponents who control an artifact" (opponentsControlling)
+      if (v.opponentsControlling) return this.opponentsOf(pid).filter(q => !q.hasLost && this.battlefield.some(x => x.controller === q.id && !x.phasedOut && this._matchesCategory(x, v.opponentsControlling))).length * mult;
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
@@ -10162,6 +10166,9 @@
       }
       // Drana and Linvala: "You may spend mana as though it were mana of any color to activate those abilities."
       if (ab && ab.spendAnyColor && mana) mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // Nathan Drake, Treasure Hunter: "… or to activate abilities of permanents you control but don't own" (spendAnyNotOwned)
+      if (mana && o && o.zone === 'battlefield' && o.owner !== o.controller && this._anyStaticOf(o.controller, 'spendAnyNotOwned'))
+        mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       return this._abilityCostMods(o, ab, mana, targets);
     }
 
@@ -12538,6 +12545,8 @@
       }
       // Leyline of the Void: "a card" — a token or a copy is none (cardsOnly)
       if (ef.cardsOnly && ev.object && (ev.object.isToken || ev.object.isCopy)) return false;
+      // Anafenza, the Foremost: "a nontoken creature … would die or a creature card not on the battlefield" (creatureCards)
+      if (ef.creatureCards && ev.object && !(ev.object.zone === 'battlefield' ? (this.characteristics(ev.object) || {}).isCreature : (ev.object.analysis() || {}).isCreature)) return false;
       // Valgavoth, Terror Eater: "a card you didn't control" — a spell or permanent of its controller's goes on as it would
       if (ef.notYours && ev.controller === src.controller) return false;
       if (ef.toZone && ev.zone !== ef.toZone) return false;
@@ -18799,7 +18808,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -20773,6 +20782,8 @@
               howMany = e.roundUp ? Math.ceil(all) : Math.floor(all);
               if (howMany <= 0) continue;
             }
+            // (Malfegor: "for each card discarded this way" — none discarded, none sacrificed)
+            if (e.n && typeof e.n === 'object' && e.n.discardedThisRes && howMany <= 0) continue;
             const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
@@ -25870,7 +25881,15 @@
           this.logEvent('reveal', `${p.name} reveals ${top.name}.`);
           if (this._cardFitsWords(top, e.filter || 'card')) {
             this.moveObject(top, e.to === 'hand' ? 'hand' : 'graveyard');
-            this.logEvent('rules', `${p.name} puts ${top.name} into their hand.`);
+            this.logEvent('rules', `${p.name} puts ${top.name} into their ${e.to === 'hand' ? 'hand' : 'graveyard'}.`);
+          } else if (e.elseMayGrave) {
+            // Kellan, Daring Traveler: "Otherwise, you may put it into your graveyard."
+            const yes = this._ask({ type: 'confirm', playerId: p.id, purpose: 'revealTopGrave', objId: top.id,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${top.name} into your graveyard? (Otherwise it stays on top of your library.)` }, 'rtg');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes === false || (yes && yes.yes === false)) break;
+            this.moveObject(top, 'graveyard');
+            this.logEvent('rules', `${p.name} puts ${top.name} into their graveyard.`);
           }
           break;
         }
@@ -28827,7 +28846,7 @@
             const able = pool.map(id => this.obj(id)).filter(c => c && c.zone !== 'stack' && c.zone !== 'battlefield' && !(c.analysis() || {}).isLand &&
               (!e.filter || this._cardFitsWords(c, e.filter)) && (mv1 == null || ((c.card && c.card.cmc) || 0) <= mv1) &&
               // (Sanwell, Avenger Ace: paying its costs — only what could be paid for)
-              (!e.pay || this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))));
+              (!e.pay || this.couldPay(ctx.controller, String(this._anyColorCost(ctx.controller, c, this.castCost(c, {}) || '')).replace(/\{X\}/g, ''), this.manaSources(ctx.controller))));
             let picks = [];
             if (able.length) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: 'library', items: this._chooseItems(able),

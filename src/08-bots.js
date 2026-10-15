@@ -2868,6 +2868,12 @@
       if (ch.purpose === 'leyline') return true;
       // Atemsis, All-Seeing: revealing a hand of six mana values wins
       if (ch.purpose === 'revealHandMvLose') return true;
+      // Kellan, Daring Traveler: a revealed card off the top into the graveyard — a land kept only when lands are short
+      if (ch.purpose === 'revealTopGrave') {
+        const top = ch.objId ? g.obj(ch.objId) : null;
+        const lands = g.battlefield.filter(o => o.controller === this.pid && (o.analysis() || {}).isLand).length;
+        return !(top && (top.analysis() || {}).isLand && lands < 6);
+      }
       // Cosima, God of the Voyage: a voyage counter while there are fewer than three, then back with them
       if (ch.purpose === 'voyage') return (Number(ch.count) || 0) < 3;
       /* the Chain spells: copy back for mana; not for a land or a card. And only with something of an opponent's
