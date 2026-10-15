@@ -6518,8 +6518,10 @@
       /* Channel: discard it from your hand for its ability. The table
          offers it where it offers cycling, which is the same act. */
       // Forecast: in your upkeep, once each turn, from the hand (it goes through channel's door, and stays)
-      if (o.zone === 'hand' && a.forecast && this.activePlayer && this.activePlayer.id === playerId && this.step === 'upkeep' && o._forecastTurn !== this.turn) {
-        out.push({ kind: 'cycle', channel: true, forecast: true, cost: a.forecast.cost || '', label: 'Forecast ' + (a.forecast.cost || '{0}') });
+      // (Sky Hussar: "Tap two untapped white and/or blue creatures you control" — only while there are two to tap: thing)
+      if (o.zone === 'hand' && a.forecast && this.activePlayer && this.activePlayer.id === playerId && this.step === 'upkeep' && o._forecastTurn !== this.turn &&
+          !(a.forecast.thing && this._thingCostBlocked(playerId, a.forecast.thing, o, {}))) {
+        out.push({ kind: 'cycle', channel: true, forecast: true, cost: a.forecast.cost || '', label: 'Forecast ' + (a.forecast.cost || (a.forecast.thing ? '' : '{0}')) });
       }
       // (Tetzimoc, Primal Death: "Activate only during your turn." — yourTurn)
       if (o.zone === 'hand' && a.channel && !(a.channel.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId))) {
@@ -7218,6 +7220,9 @@
       }
       // Forecast: shown, not discarded; once this turn
       if (use.forecast) {
+        // (Sky Hussar: the creatures to tap, there still — thing)
+        const why = a.forecast.thing && this._thingCostBlocked(playerId, a.forecast.thing, o, opts);
+        if (why) return this.fail(why);
         o._forecastTurn = this.turn;
         const item = {
           id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
@@ -7226,6 +7231,7 @@
           effects: a.forecast.effects, auto: true, abilityText: 'Forecast',
         };
         this.stack.push(item);
+        if (a.forecast.thing) this._payThingCosts(playerId, a.forecast.thing, o, opts, item);
         this.logEvent('ability', `${this.player(playerId).name} reveals ${o.name} and forecasts.`);
         this.emit('sfx', 'cast');
         this.emit('stack:add', item);
@@ -8801,6 +8807,23 @@
        itself, rather than handing the text to the players.
        ============================================================ */
 
+    /** How many instances of riot a creature entering has: printed, and one for each permanent handing it out
+        (Rhythm of the Wild, Uncivil Unrest: "Nontoken creatures you control have riot"). */
+    _riotCount(o) {
+      if (!this.hasKw(o, 'riot')) return 0;
+      const a = o.analysis() || {};
+      let k = (a.keywords || []).filter(x => String(x.keyword).toLowerCase() === 'riot').length;
+      for (const s of this.battlefield) {
+        if (s.phasedOut || s === o) continue;
+        for (const ab of ((s.analysis() || {}).abilities || [])) {
+          if (ab.kind !== 'static') continue;
+          for (const e of (ab.effects || [])) {
+            if (e && e.op === 'continuous' && (e.grant || []).some(w => /^riot$/i.test(w)) && e.scope && this._scopeHit(e.scope, o, a, s.controller, s)) k++;
+          }
+        }
+      }
+      return Math.max(1, k);
+    }
     /** Count how many times a permanent has a keyword (Exalted stacks). */
     _kwCount(o, kw) {
       const a = o.analysis();
@@ -9832,7 +9855,8 @@
         }
       }
       // riot: haste or a +1/+1 counter
-      if (a.keywordSet.has('riot')) {
+      // (Rhythm of the Wild, Uncivil Unrest: "Nontoken creatures you control have riot" — handed to it; each instance on its own, CR 702.136b)
+      for (let ri = this._riotCount(o); ri > 0; ri--) {
         const p = this.player(o.controller);
         if (p && p.isBot) { this.addCounters(o, '+1/+1', 1); }
         else this.queueChoice({
@@ -14670,7 +14694,8 @@
         // Neriv, Heart of the Storm: "a creature you control that entered this turn"
         if (ef.sourceEnteredThisTurn && !(ev.source && ev.source.zone === 'battlefield' && ev.source.entered === this.turn)) return false;
         // Raphael, the Muscle: "creatures you control with counters on them" (sourceCountered)
-        if (ef.sourceCountered && !(ev.source && Object.values(ev.source.counters || {}).some(v => Number(v) > 0))) return false;
+        // (Uncivil Unrest: "with a +1/+1 counter on it" — that kind only)
+        if (ef.sourceCountered && !(ev.source && Object.entries(ev.source.counters || {}).some(([k, v]) => Number(v) > 0 && (ef.sourceCountered === true || k === ef.sourceCountered)))) return false;
         // Obosh, the Preypiercer: "a source you control with an odd mana value" — a spell's as it was cast, X and all (sourceMvParity)
         if (ef.sourceMvParity) {
           const s0 = ev.source;
@@ -20226,8 +20251,10 @@
         const f = u.at[0].eff;
         if (u.kind === 'any') {
           const mvOf = (o) => (o.card && o.card.cmc) || 0;
+          // (Rampaging Yao Guai: "total mana value X or less" — the X it was cast for)
+          const tmvN = f.anyTotalMv === 'X' ? (item.x || (src && src.chosenX) || 0) : f.anyTotalMv;
           const pool = legal(u.spec).filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean)
-            .filter(o => f.anyTotalMv == null || mvOf(o) <= f.anyTotalMv);
+            .filter(o => f.anyTotalMv == null || mvOf(o) <= tmvN);
           if (!pool.length) continue;
           // (Dragonlord Atarka: no more of them than there is damage to divide, CR 601.2d)
           const dmgN = f.op !== 'damageDivided' ? null : typeof f.n === 'number' ? f.n : f.n && f.n.scope ? this._countValue(f.n, pid, src || null)
@@ -20239,11 +20266,11 @@
           const got = this._choose(Object.assign({ playerId: pid, purpose: 'anyTargets', kind: 'objects', zone: u.spec.zone || 'battlefield', stackId: item.id,
             items: f.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
             harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(f.op) || ((f.op === 'counters' || f.op === 'countersDivided') && /^-|stun/.test(f.kind || '')),
-            prompt: `${name}: ${f.anyPrompt || `choose any number of ${u.spec.filter || 'targets'}`}${f.anyTotalMv != null ? ` with total mana value ${f.anyTotalMv} or less` : ''}.` },
-          f.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: f.anyTotalMv, label: 'total mana value' }] } : {}), 'any' + ui);
+            prompt: `${name}: ${f.anyPrompt || `choose any number of ${u.spec.filter || 'targets'}`}${f.anyTotalMv != null ? ` with total mana value ${tmvN} or less` : ''}.` },
+          f.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: tmvN, label: 'total mana value' }] } : {}), 'any' + ui);
           if (got === SUSPEND) return SUSPEND;
           let ids = (got && got.picks) || [];
-          if (f.anyTotalMv != null) { let sum = 0; ids = ids.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > f.anyTotalMv) return false; sum += v; return true; }); }
+          if (f.anyTotalMv != null) { let sum = 0; ids = ids.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > tmvN) return false; sum += v; return true; }); }
           for (const id of ids) { picked[ui].push({ kind: 'object', id }); usedSpecs[ui].push(Object.assign({}, u.spec, { upTo: true })); }
         } else if (u.kind === 'perOpp') {
           const spec = u.spec;
@@ -21124,10 +21151,12 @@
          could target, picked as it resolves */
       if (e.anyFrom && !(e.targets && e.targets.length) && !aimedHere) {
         const mvOf = (o) => (o.card && o.card.cmc) || 0;
+        // (Rampaging Yao Guai: "total mana value X or less" — the X it was cast for)
+        const tmvN = e.anyTotalMv === 'X' ? (ctx.x || (src && src.chosenX) || 0) : e.anyTotalMv;
         // (Kairi, the Swirling Sky: "with total mana value 6 or less" — anyTotalMv)
         const pool = this._legalTargetsFor(e.anyFrom, ctx.controller, src ? src.id : null)
           .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean)
-          .filter(o => e.anyTotalMv == null || mvOf(o) <= e.anyTotalMv);
+          .filter(o => e.anyTotalMv == null || mvOf(o) <= tmvN);
         if (!pool.length) return null;
         // (Dragonlord Atarka: "5 damage divided as you choose among any number of …" — no more of them than there is damage, CR 601.2d)
         // (Ureni, the Song Unending: "X damage …, where X is the number of lands you control" — counted now)
@@ -21141,12 +21170,12 @@
         const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
           items: e.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
           harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
-          prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.anyPrompt || `choose any number of ${e.anyFrom.filter || 'targets'}`}${e.anyTotalMv != null ? ` with total mana value ${e.anyTotalMv} or less` : ''}.` },
-        e.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: e.anyTotalMv, label: 'total mana value' }] } : {}), 'anyt');
+          prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.anyPrompt || `choose any number of ${e.anyFrom.filter || 'targets'}`}${e.anyTotalMv != null ? ` with total mana value ${tmvN} or less` : ''}.` },
+        e.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: tmvN, label: 'total mana value' }] } : {}), 'anyt');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
         let picks = got.picks;
-        if (e.anyTotalMv != null) { let sum = 0; picks = picks.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > e.anyTotalMv) return false; sum += v; return true; }); }
+        if (e.anyTotalMv != null) { let sum = 0; picks = picks.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > tmvN) return false; sum += v; return true; }); }
         targets = picks.map(id => ({ kind: 'object', id }));
         const warded = this._wardOnResolve(ctx, targets, 'anyt');
         if (warded === SUSPEND) return SUSPEND;

@@ -11283,10 +11283,11 @@
        things it could have targeted. */
     /* Kairi, the Swirling Sky: "Return any number of target nonland permanents with total mana value 6 or less to
        their owners' hands" — the same, the picks adding up to no more than that (anyTotalMv) */
-    const tmv = !depth && s.match(/^(.*\bany number of target [a-z ]+?) with total mana value (\d+) or less\b(.*)$/i);
+    // (Rampaging Yao Guai: "any number of target artifacts and/or enchantments with total mana value X or less" — the X paid)
+    const tmv = !depth && s.match(/^(.*\bany number of target [a-z /]+?) with total mana value (\d+|X) or less\b(.*)$/i);
     if (tmv) {
       const inner = parseEffectSentence(tmv[1] + tmv[3], 0);
-      if (inner && inner.anyFrom && inner.op !== 'manual' && !hasManualStep(inner)) { inner.anyTotalMv = +tmv[2]; inner.text = s; return inner; }
+      if (inner && inner.anyFrom && inner.op !== 'manual' && !hasManualStep(inner)) { inner.anyTotalMv = tmv[2] === 'X' ? 'X' : +tmv[2]; inner.text = s; return inner; }
     }
     // (Chong and Lily, Nomads: "Put a lore counter on each of any number of target Sagas you control")
     const anyN = !depth && s.match(/\b(?:each of )?any number of (other )?target ((?:[a-z]+ )*?)(creatures|artifacts|enchantments|lands|permanents|planeswalkers|players|cards|Sagas)( [^,.]*)?/i);
@@ -18916,13 +18917,18 @@
       }
       /* Forecast (CR 702.57): during your upkeep, once a turn, the card is
          shown from your hand and its ability used; it stays in the hand */
-      const fc = line.match(/^Forecast\s*(?:\u2014|--|-)\s*((?:\{[^}]+\})*),\s*Reveal (?:this card|CARDNAME|this creature) from your hand:\s*([\s\S]+)$/i);
+      /* (Sky Hussar: "Forecast — Tap two untapped white and/or blue creatures you control, Reveal this card from your
+         hand: Draw a card." — a price besides mana, paid as costs are: thing) */
+      const fc = line.match(/^Forecast\s*(?:\u2014|--|-)\s*([^:]*?),\s*Reveal (?:this card|CARDNAME|this creature) from your hand:\s*([\s\S]+)$/i);
       if (fc) {
         const body = stripReminder(fc[2]).trim();
         const parsed = parseEffects(body);
-        out.forecast = { cost: fc[1] || '', effects: parsed.effects };
-        out.abilities.push({ kind: 'castModifier', keyword: 'Forecast', arg: fc[1], text: line, auto: parsed.auto, effects: [] });
-        if (parsed.auto) autoLines++;
+        const manaOnly = /^(?:\{[^}]+\})*$/.test(fc[1].trim());
+        const pc = manaOnly ? null : parseCost(fc[1].trim());
+        const thingOk = !pc || (costIsAutomatable(pc) && !pc.tap && !pc.untap && !pc.sacSelf);
+        out.forecast = Object.assign({ cost: manaOnly ? fc[1].trim() : (pc.mana || ''), effects: parsed.effects }, pc ? { thing: pc } : {});
+        out.abilities.push({ kind: 'castModifier', keyword: 'Forecast', arg: fc[1], text: line, auto: parsed.auto && thingOk, effects: [] });
+        if (parsed.auto && thingOk) autoLines++;
         continue;
       }
       // bloodrush is channel by another name: discard it to pump an attacker
@@ -22423,6 +22429,9 @@
     // Raphael, the Muscle: "Double all damage that creatures you control with counters on them would deal." (sourceCountered)
     { re: /^Double all damage that creatures you control with counters on them would deal\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgDoubleCountered', event: 'damage', who: 'you', how: 'double', sourceWords: 'creature', sourceCountered: true }) },
+    // Uncivil Unrest: "If a creature you control with a +1/+1 counter on it would deal damage to a permanent or player, it deals double that damage instead." (sourceCountered '+1/+1')
+    { re: /^If a creature you control with a \+1\/\+1 counter on it would deal damage to a permanent or player, it deals double that damage instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgDoubleCountered', event: 'damage', who: 'you', how: 'double', sourceWords: 'creature', sourceCountered: '+1/+1' }) },
     // Neriv, Heart of the Storm: "If a creature you control that entered this turn would deal damage, it deals twice that much damage instead."
     { re: /^If a creature you control that entered this turn would deal damage, it deals (twice|three times) that much damage instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgEnteredDouble', event: 'damage', who: 'you', how: /twice/i.test(m[1]) ? 'double' : 'triple', sourceWords: 'creature', sourceEnteredThisTurn: true }) },
