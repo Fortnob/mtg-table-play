@@ -24,16 +24,17 @@ function args() {
   return a;
 }
 
-function readPool() {
+function readPool(MTG) {
   const raw = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'oracle-cards.jsonl.gz'))).toString('utf8');
   const out = [];
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue;
     const c = JSON.parse(line);
     if (c.layout === 'token' || c.layout === 'art_series' || c.layout === 'emblem' || c.layout === 'double_faced_token') continue;
-    if (/\b(Card|Stickers|Attraction|Contraption|Scheme|Plane|Phenomenon|Vanguard|Conspiracy|Dungeon)\b/.test(c.type_line || '') &&
+    if (/\b(Card|Scheme|Plane|Phenomenon|Vanguard|Conspiracy|Dungeon)\b/.test(c.type_line || '') &&
         !/Creature|Instant|Sorcery|Artifact|Enchantment|Land|Planeswalker|Battle/.test(c.type_line || '')) continue;
-    if (c.set_type === 'funny' || c.set_type === 'memorabilia') continue;
+    // the joke and playtest cards are not in the game (src/02-scryfall.js, MTG.jokes)
+    if (c.set_type === 'memorabilia' || MTG.jokes.isCard(c)) continue;
     out.push(c);
   }
   return out;
@@ -42,7 +43,7 @@ function readPool() {
 function main() {
   const a = args();
   const MTG = load();
-  const pool = readPool();
+  const pool = readPool(MTG);
   const legal = (c) => a.format === 'all' ? Object.values(c.legalities || {}).some(v => v === 'legal' || v === 'restricted')
     : (c.legalities || {})[a.format] === 'legal' || (c.legalities || {})[a.format] === 'restricted';
   const cards = pool.filter(legal);

@@ -30,7 +30,8 @@ for (const line of raw.split('\n')) {
   if (!line.trim()) continue;
   const c = JSON.parse(line);
   if (['token', 'art_series', 'emblem', 'double_faced_token'].includes(c.layout)) continue;
-  if (c.set_type === 'funny' || c.set_type === 'memorabilia') continue;
+  // the joke and playtest cards are not in the game (src/02-scryfall.js, MTG.jokes)
+  if (c.set_type === 'memorabilia' || MTG.jokes.isCard(c)) continue;
   const leg = c.legalities || {};
   if (fmt === 'all' ? !Object.values(leg).some(v => v === 'legal' || v === 'restricted') : !(leg[fmt] === 'legal' || leg[fmt] === 'restricted')) continue;
   pool.push(c);
