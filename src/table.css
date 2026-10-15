@@ -545,7 +545,7 @@
 .action-dock { position: absolute; z-index: 42; right: 16px; bottom: 16px; width: calc(var(--side-w) - 32px);
   display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .dock-turn { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 0 4px; }
-.dt-who { font: 600 14px/1.2 var(--serif); color: #9cc7ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-who { min-width: 0; font: 600 14px/1.2 var(--serif); color: #9cc7ff; overflow-wrap: anywhere; }
 .dt-who.mine { color: var(--gold-hi); }
 .dt-n { font-size: 11px; color: #8d97a8; white-space: nowrap; }
 .phase-strip { display: flex; gap: 3px; padding: 0 2px; }
@@ -909,15 +909,30 @@
 .fx-flash.win { background: radial-gradient(circle, rgba(255,215,120,.35), transparent 70%); animation-duration: 1.2s; }
 .fx-flash.lose { background: rgba(0,0,0,.5); animation-duration: 1.2s; }
 @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
-.fx-turn { position: absolute; left: 0; right: 0; top: 50%; translate: 0 -50%; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 22px 0; background: linear-gradient(90deg, transparent, rgba(8,10,14,.85) 25%, rgba(8,10,14,.85) 75%, transparent);
-  animation: turnBand 1.7s cubic-bezier(.3,.7,.3,1) forwards; }
-.ft-line { position: absolute; left: 15%; right: 15%; top: 0; height: 1px; background: linear-gradient(90deg, transparent, #9cc7ff, transparent); }
+/* the turn passing: a band across the middle sweeps in from the right, the way the boards turn, says whose turn it
+   is — whole, wrapped on a narrow screen — and goes on its way; it never takes a click */
+.fx-turn { position: absolute; left: 0; right: 0; top: 50%; translate: 0 -50%; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 24px 16px; pointer-events: none; text-align: center;
+  background: linear-gradient(90deg, transparent, rgba(8,10,14,.9) 22%, rgba(8,10,14,.9) 78%, transparent);
+  animation: turnBand 1.9s cubic-bezier(.3,.7,.3,1) forwards; }
+.ft-line { position: absolute; left: 12%; right: 12%; top: 0; height: 2px; background: linear-gradient(90deg, transparent, #9cc7ff, transparent); }
+.ft-line.low { top: auto; bottom: 0; }
 .fx-turn.mine .ft-line { background: linear-gradient(90deg, transparent, var(--gold-hi), transparent); }
-.ft-who { font: 600 40px/1.1 var(--serif); color: #cfe2ff; letter-spacing: .03em; text-shadow: 0 0 26px rgba(120,170,255,.55); }
-.fx-turn.mine .ft-who { color: #ffeab0; text-shadow: 0 0 30px rgba(246,200,110,.6); }
+.ft-who { max-width: 100%; font: 600 clamp(30px, 3.4vw, 46px)/1.1 var(--serif); color: #cfe2ff; letter-spacing: .03em; overflow-wrap: anywhere;
+  text-shadow: 0 0 26px rgba(120,170,255,.6); }
+.fx-turn.mine .ft-who { color: #ffeab0; text-shadow: 0 0 30px rgba(246,200,110,.65); }
 .ft-n { font: 600 11px/1 var(--font); letter-spacing: .3em; text-transform: uppercase; color: #8d97a8; }
-@keyframes turnBand { 0% { opacity: 0; scale: 1 .4; } 14% { opacity: 1; scale: 1 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes turnBand {
+  0% { opacity: 0; transform: translateX(26%); }
+  16% { opacity: 1; transform: none; }
+  80% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateX(-12%); }
+}
+@keyframes turnFade { 0% { opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* without motion it fades in and out where it is (the app's Reduce motion stops every other animation outright) */
+@media (prefers-reduced-motion: reduce) { .fx-turn { animation-name: turnFade; } }
+:root[data-reduce-motion] .arena .fx-turn { animation: turnFade 1.9s linear forwards !important; animation-duration: 1.9s !important; }
+:root[data-phone] .ft-who { font-size: 30px; }
 /* a player out of a game that goes on: a red band above the middle, clear of the turn banner */
 .fx-out { position: absolute; left: 0; right: 0; top: calc(var(--board-top, 6px) + 16%); display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 18px 16px; pointer-events: none; z-index: 2; text-align: center;
@@ -1246,21 +1261,39 @@
 .orb-ring { background: none; border: 0; -webkit-mask: none; mask: none; }
 .orb-art { inset: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.45); }
 
-/* ---------- turning to another player's board ---------- */
-/* it comes in from its side of the table, a little small and faint, and settles */
-@keyframes seatInR { from { opacity: .2; transform: translateX(7%) scale(.965); } 60% { opacity: 1; } }
-@keyframes seatInL { from { opacity: .2; transform: translateX(-7%) scale(.965); } 60% { opacity: 1; } }
-.seat.focus-in-r { animation: seatInR .38s cubic-bezier(.2, .8, .2, 1) both; }
-.seat.focus-in-l { animation: seatInL .38s cubic-bezier(.2, .8, .2, 1) both; }
-/* a sweep of light across it as it lands */
-.seat.focus-in-r:not(.dead)::after, .seat.focus-in-l:not(.dead)::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; border-radius: inherit;
-  background: linear-gradient(100deg, transparent 35%, rgba(246, 220, 140, .14) 50%, transparent 65%) no-repeat; background-size: 250% 100%;
-  animation: seatSweep .45s ease-out both; }
-.seat.focus-in-l::after { animation-direction: reverse; }
-@keyframes seatSweep { from { background-position: 100% 0; } to { background-position: 0 0; opacity: 0; } }
+/* ---------- turning to another player's board, and the turn passing ---------- */
+/* A board brought forward comes in from its side of the table, faint and smaller, and settles, a band of light
+   sweeping across it and a ring round it as it lands. The turn passing does the same to the board of the player
+   whose turn it now is (yours too), a little longer, in their colour (blue across the table, gold for you), with the
+   banner above. Without motion the board fades up where it is and the ring fades away. None of it takes a click. */
+@keyframes seatInR { from { opacity: 0; transform: translateX(14%) scale(.94); } 55% { opacity: 1; } }
+@keyframes seatInL { from { opacity: 0; transform: translateX(-14%) scale(.94); } 55% { opacity: 1; } }
+.seat.focus-in-r, .seat.turn-in-r { animation: seatInR .5s cubic-bezier(.2, .8, .2, 1) both; }
+.seat.focus-in-l, .seat.turn-in-l { animation: seatInL .5s cubic-bezier(.2, .8, .2, 1) both; }
+.seat.turn-in-r, .seat.turn-in-l { animation-duration: .64s; }
+.seat:is(.focus-in-r, .focus-in-l, .turn-in-r, .turn-in-l, .seat-fade, .turn-fade):not(.dead)::after {
+  --sweep: rgba(246, 220, 140, .3);
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; border-radius: 18px;
+  background: linear-gradient(100deg, transparent 30%, var(--sweep) 50%, transparent 70%) no-repeat; background-size: 250% 100%;
+  box-shadow: inset 0 0 0 2px var(--sweep), inset 0 0 70px var(--sweep);
+  animation: seatSweepR .62s ease-out both; }
+.seat:is(.focus-in-l, .turn-in-l)::after { animation-name: seatSweepL; }
+.seat.theirs:is(.turn-in-r, .turn-in-l, .turn-fade)::after { --sweep: rgba(140, 190, 255, .38); animation-duration: .95s; }
+.seat.mine:is(.turn-in-r, .turn-in-l, .turn-fade)::after { --sweep: rgba(246, 200, 110, .4); animation-duration: .95s; }
+@keyframes seatSweepR { from { background-position: 100% 0; } 30% { opacity: 1; } to { background-position: 0 0; opacity: 0; } }
+@keyframes seatSweepL { from { background-position: 0 0; } 30% { opacity: 1; } to { background-position: 100% 0; opacity: 0; } }
+@keyframes seatFadeUp { from { opacity: .3; } }
+@keyframes seatGlowOut { from { opacity: 1; } to { opacity: 0; } }
+/* (the app's Reduce motion stops every animation outright: a fade is all that is left, and it is kept) */
+:root .arena .seat:is(.seat-fade, .turn-fade) { animation: seatFadeUp .45s ease-out both !important; animation-duration: .45s !important; }
+:root .arena .seat:is(.seat-fade, .turn-fade):not(.dead)::after { background: none; animation: seatGlowOut .95s ease-out both !important; animation-duration: .95s !important; }
 @media (prefers-reduced-motion: reduce) {
-  .seat.focus-in-r, .seat.focus-in-l, .seat.focus-in-r::after, .seat.focus-in-l::after { animation: none; }
+  .seat:is(.focus-in-r, .focus-in-l, .turn-in-r, .turn-in-l), .seat:is(.focus-in-r, .focus-in-l, .turn-in-r, .turn-in-l)::after { animation: none; }
 }
+/* the nameplate of the player whose turn it now is glows as it passes to them */
+.oplate.turn-now { animation: plateTurn 1.2s ease-out; }
+@keyframes plateTurn { 0% { box-shadow: 0 0 0 0 rgba(140, 190, 255, 0); } 25% { box-shadow: 0 0 0 3px rgba(140, 190, 255, .75), 0 0 26px 6px rgba(120, 170, 255, .5); } 100% { box-shadow: 0 0 0 0 rgba(140, 190, 255, 0); } }
+:root[data-reduce-motion] .arena .oplate.turn-now { box-shadow: 0 0 0 3px rgba(140, 190, 255, .75); }
 
 /* ---------- tokens pile up ---------- */
 .token-pile { position: relative; display: flex; align-items: center; }

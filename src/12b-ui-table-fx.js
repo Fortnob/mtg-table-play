@@ -117,7 +117,9 @@
       const name = (pid) => { const p = next.players.find(x => x.id === pid); return pid === me ? 'You' : (p ? p.name : 'Someone'); };
       const hold = (ms) => { b.hold = Math.max(b.hold, ms); };
 
-      if (next.turn !== prev.turn || next.activePlayer !== prev.activePlayer) {
+      /* (an undo that went back across a turn is a cut to where it was: no turn passing to see — restore) */
+      const restored = Array.isArray(next.events) && next.events.some(e => e.type === 'restore');
+      if (!restored && (next.turn !== prev.turn || next.activePlayer !== prev.activePlayer)) {
         b.turn = true;
         hold(next.activePlayer === me ? 1100 : 900);
       }
@@ -323,12 +325,16 @@
       if (this.targeting && this.targeting.legal && !(next.pendingChoice && next.pendingChoice.type === 'pickTarget')) this.targeting = null;
 
       this.view = next;
+      /* A view the table jumps to rather than plays out to — a replay scrubbed to another turn (which asks for no
+         motion before handing it over), an undo — changes whose board is in view without the turn to it. */
+      this._focusCut = !!this._noMotionOnce || (Array.isArray(next.events) && next.events.some(e => e.type === 'restore'));
       if (beat.spot) this.spot = beat.spot;
       else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this.spot = null;
       // where each card that moved really came from and went to, for the flights
       this._moves = beat.moves || null;
       this.render();
       this._moves = null;
+      this._focusCut = false;
       this._report(prev, next, beat);
 
       const ms = beat.hold * this._pace();
@@ -342,7 +348,7 @@
     /** Everything said about a beat that is not a card moving. */
     _report(prev, next, beat) {
       if (!prev) return;
-      if (beat.turn) this._turnBanner(next);
+      if (beat.turn) this._turnChange(next);
       if (beat.fromEvents) this._eventFloats(prev, next, beat);
       else this._lifeFloats(prev, next);
       this._boardFloats(prev, next, beat.fromEvents);
@@ -1084,7 +1090,17 @@
       setTimeout(() => f.remove(), 600);
     },
 
-    /** The turn changing hands is the biggest thing that happens, so it gets a banner. */
+    /**
+     * The turn changing hands is the biggest thing that happens, so it is seen: the board of the player whose turn
+     * it now is comes in the way a board you turn to does (renderSeats) — from the side, settling, a band of light
+     * across it in their colour — and a banner says whose turn it is. Once, as the turn passes (a beat that plays
+     * it, never a re-render, an undo or a replay scrubbed to another turn); nothing waits on it.
+     */
+    _turnChange(v) {
+      this._turnBanner(v);
+      this._turnSweep(v);
+    },
+
     _turnBanner(v) {
       const p = v.players.find(x => x.id === v.activePlayer);
       if (!p) return;
@@ -1093,9 +1109,41 @@
         el('div', { class: 'ft-line' }),
         el('div', { class: 'ft-who', text: mine ? 'Your turn' : `${possessive(p.name)} turn` }),
         el('div', { class: 'ft-n', text: 'Turn ' + v.turn }),
+        el('div', { class: 'ft-line low' }),
       ]);
+      // a turn passing quickly (the table catching up) replaces the banner before it
+      if (this._turnBand) this._turnBand.remove();
+      this._turnBand = b;
       this.fxLayer.appendChild(b);
-      setTimeout(() => b.remove(), 1700);
+      setTimeout(() => { b.remove(); if (this._turnBand === b) this._turnBand = null; }, 1900);
+    },
+
+    /** The new active player's board, sweeping in: from the side it was turned to from (the right, round the table). */
+    _turnSweep(v) {
+      const s = this.seats.get(v.activePlayer);
+      const node = s && s.root;
+      // their nameplate on the strip across the top glows (all a board not in view, or only peeking in, gets)
+      const plate = this._plates && this._plates.get(v.activePlayer);
+      if (plate && plate.isConnected) {
+        plate.classList.remove('turn-now'); void plate.offsetWidth; plate.classList.add('turn-now');
+        clearTimeout(plate._turnAnim);
+        plate._turnAnim = setTimeout(() => plate.classList.remove('turn-now'), 1300);
+      }
+      // the board whose turn it was is done coming in, if a short turn has not let it finish
+      for (const [id, o] of this.seats) {
+        if (id === v.activePlayer || !o._turnAnim) continue;
+        clearTimeout(o._turnAnim); o._turnAnim = null;
+        o.root.classList.remove('turn-in-r', 'turn-in-l', 'turn-fade');
+      }
+      if (!node || !node.isConnected || node.classList.contains('peek')) return;
+      const still = this._motionOff();
+      const fromLeft = node.classList.contains('focus-in-l');
+      clearTimeout(s._focusAnim);
+      clearTimeout(s._turnAnim);
+      node.classList.remove('focus-in-r', 'focus-in-l', 'seat-fade', 'turn-in-r', 'turn-in-l', 'turn-fade');
+      void node.offsetWidth;   // start it again, for a turn straight after a turn
+      node.classList.add(still ? 'turn-fade' : fromLeft ? 'turn-in-l' : 'turn-in-r');
+      s._turnAnim = setTimeout(() => node.classList.remove('turn-in-r', 'turn-in-l', 'turn-fade'), 1000);
     },
 
     /** A permanent that just did something lights up for a moment. */

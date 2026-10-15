@@ -966,19 +966,21 @@
       }
       /* Another board brought forward comes in from its side of the table,
          the short way round (the next seat along from the right), settling
-         as it arrives: you can see which way you turned. */
+         as it arrives: you can see which way you turned. Without motion it
+         fades up where it is. Not for a view the table jumped to (an undo, a
+         replay scrubbed to another turn: _focusCut), which is a cut. */
       if (multi && !split && this.focusSeat) {
         const was = this._shownFocus;
         this._shownFocus = this.focusSeat;
         const s = this.seats.get(this.focusSeat);
-        if (was && was !== this.focusSeat && s && !this._motionOff()) {
+        if (was && was !== this.focusSeat && s && !this._focusCut) {
           const n = others.length, a = others.findIndex(p => p.id === was), b = others.findIndex(p => p.id === this.focusSeat);
           const fromRight = a < 0 || b < 0 || (b - a + n) % n <= n / 2;
-          s.root.classList.remove('focus-in-r', 'focus-in-l');
+          s.root.classList.remove('focus-in-r', 'focus-in-l', 'seat-fade', 'turn-in-r', 'turn-in-l', 'turn-fade');
           void s.root.offsetWidth;   // start it again, for a quick second turn
-          s.root.classList.add(fromRight ? 'focus-in-r' : 'focus-in-l');
+          s.root.classList.add(this._motionOff() ? 'seat-fade' : fromRight ? 'focus-in-r' : 'focus-in-l');
           clearTimeout(s._focusAnim);
-          s._focusAnim = setTimeout(() => s.root.classList.remove('focus-in-r', 'focus-in-l'), 460);
+          s._focusAnim = setTimeout(() => s.root.classList.remove('focus-in-r', 'focus-in-l', 'seat-fade'), 620);
         }
       } else this._shownFocus = null;
       const me = this.me;
