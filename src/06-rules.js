@@ -2433,7 +2433,7 @@
         // your own spell resolving is not news; anyone else's is, once
         if (top && top.controller === playerId) return false;
         if (!cfg.untilStackChange) return true;
-        return this._seenStackTop !== (top && top.id);
+        return this._seenTop(playerId) !== (top && top.id);
       }
       const mine = this.activePlayer && this.activePlayer.id === playerId;
       const key = this.step === 'main' ? (this.phase === 'precombat' ? 'main1' : 'main2') : this.step;
@@ -2452,7 +2452,7 @@
         // your own spell resolving is not news; anyone else's is, once
         if (!(top && top.controller === playerId)) {
           if (!cfg.untilStackChange) return false;
-          if (this._seenStackTop !== (top && top.id)) return false;
+          if (this._seenTop(playerId) !== (top && top.id)) return false;
         }
       }
       return this.playableNow(playerId).length === 0;
@@ -2475,12 +2475,15 @@
         /* Remember the stack a person was stopped on, so the same spell does
            not stop them twice. Only a person: this also runs while a bot holds
            priority, and a spell the bot has just cast has not been seen by
-           anybody yet. */
+           anybody yet. Each person for themselves: the player who cast it
+           holding priority over it has seen it, the one it is aimed at not yet. */
         const top = this.stack[this.stack.length - 1];
         const at = this.priorityPlayer;
-        if (at && !at.isBot) this._seenStackTop = top ? top.id : null;
+        if (at && !at.isBot) (this._seenStack || (this._seenStack = {}))[at.id] = top ? top.id : null;
       }
     }
+    /** The top of the stack this person was last stopped on (_maybeAutoPass). */
+    _seenTop(playerId) { return (this._seenStack || {})[playerId]; }
 
     _priorityFingerprint() {
       return [this.turn, this.phaseIndex, this.stepIndex, this._stepAgain || 0, this.priorityIndex, this.stack.length].join(':');
