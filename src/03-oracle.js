@@ -861,7 +861,8 @@
         const own = (e.targets || []).some(t => t && t.type !== 'player');
         if (!aboutOther && (targeted || own)) {
           // Hunter's Bow: "That creature deals damage equal to its power" is the creature just equipped
-          if (e.op === 'damage' && e.fromTrigger) { if (targeted && /^That creature\b/i.test(e.text || '')) parsed.auto = false; }
+          // (Orca, Siege Demon: "it deals damage equal to its power divided as you choose among any number of targets" — itself)
+          if ((e.op === 'damage' || e.op === 'damageDivided') && e.fromTrigger) { if (targeted && /^That creature\b/i.test(e.text || '')) parsed.auto = false; }
           /* Galuf's Final Act: "put a number of +1/+1 counters equal to its power on up to one target
              creature" — an "its" said before the effect's own target is still the dying creature (itsBeforeTarget) */
           /* (Breeches, the Blastmaker: "deals damage equal to that spell's mana value to any target" — "that spell"
@@ -6153,8 +6154,25 @@
     { re: /^(?:He|She|It|CARDNAME) deals damage equal to that Equipment'?s mana value divided as you choose among one, two, or three targets\.?$/i,
       make: () => ({ op: 'damageDivided', n: { ofUnattached: 'mv' },
         targets: [0, 1, 2].map(i => Object.assign({ type: 'any', filter: 'any target', distinct: true }, i ? { upTo: true } : {})) }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
-      make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X|damage equal to its power)(?: damage)? divided as you choose among (one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
+      /* the targets, as many as the words allow and different ones (Inferno Titan, Forked Bolt: chosen as it is cast or
+         put on the stack); "any number": as many as there is damage (CR 601.2d — multi) */
+      make: (m) => {
+        const pow = /its power/i.test(m[1]);
+        const k = pow ? { ofTrigger: 'power' } : num(m[1]);
+        const w = m[2].toLowerCase();
+        const any = { type: 'any', filter: 'any target', zone: 'battlefield' };
+        const more = (sp) => Object.assign({}, sp, { upTo: true, distinct: true });
+        const targets = w === 'one or two targets' ? [any, more(any)]
+          : w === 'one, two, or three targets' ? [any, more(any), more(any)]
+          : w === 'two or three targets' ? [any, Object.assign({}, any, { distinct: true }), more(any)]
+          : null;
+        const base = /creature/.test(w) ? targetSpec(/planeswalker/.test(w) ? 'target creature or planeswalker' : 'target creature') : any;
+        // (a number: that many, all but the first optional; X or its power: counted as it is cast or put on the stack)
+        const list = targets || (typeof k === 'number' ? Array.from({ length: k }, (x, i) => (i ? more(base) : Object.assign({}, base)))
+          : [Object.assign({}, base, { multi: { count: k, exact: false } })]);
+        return Object.assign({ op: 'damageDivided', n: k, targets: list }, pow ? { fromTrigger: true } : {});
+      } },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
 
@@ -11666,6 +11684,9 @@
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
         { op: 'takeFromMilled', n: 1, filter: m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any', optional: !!m[2] }] },
+    // Beluna Grandsquall // Seek Thrills: "Mill seven cards. Then put all cards that have an Adventure from among the milled cards into your hand." (all)
+    { re: /^Mill (two|three|four|five|six|seven|eight|nine|ten|\d+) cards\. Then put all cards that have an Adventure from among the milled cards into your hand\.?$/i,
+      make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'takeFromMilled', all: true, n: 1, filter: 'adventure' }] },
     // Rosheen, Roaring Prophet: "mill six cards. You may put a card with {X} in its mana cost from among them into your hand." (xCost)
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?put a card with \{X\} in its mana cost from among (?:them|the milled cards) into your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
@@ -12287,15 +12308,19 @@
     // Gonti, Canny Acquisitor: "Spells you cast but don't own" (notOwned)
     const nownq = s.match(/(?<=you cast) but don'?t own(?= costs?)/i);
     if (nownq) s = s.replace(nownq[0], '');
+    // Beluna Grandsquall: "Permanent spells you cast that have an Adventure" (hasAdventure)
+    const advq = s.match(/(?<=you cast) that have an Adventure(?= costs?)/i);
+    if (advq) s = s.replace(advq[0], '');
     // The Ur-Dragon: "Other Dragon spells you cast" — not this card itself
     const otherQ = /^Other /.test(s);
     if (otherQ) s = s.replace(/^Other (.)/, (x, c) => c.toUpperCase());
     const extra = Object.assign({}, mvq ? { minMv: +mvq[1] } : {}, flq ? { withKeyword: 'flying' } : {},
       fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {}, otherQ ? { other: true } : {},
-      tgp ? { toughGtPower: true } : {}, nownq ? { notOwned: true } : {});
+      tgp ? { toughGtPower: true } : {}, nownq ? { notOwned: true } : {}, advq ? { hasAdventure: true } : {});
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
-    const CARD_WORD = /^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred|commander)$/;
+    // (Beluna Grandsquall: "Permanent spells")
+    const CARD_WORD = /^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred|commander|permanent)$/;
     /* Goblin Warchief: "Goblin spells you cast"; Stonybrook Banneret:
        "Merfolk spells and Wizard spells"; Eye of Ugin: "Colorless Eldrazi
        spells". The creature types are kept apart from the card words; a
@@ -17469,7 +17494,9 @@
         (ab.kind === 'triggered' && ab.event === 'etb' && ab.self && /\{X\}/.test(out.manaCost || ''));
       // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
       // (Zethi, Arcane Blademaster: "where X is the number of times Zethi was kicked" — its own enters trigger: timesKicked)
-      const countedOk = (mm) => ab.kind === 'triggered' && (mm.count === 'triggerAmount' || (ab.event === 'etb' && ab.self && !!(mm.count && mm.count.timesKicked)));
+      // (Orca, Siege Demon: "damage equal to its power divided as you choose among any number of targets" — its power as it died: ofTrigger)
+      const countedOk = (mm) => ab.kind === 'triggered' && (mm.count === 'triggerAmount' || (ab.event === 'etb' && ab.self && !!(mm.count && mm.count.timesKicked)) ||
+        !!(mm.count && mm.count.ofTrigger));
       if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any' && !countedOk(mm)) ||
           (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || '') && !(multi.length && multi.every(countedOk)))) { ab.auto = false; out._keywordManual = true; }
     }

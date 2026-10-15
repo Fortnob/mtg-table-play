@@ -3922,6 +3922,8 @@
             if (e.notFromZones && e.notFromZones.includes(o.zone)) continue;
             // Gonti, Canny Acquisitor: "Spells you cast but don't own"
             if (e.notOwned && o.owner === pid) continue;
+            // Beluna Grandsquall: "that have an Adventure" (hasAdventure)
+            if (e.hasAdventure && !(o.card && o.card.layout === 'adventure')) continue;
             // Centaur Omenreader: "As long as this creature is tapped, …"
             if (e.cond && !this._condMet(e.cond, { controller: src.controller, obj: src })) continue;
             /* Goblin Warchief: "Goblin spells" (a changeling is every creature
