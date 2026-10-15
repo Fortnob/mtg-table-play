@@ -31,7 +31,7 @@
   const SUSPEND = Symbol('suspend');
   /* Effects that act on their targets and nothing else, which a trigger's
      "that creature" (scope triggerObject) is handed to as one. */
-  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy']);
+  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy', 'phaseOut']);
 
   // Plain-English names for the combat restrictions an effect can impose.
   // the counters that are keywords (CR 122.1b)
@@ -960,12 +960,14 @@
       for (const q of this.players) if (q.silenceUntil) { q.silenceUntil = q.silenceUntil.filter(x => x.by !== ap.id); if (!q.silenceUntil.length) q.silenceUntil = null; }
       // Phasing (CR 702.26): what has it and is phased in goes out as the rest come back
       const phasers = this.battlefield.filter(o => !o.phasedOut && o.controller === ap.id && this.hasKw(o, 'phasing'));
-      for (const o of this.battlefield) {
-        if (o.phasedOut && o.phasedOutBy === ap.id && o.phasedTurn < this.turn) {
-          o.phasedOut = false; o.phasedOutBy = null;
-          // Shimmering Efreet: "whenever this creature phases in"
-          this._fire('phasesIn', o.controller, { source: o, object: o });
-        }
+      // (all at once, then what they set off: King of the Oathbreakers phasing in sees the Spirits phasing in with it)
+      const phasingIn = this.battlefield.filter(o => o.phasedOut && o.phasedOutBy === ap.id && o.phasedTurn < this.turn);
+      for (const o of phasingIn) { o.phasedOut = false; o.phasedOutBy = null; }
+      for (const o of phasingIn) {
+        // Shimmering Efreet: "whenever this creature phases in"
+        this._fire('phasesIn', o.controller, { source: o, object: o });
+        // King of the Oathbreakers: "Whenever … another Spirit you control phases in" (permPhasesIn)
+        this._fire('permPhasesIn', null, { object: o, objController: o.controller });
       }
       for (const o of phasers) {
         o.phasedOut = true; o.phasedOutBy = ap.id; o.phasedTurn = this.turn;
@@ -3566,6 +3568,8 @@
         if (i != null && item.obj && o.id === item.obj.id && (this._specsOf(item)[i] || {}).another) return false;
         if (t.zone && o.zone !== t.zone) return false;
         if (this._landShielded(o, item.controller)) return false;
+        // phased out, it is treated as though it doesn't exist (CR 702.26b): King of the Oathbreakers' Spirits
+        if (o.zone === 'battlefield' && o.phasedOut) return false;
         /* a spell whose words a text-changing effect changed (layer 3, Sleight of Mind on "destroy target
            nonblack creature"): its target is checked against what the words say now (CR 608.2b) */
         if (item.wordsChanged && i != null) {
@@ -4717,6 +4721,8 @@
         if (mv > 0 && this._lifeSacCostBan()) return { ok: false, reason: `${this._lifeSacCostBan().name}: life can't be paid to cast spells.` };
         return { ok: true, cost: '', lifeInstead: mv };
       }
+      // Hauken's Insight: "without paying its mana cost" (a free leave)
+      if (leave && leave.free) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
       // Omniscience: without paying the mana cost, which leaves the taxes and Trinisphere's floor (CR 601.2f), shown as the cast will charge them
       if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
@@ -7465,7 +7471,8 @@
       o._enterTappedCast = null;
       o._leaveExileCast = null;
       o._enterPlusCounters = 0;
-      if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
+      // (Hauken's Insight: a card exiled with it, cast by its leave — not by a leave of the card's own)
+      if ((o.zone === 'graveyard' || o.zone === 'library' || (o.zone === 'exile' && o.exiledWithId && !this._impulseOpen(o, playerId))) && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
         // Falco Spara, Pactweaver: the counter, removed as the spell is cast (chosen with it)
         const rc = lv && lv.removeCounterCost && o.zone === 'library' && opts.removeCounterFrom;
@@ -8896,16 +8903,18 @@
         });
         this.emit('sfx', 'trigger');
       }
-      const mod = this._kwArg(o, 'modular');
-      if (mod || (a.keywordSet.has('modular') && hadPlus)) {
-        const target = this.battlefield.find(x => {
-          const xa = x.analysis();
-          return x.controller === o.controller && xa && xa.isCreature && xa.isArtifact;
+      /* Modular (CR 702.43a): "When this permanent is put into a graveyard from the battlefield, you may put a +1/+1
+         counter on target artifact creature for each +1/+1 counter on this permanent." — a trigger, its target chosen as
+         it goes on the stack (Zabaz, the Glimmerwasp: a modular ability's counters — modular) */
+      if ((this._kwArg(o, 'modular') || had('modular')) && hadPlus) {
+        this.pendingTriggers.push({
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          name: `${o.name} \u2014 modular`, auto: true, optional: true,
+          abilityText: `Modular: you may put ${hadPlus === 1 ? 'a +1/+1 counter' : hadPlus + ' +1/+1 counters'} on target artifact creature.`,
+          effects: [{ op: 'counters', kind: '+1/+1', n: hadPlus, modular: true, targets: [{ type: 'creature', filter: 'artifact creature', zone: 'battlefield' }] }],
+          triggerData: { event: 'modular', objectId: o.id },
         });
-        if (target && hadPlus) {
-          this.addCounters(target, '+1/+1', hadPlus);
-          this.logEvent('keyword', `Modular moves ${hadPlus} counters to ${target.name}.`);
-        }
+        this.emit('sfx', 'trigger');
       }
     }
 
@@ -12420,6 +12429,8 @@
       if (ef.notSelf && ev.object && ev.object.id === src.id) return false;
       // Archelos, Lagoon Mystic: "As long as Archelos is tapped (untapped)"
       if (ef.whileSelfTapped != null && !!src.tapped !== ef.whileSelfTapped) return false;
+      // Zabaz, the Glimmerwasp: "If a modular triggered ability would put …" (modularOnly)
+      if (ef.modularOnly && !ev.modular) return false;
       // Mowu, Loyal Companion: only counters on this one (selfCountersPlus)
       if (ef.selfOnly && !(ev.object && ev.object.id === src.id)) return false;
       // Gond Gate: "Gates you control" — the words, as a card reads them
@@ -15338,7 +15349,7 @@
       const putter = (opts && opts.by) || this._putBy || o.controller;
       if (n > 0 && !(opts && opts.noReplace)) {
         const ev = this._replace({ kind: 'counters', object: o, n, counter: kind, controller: o.controller,
-          putter });
+          putter, modular: !!(opts && opts.modular) });
         if (ev.cancelled) return;
         if (ev.cancelled) return;
         n = ev.n;
@@ -18762,6 +18773,10 @@
           const pI = triggerPlayer();
           return pI ? this.battlefield.filter(x => x.controller === pI.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature && x.attackedTurn !== this.turn).length : 0;
         }
+        // Witch-king, Sky Scourge: "their total power" — this player's attacking creatures of that type (attackingOfTypePower)
+        if (v && typeof v === 'object' && v.attackingOfTypePower) return ((this.combat && this.combat.attackers) || []).map(id => this.obj(id))
+          .filter(x => x && x.zone === 'battlefield' && x.controller === ctx.controller && this._hasCreatureType(x, v.attackingOfTypePower))
+          .reduce((k, x) => k + Math.max(0, this.powerOf(x)), 0);
         // Varina, Lich Queen: "that many" — this player's attacking creatures of that type (attackingOfTypeCount)
         if (v && typeof v === 'object' && v.attackingOfType) return ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id);
           return x && x.controller === ctx.controller && this._hasCreatureType(x, v.attackingOfType); }).length;
@@ -19509,7 +19524,8 @@
             const k = o && o.zone === 'battlefield' ? ((this.characteristics(o) || {}).colors || (o.analysis() || {}).colors || []).length : 0;
             if (k > 0) this.addCounters(o, e.kind, k);
           }
-          else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.addCounters(o, e.kind, cnt); } }
+          // (modular: counters a modular triggered ability puts — Zabaz, the Glimmerwasp)
+          else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.addCounters(o, e.kind, cnt, e.modular ? { modular: true } : undefined); } }
           break;
         }
         case 'destroy':
@@ -23444,6 +23460,32 @@
           for (const t of targets) {
             const o = t.kind === 'object' && this.obj(t.id);
             if (o && o.zone === 'graveyard') { o.encoreTurn = this.turn; this.logEvent('rules', `${o.name} gains encore until end of turn.`); }
+          }
+          break;
+        }
+        /* Jacob Hauken, Inspector: "exile a card from your hand face down" — the player's pick, exiled with this
+           permanent; "You may look at that card …" follows (lookLastExiled) */
+        case 'handExileFaceDown': {
+          const hand = this.zones[ctx.controller].hand;
+          if (!hand.length) break;
+          const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: false, purpose: 'exileFaceDown',
+            cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
+            prompt: `${(src && src.name) || ctx.name || 'Effect'}: exile a card from your hand face down.` }, 'hxf');
+          if (got === SUSPEND) return SUSPEND;
+          const c = hand.find(o => (got || []).includes(o.id)) || hand[0];
+          this.moveObject(c, 'exile');
+          if (c.zone !== 'exile') break;
+          c.faceDownExile = true; c.lookableBy = null;
+          if (src) c.exiledWithId = src.id;
+          this._lastExiled = c.id; this._lastExiledList = [c.id];
+          this.logEvent('exile', `${me.name} exiles a card from their hand face down.`);
+          break;
+        }
+        // Jacob Hauken, Hauken's Insight: "You may look at that card for as long as it remains exiled."
+        case 'lookLastExiled': {
+          for (const id of (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : [this._lastExiled])) {
+            const c = id && this.obj(id);
+            if (c && c.zone === 'exile' && c.faceDownExile && (!src || c.exiledWithId === src.id)) c.lookableBy = ctx.controller;
           }
           break;
         }

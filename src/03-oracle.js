@@ -976,6 +976,8 @@
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower', 'noRegen', 'flagEot']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent', 'becomeCopy'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
+    // King of the Oathbreakers: "…becomes the target of a spell, it phases out." — the one the trigger is about
+    if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'phaseOut' && !e.scope && !(e.targets || []).length && /^it phases out/i.test(e.text || '')) e.scope = 'triggerObject'; });
     // Revenge of Ravens: "that creature's controller loses 1 life" — the one the trigger is about
     if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'loseLife' && e.who === 'targetController') e.who = 'triggerObjController'; });
     /* Foot Chopper: "create a 1/1 Ninja token, then attach this Equipment
@@ -4976,6 +4978,10 @@
     // (Scarlet Witch, Chaotic Avenger: "look at the top two cards of your library, then exile them face down")
     { re: /^(?:Look at the top (a|one|two|three|\d+)? ?cards? of your library(?: and|, then) exile (?:it|them)|Exile the top (a|one|two|three|\d+)? ?cards? of your library) face down\.?$/i,
       make: (m) => Object.assign({ op: 'impulse', n: (m[1] || m[2]) ? num(m[1] || m[2]) : 1, play: false, faceDown: true }, /^Look/i.test(m[0]) ? { look: true } : {}) },
+    // Jacob Hauken, Inspector: "Draw a card, then exile a card from your hand face down." — the player's pick, exiled with it (handExileFaceDown)
+    { re: /^Draw a card, then exile a card from your hand face down\.?$/i, make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'handExileFaceDown' }] },
+    // Jacob Hauken, Hauken's Insight: "You may look at that card for as long as it remains exiled." — the card just exiled face down (lookLastExiled)
+    { re: /^You may look at that card for as long as it remains exiled\.?$/i, make: () => ({ op: 'lookLastExiled' }) },
     // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
     { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
     // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
@@ -14537,6 +14543,11 @@
     // Professor Hojo: "Whenever one or more creatures you control become the target of an activated ability" (byActivated)
     { re: /^Whenever one or more creatures you control become the target of an activated ability,? /i,
       event: 'becomesTarget', filt: () => subjectFilter('a creature you control'), extra: { byActivated: true } },
+    // King of the Oathbreakers: "Whenever King of the Oathbreakers or another Spirit you control becomes the target of a spell" (bySpellOnly)
+    { re: new RegExp('^Whenever ' + SUBJ + ' becomes the target of a spell, ', 'i'),
+      event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), aboutObject: true, extra: { bySpellOnly: true } },
+    // King of the Oathbreakers: "Whenever King of the Oathbreakers or another Spirit you control phases in" (permPhasesIn)
+    { re: new RegExp('^Whenever ' + SUBJ + ' phases in, ', 'i'), event: 'permPhasesIn', filt: (m) => subjectFilter(m[1]) },
     // Monk Gyatso: "Whenever another creature you control becomes the target of a spell or ability" — anyone's
     { re: /^Whenever another creature you control becomes the target of a spell or ability,? /i,
       event: 'becomesTarget', filt: () => subjectFilter('another creature you control'), aboutObject: true },
@@ -16345,6 +16356,17 @@
           if (thn.length === 2 && thn[0] && thn[0].op === 'manual' && /^Pay life equal to its power\.?$/i.test(thn[0].text || '') &&
               thn[1] && thn[1].op === 'counters' && thn[1].n === 'triggerAmount' && thn[1].scope === 'triggerObject') {
             parsed.effects = [{ op: 'mayPay', pay: { life: { ofTrigger: 'power' } }, then: [Object.assign({}, thn[1], { n: { ofTrigger: 'power' } })], text: parsed.effects[0].text }];
+            parsed.auto = true;
+          }
+        }
+        /* Witch-king, Sky Scourge: "Whenever you attack with one or more Wraiths, exile the top X cards of your library, where X
+           is their total power. You may play those cards this turn." — the attacking Wraiths' power as it resolves (attackingOfTypePower) */
+        if (trig.event === 'youAttack' && (trig.extraOf || trig.extra) && parsed.effects.length === 2 && parsed.effects[0] && parsed.effects[0].op === 'manual' &&
+            /^exile the top X cards of your library, where X is their total power\.?$/i.test(parsed.effects[0].text || '') && parsed.effects[1] &&
+            parsed.effects[1].op === 'impulseLast' && parsed.effects[1].duration === 'eot') {
+          const ex = trig.extraOf ? trig.extraOf(line.match(trig.re)) : trig.extra;
+          if (ex && ex.attackersOfType) {
+            parsed.effects = [{ op: 'impulse', n: { attackingOfTypePower: ex.attackersOfType }, play: true, duration: 'eot', text: parsed.effects[0].text + ' ' + parsed.effects[1].text }];
             parsed.auto = true;
           }
         }
@@ -18974,6 +18996,10 @@
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature|creature or Vehicle) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
         / or /.test(m[1]) ? { whatAny: m[1].toLowerCase().split(' or ') } : { what: m[1].toLowerCase() }) },
+    /* Zabaz, the Glimmerwasp: "If a modular triggered ability would put one or more +1/+1 counters on a creature you
+       control, that many plus one +1/+1 counters are put on it instead." (modularOnly) */
+    { re: /^If a modular triggered ability would put one or more \+1\/\+1 counters on a creature you control, that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Modular', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', what: 'creature', modularOnly: true }) },
     // Mowu, Loyal Companion: "If one or more +1/+1 counters would be put on Mowu, that many plus one … on it instead." (selfCountersPlus)
     { re: /^If one or more \+1\/\+1 counters would be put on (?:CARDNAME|this creature), that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Self', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', selfOnly: true }) },
@@ -21195,6 +21221,10 @@
          of more than one using up the type chosen as it is cast */
       { re: /^During each of your turns, you may play a land and cast a permanent spell of each permanent type from your graveyard\.?$/i,
         eff: { op: 'playFrom', zone: 'graveyard', what: 'any', duringYourTurn: true, perType: true }, auto: true },
+      /* Hauken's Insight: "Once during each of your turns, you may play a land or cast a spell from among the cards exiled
+         with this permanent without paying its mana cost." — Jacob's own among them (exiledWith, oncePerTurn, free) */
+      { re: /^Once during each of your turns, you may play a land or cast a spell from among the cards exiled with (?:this permanent|CARDNAME) without paying its mana cost\.?$/i,
+        eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, oncePerTurn: true, free: true }, auto: true },
       /* Valgavoth, Terror Eater: "During your turn, you may play cards exiled with Valgavoth. If you cast
          a spell this way, pay life equal to its mana value rather than pay its mana cost." (exiledWith) */
       { re: /^During your turn, you may play cards exiled with CARDNAME\. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?$/,
