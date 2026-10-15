@@ -3180,6 +3180,13 @@
         const best = options.slice().sort((x, y) => (k[y.label] || 0) - (k[x.label] || 0))[0];
         return [best ? best.i : 0];
       }
+      /* Titania, Rugged Rumbler's ward, "Discard a card or pay {2}": the mana when it can be paid, as a mana ward is;
+         else the other price (whether a card is worth giving is asked next: wardPay) */
+      if (ch.purpose === 'wardEither') {
+        const prices = options.slice(0, -1);
+        const pick = prices.find(o => /\{/.test(o.label)) || prices[0] || options[options.length - 1];
+        return [pick ? pick.i : 0];
+      }
       // Noctis, Heir Apparent: back attacking — the opponent with the least life (never itself: Tahngarth, First Mate)
       if (ch.purpose === 'attackWhom') {
         const vals = ch.values || [];

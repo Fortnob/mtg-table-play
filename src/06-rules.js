@@ -8462,7 +8462,8 @@
         // (a price the table can't take leaves the card to its players: the reading says so)
         if (!w) continue;
         // (Auntie Ool, Cursewretch: "Ward—Blight 2" — the creature is the payer's choice too)
-        if (w.discard || w.sacrifice || w.blight || item.triggered) {
+        // (Titania, Rugged Rumbler: "Ward—Discard a card or pay {2}." — the payer's choice: either)
+        if (w.discard || w.sacrifice || w.blight || w.either || item.triggered) {
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: o.controller,
             name: `${o.name} \u2014 ward`, auto: true, abilityText: `Ward\u2014${arg}`,
@@ -8593,6 +8594,19 @@
       return true;
     }
 
+    /** Titania, Rugged Rumbler: "Ward—Discard a card or pay {2}." — which of the prices the payer pays (either):
+        the one chosen, null when neither can be paid or they let `what` be countered, or SUSPEND. */
+    _wardEither(pid, o, w, wardName, what, sub, about) {
+      const can = (w.either || []).filter(x => this._wardPayable(pid, o, x));
+      if (!can.length) return null;
+      const options = can.map((x, i) => ({ i, label: x.label })).concat([{ i: can.length, label: `Let ${what} be countered` }]);
+      const got = this._ask(Object.assign({ type: 'mode', playerId: pid, count: 1, purpose: 'wardEither', options }, about || {}, {
+        prompt: `${wardName} — ${(w.either || []).map(x => x.label).join(' or ')}. Which do you pay, or is ${what} countered?` }), sub);
+      if (got === SUSPEND) return SUSPEND;
+      const idx = Array.isArray(got) ? got[0] : got;
+      return can[idx] || null;
+    }
+
     /** The ward price in words, for the question: "{2}", "Pay 3 life", "Collect evidence 4". */
     _wardPriceWords(o, arg, w) {
       if (w.lifePower) return `Pay ${Math.max(0, this.powerOf(o))} life (${o.name}'s power)`;
@@ -8603,6 +8617,8 @@
     _wardPayable(pid, o, w) {
       const p = this.player(pid);
       if (!p || p.hasLost) return false;
+      // (Titania, Rugged Rumbler: "Discard a card or pay {2}" — either will do: either)
+      if (w.either) return w.either.some(x => this._wardPayable(pid, o, x));
       const life = w.lifePower ? Math.max(0, this.powerOf(o)) : w.life || 0;
       if (life && p.life < life) return false;
       if (w.evidence && this._evidenceTotal(pid, null) < w.evidence) return false;
@@ -8661,7 +8677,14 @@
           sourceCard: o.faceDown ? null : o.card || null, sourceText: `Ward—${arg}` };
         if (!this._wardPayable(pid, o, w)) { failed = { o, why: `${payer.name} can't pay ${this._wardPriceWords(o, arg, w)}` }; break; }
         let got;
-        if (w.discard || w.sacrifice) {
+        // (Titania, Rugged Rumbler: one price or the other — chosen first, then paid as that price is: either)
+        if (w.either) {
+          const pick = this._wardEither(pid, o, w, wardName, what, sub + ':wardE' + k, about);
+          if (pick === SUSPEND) return SUSPEND;
+          if (!pick) { failed = { o, why: `${payer.name} doesn't pay` }; break; }
+          wards[k] = { o, arg: pick.label, w: Object.assign({ text: pick.label }, pick) };
+          got = pick.discard || pick.sacrifice ? this._wardAskChoice(pid, wards[k].w, wardName, what, sub + ':ward' + k, about) : true;
+        } else if (w.discard || w.sacrifice) {
           got = this._wardAskChoice(pid, Object.assign({ text: String(arg).replace(/\.$/, '') }, w), wardName, what, sub + ':ward' + k, about);
         } else {
           const price = this._wardPriceWords(o, arg, w);
@@ -18331,6 +18354,13 @@
             const x = t.kind === 'object' && this.obj(t.id);
             return !!x && x.zone === 'battlefield' && x.controller === o.controller && !!(this.characteristics(x) || {}).isCreature;
           })) continue;
+          // Danitha, Spear of Agony: "a spell that targets an opponent or a creature an opponent controls" (targetsOppOrOppCreature)
+          if (ab.targetsOppOrOppCreature && !((data.spell && data.spell.targets) || []).some(t => {
+            const opp = (pid) => this.opponentsOf(o.controller).some(q => q.id === pid);
+            if (t.kind === 'player') return opp(t.id);
+            const x = t.kind === 'object' && this.obj(t.id);
+            return !!x && x.zone === 'battlefield' && opp(x.controller) && !!(this.characteristics(x) || {}).isCreature;
+          })) continue;
           // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
           if (ab.targetsOnlySelf && !((tsItem && tsItem.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
           /* Zevlor, Elturel Exile: "targets only a single opponent or a single permanent an opponent controls" — one of
@@ -18460,6 +18490,8 @@
              opponent" — among those at that one (attackersOfTypeHere) */
           // Landroval, Horizon Witness: "two or more creatures you control attack a player" — that many at that one (attackersHereMin)
           if (ab.attackersHereMin && (data.attackers || []).length < ab.attackersHereMin) continue;
+          // Whirlwind, Killer Cyclone: "creatures you control that entered this turn" — one of them at that one (attackersHereEntered)
+          if (ab.attackersHereEntered && !(data.attackers || []).some(x => x && typeof x === 'object' && x.entered === this.turn)) continue;
           // (Crimson Cowl, Master of Evil: "nontoken Villains" — attackersHereNontoken)
           if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && !(ab.attackersHereNontoken && x.isToken) && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
           // Mila, Crafty Companion: an attack on at least one of this player's planeswalkers (attacksYourPlaneswalkers)
@@ -23681,6 +23713,21 @@
           const payer = this.player(e.payer);
           if (!payer || payer.hasLost) break;
           const wardName = src ? `${src.name}'s ward` : 'Ward';
+          // (Titania, Rugged Rumbler: "Discard a card or pay {2}." — one or the other, chosen first: either)
+          if (e.either) {
+            const so = item.obj || (item.objId && this.obj(item.objId));
+            const what = item.kind === 'spell' ? item.name : so ? `${so.name}'s ability` : 'the ability';
+            const pick = src ? this._wardEither(payer.id, src, e, wardName, what, 'wardE', { objId: src.id, stackId: item.id }) : null;
+            if (pick === SUSPEND) return SUSPEND;
+            if (!pick) { item.countered = true; this.logEvent('ward', `${what} is countered by ${wardName} — ${payer.name} doesn't pay.`); break; }
+            const w = Object.assign({ text: pick.label }, pick);
+            if (!(w.discard || w.sacrifice)) { if (!this._payWardPrice(payer.id, src, w, what)) item.countered = true; break; }
+            const got = this._wardAskChoice(payer.id, w, wardName, item.name, 'ward', { stackId: item.id });
+            if (got === SUSPEND) return SUSPEND;
+            if (got && this._wardPayChosen(payer.id, w, got)) this.logEvent('ward', `${payer.name} pays ${wardName}.`);
+            else { item.countered = true; this.logEvent('ward', `${item.name} is countered by ${wardName}.`); }
+            break;
+          }
           /* a triggered ability's ward, whatever the price: asked whole, or it is countered (_applyWard) */
           if (!(e.discard || e.sacrifice || e.blight)) {
             const so = item.obj || (item.objId && this.obj(item.objId));
@@ -32396,6 +32443,13 @@
           }
           const to = firstObj();
           if (!src || src.zone !== 'battlefield' || !to) break;
+          // Daughter of Autumn: "… to target white creature this turn is dealt to Daughter of Autumn instead" (toSelf)
+          if (e.toSelf) {
+            if (to === src || to.zone !== 'battlefield') break;
+            (to.redirectNext = to.redirectNext || []).push({ n: n(e.n) || 1, to: src.id, turn: this.turn });
+            this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${to.name} this turn goes to ${src.name} instead.`);
+            break;
+          }
           (src.redirectNext = src.redirectNext || []).push({ n: n(e.n) || 1, to: to.id, turn: this.turn });
           this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${src.name} this turn goes to ${to.name} instead.`);
           break;

@@ -206,6 +206,17 @@
       mana; N life, or life equal to its power; poison counters; discarding or sacrificing cards of a kind. */
   function wardPrice(arg) {
     const s = String(arg || '').trim().replace(/\.$/, '');
+    /* Titania, Rugged Rumbler: "Ward—Discard a card or pay {2}." — one price or the other, the payer's choice (either);
+       (not Saruman of Many Colors' "an enchantment, instant, or sorcery card": a list inside one price) */
+    const or = s.match(/^((?:discard|sacrifice|pay) [^,]+?) or ((?:discard|sacrifice|pay) .+)$/i);
+    if (or) {
+      const each = [or[1], or[2]].map(x => {
+        const y = x.replace(/^pay ((?:\{[^}]+\})+)$/i, '$1');
+        const w = wardPrice(y);
+        return w && !w.either ? Object.assign({ label: x.charAt(0).toUpperCase() + x.slice(1) }, w) : null;
+      });
+      return each.every(Boolean) ? { either: each } : null;
+    }
     // Ovika, Enigma Goliath: "{3}, Pay 3 life." — every part of it, or none
     const parts = s.split(/,\s*(?=pay\b|\{|discard\b|sacrifice\b)/i);
     if (parts.length > 1) {
@@ -389,6 +400,9 @@
         else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s+([-a-z' ]*?)\s*cards? from your graveyard$/i)))
           // (Ludevic, Necrogenius, Necropolis Fiend: "{X}…, Exile X creature cards from your graveyard" — the X paid)
           ex = { what: 'graveyard', n: /^X$/.test(m[1]) && /\{X\}/.test(str) ? 'X' : WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
+        // Gallia, Tragic Host: "Exile another creature card from your graveyard" — never the card itself (_exileCostPool)
+        else if ((m = what.match(/^another\s+([-a-z' ]*?)\s*card from your graveyard$/i)))
+          ex = { what: 'graveyard', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'card' };
         // Araumi of the Dead Tide: "Exile cards from your graveyard equal to the number of opponents you have" (n 'opponents')
         else if (/^cards from your graveyard equal to the number of opponents you have$/i.test(what)) ex = { what: 'graveyard', n: 'opponents', filter: 'card' };
         // Osgir, the Reconstructor: "Exile an artifact card with mana value X from your graveyard" — X the one paid (mvX)
@@ -2857,8 +2871,9 @@
       make: () => ({ op: 'transformAll', scope: { who: 'you', what: 'artifact', token: true, subtype: 'incubator' } }) },
     /* Unearth-style: it gets itself back. */
     // (Winter Soldier, Icy Assassin: "with a finality counter on him" — read as "on CARDNAME")
-    { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with a finality counter on (?:it|him|her|them|CARDNAME))?\.?$/i,
-      make: (m) => (m[2] ? { op: 'returnSelfFromGrave', tapped: !!m[1], counter: 'finality' } : { op: 'returnSelfFromGrave', tapped: !!m[1] }) },
+    // (Gallia, Tragic Host: "tapped with a +1/+1 counter on her")
+    { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with an? (finality|\+1\/\+1) counter on (?:it|him|her|them|CARDNAME))?\.?$/i,
+      make: (m) => (m[2] ? { op: 'returnSelfFromGrave', tapped: !!m[1], counter: m[3].toLowerCase() } : { op: 'returnSelfFromGrave', tapped: !!m[1] }) },
     // Mister Immortal: "Return this card from your graveyard or from exile to the battlefield tapped." (fromZones)
     { re: /^Return (?:CARDNAME|this card) from your graveyard or from exile to the battlefield( tapped)?\.?$/i,
       make: (m) => ({ op: 'returnSelfFromGrave', tapped: !!m[1], fromZones: ['graveyard', 'exile'] }) },
@@ -6193,6 +6208,10 @@
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
+    /* Daughter of Autumn: "The next 1 damage that would be dealt to target white creature this turn is dealt to Daughter of
+       Autumn instead." — the target shielded, itself taking it (toSelf) */
+    { re: /^The next (\w+) damage that would be dealt to (target [a-z ]*?creature) this turn is dealt to (?:this creature|CARDNAME) instead\.?$/i,
+      make: (m) => { const t = targetSpec(m[2]); return typeof num(m[1]) === 'number' && t && !t.unknown ? { op: 'redirectNextDamage', n: num(m[1]), toSelf: true, targets: [t] } : null; } },
     /* Razia, Boros Archangel: "The next 3 damage that would be dealt to target creature you control this turn is dealt to
        another target creature instead." — the first target shielded, the second takes it (ofFirstTarget) */
     { re: /^The next (\w+) damage that would be dealt to target creature you control this turn is dealt to another target creature instead\.?$/i,
@@ -16072,6 +16091,10 @@
     // Crimson Cowl, Master of Evil: "Whenever one or more nontoken Villains you control attack a player" (attackersHereNontoken)
     { re: /^Whenever one or more nontoken ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'anyPlayerAttacksPlayer',
       extraOf: (m) => ({ attackerIsYou: true, attackersOfTypeHere: singularType(m[1]), attackersHereNontoken: true }) },
+    /* Whirlwind, Killer Cyclone: "Whenever one or more creatures you control that entered this turn attack a player," —
+       once for each player attacked by one of them (attackersHereEntered) */
+    { re: /^Whenever one or more creatures you control that entered this turn attack a player,? /i, event: 'anyPlayerAttacksPlayer',
+      extra: { attackerIsYou: true, attackersHereEntered: true } },
     // Landroval, Horizon Witness: "Whenever two or more creatures you control attack a player" — at that one (attackersHereMin)
     { re: /^Whenever (two|three|four|five) or more creatures you control attack a player,? /i, event: 'anyPlayerAttacksPlayer',
       extraOf: (m) => ({ attackerIsYou: true, attackersHereMin: num(m[1]) }) },
@@ -16324,6 +16347,8 @@
     // Orvar, the All-Form: "Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control," (targetsYourOther)
     { re: /^Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control,? /i, event: 'youCastSpell',
       extra: { spellFilter: 'instant or sorcery', targetsYourOther: true } },
+    // Danitha, Spear of Agony: "Whenever you cast a spell that targets an opponent or a creature an opponent controls" (targetsOppOrOppCreature)
+    { re: /^Whenever you cast a spell that targets an opponent or a creature an opponent controls,? /i, event: 'youCastSpell', extra: { targetsOppOrOppCreature: true } },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"
     { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
     // Folk Hero: "Whenever you cast a spell that shares a creature type with this creature"

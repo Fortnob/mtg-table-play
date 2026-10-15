@@ -294,7 +294,10 @@ module.exports = (test) => {
 
   test('Audit: a ward price no part of the table takes leaves the card to its players', (mk, t) => {
     const a = (n) => mk().MTG.oracle.analyze(require('../harness').card(n));
-    t.no(a('Titania, Rugged Rumbler').fullyAutomated, '"Discard a card or pay {2}"');
+    // ("Discard a card or pay {2}" is taken now: Titania, Rugged Rumbler — either)
+    t.ok(a('Titania, Rugged Rumbler').fullyAutomated, '"Discard a card or pay {2}"');
+    t.eq(mk().MTG.oracle.wardPrice('Exile a card from your graveyard'), null, 'a price nothing takes');
+    t.eq(mk().MTG.oracle.wardPrice('Discard a card or exile a card from your graveyard'), null, 'nor one half of it');
     // ("Ward—Blight 2" is taken now: Auntie Ool, Cursewretch)
     t.eq(JSON.stringify(mk().MTG.oracle.wardPrice('Blight 2')), '{"blight":2}');
     // and "Ward {1}, haste" is {1}, the haste its own keyword

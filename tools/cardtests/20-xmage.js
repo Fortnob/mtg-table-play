@@ -65242,4 +65242,168 @@ module.exports = (test) => {
     T3.toMain('A', 'end');
     t.no(T3.g.activateAbility('A', s3.id, 0, { auto: true, targets: [{ kind: 'object', id: b3.id }] }), 'Lady Sun: not after attackers are declared');
   });
+  test('Commanders: Titania, Rugged Rumbler — Ward—Discard a card or pay {2}: the payer picks one, or the spell is countered', (mk, t) => {
+    t.auto('Titania, Rugged Rumbler');
+    // cast: discard a card or pay {2} more
+    const T0 = mk();
+    const ti0 = T0.hand('A', 'Titania, Rugged Rumbler');
+    const fodder = T0.hand('A', 'Island');
+    T0.mana('A', '2B2');
+    T0.cast('A', ti0, { additionalChoice: 1 });
+    t.zone(ti0, 'battlefield', 'Titania: cast paying {2} more');
+    t.zone(fodder, 'hand', 'Titania: no card discarded');
+    // ward, discard chosen
+    const T = mk();
+    T.toMain('B');
+    const ti = T.bf('A', 'Titania, Rugged Rumbler');
+    const card = T.hand('B', 'Grizzly Bears');
+    let q = null;
+    T.answer('mode', (ch) => { q = ch; return { modes: [ch.options.findIndex(o => /^Discard/.test(o.label))] }; });
+    T.answer('choose', (ch) => ({ picks: ch.purpose === 'wardPay' ? [card.id] : [] }));
+    T.mana('B', '1BB2');
+    T.cast('B', T.hand('B', 'Murder'), { targets: [ti] });
+    t.ok(q && q.purpose === 'wardEither', 'Titania: which price is asked');
+    t.eq(q.options.length, 3, 'Titania: discard, pay {2}, or let it be countered');
+    t.zone(card, 'graveyard', 'Titania: the card discarded');
+    t.zone(ti, 'graveyard', 'Titania: Murder resolves');
+    // ward, {2} chosen
+    const T2 = mk();
+    T2.toMain('B');
+    const ti2 = T2.bf('A', 'Titania, Rugged Rumbler');
+    const c2 = T2.hand('B', 'Grizzly Bears');
+    T2.answer('mode', (ch) => ({ modes: [ch.options.findIndex(o => /\{2\}/.test(o.label))] }));
+    T2.mana('B', '1BB2');
+    T2.cast('B', T2.hand('B', 'Murder'), { targets: [ti2] });
+    t.zone(c2, 'hand', 'Titania: {2} paid, no card discarded');
+    t.zone(ti2, 'graveyard', 'Titania: Murder resolves');
+    t.eq(T2.player('B').pool.total(), 0, 'Titania: the {2} spent');
+    // ward, declined: countered
+    const T3 = mk();
+    T3.toMain('B');
+    const ti3 = T3.bf('A', 'Titania, Rugged Rumbler');
+    T3.hand('B', 'Grizzly Bears');
+    T3.answer('mode', (ch) => ({ modes: [ch.options.length - 1] }));
+    T3.mana('B', '1BB2');
+    T3.cast('B', T3.hand('B', 'Murder'), { targets: [ti3] });
+    t.zone(ti3, 'battlefield', 'Titania: not paid — countered');
+    // neither payable: countered, nothing asked
+    const T4 = mk();
+    T4.toMain('B');
+    const ti4 = T4.bf('A', 'Titania, Rugged Rumbler');
+    for (const c of T4.zone('B', 'hand').slice()) T4.g.moveObject(c, 'graveyard');
+    T4.mana('B', '1BB');
+    const n4 = T4.asked.length;
+    T4.cast('B', T4.hand('B', 'Murder'), { targets: [ti4] });
+    t.zone(ti4, 'battlefield', 'Titania: nothing to pay with — countered');
+    t.no(T4.asked.slice(n4).some(ch => ch.purpose === 'wardEither'), 'Titania: nothing asked');
+    // its controller's own spell: no ward
+    const T5 = mk();
+    const ti5 = T5.bf('A', 'Titania, Rugged Rumbler');
+    T5.mana('A', 'G');
+    T5.cast('A', T5.hand('A', 'Giant Growth'), { targets: [ti5] });
+    t.eq(T5.g.powerOf(ti5), 8, "Titania: its controller's spell — no ward");
+  });
+  test("Commanders: Whirlwind, Killer Cyclone — creatures that entered this turn attack a player: a creature of that player's can't block", (mk, t) => {
+    t.auto('Whirlwind, Killer Cyclone');
+    const M = mk({ library: Array(30).fill('Island'), life: 40, players: ['A', 'B', 'C'] });
+    const g = M.g;
+    const ww = M.bf('A', 'Whirlwind, Killer Cyclone', { etb: true }); M.resolve();
+    const old = M.bf('A', 'Grizzly Bears');
+    const wall = M.bf('B', 'Wall of Stone');
+    const bearB = M.bf('B', 'Grizzly Bears');
+    const elfC = M.bf('C', 'Llanowar Elves');
+    const asked = [];
+    M.answer('pickTarget', (ch) => { asked.push(ch); return { targets: [{ kind: 'object', id: wall.id }] }; });
+    M.answer('declareAttackers', () => [{ attackerId: ww.id, defenderId: 'B' }, { attackerId: old.id, defenderId: 'C' }]);
+    M.toMain('A', 'declareBlockers');
+    t.eq(asked.length, 1, 'Whirlwind: one trigger — for B only (the Bears at C did not enter this turn)');
+    const ids = asked[0] ? JSON.stringify(asked[0].options || asked[0]) : '';
+    t.ok(ids.includes(wall.id) && ids.includes(bearB.id), "Whirlwind: B's creatures offered");
+    t.no(ids.includes(elfC.id), "Whirlwind: not C's");
+    t.no(g.canBlock(wall, ww), "Whirlwind: the Wall can't block");
+    t.ok(g.canBlock(bearB, ww), 'Whirlwind: the Bears can');
+    // nothing entered this turn: no trigger
+    const M2 = mk({ library: Array(30).fill('Island') });
+    const w2 = M2.bf('A', 'Whirlwind, Killer Cyclone');
+    M2.bf('B', 'Wall of Stone'); M2.bf('B', 'Grizzly Bears');
+    let n2 = 0;
+    M2.answer('pickTarget', () => { n2++; return {}; });
+    M2.answer('declareAttackers', () => [{ attackerId: w2.id, defenderId: 'B' }]);
+    M2.toMain('A', 'declareBlockers');
+    t.eq(n2, 0, 'Whirlwind: nothing that entered this turn — no trigger');
+  });
+  test('Commanders: Danitha, Spear of Agony — your spell that targets an opponent or their creature: a +1/+1 counter', (mk, t) => {
+    t.auto('Danitha, Spear of Agony');
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const d = T.bf('A', 'Danitha, Spear of Agony');
+    const mine = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Hill Giant');
+    const n = () => d.counters['+1/+1'] || 0;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(n(), 1, 'Danitha: a spell at an opponent');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [theirs] });
+    t.eq(n(), 2, "Danitha: a spell at an opponent's creature");
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [mine] });
+    t.eq(n(), 2, 'Danitha: not at your own creature');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['A'] });
+    t.eq(n(), 2, 'Danitha: not at yourself');
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(n(), 2, 'Danitha: not a spell with no target');
+    // an opponent's spell at A: nothing
+    T.nextTurn('B');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(n(), 2, "Danitha: an opponent's spell");
+  });
+  test('Commanders: Gallia, Tragic Host — {4}{B}, exile another creature card from your graveyard: back tapped with a +1/+1 counter', (mk, t) => {
+    t.auto('Gallia, Tragic Host');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    const ga = T.grave('A', 'Gallia, Tragic Host');
+    const isl = T.grave('A', 'Island');
+    T.mana('A', '4B');
+    t.no(g.castSpell('A', ga.id, { auto: true, via: 'ability:0' }), 'Gallia: no other creature card — not activated');
+    const bears = T.grave('A', 'Grizzly Bears');
+    T.mana('A', '4B');
+    t.ok(g.altUsesFor('A', ga.id).some(u => u.via === 'ability:0'), 'Gallia: offered from the graveyard');
+    t.ok(g.castSpell('A', ga.id, { auto: true, via: 'ability:0' }), 'Gallia: activated from the graveyard');
+    T.resolve();
+    t.zone(bears, 'exile', 'Gallia: the Bears exiled');
+    t.zone(isl, 'graveyard', 'Gallia: not the Island');
+    t.zone(ga, 'battlefield', 'Gallia: back');
+    t.ok(ga.tapped, 'Gallia: tapped');
+    t.eq(ga.counters['+1/+1'], 1, 'Gallia: with a +1/+1 counter');
+    t.eq(g.powerOf(ga), 3);
+    // on the battlefield: not from there
+    T.grave('A', 'Hill Giant');
+    T.mana('A', '4B');
+    t.no(g.activateAbility('A', ga.id, 0, { auto: true }), 'Gallia: not from the battlefield');
+  });
+  test('Commanders: Daughter of Autumn — {W}: the next 1 damage to target white creature this turn is dealt to her instead', (mk, t) => {
+    t.auto('Daughter of Autumn');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const d = T.bf('A', 'Daughter of Autumn');
+    const knight = T.bf('A', 'Benalish Knight');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'W');
+    t.no(g.activateAbility('A', d.id, 0, { auto: true, targets: [{ kind: 'object', id: bears.id }] }), 'Daughter: not a green creature');
+    T.activate('A', d, 0, { targets: [knight] });
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [knight] });
+    t.eq(knight.damage || 0, 1, 'Daughter: the Knight takes 1');
+    t.eq(d.damage || 0, 1, 'Daughter: she takes 1 instead');
+    // spent: the next damage to the Knight is the Knight's
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [knight] });
+    t.zone(knight, 'graveyard', 'Daughter: the shield used up');
+    t.eq(d.damage || 0, 1);
+    // gone for the next turn
+    const T2 = mk({ library: Array(20).fill('Mountain') });
+    const d2 = T2.bf('A', 'Daughter of Autumn');
+    const k2 = T2.bf('A', 'Benalish Knight');
+    T2.mana('A', 'W');
+    T2.activate('A', d2, 0, { targets: [k2] });
+    T2.nextTurn('B');
+    T2.mana('B', 'R'); T2.cast('B', T2.hand('B', 'Shock'), { targets: [k2] });
+    t.zone(k2, 'graveyard', 'Daughter: this turn only');
+    t.eq(d2.damage || 0, 0);
+  });
 };
