@@ -1594,6 +1594,12 @@
       if (!os.length || (s.min === 0 && src && src.zone === 'battlefield' && this.rating(os[0]) <= this.permanentValue(src))) return { picks: [] };
       return { picks: [os[0].id] };
     },
+    // Imbraham, Dean of Theory: a card of ours from exile into our hand — always, the best one
+    exiledCounteredToHand(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
+      return { picks: os.length ? [os[0].id] : [] };
+    },
     // Lynde, Cheerful Tormentor: a Curse off us and onto an opponent, and two cards — always, the worst Curse first
     curseToOpponent(s) {
       const g = this.game;

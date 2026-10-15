@@ -4312,6 +4312,11 @@
         const gy = ((this.zones[pid] || {}).graveyard || []).filter(o => this._cardFitsWords(o, v.graveMvDistinct));
         return new Set(gy.map(o => (o.card && o.card.cmc) || 0)).size * mult;
       }
+      // Kianne, Dean of Substance: "each different mana value among nonland cards you own in exile with study counters on them" (exileMvDistinct)
+      if (v.exileMvDistinct) {
+        const ex = ((this.zones[pid] || {}).exile || []).filter(o => o.owner === pid && Number((o.counters || {})[v.counter]) > 0 && this._cardFitsWords(o, v.exileMvDistinct));
+        return new Set(ex.map(o => (o.card && o.card.cmc) || 0)).size * mult;
+      }
       // Ulamog, the Defiler: the greatest mana value among cards in exile, anyone's; face down, none (greatestMvExile)
       if (v.greatestMvExile) {
         let best = 0;
@@ -20325,7 +20330,8 @@
         }
         // Aclazotz: "for each opponent who can't" discard (couldNot)
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
-        if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
+        // (Kianne, Dean of Substance: cards you own in exile with study counters — exileMvDistinct)
+        if (v && typeof v === 'object' && (v.sum || v.attachedOf || v.exileMvDistinct)) return this._countValue(v, ctx.controller, src);
         // Glissa Sunseeker: "the amount of unspent mana you have" (unspentMana)
         if (v && typeof v === 'object' && v.unspentMana) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
@@ -29107,7 +29113,10 @@
         case 'permanentFromHand': {
           // (Braids, Conjurer Adept: "that player" — whose upkeep it is, triggerPlayer)
           // (Círdan the Shipwright: "each player who received no votes" — those players: pids)
-          const who = e.who === 'each' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && (!e.pids || e.pids.includes(p.id))) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
+          // (Iwamori of the Open Fist: "each opponent may put" — opponents)
+          const who = e.who === 'each' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && (!e.pids || e.pids.includes(p.id)))
+            : e.who === 'opponents' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && p.id !== ctx.controller)
+            : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
           // Kynaios and Tiro of Meletis: who put one, kept across the questions (notePut)
           const putBy = e.notePut && this.resolving ? ((this.resolving.marks = this.resolving.marks || {}).putBy = this.resolving.marks.putBy || []) : null;
           const lastPut0 = this._lastPut;
@@ -30957,6 +30966,8 @@
             // "exile the top two cards of your library face down" (Gandalf, Goblins' Bane — Flameshape: "Look at …" first: look)
             if (e.faceDown) { o.faceDownExile = true; o.lookableBy = e.look ? ctx.controller : null; }
             // Flamewar, Streetwise Operative: "Put an intel counter on each of them." (counter)
+            // (Kianne, Dean of Substance: "If it's a land card, put it into your hand. Otherwise, put a study counter on it." — landToHand)
+            if (e.landToHand && o.zone === 'exile' && (o.analysis() || {}).isLand) { this.moveObject(o, 'hand'); continue; }
             if (e.counter && o.zone === 'exile') { o.counters = o.counters || {}; o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + 1; }
             // "cards exiled with this enchantment" (Valakut Exploration)
             if (src) o.exiledWithId = src.id;
@@ -34737,7 +34748,8 @@
         /* "Change the target of target spell or ability with a single
            target", "You may choose new targets for target spell". */
         case 'retarget': {
-          const t = targets.find(x => x.kind === 'stack');
+          // (Speedball, New Warrior: "that spell" — the one that set it off: thatSpell)
+          const t = e.thatSpell ? { kind: 'stack', id: (ctx.triggerData || {}).stackId } : targets.find(x => x.kind === 'stack');
           const item = t && this.stack.find(st => st.id === t.id);
           if (!item) break;
           const specs = [];
@@ -35187,7 +35199,16 @@
           break;
         }
         case 'exiledCounteredToHand': {
-          const got = this.zones[ctx.controller].exile.filter(c => c.owner === ctx.controller && Number((c.counters || {})[e.counter]) > 0);
+          let got = this.zones[ctx.controller].exile.filter(c => c.owner === ctx.controller && Number((c.counters || {})[e.counter]) > 0);
+          // Imbraham, Dean of Theory: "you may put a card you own in exile with a study counter on it into your hand" (one)
+          if (e.one && got.length) {
+            const pick = this._choose({ playerId: ctx.controller, purpose: 'exiledCounteredToHand', kind: 'objects', zone: 'exile',
+              items: this._chooseItems(got), min: 0, max: 1, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put a card you own in exile with a ${e.counter} counter on it into your hand.` }, 'ecth');
+            if (pick === SUSPEND) return SUSPEND;
+            const ids = (pick && pick.picks) || [];
+            got = got.filter(c => ids.includes(c.id)).slice(0, 1);
+          }
           for (const c of got) this.moveObject(c, 'hand');
           if (got.length) this.logEvent('rules', `${me.name} puts ${got.length === 1 ? 'a card' : got.length + ' cards'} with ${e.counter} counters from exile into their hand.`);
           break;
@@ -37720,7 +37741,9 @@
         if (want === 'colorles') { if ((a.colors || []).length) return false; continue; }
         // Captain America, Skybound: "each attacking creature"
         if (want === 'attacking') { if (!o.attacking) return false; continue; }
-        const cw = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[want];
+        // (Iwamori of the Open Fist: "a legendary creature card")
+        if (want === 'legendary') { if (!(a.supertypes || []).some(t => String(t).toLowerCase() === 'legendary')) return false; continue; }
+        const cw ={ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[want];
         if (cw) { if (!(a.colors || []).includes(cw)) return false; continue; }
         if (want.startsWith('non')) {
           const bare = want.replace(/^non-?/, '');

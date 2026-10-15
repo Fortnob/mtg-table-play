@@ -3990,6 +3990,8 @@
     // Tamiyo, Upriser Crowned: "tap those creatures and put a stun counter on each of them" — the ones that dealt the damage
     { re: /^Tap those creatures and put an? ([a-z]+) counter on each of them\.?$/i,
       make: (m) => [{ op: 'tap', scope: 'triggerBatch' }, { op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'triggerBatch' }] },
+    // Hapatra, the Desert Frost: "Put a stun counter on each of those creatures." — the ones just aimed at (eachTarget)
+    { re: /^Put an? (stun|\+1\/\+1|-1\/-1) counter on each of those creatures\.?$/i, make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'eachTarget' }) },
     /* Unbreakable Formation: "each of those creatures" */
     { re: /^Put a \+1\/\+1 counter on each of those creatures and they gain ([a-z ,]+?) until end of turn\.?$/i,
       make: (m) => {
@@ -5081,6 +5083,12 @@
     // Livio, Oathsworn Sentinel: "Return all exiled cards with aegis counters on them to the battlefield under their owners' control." (exiledCounteredToBf)
     { re: /^Return all exiled cards with ([a-z]+) counters on them to the battlefield under their owners'? control\.?$/i,
       make: (m) => ({ op: 'exiledCounteredToBf', counter: m[1].toLowerCase() }) },
+    /* Imbraham, Dean of Theory: "Exile the top X cards of your library and put a study counter on each of them. Then you
+       may put a card you own in exile with a study counter on it into your hand." (impulse counter; exiledCounteredToHand one) */
+    { re: /^Exile the top (X|\w+) cards of your library and put an? ([a-z]+) counter on each of them\.?$/i,
+      make: (m) => ({ op: 'impulse', n: m[1] === 'X' ? 'X' : num(m[1]), play: false, counter: m[2].toLowerCase() }) },
+    { re: /^Then you may put a card you own in exile with an? ([a-z]+) counter on it into your hand\.?$/i,
+      make: (m) => ({ op: 'exiledCounteredToHand', counter: m[1].toLowerCase(), one: true }) },
     // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand." (exiledCounteredToHand)
     { re: /^Put all exiled cards you own with ([a-z]+) counters on them into your hand\.?$/i,
       make: (m) => ({ op: 'exiledCounteredToHand', counter: m[1].toLowerCase() }) },
@@ -6524,6 +6532,9 @@
     // Kynaios and Tiro of Meletis: "Each player may put a land card from their hand onto the battlefield, then each opponent who didn't draws a card." (notePut, drawUnlessPut)
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield, then each opponent who didn'?t draws a card\.?$/i,
       make: (m) => [{ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each', notePut: true }, { op: 'drawUnlessPut' }] },
+    // Iwamori of the Open Fist: "each opponent may put a legendary creature card from their hand onto the battlefield" (who opponents)
+    { re: /^Each opponent may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'opponents' }) },
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each' }) },
     // Nahiri, Forged in Fury: "You may cast Equipment spells this way without paying their mana costs." (freeIfFits)
@@ -6920,6 +6931,8 @@
     /* "Change the target of target spell or ability with a single target." */
     { re: /^Change the target of (target (?:spell|activated ability|triggered ability|spell or ability|instant or sorcery spell)) with a single target\.?$/i,
       make: (m) => ({ op: 'retarget', single: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase().replace(/^target /, '').replace(/ or (?:activated |triggered )?ability/, ''), abilities: /ability/i.test(m[1]) }] }) },
+    // Speedball, New Warrior: "You may choose new targets for that spell." — the one that set it off (thatSpell)
+    { re: /^You may choose new targets for that spell\.?$/i, make: () => ({ op: 'retarget', optional: true, thatSpell: true }) },
     { re: /^You may choose new targets for (target (?:spell|spell or ability|instant or sorcery spell))\.?$/i,
       make: (m) => ({ op: 'retarget', optional: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase().replace(/^target /, '').replace(/ or (?:activated |triggered )?ability/, ''), abilities: /ability/i.test(m[1]) }] }) },
     /* Rishkar's Expertise */
@@ -7772,6 +7785,14 @@
     { re: /^Transform CARDNAME at the beginning of the next upkeep\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, subject: 'self', name: 'Transform it at the next upkeep',
         effects: [{ op: 'transform', self: true, sinceNow: true }] }) },
+    /* Hazezon Tamar: "create X 1/1 Sand Warrior creature tokens that are red, green, and white at the beginning of your
+       next upkeep, where X is the number of lands you control at that time." — counted then (delayed) */
+    { re: /^Create X (\d+\/\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature tokens that are ((?:[a-z]+, )*[a-z]+,? and [a-z]+) at the beginning of your next upkeep, where X is (the number of [a-z ]+?) at that time\.?$/i,
+      make: (m) => {
+        const tok = parseEffectSentence(`Create X ${m[1]} ${m[3]} ${m[2]} creature tokens, where X is ${m[4]}.`);
+        return tok && tok.op === 'createToken' ? { op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true,
+          name: `Create ${m[2]}s`, effects: [Object.assign({}, tok, { text: undefined })] } : null;
+      } },
     // Lukka, Wayward Bonder: "Exile it at the beginning of your next upkeep."
     { re: /^Exile (?:it|that (?:creature|token|permanent)) at the beginning of your next upkeep\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
@@ -9517,6 +9538,9 @@
     // (Oskar, Rubbish Reclaimer: "among cards in your graveyard" — any card)
     if ((m = p.match(/^different mana value among (?:(?:([a-z]+) (?:and\/or|or|and) ([a-z]+)|([a-z]+)) )?cards in your graveyard$/i)))
       return { graveMvDistinct: m[3] ? m[3].toLowerCase() : m[1] ? m[1].toLowerCase() + ' or ' + m[2].toLowerCase() : 'card', mult: k };
+    // Kianne, Dean of Substance: "for each different mana value among nonland cards you own in exile with study counters on them" (exileMvDistinct)
+    if ((m = p.match(/^different mana value among ([a-z]+ )?cards you own in exile with ([a-z]+) counters on them$/i)))
+      return { exileMvDistinct: (m[1] || 'card').trim().toLowerCase(), counter: m[2].toLowerCase(), mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
     // (Whiplash, Vengeful Engineer; Winter Soldier, Icy Assassin: "the number of Equipment attached to him")
     if ((m = p.match(/^(Aura|Equipment) attached to (?:it|him|her|them|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
@@ -11867,6 +11891,10 @@
        put it into your hand." */
     { re: /^Choose target creature card in your graveyard\. If that card'?s mana value is less than or equal to the number of experience counters you have, return it to the battlefield\. Otherwise, put it into your hand\.$/i,
       make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
+    /* Kianne, Dean of Substance: "Exile the top card of your library. If it's a land card, put it into your hand.
+       Otherwise, put a study counter on it." (impulse counter, landToHand) */
+    { re: /^Exile the top card of your library\. If it'?s a land card, put it into your hand\. Otherwise, put an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => [{ op: 'impulse', n: 1, play: false, counter: m[1].toLowerCase(), landToHand: true }] },
     /* Bortuk Bonerattle: "choose target creature card in your graveyard. Return that card to the battlefield if its mana
        value is less than or equal to the number of basic land types among lands you control. Otherwise, put it into your
        hand." — counted as it resolves (experienceReturn, maxMv) */
@@ -14282,7 +14310,7 @@
       if (!prev || prev.op !== 'discard' || !['opponents', 'each'].includes(prev.who)) folded[i] = { op: 'manual', text: e.text };
     });
     folded.forEach((e, i) => {
-      if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets || i === 0) return;
+      if (!e || e.op !== 'counters' || (e.scope !== 'self' && e.scope !== 'lastTarget') || e.targets || i === 0) return;
       const prev = folded[i - 1];
       if (!prev || prev.op !== 'createToken' || (prev.n != null && prev.n !== 1)) return;
       // (Lattice Library: "… on it equal to the number of study counters on this enchantment" — where they go, not what is counted)
@@ -16064,6 +16092,8 @@
       extra: { spellFilter: 'instant or sorcery', targetsYourCreature: true } },
     // Danitha, Sword of Hope: "Whenever you cast an Equipment spell or a spell that targets a creature you control" (equipOrTargetsYours)
     { re: /^Whenever you cast an Equipment spell or a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { equipOrTargetsYours: true } },
+    // Speedball, New Warrior: "Whenever a player casts a spell that targets Speedball" — anyone's (targetsSelf)
+    { re: /^Whenever a player casts a spell that targets (?:this creature|CARDNAME),? /i, event: 'anyCastSpell', extra: { targetsSelf: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
     // Feather, Radiant Arbiter: "Whenever you cast a noncreature spell that targets only Feather"
