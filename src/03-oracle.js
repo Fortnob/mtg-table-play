@@ -881,6 +881,8 @@
         e.copyPt = c[1] + '/' + c[2]; e.addLegendary = true; e.addTypes = ['Creature'].concat(c[3].trim().split(' '));
       }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
+      // Auton Soldier: "it isn't legendary, is an artifact in addition to its other types, and has myriad" — "it" said once
+      else if ((c = ex.match(/^(?:it'?s|is) an? (artifact|enchantment) in addition to its other types/i))) e.addTypes = (e.addTypes || []).concat(c[1][0].toUpperCase() + c[1].slice(1).toLowerCase());
       // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1"; Volrath, the Shapestealer: "it's 7/5" — that size
       // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
       else if ((c = ex.match(/^(?:it|he|she)'?s (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
@@ -918,7 +920,7 @@
       else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
       // (Muddle, the Ever-Changing: "except it has myriad")
       // (Absorbing Man: "he has vigilance")
-      else if ((c = ex.match(/^(?:it|he|she) has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad)(?=,? and |$)/i)))
+      else if ((c = ex.match(/^(?:(?:it|he|she) )?has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad)(?=,? and |$)/i)))
         (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
       else return false;
       ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
@@ -2982,6 +2984,9 @@
        each opponent draws a card and gains 2 life."" — the ability on the creature itself, lasting while the counter does (whileCounter) */
     { re: /^For as long as that creature has an? ([a-z]+) counter on it, it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[2]) ? { op: 'whileCounter', counter: m[1].toLowerCase(), ef: { grantText: m[2] } } : null) },
+    // Minas Morgul, Dark Fortress: "For as long as that creature has a shadow counter on it, it's a Wraith in addition to its other types." (whileCounter)
+    { re: /^For as long as that creature has an? ([a-z]+) counter on it, it'?s an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => ({ op: 'whileCounter', counter: m[1].toLowerCase(), ef: { addSubtypes: [m[2]] } }) },
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
@@ -4277,6 +4282,9 @@
     // Lozhan, Dragons' Legacy: "deals damage equal to that spell's mana value to any target that isn't a commander" (notCommanderTarget)
     { re: /^(?:CARDNAME|It|This creature) deals damage equal to that spell'?s mana value to any target that isn'?t a commander\.?$/i,
       make: () => ({ op: 'damage', n: { ofTrigger: 'mv' }, targets: [Object.assign(targetSpec('any target'), { notCommander: true })] }) },
+    // Alchemist's Talent: "this Class deals damage equal to that spell's mana value to each opponent"
+    { re: /^(?:CARDNAME|It|This (?:creature|Class|enchantment|artifact)) deals damage equal to that spell'?s mana value to each opponent\.?$/i,
+      make: () => ({ op: 'damage', n: { ofTrigger: 'mv' }, each: 'opponent' }) },
     /* Inferno of the Star Mounts: "When its power becomes 20 this way, it deals 20 damage to any target." — the +1/+0
        just given made it exactly 20; a trigger of its own, its target chosen then (reflexive, selfPowerIs) */
     { re: /^When its power becomes (\d+) this way, (?:it|CARDNAME) deals (\d+) damage to any target\.?$/i,
@@ -11281,6 +11289,11 @@
        way, that player loses the game." (revealHandMvLose) */
     { re: /^You may reveal your hand\. If cards with at least (six|seven|five|\d+) different mana values are revealed this way, that player loses the game\.?$/i,
       make: (m) => [{ op: 'revealHandMvLose', n: num(m[1]) }] },
+    /* Descendants' Path: "reveal the top card of your library. If it's a creature card that shares a creature type with a
+       creature you control, you may cast it without paying its mana cost. If you don't cast it, put it on the bottom of your
+       library." (sharesTypeWithYours, elseBottom) */
+    { re: /^Reveal the top card of your library\. If it'?s a creature card that shares a creature type with a creature you control, you may cast it without paying its mana cost\. If you don'?t cast it, put it on the bottom of your library\.?$/i,
+      make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, filter: 'creature', sharesTypeWithYours: true, elseBottom: true }] },
     // Yennett, Cryptic Sovereign: "reveal the top card of your library. You may cast it without paying its mana cost if its mana value is odd. If you don't cast it, draw a card." (mvOdd, elseDraw)
     { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if its mana value is odd\. If you don'?t cast it, draw a card\.?$/i,
       make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, mvOdd: true, elseDraw: 1 }] },
@@ -22988,6 +23001,9 @@
          less, where X is the number of time counters on this enchantment." (grantAltZeroOnce) */
       { re: /^Once each turn, you may pay \{0\} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of ([a-z]+) counters on (?:this enchantment|this artifact|CARDNAME)\.?$/i,
         make: (m) => ({ op: 'grantAltZeroOnce', counter: m[1].toLowerCase() }), auto: true },
+      // Semblance Anvil: "Spells you cast that share a card type with the exiled card cost {2} less to cast." (shareTypeImprinted)
+      { re: /^Spells you cast that share a card type with the exiled card cost \{(\d+)\} less to cast\.?$/i,
+        make: (m) => ({ op: 'costMod', who: 'you', words: 'spell', chosenType: false, amount: -(+m[1]), shareTypeImprinted: true }), auto: true },
       // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
       { re: /^You may pay \{0\} rather than pay the mana cost for ((?:[A-Z][a-z]+ )?(?:creature |artifact |enchantment )?)spells you cast\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: (m[1] || 'card').trim().toLowerCase() || 'card' }), auto: true },

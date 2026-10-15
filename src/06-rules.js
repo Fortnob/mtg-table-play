@@ -3233,7 +3233,8 @@
       // (Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it" — becomeExiledWithCopy)
       // (Feather, Radiant Arbiter: "you may choose any number of other creatures … and pay {2} for each" — copySpellEachOther payEach)
       // (Mairsil, the Pretender: "you may exile an artifact or creature card from your hand or graveyard …" — exileHandGraveCounter)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
+      // (Semblance Anvil, Chrome Mox: "you may exile a nonland card from your hand" — imprintFromHand)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -4233,6 +4234,12 @@
             if (e.other && o === src) continue;
             if (e.chosenType && !(src.chosenCardType ? this._cardTypesOf(o).includes(src.chosenCardType)
               : src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
+            // Semblance Anvil: "that share a card type with the exiled card" — the card it imprinted (shareTypeImprinted)
+            if (e.shareTypeImprinted) {
+              const im = src.imprinted && this.obj(src.imprinted);
+              const its = im && im.zone === 'exile' ? this._cardTypesOf(im) : [];
+              if (!this._cardTypesOf(o).some(t => its.includes(t))) continue;
+            }
             // Brago's Favor: the chosen name; Hymn of the Wilds: the first such spell each turn
             if (e.chosenName && !this._chosenNameOf(src, o)) continue;
             if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
@@ -32110,6 +32117,9 @@
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
             // Yennett, Cryptic Sovereign: "if its mana value is odd" (mvOdd)
             if (e.mvOdd && ((c.card && c.card.cmc) || 0) % 2 !== 1) continue;
+            // Descendants' Path: "that shares a creature type with a creature you control" (sharesTypeWithYours)
+            if (e.sharesTypeWithYours && !this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut &&
+              (this.characteristics(x) || {}).isCreature && this._shareCreatureType(c, x))) continue;
             // Rashmi and Ragavan: "if it's a spell with mana value less than the number of artifacts you control" (belowMv)
             if (e.belowMv != null && !(((c.card && c.card.cmc) || 0) < n(e.belowMv))) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
@@ -32158,6 +32168,14 @@
           // Rashmi, Eternities Crafter: "If you don't cast it, put it into your hand." (elseHand)
           // (Bre of Clan Stoutarm: "Otherwise, put it into your hand." — the card exiled, not cast)
           if (e.elseHand) for (const id of pool) { const c = this.obj(id); if (c && (c.zone === 'library' || (e.from === 'thatCard' && c.zone === 'exile'))) this.moveObject(c, 'hand'); }
+          // Descendants' Path: "If you don't cast it, put it on the bottom of your library." (elseBottom)
+          if (e.elseBottom) for (const id of pool) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'library') continue;
+            const lib = this.zones[c.owner].library;
+            const at = lib.indexOf(c);
+            if (at >= 0) { lib.splice(at, 1); lib.push(c); this.logEvent('rules', `${c.name} goes to the bottom of ${(this.player(c.owner) || {}).name}'s library.`); }
+          }
           // Yennett, Cryptic Sovereign: "If you don't cast it, draw a card." (elseDraw)
           if (e.elseDraw && !(r ? r.marks[slot + 'n'] : castHere)) this._drawCards(me, e.elseDraw);
           // Rashmi and Ragavan: "If you don't cast it this way, you may cast it this turn." — paying for it (elseMayCast)
