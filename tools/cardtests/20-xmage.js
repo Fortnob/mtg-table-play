@@ -51643,6 +51643,8 @@ module.exports = (test) => {
     const T = mk({ library: Array(20).fill('Island') });
     const g = T.g;
     const bolt = T.grave('A', 'Lightning Bolt'), wurm = T.grave('A', 'Craw Wurm'), land = T.grave('A', 'Mountain');
+    // (a second card it could take, so the target is a real choice and asked)
+    const opt = T.grave('A', 'Opt');
     T.grave('B', 'Shock');
     let q = null;
     T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: bolt.id }] }; });
@@ -51652,7 +51654,7 @@ module.exports = (test) => {
     T.mana('A', 'URW2');
     T.cast('A', sh);
     const ids = ((q && q.options) || [])[0].map(x => x.id);
-    t.ok(ids.includes(bolt.id) && !ids.includes(wurm.id) && !ids.includes(land.id), 'only the Bolt can be chosen');
+    t.ok(ids.includes(bolt.id) && ids.includes(opt.id) && !ids.includes(wurm.id) && !ids.includes(land.id), 'only the cheap nonland cards can be chosen');
     t.zone(bolt, 'exile', 'the Bolt exiled');
     t.eq(T.life('B'), 17, 'the copy deals 3');
     const T2 = mk({ library: Array(20).fill('Island') });
