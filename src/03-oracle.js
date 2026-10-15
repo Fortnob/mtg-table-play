@@ -5558,6 +5558,12 @@
     // Two Streams Facility: "each player chooses green anchor or red waterfall" / "… chooses red waterfall, and vice versa"
     { re: /^Each player chooses green anchor or red waterfall\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'choose' }) },
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
+    // Mount Keralia: "prevent all damage that planes named Mount Keralia would deal this game to permanents you control"
+    { re: /^Prevent all damage that planes named CARDNAME would deal this game to permanents you control\.?$/i,
+      make: () => ({ op: 'planar', what: 'hold', kind: 'planeShield', who: 'you', forGame: true }) },
+    // Talon Gates: "remove two time counters from each suspended card you own"
+    { re: /^Remove (two|three|a|one) time counters? from each suspended card you own\.?$/i,
+      make: (m) => ({ op: 'planar', what: 'untime', n: /^(?:a|one)$/i.test(m[1]) ? 1 : num(m[1]) }) },
     // Selesnya Loft Gardens: "until end of turn, whenever you tap a land for mana, add one mana of any type that land produced"
     { re: /^Until end of turn, whenever you tap a land for mana, add one mana of any type that land produced\.?$/i,
       make: () => ({ op: 'extraManaThisTurn', filter: 'land', sameType: true, who: 'you' }) },
@@ -13712,6 +13718,18 @@
       make: () => [{ op: 'chooseColor' },
         { op: 'counters', kind: '+1/+1', n: { devotionChosen: true, mult: 1 }, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], scope: null },
         { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true, notTarget: true }] },
+    // Glimmervoid Basin: "choose target creature. Each player except that creature's controller creates a token that's a copy of that creature."
+    { re: /^Choose target creature\. Each player except that creature'?s controller creates a token that'?s a copy of that creature\.?$/i,
+      make: () => [{ op: 'planar', what: 'copyForOthers', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }] },
+    /* Caught in a Parallel Universe: "each player chooses a creature controlled by the player to their left. Each player
+       creates a token that's a copy of the creature they chose, except it has menace." */
+    { re: /^Each player chooses a creature controlled by the player to their left\. Each player creates a token that'?s a copy of the creature they chose, except it has (menace|haste|flying|trample)\.?$/i,
+      make: (m) => [{ op: 'planar', what: 'parallel', grant: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] }] },
+    /* Human—Time Lord Meta-Crisis: "each player chooses one or two creatures they control. Each player creates a token
+       that's a copy of the first creature they chose, except it isn't legendary. Then each player who chose a second
+       creature puts a number of +1/+1 counters on the token they created equal to the second creature's power." */
+    { re: /^Each player chooses one or two creatures they control\. Each player creates a token that'?s a copy of the first creature they chose, except it isn'?t legendary\. Then each player who chose a second creature puts a number of \+1\/\+1 counters on the token they created equal to (?:the second creature'?s power|the power of the second creature they chose)\.?$/i,
+      make: () => [{ op: 'planar', what: 'metaCrisis' }] },
     // Norn's Dominion: "destroy each nonland permanent without a fate counter on it, then remove all fate counters from all permanents"
     { re: /^Destroy each nonland permanent without an? ([a-z]+) counter on it, then remove all \1 counters from all permanents\.?$/i,
       make: (m) => [{ op: 'destroyAll', what: 'nonland permanent', withoutCounter: m[1].toLowerCase() }, { op: 'planar', what: 'clearCounters', kind: m[1].toLowerCase() }] },
@@ -17767,6 +17785,8 @@
     { re: /^At the beginning of your next end step(?:,| )/i, event: 'yourEndStep' },
     { re: /^At the beginning of the next end step(?:,| )/i, event: 'eachEndStep' },
     { re: /^At the beginning of your next main phase(?:,| )/i, event: 'yourMain1' },
+    // Stensia (a plane): "Whenever a creature deals damage to one or more players for the first time each turn," (creatureFirstHitsPlayer)
+    { re: /^Whenever a creature deals damage to one or more players for the first time each turn,? /i, event: 'creatureFirstHitsPlayer', aboutObject: true },
     // Two Streams Facility (a plane): "at the beginning of the first upkeep of the game" — turn 1's (firstUpkeepOfGame)
     { re: /^At the beginning of the first upkeep of the game,? /i, event: 'eachUpkeep', extra: { firstUpkeepOfGame: true } },
     // We Hope You Like Squirrels: "At the beginning of each player's upkeep and whenever a player casts a spell," — two moments, one ability
@@ -23967,6 +23987,9 @@
       // TARDIS Bay: "The first spell you cast during each of your turns with mana value 2 or greater has cascade."
       { re: /^The first spell you cast during each of your turns with mana value (\d+) or greater has cascade\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', minMv: +m[1], yourTurn: true, firstMinMv: true }), auto: true },
+      // Edge of Malacol: "If a creature you control would untap during your untap step, put two +1/+1 counters on it instead."
+      { re: /^If a creature you control would untap during your untap step, put (two|three|a) \+1\/\+1 counters? on it instead\.?$/i,
+        make: (m) => ({ op: 'planarRule', rule: 'untapToCounters', n: /^a$/i.test(m[1]) ? 1 : num(m[1]) }), auto: true },
       // Two Streams Facility: by what each player last chose (stream)
       { re: /^Each player who last chose green anchor may play an additional land during each of their turns\.?$/i,
         eff: { op: 'extraLand', n: 1, stream: 'anchor' }, auto: true },

@@ -524,6 +524,32 @@
       }
       return false;
     },
+    /** Edge of Malacol: "If a creature you control would untap during your untap step, put two +1/+1 counters on it instead." */
+    _planarUntapInstead(o) {
+      if (!(this.characteristics(o) || {}).isCreature) return false;
+      for (const pl of this.facePlanes()) {
+        for (const e of this._staticOpsAll(pl, 'planarRule')) {
+          if (e.rule !== 'untapToCounters' || pl.controller !== o.controller) continue;
+          this.addCounters(o, '+1/+1', e.n || 2);
+          this.logEvent('step', `${pl.name}: ${o.name} stays tapped and gets ${e.n || 2} +1/+1 counters instead.`);
+          return true;
+        }
+      }
+      return false;
+    },
+    /** Mount Keralia: damage a plane of that name would deal to a shielded player's permanents is prevented. */
+    _planarShielded(source, o) {
+      if (!source || !isPlanarCard(source.card)) return false;
+      const p = this.player(o.controller);
+      return !!(p && p.planarHolds && p.planarHolds.some(h => h.kind === 'planeShield' && h.name === source.name));
+    },
+    /** Stensia: "Whenever a creature deals damage to one or more players for the first time each turn" — once a turn each. */
+    _planarHitPlayer(source, p) {
+      if (source.zone !== 'battlefield' || !(this.characteristics(source) || {}).isCreature) return;
+      if (source._firstHitTurn === this.turn) return;
+      source._firstHitTurn = this.turn;
+      this._fire('creatureFirstHitsPlayer', null, { object: source, objController: source.controller, player: p.id });
+    },
     /** Trail of the Mage-Rings: "Instant and sorcery spells have rebound." — handed out from a face-up plane. */
     _planarRebound(item) {
       const o = item && item.obj;
@@ -572,10 +598,13 @@
           const t = e.who === 'target' ? (targets || []).find(x => x && x.kind === 'player') : null;
           const p = t ? this.player(t.id) : me;
           if (!p) return null;
-          (p.planarHolds = p.planarHolds || []).push({ kind: e.kind, untilWalk: st.walks || 0 });
+          // (Mount Keralia: "this game" — no planeswalk ends it, the plane's name kept: forGame)
+          (p.planarHolds = p.planarHolds || []).push(Object.assign({ kind: e.kind, untilWalk: e.forGame ? null : (st.walks || 0) },
+            e.forGame && ctx.obj ? { name: ctx.obj.name } : {}));
           const say = { cantLose: `${p.name} can't lose the game, and their opponents can't win it`, cantCast: `${p.name} can't cast spells`,
-            notAttacked: `creatures can't attack ${p.name}` }[e.kind] || e.kind;
-          this.logEvent('rules', `Until a player planeswalks, ${say}.`);
+            notAttacked: `creatures can't attack ${p.name}` }[e.kind];
+          if (e.kind === 'planeShield') this.logEvent('rules', `For the rest of the game, damage planes named ${(ctx.obj && ctx.obj.name) || 'this'} would deal to permanents ${p.name} controls is prevented.`);
+          else this.logEvent('rules', `Until a player planeswalks, ${say || e.kind}.`);
           return null;
         }
         // Unyaro: "They phase out until a player planeswalks." — every creature
@@ -838,6 +867,82 @@
           }
           this.logEvent('rules', this.players.filter(q => !q.hasLost && q.planarStream).map(q => `${q.name}: ${q.planarStream === 'anchor' ? 'green anchor' : 'red waterfall'}`).join(', ') + '.');
           this.bumpBoard();
+          return null;
+        }
+        // Talon Gates: "remove two time counters from each suspended card you own" — the last one off, it is cast
+        case 'untime': {
+          for (const o of ((this.zones[pid] || {}).exile || []).slice()) {
+            if (o.suspendedBy !== pid || !o.counters.time) continue;
+            const k = Math.min(e.n || 1, o.counters.time);
+            for (let i = 0; i < k; i++) { o.counters.time--; this._fire('timeCounterRemoved', o.owner, { object: o, source: o }); }
+            this.logEvent('rules', `${o.name}: ${o.counters.time} time counter${o.counters.time === 1 ? '' : 's'} left.`);
+            if (o.counters.time <= 0) this._castFromSuspend(pid, o);
+          }
+          this.bumpBoard();
+          return null;
+        }
+        // Glimmervoid Basin: "Each player except that creature's controller creates a token that's a copy of that creature."
+        case 'copyForOthers': {
+          const t0 = (targets || []).find(x => x && x.kind === 'object');
+          const c = t0 && this.obj(t0.id);
+          if (!c || c.zone !== 'battlefield') return null;
+          for (const q of this.players) {
+            if (q.hasLost || q.id === c.controller) continue;
+            this._runEffect({ op: 'copyPermanent', _forced: c, n: 1, grant: [] }, Object.assign({}, ctx, { controller: q.id }));
+          }
+          return null;
+        }
+        /* Caught in a Parallel Universe: each player chooses a creature of the player to their left, then each makes a copy
+           of the one chosen, with menace — the choices first, the tokens together after */
+        case 'parallel': {
+          const sc = this._specCtx();
+          const order = this.turnOrder.filter(id => { const q = this.player(id); return q && !q.hasLost; });
+          const at = Math.max(0, order.indexOf(pid));
+          const picks = [];
+          for (let k = 0; k < order.length; k++) {
+            const q = this.player(order[(at + k) % order.length]);
+            const left = sc.sideOf(q.id, 'left');
+            const pool = this.battlefield.filter(o => o.controller === left && !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+            if (!pool.length) continue;
+            let c = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: q.id, purpose: 'parallelPick', kind: 'objects', zone: 'battlefield', min: 1, max: 1, items: this._chooseItems(pool),
+                prompt: `${(ctx.obj && ctx.obj.name) || 'Caught in a Parallel Universe'}: choose a creature ${(this.player(left) || {}).name} controls — you get a copy of it, with menace.` }, 'pcPar' + q.id);
+              if (got === SUSPEND) return got;
+              c = pool.find(o => got && got.picks && got.picks[0] === o.id) || pool[0];
+            }
+            picks.push([q.id, c]);
+          }
+          for (const [qid, c] of picks) this._runEffect({ op: 'copyPermanent', _forced: c, n: 1, grant: (e.grant || []).slice() }, Object.assign({}, ctx, { controller: qid }));
+          return null;
+        }
+        /* Human—Time Lord Meta-Crisis: each player chooses one or two of their creatures; a copy of the first, not legendary,
+           with +1/+1 counters equal to the second's power */
+        case 'metaCrisis': {
+          const order = this.turnOrder.filter(id => { const q = this.player(id); return q && !q.hasLost; });
+          const at = Math.max(0, order.indexOf(pid));
+          const picks = [];
+          for (let k = 0; k < order.length; k++) {
+            const q = this.player(order[(at + k) % order.length]);
+            const pool = this.battlefield.filter(o => o.controller === q.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+            if (!pool.length) continue;
+            let chosen = [pool[0]];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: q.id, purpose: 'metaCrisisPick', kind: 'objects', zone: 'battlefield', min: 1, max: 2, ordered: true, items: this._chooseItems(pool),
+                prompt: `${(ctx.obj && ctx.obj.name) || 'Meta-Crisis'}: choose one or two of your creatures — a copy of the first, with +1/+1 counters equal to the second's power.` }, 'pcMeta' + q.id);
+              if (got === SUSPEND) return got;
+              const ids = (got && (got.order || got.picks)) || [];
+              chosen = ids.map(id => pool.find(o => o.id === id)).filter(Boolean);
+              if (!chosen.length) chosen = [pool[0]];
+            }
+            picks.push([q.id, chosen[0], chosen[1] ? Math.max(0, this.powerOf(chosen[1])) : 0]);
+          }
+          for (const [qid, first, n] of picks) {
+            const before = new Set(this.battlefield.map(o => o.id));
+            this._runEffect({ op: 'copyPermanent', _forced: first, n: 1, grant: [], nonLegendary: true }, Object.assign({}, ctx, { controller: qid }));
+            const tok = this.battlefield.find(o => !before.has(o.id) && o.controller === qid);
+            if (tok && n > 0) this.addCounters(tok, '+1/+1', n);
+          }
           return null;
         }
         // Lair of the Ashen Idol: "sacrifice a creature. If you can't, planeswalk."

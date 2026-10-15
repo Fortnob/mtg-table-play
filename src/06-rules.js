@@ -1393,6 +1393,8 @@
         if (o.noUntapNext || stuck) {
           o.noUntapNext = false;
           if (o.tapped) this.logEvent('step', `${o.name} does not untap.`);
+        } else if (o.tapped && this.config.planechase && o.controller === ap.id && this._planarUntapInstead(o)) {
+          // Edge of Malacol (a plane): counters instead of the untap
         } else if (o.tapped) {
           if (this._markUntapped(o)) n++;
         }
@@ -17315,6 +17317,8 @@
       if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat, false, o.id);
       if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
+      // Mount Keralia (a plane): "prevent all damage that planes named Mount Keralia would deal this game to permanents you control"
+      if (this.config.planechase && source && this._planarShielded(source, o) && !this._noPrevention(isCombat)) { this.logEvent('damage', `Damage ${source.name} would deal to ${o.name} is prevented.`); return 0; }
       // Vigor: damage to another creature of its controller's becomes +1/+1 counters
       if (o.zone === 'battlefield' && !this._noPrevention(isCombat) && (this.characteristics(o) || {}).isCreature) {
         const vg = this.battlefield.find(x => x !== o && !x.phasedOut && x.controller === o.controller && this._staticOp(x, 'vigorShield'));
@@ -17613,6 +17617,8 @@
       if (source && source.controller != null && source.controller !== p.id) this._fire('yourSourceDamagesOpponent', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       // Dragonborn Champion: a source of yours hurt a player, you included (minAmount)
       if (source && source.controller != null) this._fire('yourSourceDamagesPlayer', source.controller, { object: source, amount, combat: !!combat, player: p.id });
+      // Stensia (a plane): a creature dealing damage to a player for the first time this turn
+      if (this.config.planechase && source) this._planarHitPlayer(source, p);
       // Ghyrson Starn, Kelermorph: or to a player
       if (source && source.controller != null) this._fire('yourSourceDealsDamage', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       if (source && (source.attachments || []).length) {

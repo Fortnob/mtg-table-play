@@ -1665,4 +1665,76 @@ module.exports = (test) => {
     chaos(T);
     t.ok(T.bfOf('A').some(o => o.name === 'Hill Giant'), 'A cast B\'s Giant');
   });
+  test('Planes: Stensia — a creature\'s first damage to a player each turn: a +1/+1 counter on it', (mk, t) => {
+    t.auto('Stensia');
+    const T = onPlane(mk, 'Stensia');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(Number(bear.counters['+1/+1']) || 0, 1, 'one counter');
+    T.g.dealDamageToPlayer(T.player('B'), 1, bear); T.resolve();
+    t.eq(Number(bear.counters['+1/+1']) || 0, 1, 'not twice in a turn');
+  });
+
+  test('Planes: Edge of Malacol — your creatures that would untap get two +1/+1 counters instead', (mk, t) => {
+    t.auto('Edge of Malacol');
+    const T = onPlane(mk, 'Edge of Malacol');
+    const bear = T.bf('B', 'Grizzly Bears', { tapped: true });
+    T.nextTurn('B');
+    t.ok(bear.tapped, 'still tapped');
+    t.eq(Number(bear.counters['+1/+1']) || 0, 2, 'two counters');
+  });
+
+  test('Planes: Mount Keralia — chaos: its damage to your permanents prevented for the game', (mk, t) => {
+    t.auto('Mount Keralia');
+    const T = onPlane(mk, 'Mount Keralia');
+    T.g.facePlanes()[0].counters.pressure = 3;
+    chaos(T);
+    const mine = T.bf('A', 'Hill Giant'), theirs = T.bf('B', 'Hill Giant');
+    walkTo(T, 'Shiv');
+    t.zone(mine, 'battlefield', 'A\'s Giant spared');
+    t.zone(theirs, 'graveyard', 'B\'s Giant dead');
+  });
+
+  test('Planes: Talon Gates — chaos: two time counters off each of your suspended cards', (mk, t) => {
+    const T = onPlane(mk, 'Talon Gates');
+    const g = T.hand('A', 'Hill Giant');
+    T.g.moveObject(g, 'exile'); g.counters.time = 3; g.suspendedBy = 'A';
+    chaos(T);
+    t.eq(g.counters.time, 1, 'one left');
+  });
+
+  test('Planes: Glimmervoid Basin — chaos: each other player gets a copy of the target creature', (mk, t) => {
+    const T = onPlane(mk, 'Glimmervoid Basin');
+    const g = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g.id }] }));
+    chaos(T);
+    t.eq(T.bfOf('A').filter(o => o.name === 'Hill Giant' && o.isToken).length, 1, 'A gets a copy');
+    t.eq(T.bfOf('B').filter(o => o.name === 'Hill Giant').length, 1, 'B none');
+  });
+
+  test('Planes: Caught in a Parallel Universe — a copy, with menace, of a creature of the player to your left', (mk, t) => {
+    t.auto('Caught in a Parallel Universe');
+    const T = onPlane(mk, 'Gavony');
+    const g = T.bf('B', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears');
+    walkTo(T, 'Caught in a Parallel Universe');
+    T.g.checkStateBasedActions(); T.resolve();
+    const mine = T.bfOf('A').find(o => o.isToken && o.name === 'Hill Giant');
+    t.ok(mine, 'A copies B\'s Giant');
+    t.ok(T.g.hasKw(mine, 'menace'), 'with menace');
+    t.ok(T.bfOf('B').some(o => o.isToken && o.name === 'Grizzly Bears'), 'B copies A\'s Bears');
+  });
+
+  test('Planes: Human—Time Lord Meta-Crisis — a nonlegendary copy of the first, counters by the second\'s power', (mk, t) => {
+    t.auto('Human—Time Lord Meta-Crisis');
+    const T = onPlane(mk, 'Gavony');
+    const karn = T.bf('A', 'Karn, Silver Golem'), g = T.bf('A', 'Hill Giant');
+    T.answer('choose', () => ({ picks: [karn.id, g.id], order: [karn.id, g.id] }));
+    walkTo(T, 'Human—Time Lord Meta-Crisis');
+    T.g.checkStateBasedActions(); T.resolve();
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Karn, Silver Golem');
+    t.ok(tok, 'a copy of Karn');
+    t.zone(karn, 'battlefield', 'not legendary: both stay');
+    t.eq(Number(tok.counters['+1/+1']) || 0, 3, 'three counters for the Giant');
+  });
 };
