@@ -5923,6 +5923,10 @@
       this.bots = new Map();
       this.stopped = false;
       this._onState = () => this.kick();
+      /* Set by whoever shows the game (src/14-app.js): a promise that settles once the table has shown what
+         happened last (Table#whenIdle). Each bot waits on it before its next decision, so a person sees one
+         thing at a time rather than a heap of them at once. Unset — headless games, the tools — nobody waits. */
+      this.waitFor = null;
       game.on('state', this._onState);
       game.on('choice', this._onState);
       game.on('priority', this._onState);
@@ -5977,6 +5981,8 @@
           for (let round = 0; round < 400; round++) {
             let acted = false;
             for (const bot of this.bots.values()) {
+              await this._waitTable(bot);
+              if (this.stopped) return;
               try { acted = (await bot.tick()) || acted; } catch (e) { console.warn('[bot]', e); }
               if (this.stopped) return;
             }
@@ -5985,6 +5991,24 @@
         } while (this._again && !this.stopped);
       } finally { this._running = false; }
       if (!this.stopped) this._checkStuck();
+    }
+
+    /**
+     * Before a bot decides anything, the table watching the game (if one
+     * is: waitFor) is given the time to show what happened last. Only for a
+     * bot with a decision to make; never for the opening hands; and never
+     * for longer than the table's own cap, so a hidden tab or a stuck
+     * picture cannot hold the game up.
+     */
+    async _waitTable(bot) {
+      if (!this.waitFor) return;
+      const g = this.game;
+      if (g.over || g.mulliganPhase || bot.busy) return;
+      const ch = g.pendingChoice;
+      const ours = ch ? ch.playerId === bot.pid : !!(g.priorityPlayer && g.priorityPlayer.id === bot.pid);
+      if (!ours) return;
+      this._waiting = true;
+      try { await this.waitFor(); } catch (e) { /* the table went away: carry on */ } finally { this._waiting = false; }
     }
 
     /**

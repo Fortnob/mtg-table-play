@@ -64,6 +64,9 @@
    * the one its deck was built with), and the style written on its player
    * so every screen at the table can say how it plays.
    */
+  /* The bots wait for this table to have shown what happened last before they decide again (BotRunner.waitFor,
+     Table#whenIdle): 6 s at most. The table on the screen sets the pace for everyone at it, guests included. */
+  const tableIdle = () => (App.table && !App.table._destroyed && App.table.whenIdle ? App.table.whenIdle(6000) : null);
   function seatBot(g, runner, r) {
     // a practice game's opponent, which only ever passes (src/16a-playtest.js)
     if (MTG.practice && MTG.practice.isSeat(r)) return MTG.practice.seat(g, runner, r);
@@ -4621,6 +4624,7 @@
         for (const r of this.roster) if (r.kind === 'remote' && r.autoPass && g.player(r.id)) g.setAutoPass(r.id, r.autoPass);
         this.game = g;
         this.botRunner = new MTG.bots.BotRunner(g);
+        this.botRunner.waitFor = tableIdle;
         for (const r of this.roster) if (r.kind === 'bot') seatBot(g, this.botRunner, r);
 
         this.wireGame(g);
@@ -4748,6 +4752,7 @@
       g.setAutoPass('me', MTG.autoPassConfig());
       sess.game = g;
       sess.botRunner = new MTG.bots.BotRunner(g);
+      sess.botRunner.waitFor = tableIdle;
       for (const r of sess.roster) if (r.kind === 'bot') seatBot(g, sess.botRunner, r);
       sess.wireGame(g);
       if (sess.clock) sess.clock.restore(saved.clock);
