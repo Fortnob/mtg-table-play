@@ -67269,4 +67269,152 @@ module.exports = (test) => {
     t.eq(jace.counters.loyalty, before + 1, 'Forge of Heroes: a loyalty counter on the planeswalker');
     t.no(jace.counters['+1/+1'], 'Forge of Heroes: not a +1/+1 counter on it');
   });
+
+  test('Cards: Opal Palace — its mana casts your commander with a counter per cast from the command zone; another spell, none', (mk, t) => {
+    t.auto('Opal Palace');
+    const T = mk();
+    T.toMain('A');
+    const op = T.bf('A', 'Opal Palace');
+    const cmd = T.put('A', 'Goblin Guide', 'command');
+    cmd.isCommander = true;
+    T.player('A').commanderCasts[cmd.id] = 1;
+    T.mana('A', '1');
+    t.ok(T.g.tapForMana('A', op.id, 1, 'R'), 'tapped for red, paying {1}');
+    T.mana('A', '2');
+    T.cast('A', cmd);
+    t.eq(cmd.zone, 'battlefield');
+    t.eq(cmd.counters['+1/+1'] || 0, 2, 'cast twice from the command zone: two counters');
+    // a creature that isn't your commander gets nothing
+    const U = mk();
+    U.toMain('A');
+    const op2 = U.bf('A', 'Opal Palace');
+    U.put('A', 'Goblin Guide', 'command').isCommander = true;
+    U.mana('A', '1');
+    U.g.tapForMana('A', op2.id, 1, 'R');
+    const gg = U.hand('A', 'Raging Goblin');
+    U.cast('A', gg);
+    t.eq(gg.counters['+1/+1'] || 0, 0, 'not the commander: no counters');
+  });
+
+  test('Cards: Wheel of Misfortune — the highest number deals that much to who chose it; all but the lowest wheel', (mk, t) => {
+    t.auto('Wheel of Misfortune');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 10; i++) { T.put('A', 'Island', 'library'); T.put('B', 'Island', 'library'); }
+    T.hand('A', 'Grizzly Bears');
+    T.hand('B', 'Grizzly Bears'); T.hand('B', 'Grizzly Bears');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch.purpose + ':' + ch.playerId); return { number: 3 }; });
+    T.answer('choose', (ch) => { asked.push(ch.purpose + ':' + ch.playerId); return { number: 1 }; });
+    const lifeA = T.life('A'), lifeB = T.life('B');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Wheel of Misfortune'));
+    t.eq(asked.join(), 'secretNumber:A,secretNumber:B', 'each player chooses');
+    t.eq(T.life('A'), lifeA - 3, 'A chose the highest: 3 damage');
+    t.eq(T.life('B'), lifeB, 'B: none');
+    t.eq(T.g.zones.A.hand.length, 7, 'A did not choose the lowest: a new seven');
+    t.eq(T.g.zones.B.hand.length, 2, 'B chose the lowest: keeps the hand');
+    // all choose the same: nobody wheels, each takes that much
+    const U = mk();
+    U.toMain('A');
+    U.hand('A', 'Grizzly Bears');
+    U.answer('choose', () => ({ number: 2 }));
+    U.answer('choose', () => ({ number: 2 }));
+    const la = U.life('A'), lb = U.life('B');
+    U.mana('A', 'R2');
+    U.cast('A', U.hand('A', 'Wheel of Misfortune'));
+    t.eq([U.life('A'), U.life('B')].join(), [la - 2, lb - 2].join(), 'a tie at the top: both take 2');
+    t.eq(U.g.zones.A.hand.length, 1, 'and nobody wheels');
+  });
+
+  test('Cards: All Will Be One — counters you put on a permanent or a player deal that much damage; an opponent\'s do not', (mk, t) => {
+    t.auto('All Will Be One');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'All Will Be One');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const lifeB = T.life('B');
+    T.g.addCounters(bear, '+1/+1', 2, { by: 'A' });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), lifeB - 2, 'two +1/+1 counters: 2 damage to the opponent');
+    // a poison counter you give a player
+    T.g.addPoison(T.player('B'), 1, 'A');
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), lifeB - 3, 'a poison counter on a player: 1 more');
+    // energy you get
+    T.bf('A', 'Aether Hub', { etb: true });
+    T.settle(); T.resolve();
+    t.eq(T.player('A').energy, 1);
+    t.eq(T.life('B'), lifeB - 4, 'an energy counter: 1 more');
+    // counters an opponent puts don't count
+    const life2 = T.life('B');
+    const wolf = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(wolf, '+1/+1', 1, { by: 'B' });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), life2, "B's own counters: nothing");
+    t.eq(T.life('A'), 20, 'and nothing to A');
+  });
+
+  test("Cards: Avatar's Wrath — every creature but the one chosen is airbent; opponents cast only from their hands until your next turn", (mk, t) => {
+    t.auto("Avatar's Wrath");
+    const T = mk();
+    T.toMain('A');
+    const keep = T.bf('A', 'Grizzly Bears');
+    const mine = T.bf('A', 'Raging Goblin');
+    const theirs = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'W2');
+    T.mana('A', 'W');
+    const wrath = T.hand('A', "Avatar's Wrath");
+    T.cast('A', wrath, { targets: [keep] });
+    t.eq(keep.zone, 'battlefield', 'the chosen creature stays');
+    t.eq([mine.zone, theirs.zone].join(), 'exile,exile', 'the rest are exiled');
+    t.ok(theirs.airbent, 'airbent');
+    t.eq(wrath.zone, 'exile', 'the Wrath exiles itself');
+    T.toMain('B');
+    T.mana('B', 'G2');
+    const r = T.g.canCast('B', theirs.id, { via: 'airbend' });
+    t.ok(r && !r.ok && /other than your hand/.test(r.reason), "B can't cast the airbent Wurm");
+    const bear = T.hand('B', 'Grizzly Bears');
+    T.mana('B', 'G1');
+    T.cast('B', bear);
+    t.eq(bear.zone, 'battlefield', 'from the hand is fine');
+    T.toMain('A');
+    t.no(((T.player('B').silenceUntil) || []).length, 'over as A\'s next turn begins');
+    T.toMain('B');
+    T.mana('B', '2');
+    const r2 = T.g.canCast('B', theirs.id, { via: 'airbend' });
+    t.ok(r2 && r2.ok, 'then B may cast it for {2}: ' + (r2 && r2.reason));
+  });
+
+  test('Cards: March of Swirling Mist — blue cards exiled from hand take {2} each off, the X included', (mk, t) => {
+    t.auto('March of Swirling Mist');
+    const T = mk();
+    T.toMain('A');
+    const w1 = T.bf('B', 'Grizzly Bears'), w2 = T.bf('B', 'Craw Wurm');
+    const c1 = T.hand('A', 'Counterspell');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'U');
+    const march = T.hand('A', 'March of Swirling Mist');
+    T.cast('A', march, { x: 2, targets: [w1, w2], sacrificeIds: [c1.id] });
+    t.eq(c1.zone, 'exile', 'the Counterspell paid {2}');
+    t.eq(bolt.zone, 'hand', 'a red card is not offered');
+    t.ok(w1.phasedOut && w2.phasedOut, 'X = 2 for {U}: both phase out');
+    // nothing named: as few as the mana needs
+    const U = mk();
+    U.toMain('A');
+    const b1 = U.bf('B', 'Grizzly Bears');
+    const k1 = U.hand('A', 'Counterspell'), k2 = U.hand('A', 'Opt');
+    U.mana('A', 'U1');
+    U.cast('A', U.hand('A', 'March of Swirling Mist'), { x: 3, targets: [b1] });
+    t.eq([k1, k2].filter(c => c.zone === 'exile').length, 1, 'one card exiled, the rest paid with mana');
+    t.ok(b1.phasedOut);
+    // without the cards it costs its full price
+    const V = mk();
+    V.toMain('A');
+    const d1 = V.bf('B', 'Grizzly Bears');
+    V.mana('A', 'U');
+    const m3 = V.hand('A', 'March of Swirling Mist');
+    t.no(V.g.castSpell('A', m3.id, { x: 1, targets: [{ kind: 'object', id: d1.id }], auto: true }), 'X = 1 with only {U} and no blue card: no');
+    t.ok(/Not enough mana/.test(V.g.lastError), V.g.lastError);
+  });
 };

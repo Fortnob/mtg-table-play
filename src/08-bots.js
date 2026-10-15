@@ -1977,6 +1977,14 @@
       const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(a) - this.rating(b));
       return os.length ? { picks: [os[0].id] } : null;
     },
+    /* Wheel of Misfortune: 0 keeps a good hand and takes no damage unless all choose 0; a small hand wants a new
+       seven, at the risk of a little damage — none at low life */
+    secretNumber(s) {
+      const g = this.game, me = g.player(this.pid);
+      const hand = (g.zones[this.pid] || {}).hand || [];
+      if (!me || hand.length > 2 || me.life <= 6) return { number: 0 };
+      return { number: Math.min((s.number && s.number.max) || 1, 1 + (hand.length === 0 && me.life > 15 ? 1 : 0)) };
+    },
     // Pia Nalaar, Chief Mechanic: all the energy, for the biggest Aetherjet
     payEnergyAmount(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Gilgamesh, Master-at-Arms: the best of the Equipment it put there, always worth wearing */

@@ -1713,6 +1713,10 @@
     // Carnelian Orb of Dragonkind: "…on a Dragon creature spell, it gains haste until end of turn"; Hall of the Bandit Lord: "it gains haste" for good
     { re: /^If that mana is spent on a (Dragon )?creature spell, it gains haste( until end of turn)?\.?$/i,
       make: (m) => ({ op: 'spendOnly', rider: (m[1] ? 'hasteDragon' : 'hasteCreature') + (m[2] ? '' : 'Lasting'), open: true }) },
+    /* Opal Palace: "If you spend this mana to cast your commander, it enters with a number of additional +1/+1 counters
+       on it equal to the number of times it's been cast from the command zone this game." (opalCommander) */
+    { re: /^If you spend this mana to cast your commander, it enters with a number of additional \+1\/\+1 counters on it equal to the number of times it'?s been cast from the command zone this game\.?$/i,
+      make: () => ({ op: 'spendOnly', rider: 'opalCommander', open: true }) },
     /* Three Tree City: as much as there are creatures of the chosen type */
     { re: /^Add an amount of mana of that color equal to the number of ([a-z ]+?) of the chosen type\.?$/i,
       make: (m) => { const sc = scopeOf(m[1] + ' of the chosen type'); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
@@ -4359,6 +4363,9 @@
       make: (m) => { const t = tgt(m[3]); return t ? { op: 'airbend', targets: [Object.assign(t, m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] } : null; } },
     // Monk Gyatso: "you may airbend that creature" — the one the trigger is about
     { re: /^[Aa]irbend that creature\.?$/, make: () => ({ op: 'airbend', triggerObj: true }) },
+    // Avatar's Wrath: "Choose up to one target creature, then airbend all other creatures." (allOther)
+    { re: /^Choose up to one target creature, then airbend all other creatures\.?$/i,
+      make: () => ({ op: 'airbend', allOther: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true }] }) },
     { re: /^[Mm]anifest dread\.?$/, make: () => ({ op: 'manifestDread' }) },
     // They Came from the Pipes: "manifest dread twice" — once, then again
     { re: /^[Mm]anifest dread (twice|three times)\.?$/, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'manifestDread' })) }) },
@@ -4580,7 +4587,8 @@
     { re: /^It deals that much damage to target creature\.?$/i,
       make: () => ({ op: 'damage', n: { removedCounters: true, mult: 1 }, targets: [targetSpec('target creature')] }) },
     // Shalai and Hallar: "deals that much damage to target opponent"
-    { re: /^(?:CARDNAME|This creature|This enchantment|It) deals that much damage to (target opponent|target player|any target|each opponent)\.?$/i,
+    // (All Will Be One: "to target opponent, creature an opponent controls, or planeswalker an opponent controls")
+    { re: /^(?:CARDNAME|This creature|This enchantment|It) deals that much damage to (target opponent|target player|any target|each opponent|target opponent, creature an opponent controls, or planeswalker an opponent controls)\.?$/i,
       make: (m) => (/each opponent/i.test(m[1]) ? { op: 'damage', n: 'triggerAmount', each: 'opponent' }
         : { op: 'damage', n: 'triggerAmount', targets: [targetSpec(m[1])] }) },
     // Rising Waters, Hokori: "that player untaps a land they control"
@@ -9426,6 +9434,9 @@
     { re: /^Until your next turn, target (player|opponent) who was dealt combat damage by (?:this creature|CARDNAME) this turn can'?t cast (noncreature )?spells\.?$/i,
       make: (m) => ({ op: 'silence', who: 'target', noncreature: !!m[2], duration: 'nextTurn',
         targets: [{ type: 'player', opponent: /opponent/i.test(m[1]), hitBySource: true }] }) },
+    // Avatar's Wrath: "Until your next turn, your opponents can't cast spells from anywhere other than their hands." (notFromHand)
+    { re: /^Until your next turn, your opponents can'?t cast spells from anywhere other than their hands\.?$/i,
+      make: () => ({ op: 'silence', who: 'opponents', duration: 'nextTurn', notFromHand: true }) },
 
     /* ===== the general shapes of a one-off group effect =====
        "Permanents you control gain hexproof and indestructible until end of
@@ -10170,6 +10181,8 @@
   function targetSpec(phrase, zone) {
     // Triad of Fates: "target creature that has a fate counter on it" — as "with a fate counter on it"
     phrase = String(phrase).replace(/\s+that has an? ([+\-0-9/a-z]+) counter on it$/i, ' with a $1 counter on it');
+    // All Will Be One: "target opponent, creature an opponent controls, or planeswalker an opponent controls" — one "an opponent controls" for both
+    phrase = String(phrase).replace(/^target opponent, creature an opponent controls, or planeswalker an opponent controls$/i, 'target opponent, creature, or planeswalker an opponent controls');
     // "target creature that was dealt damage this turn"
     const damaged = /\s+that was dealt damage this turn$/i.test(String(phrase));
     if (damaged) phrase = String(phrase).replace(/\s+that was dealt damage this turn$/i, '');
@@ -11257,6 +11270,11 @@
        choices are revealed, and that player sacrifices those creatures." (secretChooseSac) */
     { re: /^you and target opponent each secretly choose a creature that player controls\. Then those choices are revealed, and that player sacrifices those creatures\.?$/i,
       make: () => [{ op: 'secretChooseSac', targets: [{ type: 'player', opponent: true }] }] },
+    /* Wheel of Misfortune: "Each player secretly chooses a number 0 or greater, then all players reveal those numbers
+       simultaneously … deals damage equal to the highest number to each player who chose that number. Each player who
+       didn't choose the lowest number discards their hand, then draws seven cards." (secretNumberWheel) */
+    { re: /^Each player secretly chooses a number 0 or greater, then all players reveal those numbers simultaneously and determine the highest and lowest numbers revealed this way\. CARDNAME deals damage equal to the highest number to each player who chose that number\. Each player who didn'?t choose the lowest number discards their hand, then draws seven cards\.?$/i,
+      make: () => [{ op: 'secretNumberWheel', n: 7 }] },
     /* Obzedat, Ghost Council: "you may exile Obzedat. If you do, return it to the battlefield under its owner's control
        at the beginning of your next upkeep. It gains haste." — back only if it is still that card in exile (whileExiled) */
     { re: /^You may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield under (?:its|his|her) owner'?s control at the beginning of your next upkeep\. (?:It|He|She) gains haste\.?$/i,
@@ -13829,6 +13847,10 @@
        sacrificed this way." — chosen with the cast, nothing off the price, a copy for each (copyEach) */
     const pc = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may sacrifice one or more ([a-z]+)s\. When you do, copy (?:this spell|CARDNAME) for each \1 sacrificed this way\.?$/i);
     if (pc) return { sac: { filter: pc[1].toLowerCase(), each: 0, copyEach: true }, self: null };
+    /* March of Swirling Mist: "you may exile any number of blue cards from your hand. This spell costs {2} less to cast
+       for each card exiled this way." — from the hand (exileHand) */
+    const h = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may exile any number of (white|blue|black|red|green) cards from your hand\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each card exiled this way\.?$/i);
+    if (h) return { sac: { filter: h[1].toLowerCase(), each: +h[2], exileHand: true }, self: null };
     const m = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may sacrifice any number of ([a-z ,/]+?)\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each (?:[a-z]+) sacrificed this way(?: and \{(\d+)\} less to cast for each (.+?))?\.?$/i);
     if (!m) return null;
     const filter = m[1].replace(/\s+and\/or\s+|\s+or\s+|\s+and\s+/g, ' or ').replace(/s\b/g, '').trim();
@@ -17325,6 +17347,9 @@
       extraOf: (m) => ({ putByYou: true, counterKind: m[1] }) },
     // Aragorn, Company Leader: "Whenever you put one or more counters on Aragorn" — of any kind, by you (putByYou)
     { re: /^Whenever you put one or more counters on (?:CARDNAME|this creature),? /i, event: 'countersPut', self: true, extra: { putByYou: true } },
+    /* All Will Be One: "Whenever you put one or more counters on a permanent or player" — any kind, on anything, once
+       for each one they go on (a player's too: playerCountersPut) */
+    { re: /^Whenever you put one or more counters on a permanent or player,? /i, event: 'countersPut', also: 'playerCountersPut', extra: { putByYou: true } },
     // Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — once for each counter
     { re: /^Whenever you put a lore counter on a Saga you control, /i, event: 'countersPut', aboutObject: true,
       filt: () => ({ words: 'saga', who: 'you' }), extra: { counterKind: 'lore', putByYou: true, perAmount: true } },

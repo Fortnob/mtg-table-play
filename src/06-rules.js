@@ -5150,6 +5150,9 @@
       }
       if (o.zone !== 'hand' && this.opponentsOf(playerId).some(q => this._anyStaticOf(q.id, 'onlyFromHand')))
         return { ok: false, reason: 'An opponent stops spells cast from anywhere but your hand.' };
+      // Avatar's Wrath: "Until your next turn, your opponents can't cast spells from anywhere other than their hands" (silenceUntil)
+      if (o.zone !== 'hand' && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.notFromHand))
+        return { ok: false, reason: "You can't cast spells from anywhere other than your hand until the next turn of the player who stopped you." };
       if (!midway && (!this.priorityPlayer || this.priorityPlayer.id !== playerId)) return { ok: false, reason: 'You do not have priority.' };
       const hush = this._castBlocked(playerId);
       if (hush) return { ok: false, reason: hush };
@@ -8011,6 +8014,11 @@
         const sp = this._sacForLessPlan(playerId, o, opts, cost);
         if (sp.error) return this.fail(sp.error);
         if (sp.back) cost = this._addGeneric(cost || '', sp.back);
+        // (March of Swirling Mist: the rest off the X, now a number — xOff)
+        if (sp.xOff > 0) {
+          const xs = (String(cost || '').match(/\{X\}/g) || []).length;
+          cost = this._addGeneric(xs ? String(cost).replace(/\{X\}/g, '') : cost || '', (xs ? (opts.x || 0) * xs : 0) - sp.xOff);
+        }
         sacForLess = sp.list;
       }
       /* Trinisphere: "each spell that would cost less than three mana to cast
@@ -8119,6 +8127,11 @@
         const gone = sacForLess.filter(x => x.zone === 'graveyard');
         for (const c of gone) { this.moveObject(c, 'exile'); if (c.zone === 'exile') c.exiledWithId = o.id; }
         if (gone.length) this.logEvent('rules', `${p.name} exiles ${gone.map(x => x.name).join(', ')} from their graveyard to cast ${o.name}.`);
+      } else if (sacForLess.length && ((a.sacForLess || {}).exileHand)) {
+        // (March of Swirling Mist: exiled from the hand — exileHand)
+        const gone = sacForLess.filter(x => x.zone === 'hand');
+        for (const c of gone) { this._know(c, '*'); this.moveObject(c, 'exile'); }
+        if (gone.length) this.logEvent('rules', `${p.name} exiles ${gone.map(x => x.name).join(', ')} from their hand to cast ${o.name}.`);
       } else if (sacForLess.length) this._sacrificeNow(playerId, sacForLess.filter(x => x.zone === 'battlefield'), null);
       /* Sneak: the unblocked attacker goes back to hand as the spell is cast;
          what it was attacking, the sneaked creature attacks */
@@ -10358,6 +10371,8 @@
       if (!sf) return [];
       // Gorex, the Tombshell: creature cards in your graveyard, exiled instead (exileGrave)
       if (sf.exileGrave) return this._cheapestFirst(((this.zones[pid] || {}).graveyard || []).filter(c => c !== o && this._cardFitsWords(c, sf.filter)));
+      // March of Swirling Mist: blue cards from your hand (exileHand)
+      if (sf.exileHand) return this._cheapestFirst(((this.zones[pid] || {}).hand || []).filter(c => c !== o && this._cardFitsWords(c, sf.filter)));
       return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && x !== o &&
         this._cardFitsWords(x, sf.filter) && this._canSacrifice(x)));
     }
@@ -10371,7 +10386,7 @@
       // Plumb the Forbidden: a copy for each, nothing off the price (copyEach)
       if (sf.copyEach) return [{ kind: 'sacForLess', label: `Sacrifice one or more ${MTG.oracle.nounPlural(sf.filter)} (copy ${o.name} for each)`, cost: '',
         key: 'sacrificeIds', need: 0, max: pool.length, each: 0, candidates: pool.map(x => x.id) }];
-      return [{ kind: 'sacForLess', label: sf.exileGrave ? `Exile any number of ${sf.filter} cards from your graveyard ({${sf.each}} less for each)`
+      return [{ kind: 'sacForLess', label: sf.exileGrave || sf.exileHand ? `Exile any number of ${sf.filter} cards from your ${sf.exileHand ? 'hand' : 'graveyard'} ({${sf.each}} less for each)`
         : `Sacrifice any number of ${what} ({${sf.each}} less for each)`, cost: '',
         key: 'sacrificeIds', need: 0, max: pool.length, each: sf.each, candidates: pool.map(x => x.id) }];
     }
@@ -10382,23 +10397,28 @@
       const pool = this._sacForLessPool(pid, o);
       const priceWith = (n) => MANA.cmc(this.castCost(o, { sacForLessN: n }, pid));
       const backFor = (n) => Math.max(0, priceWith(n) - priceWith(pool.length));
+      /* March of Swirling Mist ({X}{U}): what the generic mana could not take comes off the X (CR 601.2f) — xOff */
+      const sfE = (o.analysis() || {}).sacForLess || {};
+      const xv = (opts.x || 0) * ((String(cost || '').match(/\{X\}/g) || []).length);
+      const xOffFor = (n) => Math.min(xv, Math.max(0, n * (sfE.each || 1) - (priceWith(0) - priceWith(n))));
       if (Array.isArray(opts.sacrificeIds)) {
         const list = [];
         for (const id of opts.sacrificeIds) {
           const x = pool.find(y => y.id === id);
-          const ex = !!((o.analysis() || {}).sacForLess || {}).exileGrave;
+          const ex = !!(sfE.exileGrave || sfE.exileHand);
           if (!x) return { error: `${(this.obj(id) || {}).name || 'That'} can't be ${ex ? 'exiled' : 'sacrificed'} for ${o.name}.` };
           if (list.includes(x)) return { error: ex ? 'The same card cannot be exiled twice.' : 'The same permanent cannot be sacrificed twice.' };
           list.push(x);
         }
-        return { list, back: backFor(list.length) };
+        return { list, back: backFor(list.length), xOff: xOffFor(list.length) };
       }
       const src = this.manaSources(pid);
-      const xd = (c) => String(c || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}');
+      const xd = (c, off) => this._addGeneric(String(c || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}'), -(off || 0));
       let n = 0;
       // no more than it takes, and none past where nothing more comes off
-      while (n < pool.length && backFor(n) > 0 && !this.couldPay(pid, xd(this._addGeneric(cost || '', backFor(n))), src)) n++;
-      return { list: pool.slice(0, n), back: backFor(n) };
+      while (n < pool.length && (backFor(n) > 0 || xOffFor(n) < xOffFor(pool.length)) &&
+        !this.couldPay(pid, xd(this._addGeneric(cost || '', backFor(n)), xOffFor(n)), src)) n++;
+      return { list: pool.slice(0, n), back: backFor(n), xOff: xOffFor(n) };
     }
     /** What could pay the costs the table would otherwise pick for the player, and the opts key each answer goes in. */
     _costPickOffers(pid, self, cost) {
@@ -12148,6 +12168,16 @@
       if (rider === 'hasteDragon' || rider === 'hasteDragonLasting' || rider === 'hasteCreatureLasting') {
         const a = item.obj && item.obj.analysis();
         if (a && a.isCreature && (!/^hasteDragon/.test(rider) || (a.subtypes || []).includes('Dragon'))) item.hasteOnResolve = /Lasting$/.test(rider) ? 'lasting' : true;
+        return;
+      }
+      /* Opal Palace: "If you spend this mana to cast your commander, it enters with a number of additional +1/+1
+         counters on it equal to the number of times it's been cast from the command zone this game" — this cast included */
+      if (rider === 'opalCommander') {
+        const so = item.obj, p = this.player(playerId);
+        if (so && so.isCommander && so.owner === playerId && p) {
+          const n = (p.commanderCasts || {})[so.id] || 0;
+          if (n > 0) so._enterPlusCounters = (so._enterPlusCounters || 0) + n;
+        }
         return;
       }
       if (rider === 'ancestryScry') {
@@ -17301,6 +17331,12 @@
       return false;
     }
 
+    /* All Will Be One: "Whenever you put one or more counters on a permanent or player" — a player's counters (poison,
+       energy, experience, rad), and who put them */
+    _playerCountersPut(p, kind, amount, putter) {
+      this._fire('playerCountersPut', null, { player: p.id, playerId: p.id, kind, amount, putter });
+    }
+
     addPoison(p, n, by) {
       // Melira, Sylvok Outcast: "You can't get poison counters." (noPoison; not a count changed by hand)
       if (n > 0 && by !== undefined && this._anyStaticOf(p.id, 'noPoison')) return;
@@ -17318,6 +17354,8 @@
       }
       p.poison += n;
       this.logEvent('poison', `${p.name} gets ${n} poison counter${n === 1 ? '' : 's'} (${p.poison}).`);
+      // All Will Be One: counters put on a player, by someone (playerCountersPut)
+      if (n > 0 && by) this._playerCountersPut(p, 'poison', n, by);
     }
     addCounters(o, kind, n, opts) {
       n = Math.trunc(Number(n)) || 0;
@@ -22384,6 +22422,7 @@
           this.logEvent('counters', `${me.name} gets ${k} energy (${me.energy}).`);
           // Fabrication Module: "Whenever you get one or more {E}" — once for the lot, knowing how many
           if (k > 0) this._fire('youGetEnergy', me.id, { playerId: me.id, amount: k });
+          if (k > 0) this._playerCountersPut(me, 'energy', k, ctx.controller);
           break;
         }
         /* Pia Nalaar, Chief Mechanic: "you may pay one or more {E}. If you do, create an X/X … token" — how much, 0 for
@@ -24755,11 +24794,13 @@
               }
               if (mine && !this._lastProliferated.includes(x.id)) this._lastProliferated.push(x.id);
             }
-            for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller && !this._anyStaticOf(p.id, 'noPoison')) { p.poison++; n2++; }
+            // (All Will Be One: a counter put on a player this way too — playerCountersPut)
+            const onPlayer = (p, k) => this._playerCountersPut(p, k, 1, ctx.controller);
+            for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller && !this._anyStaticOf(p.id, 'noPoison')) { p.poison++; n2++; onPlayer(p, 'poison'); }
             // your own energy and experience, and opponents' rad counters
-            if ((me.energy || 0) > 0) { me.energy++; n2++; }
-            if ((me.experience || 0) > 0) { me.experience++; n2++; }
-            for (const p of this.opponentsOf(ctx.controller)) if ((p.rad || 0) > 0) { p.rad++; n2++; }
+            if ((me.energy || 0) > 0) { me.energy++; n2++; onPlayer(me, 'energy'); }
+            if ((me.experience || 0) > 0) { me.experience++; n2++; onPlayer(me, 'experience'); }
+            for (const p of this.opponentsOf(ctx.controller)) if ((p.rad || 0) > 0) { p.rad++; n2++; onPlayer(p, 'rad'); }
             this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
           }
           this.logEvent('proliferate', `Proliferate adds ${n2} counter${n2 === 1 ? '' : 's'}.`);
@@ -25475,7 +25516,9 @@
              Windfall's "the greatest number discarded" is counted first. */
           // "Discard all the cards in your hand, then draw that many cards": you alone
           // (Collective Defiance: "Target player discards all the cards in their hand …" — that one)
-          const live = e.who === 'you' ? [me] : e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players.filter(p => !p.hasLost);
+          // (Wheel of Misfortune: only the players who didn't choose the lowest number — ids)
+          const live = e.ids ? this.players.filter(p => !p.hasLost && e.ids.includes(p.id))
+            : e.who === 'you' ? [me] : e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players.filter(p => !p.hasLost);
           const counts = live.map(p => this.zones[p.id].hand.length);
           const most = counts.length ? Math.max(...counts) : 0;
           for (const p of live) {
@@ -25485,7 +25528,7 @@
             const k = (e.n === 'mostDiscarded' ? most : e.n === 'sameDiscarded' ? counts[i] : e.n === 'sameMinusOne' ? Math.max(0, counts[i] - 1) : (n(e.n) || 7)) + (e.plus || 0);
             this._drawCards(p, k);
           });
-          this.logEvent('wheel', 'Everyone discards their hand and draws a new one.');
+          this.logEvent('wheel', e.ids ? `${live.map(p => p.name).join(', ')} discard their hands and draw new ones.` : 'Everyone discards their hand and draws a new one.');
           break;
         }
         /* "Look at the top three cards of your library, then put them back
@@ -28791,6 +28834,27 @@
           this._sacrificeNow(tp.id, a === b ? [a] : [a, b]);
           break;
         }
+        /* Wheel of Misfortune: "Each player secretly chooses a number 0 or greater, then all players reveal those
+           numbers simultaneously" — damage equal to the highest to each who chose it; whoever didn't choose the lowest
+           discards their hand and draws seven (a wheel among those players only) */
+        case 'secretNumberWheel': {
+          const live = this.players.filter(p => !p.hasLost);
+          if (!live.length) break;
+          const nm = ctx.name || (src && src.name) || 'Effect';
+          const picks = [];
+          for (const p of live) {
+            const got = this._choose({ playerId: p.id, purpose: 'secretNumber', kind: 'number', number: { min: 0, max: 99 },
+              prompt: `${nm}: secretly choose a number 0 or greater. The highest number deals that much damage to each player who chose it; each player who didn't choose the lowest discards their hand, then draws seven cards.` }, 'sn' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            picks.push(Math.max(0, Math.floor(Number(got && got.number) || 0)));
+          }
+          this.logEvent('reveal', live.map((p, i) => `${p.name} chose ${picks[i]}`).join('; ') + '.');
+          const hi = Math.max(...picks), lo = Math.min(...picks);
+          if (hi > 0) live.forEach((p, i) => { if (picks[i] === hi && !p.hasLost) this.dealDamageToPlayer(p, hi, src); });
+          const ids = live.filter((p, i) => picks[i] !== lo).map(p => p.id);
+          if (ids.length) this._spliceNext([{ op: 'wheel', ids, n: e.n || 7 }]);
+          break;
+        }
         case 'oppTopsShareSpellType': {
           const td = ctx.triggerData || {};
           const it = td.stackId ? this.stack.find(st => st.id === td.stackId) : null;
@@ -29634,7 +29698,8 @@
             // Render Silent: the controller of the spell just countered
             : e.who === 'targetController' ? [this._lastAffectedController()].filter(Boolean) : this.players)) {
             // Hope of Ghirapur: "Until your next turn" — over as that turn begins (silenceUntil)
-            if (e.duration === 'nextTurn') { (p.silenceUntil = p.silenceUntil || []).push({ by: ctx.controller, noncreature: !!e.noncreature }); continue; }
+            // (Avatar's Wrath: "from anywhere other than their hands" — notFromHand)
+            if (e.duration === 'nextTurn') { (p.silenceUntil = p.silenceUntil || []).push(Object.assign({ by: ctx.controller, noncreature: !!e.noncreature }, e.notFromHand ? { notFromHand: true } : {})); continue; }
             // Azor, the Lawbringer: "during that player's next turn" — set going as that turn begins (silenceOn)
             if (e.duration === 'theirNextTurn') { (p.silenceOn = p.silenceOn || []).push({ on: null, instantSorcery: !!e.instantSorcery }); continue; }
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
@@ -32505,7 +32570,12 @@
           // (Avatar Aang: "Whenever you airbend" — once it is done)
           this._noteBend(ctx.controller, 'air');
           // (Monk Gyatso: "airbend that creature" — the creature the trigger is about: triggerObj)
-          for (const t of (e.triggerObj ? [{ kind: 'object', id: (ctx.triggerData || {}).objectId }] : targets)) {
+          /* Avatar's Wrath: "Choose up to one target creature, then airbend all other creatures" — every creature but
+             the one chosen, together (allOther) */
+          const airList = e.allOther
+            ? this.battlefield.filter(x => !x.phasedOut && (this.characteristics(x) || {}).isCreature && !targets.some(t => t.kind === 'object' && t.id === x.id)).map(x => ({ kind: 'object', id: x.id }))
+            : e.triggerObj ? [{ kind: 'object', id: (ctx.triggerData || {}).objectId }] : targets;
+          for (const t of airList) {
             const x = t.kind === 'object' && this.obj(t.id);
             if (!x || x.zone !== 'battlefield') continue;
             this.moveObject(x, 'exile');
@@ -34740,13 +34810,17 @@
             // Megaton's Fate: each player; Glowing One: the player it hit; Acquired Mutation: the player it attacks
             : e.who === 'each' ? this.players.filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : [me];
-          for (const p of who) { p.rad = (p.rad || 0) + Math.max(0, n(e.n)); this.logEvent('counters', `${p.name} gets ${n(e.n)} rad counter${n(e.n) === 1 ? '' : 's'} (${p.rad}).`); }
+          for (const p of who) {
+            p.rad = (p.rad || 0) + Math.max(0, n(e.n)); this.logEvent('counters', `${p.name} gets ${n(e.n)} rad counter${n(e.n) === 1 ? '' : 's'} (${p.rad}).`);
+            if (n(e.n) > 0) this._playerCountersPut(p, 'rad', n(e.n), ctx.controller);
+          }
           break;
         }
         // experience counters
         case 'experience': {
           me.experience = (me.experience || 0) + Math.max(0, n(e.n));
           this.logEvent('counters', `${me.name} gets an experience counter (${me.experience}).`);
+          if (n(e.n) > 0) this._playerCountersPut(me, 'experience', n(e.n), ctx.controller);
           break;
         }
         // Suspend (the card): exiled with time counters, and suspended — its owner casts it when they run out
@@ -36813,7 +36887,7 @@
     _castBlocked(playerId, abilities) {
       const p = this.player(playerId);
       if (!abilities && p && p.silencedTurn === this.turn) return "You can't cast spells this turn.";
-      if (!abilities && p && (p.silenceUntil || []).some(x => !x.noncreature)) return "You can't cast spells until the next turn of the player who stopped you.";
+      if (!abilities && p && (p.silenceUntil || []).some(x => !x.noncreature && !x.notFromHand)) return "You can't cast spells until the next turn of the player who stopped you.";
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
         const e = this._staticOp(o, 'castRestrict');
