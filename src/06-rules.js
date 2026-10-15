@@ -9751,8 +9751,33 @@
       const a = o.analysis();
       if (!a) return this.fail('Unknown card.');
       const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
-      const ab = all[abilityIndex];
+      let ab = all[abilityIndex];
       if (!ab) return this.fail('No such ability.');
+      /* Bullseye, Death Dealer: "Sacrifice an artifact or discard a nonland card" — which price, asked before anything is
+         paid when both can be; the activation starts again with the answer (choice, costChoice) */
+      if (ab.cost && ab.cost.choice) {
+        let k = opts.costChoice;
+        if (k == null || !ab.cost.choice[k]) {
+          const ok = ab.cost.choice.map((_, i) => i).filter(i => !this._thingCostBlocked(playerId, this._costWithChoice(ab.cost, i), o, opts));
+          if (!ok.length) return this.fail(this._thingCostBlocked(playerId, ab.cost, o, opts) || "That cost can't be paid.");
+          const pl = this.player(playerId);
+          if (ok.length === 1 || (pl && pl.isBot) || opts.autoCost) k = ok[0];
+          else {
+            if (o.controller !== playerId && !ab.anyPlayer) return this.fail('You do not control that.');
+            const why0 = this._activationBlocked(o, ab, playerId);
+            if (why0) return this.fail(why0);
+            if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return this.fail('You do not have priority.');
+            const keep = Object.assign({}, opts);
+            delete keep.costChoice;
+            this.queueChoice({ type: 'mode', playerId, purpose: 'activateChoice', objId: o.id, abilityIndex, values: ok,
+              actOpts: JSON.parse(JSON.stringify(keep)), count: 1, prompt: `${o.name}: which cost will you pay?`,
+              options: ok.map(i => ({ i, label: ab.cost.choice[i].choiceLabel })),
+              sourceId: o.id, sourceName: o.name, sourceCard: o.card });
+            return true;
+          }
+        }
+        ab = Object.assign({}, ab, { cost: this._costWithChoice(ab.cost, k) });
+      }
       // an Infinity Stone's ∞ ability waits for the Stone to be harnessed
       if (ab.infinity && !o.harnessed) return this.fail(`${o.name} isn't harnessed yet.`);
       /* An ability printed to work from the graveyard works from there and
@@ -10528,6 +10553,13 @@
       return n == null ? 1 : n;
     }
 
+    /** An ability's cost with one of its "or" prices picked (Bullseye, Death Dealer: choice). */
+    _costWithChoice(cost, k) {
+      const c = Object.assign({}, cost, (cost.choice || [])[k] || {});
+      delete c.choice; delete c.choiceLabel;
+      return c;
+    }
+
     /** Yasharn, Implacable Earth: "Players can't pay life or sacrifice nonland permanents to cast spells or activate abilities." — the permanent that says so */
     _lifeSacCostBan() {
       return this.battlefield.find(o => !o.phasedOut && this._staticOp(o, 'noLifeSacCosts')) || null;
@@ -10544,6 +10576,11 @@
     }
     _thingCostBlocked(pid, cost, self, opts) {
       if (!cost) return null;
+      // Bullseye, Death Dealer: "Sacrifice an artifact or discard a nonland card" — blocked only when neither can be paid (choice)
+      if (cost.choice) {
+        const whys = cost.choice.map((_, k) => this._thingCostBlocked(pid, this._costWithChoice(cost, k), self, opts));
+        return whys.every(Boolean) ? whys[0] : null;
+      }
       const p = this.player(pid);
       // Yasharn, Implacable Earth: no life, and no nonland permanent sacrificed, to cast spells or activate abilities
       const ban = (cost.sacSelf || cost.life || cost.lifePower || cost.lifeFrom) && this._lifeSacCostBan();
@@ -18829,6 +18866,21 @@
             usable = usable.filter(i => !usedModes.includes(i));
             if (!usable.length) return gone('has no mode left to choose');
           }
+          /* a mode wanting a target there is nothing to be can't be chosen (CR 700.2a) — when some other mode can be
+             (Bill Ferny, Bree Swindler: "target Horse you control", with no Horse) */
+          {
+            const aimOk = (i) => {
+              const pl = triggerAimPlan(JSON.parse(JSON.stringify((modes[i] && modes[i].effects) || [])));
+              if (!pl.ok) return true;
+              return pl.units.every(u => {
+                if (u.kind !== 'spec' || !u.spec) return true;
+                const sp = this._aimSpecs([u.spec], item)[0];
+                return !sp || sp.upTo || !!sp.multi || this._legalTargetsFor(sp, pid, src ? src.id : null).some(t => !(t.kind === 'stack' && t.id === item.id));
+              });
+            };
+            const okModes = usable.filter(aimOk);
+            if (okModes.length && okModes.length < usable.length && !m.repeatable) usable = okModes;
+          }
           if (m.optional || m.distinctPlayers) {
             // Shadrix Silverquill: "Each mode must target a different player" — that many players to target
             const nPl = m.distinctPlayers ? this._legalTargetsFor({ type: 'player' }, pid, src ? src.id : null).length : 99;
@@ -24994,6 +25046,23 @@
             this._spliceNext(e.then);
             break;
           }
+          /* Bullseye, Death Dealer: "you may sacrifice an artifact or discard a nonland card. When you do, …" — one
+             question: which of those that can be paid, or neither; then that one paid as any other (oneOf) */
+          if (pay.oneOf) {
+            const can = pay.oneOf.filter(c => c.sacrifice
+              ? this.battlefield.some(o => o.controller === ctx.controller && !o.phasedOut && o !== (c.sacrifice.another ? src : null) && (this._matchesFilter(o, c.sacrifice.filter) || this._cardFitsWords(o, c.sacrifice.filter)))
+              : c.discard ? this.zones[ctx.controller].hand.some(o => !c.filter || c.filter === 'card' || this._matchesFilter(o, c.filter) || this._cardFitsWords(o, c.filter)) : false);
+            if (!can.length) { this._spliceNext(e.otherwise); break; }
+            const opts = can.map(c => ({ label: c.label, pay: c })).concat([{ label: "Don't", pay: null }]);
+            const got = this._choose({ playerId: ctx.controller, purpose: 'mayPayOneOf', kind: 'options', options: opts, min: 1, max: 1,
+              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay the cost').replace(/^./, c => c.toUpperCase()), 110)}` }, 'q1');
+            if (got === SUSPEND) return SUSPEND;
+            const pick = opts[(got && got.picks && got.picks[0]) != null ? got.picks[0] : opts.length - 1] || opts[opts.length - 1];
+            if (!pick.pay) { this._spliceNext(e.otherwise); break; }
+            const one = Object.assign({}, pick.pay); delete one.label;
+            this._spliceNext([Object.assign({}, e, { pay: one, noAsk: true })]);
+            break;
+          }
           /* Gix, Yawgmoth Praetor: "its controller may pay 1 life. If they do,
              they draw a card." — asked of the creature's controller, who pays;
              not asked when they can't */
@@ -25063,7 +25132,9 @@
             const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
             return { need: pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1,
               zone: pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
-                : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter)) };
+                // (Bullseye, Death Dealer: "discard a nonland card" — the kind of card said)
+                : this.zones[ctx.controller].hand.filter(o => { const df = pay.filter || (pay.discard && pay.discard.filter);
+                  return !df || df === 'card' || this._matchesFilter(o, df) || this._cardFitsWords(o, df); }) };
           };
           /* A price there is no paying is no question either — saying yes could only fail: Mana Vault's {4} with
              no mana to pay it, Artist's Talent's discard with an empty hand, Scavenger's Talent's three
@@ -37687,6 +37758,17 @@
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
           }
+          /* Bullseye, Death Dealer: which of an ability's prices — the activation starts again, answered (activateChoice) */
+          if (ch.purpose === 'activateChoice') {
+            const idx = ((data && data.modes) || [])[0];
+            const at = (ch.options || []).findIndex(op => op.i === idx);
+            const value = (ch.values || [])[at >= 0 ? at : 0];
+            this.pendingChoice = null;
+            this.activateAbility(playerId, ch.objId, ch.abilityIndex, Object.assign({}, ch.actOpts, { costChoice: value }));
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           /* A choice made while casting: the cast starts again, answered. */
           if (ch.purpose === 'castChoice') {
             const idx = ((data && data.modes) || [])[0];
@@ -38524,6 +38606,8 @@
         get turn() { return game.turn; },
         // (Ruxa, Patient Professor: "with no abilities" — noAbilities)
         noAbilities: (o) => this._hasNoAbilities(o),
+        // (Viper, Cruel Conspirator: "attacking alone" — attacking, and no other creature is: attackingAlone)
+        attackingAlone: (o) => !!o.attacking && !this.battlefield.some(x => x !== o && !x.phasedOut && x.attacking),
       };
       return this.__specCtx;
     }

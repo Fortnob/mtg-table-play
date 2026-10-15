@@ -1732,7 +1732,8 @@
     },
     /* Isu the Abominable: "you may pay {G}, {W}, or {U}" — paid, with the first of them we can (mayPayOneOf) */
     mayPayOneOf(s) {
-      const i = (s.options || []).findIndex(o => o && o.mana);
+      // (Bullseye, Death Dealer: a sacrifice or a discard — pay)
+      const i = (s.options || []).findIndex(o => o && (o.mana || o.pay));
       return { picks: [i < 0 ? (s.options || []).length - 1 : i] };
     },
     /* Wan Shi Tong, All-Knowing: our own permanent second from the top, to draw again soon; nobody else's is asked of us */

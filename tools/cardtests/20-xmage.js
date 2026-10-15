@@ -51969,7 +51969,7 @@ module.exports = (test) => {
     T.bf('A', 'Venser, Corpse Puppet');
     const sentinels = () => T.bfOf('A').filter(o => o.name === 'The Hollow Sentinel');
     const volt = () => { T.mana('A', 'R2'); T.cast('A', T.hand('A', 'Volt Charge'), { targets: ['B'] }); };
-    T.answer('mode', { modes: [0] });
+    // (no artifact creature to target yet: the Sentinel the only mode there is — CR 700.2a)
     volt();
     const s = sentinels()[0];
     t.ok(s && s.isToken, 'The Hollow Sentinel');
@@ -64960,5 +64960,125 @@ module.exports = (test) => {
     t.zone(lion, 'exile', 'Triad: the Lions exiled');
     t.eq(T.zone('B', 'hand').length, hb + 2, 'Triad: its controller draws two');
     t.eq(T.zone('A', 'hand').length, ha, 'Triad: not you');
+  });
+  test('Commanders: Bullseye, Death Dealer — enters: sacrifice an artifact or discard a nonland card, or neither; 2 damage when you do', (mk, t) => {
+    t.auto('Bullseye, Death Dealer');
+    const T = mk({ library: Array(30).fill('Island') });
+    const stone = T.bf('A', 'Mind Stone');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const isl = T.hand('A', 'Island');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [1] }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.bf('A', 'Bullseye, Death Dealer', { etb: true });
+    T.resolve();
+    t.ok(q && q.purpose === 'mayPayOneOf' && q.options.length === 3, 'Bullseye: sacrifice, discard, or neither');
+    t.zone(bolt, 'graveyard', 'Bullseye: the nonland card discarded');
+    t.zone(isl, 'hand', 'Bullseye: not the land');
+    t.zone(stone, 'battlefield', 'Bullseye: the artifact kept');
+    t.eq(T.life('B'), 18, 'Bullseye: 2 damage');
+    // neither
+    T.answer('choose', (ch) => ({ picks: [ch.options.length - 1] }));
+    T.bf('A', 'Bullseye, Death Dealer', { etb: true });
+    T.resolve();
+    t.zone(stone, 'battlefield', 'Bullseye: declined — nothing sacrificed');
+    t.eq(T.life('B'), 18, 'Bullseye: declined — no damage');
+    // only lands in hand and no artifact: nothing asked
+    T.g.battlefield.filter(o => o.name === 'Mind Stone').forEach(o => T.g.moveObject(o, 'graveyard'));
+    const n = T.asked.length;
+    T.bf('A', 'Bullseye, Death Dealer', { etb: true });
+    T.resolve();
+    t.no(T.asked.slice(n).some(ch => ch.purpose === 'mayPayOneOf'), 'Bullseye: nothing to pay with — not asked');
+    t.eq(T.life('B'), 18);
+  });
+  test('Commanders: Bullseye, Death Dealer — {3}, {T}, sacrifice an artifact or discard a nonland card: 2 damage', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const be = T.bf('A', 'Bullseye, Death Dealer');
+    const stone = T.bf('A', 'Mind Stone');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    let q = null;
+    T.answer('mode', (ch) => { q = ch; return { modes: [ch.options[0].i] }; });
+    T.mana('A', '3');
+    T.activate('A', be, 0, { targets: ['B'] });
+    t.ok(q && q.purpose === 'activateChoice' && q.options.length === 2, 'Bullseye: which cost');
+    t.zone(stone, 'graveyard', 'Bullseye: the artifact sacrificed');
+    t.zone(bolt, 'hand', 'Bullseye: no card discarded');
+    t.eq(T.life('B'), 18, 'Bullseye: 2 damage');
+    // no artifact left: the discard, nothing asked
+    be.tapped = false;
+    const n = T.asked.length;
+    T.mana('A', '3');
+    T.activate('A', be, 0, { targets: ['B'] });
+    t.no(T.asked.slice(n).some(ch => ch.purpose === 'activateChoice'), 'Bullseye: one way to pay — not asked');
+    t.zone(bolt, 'graveyard', 'Bullseye: the nonland card discarded');
+    t.eq(T.life('B'), 16);
+    // only a land in hand, no artifact: can't pay
+    be.tapped = false;
+    T.hand('A', 'Island');
+    T.mana('A', '3');
+    t.no(g.activateAbility('A', be.id, 0, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'Bullseye: a land is not a nonland card');
+    t.eq(T.life('B'), 16);
+  });
+  test('Commanders: Bill Ferny, Bree Swindler — blocked: a Treasure, or a Horse to an opponent, out of combat and three Treasures', (mk, t) => {
+    t.auto('Bill Ferny, Bree Swindler');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const bill = T.bf('A', 'Bill Ferny, Bree Swindler');
+    const bear = T.bf('B', 'Hill Giant');
+    const treasures = () => T.bfOf('A').filter(o => o.name === 'Treasure').length;
+    // no Horse: only the Treasure
+    T.answer('declareAttackers', () => [{ attackerId: bill.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bear.id, attackerIds: [bill.id] }]);
+    T.toMain('A', 'combatDamage');
+    t.eq(treasures(), 1, 'Bill Ferny: a Treasure');
+    t.no(T.asked.some(ch => ch.type === 'mode'), 'Bill Ferny: no Horse — no question');
+    t.zone(bill, 'graveyard', 'Bill Ferny: blocked by the Giant and dies');
+    // with a Horse
+    T.nextTurn('A');
+    const bill2 = T.bf('A', 'Bill Ferny, Bree Swindler');
+    const horse = T.bf('A', 'Armored Warhorse');
+    let q = null;
+    T.answer('mode', (ch) => { q = ch; return { modes: [1] }; });
+    T.answer('declareAttackers', () => [{ attackerId: bill2.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bear.id, attackerIds: [bill2.id] }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(q && q.options.length === 2, 'Bill Ferny: choose one');
+    t.eq(horse.controller, 'B', 'Bill Ferny: the opponent gains control of the Horse');
+    t.no(bill2.attacking, 'Bill Ferny: removed from combat');
+    t.eq(treasures(), 4, 'Bill Ferny: three Treasures');
+    T.nextTurn('B');
+    t.zone(bill2, 'battlefield', 'Bill Ferny: out of combat — not dealt damage');
+    t.eq(horse.controller, 'B', 'Bill Ferny: the Horse stays theirs');
+  });
+  test('Commanders: Viper, Cruel Conspirator — a creature attacking alone: +1/+1, deathtouch or lifelink; not when others attack too', (mk, t) => {
+    t.auto('Viper, Cruel Conspirator');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const vp = T.bf('A', 'Viper, Cruel Conspirator');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'B');
+    t.no(g.activateAbility('A', vp.id, 0, { auto: true, targets: [{ kind: 'object', id: b1.id }] }), 'Viper: not before it attacks');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.mana('A', 'B');
+    T.activate('A', vp, 0, { targets: [b1.id] });
+    t.eq(g.powerOf(b1), 3, 'Viper: +1/+1');
+    t.eq(g.toughnessOf(b1), 3);
+    let q = null;
+    T.answer('mode', (ch) => { q = ch; return { modes: [1] }; });
+    T.mana('A', 'B');
+    T.activate('A', vp, 1, { targets: [b1.id] });
+    t.ok(q && q.purpose === 'keywordChoice' && q.options.length === 2, 'Viper: deathtouch or lifelink');
+    t.ok(g.hasKw(b1, 'lifelink') && !g.hasKw(b1, 'deathtouch'), 'Viper: lifelink, as chosen');
+    T.mana('A', 'B');
+    t.no(g.activateAbility('A', vp.id, 0, { auto: true, targets: [{ kind: 'object', id: b2.id }] }), 'Viper: not a creature that is not attacking');
+    // two attackers: neither is attacking alone
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.mana('A', 'B');
+    t.no(g.activateAbility('A', vp.id, 0, { auto: true, targets: [{ kind: 'object', id: b1.id }] }), 'Viper: two attacking — not alone');
+    t.eq(g.powerOf(b1), 2);
   });
 };

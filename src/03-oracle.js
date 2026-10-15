@@ -334,6 +334,15 @@
         else cost.sacSelf = true;
         continue;
       }
+      /* Bullseye, Death Dealer: "Sacrifice an artifact or discard a nonland card" — either price, the player's pick as it is
+         activated (choice) */
+      if ((m = p.match(/^(Sacrifice an? [a-z ]+?) or (discard an? [a-z ]*?card)$/i))) {
+        const s1 = parseCost(m[1]), d1 = parseCost(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        if (s1.sacrifice && d1.discard && !s1.other.length && !d1.other.length) {
+          cost.choice = [{ sacrifice: s1.sacrifice, choiceLabel: m[1] }, { discard: d1.discard, choiceLabel: m[2].charAt(0).toUpperCase() + m[2].slice(1) }];
+          continue;
+        }
+      }
       // Baba Lysaga, Night Witch: "Sacrifice up to three permanents" — none at all is a price paid too (upTo)
       if ((m = p.match(/^Sacrifice up to (one|two|three|four|five) (other )?(.+)$/i))) {
         cost.sacrifice = { n: WORDN(m[1].toLowerCase()) || 1, filter: m[3].replace(/s\b/g, '').trim(), another: !!m[2], upTo: true };
@@ -4328,6 +4337,17 @@
     // Pinnacle of Rage, Furious Reprisal: "CARDNAME deals 3 damage to each of two targets."
     { re: /^(?:CARDNAME|This spell) deals (\d+) damage to each of (two|three) targets\.?$/i,
       make: (m) => ({ op: 'damage', n: +m[1], targets: Array.from({ length: num(m[2]) }, () => ({ type: 'any', filter: 'any target', distinct: true })) }) },
+    /* Viper, Cruel Conspirator: "Target creature that's attacking alone gets +1/+1 until end of turn", "… gains your choice of
+       deathtouch or lifelink until end of turn" — read as an attacking creature's, which must be attacking alone (attackingAlone) */
+    { re: /^Target creature that'?s attacking alone ((?:gets|gains) [^.]+ until end of turn)\.?$/i,
+      make: (m) => {
+        const inner = parseEffectSentence('Target attacking creature ' + m[1] + '.', 1);
+        const sp = inner && inner.op !== 'manual' && (inner.targets || [])[0];
+        if (!sp || (inner.targets || []).length !== 1) return null;
+        const alone = targetSpec("target creature that's attacking alone");
+        if (!alone || alone.unknown) return null;
+        return Object.assign({}, inner, { targets: [alone] });
+      } },
     // Compelled Duel: "gets +3/+3 until end of turn and must be blocked this turn if able"
     { re: /^(Target creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and must be blocked this turn if able\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [targetSpec(m[1])] },
@@ -10048,6 +10068,9 @@
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
     // Lulu, Stern Guardian, Flash Foliage: "target creature attacking you" — attacking this player itself (attackingYouSpec)
+    // Viper, Cruel Conspirator: "target creature that's attacking alone" — attacking, and no other creature is (attackingAlone)
+    const alone = /\s+that'?s attacking alone$/i.test(String(phrase));
+    if (alone) phrase = String(phrase).replace(/\s+that'?s attacking alone$/i, '');
     const atYou = /\s+(?:that'?s )?attacking you$/i.test(String(phrase));
     if (atYou) phrase = String(phrase).replace(/\s+(?:that'?s )?attacking you$/i, '');
     // Yenna, Redtooth Regent: "target enchantment you control that doesn't have the same name as another permanent you control" (uniqueName)
@@ -10062,6 +10085,7 @@
     if (isnt) { spec.notSubtype = isnt[1].toLowerCase(); spec.filter = p + " that isn't a " + isnt[1]; }
     if (unique) spec.uniqueName = true;
     if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
+    if (alone) { spec.attacking = true; spec.attackingAlone = true; spec.filter = p + " that's attacking alone"; }
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
     if (dealtNow) spec.dealtDamageThisTurn = true;
@@ -10360,6 +10384,8 @@
     if (spec.attacking && !obj.attacking) return false;
     if (spec.nonattacking && obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
+    // (Viper, Cruel Conspirator: "attacking alone" — no other creature attacking)
+    if (spec.attackingAlone && ctx && ctx.attackingAlone && !ctx.attackingAlone(obj)) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
     if (spec.blocked && !((obj.blockedBy || []).length || (obj.blockedNoBlocker && (!ctx || ctx.turn == null || obj.blockedNoBlocker === ctx.turn)))) return false;
     // (modifiedTarget: what is on it, as the game reads it)
@@ -12932,6 +12958,14 @@
        to your hand." (returnOpponentsChoice) */
     { re: /^Mill (\w+) cards?, then return an? (nonland )?card of an opponent'?s choice from your graveyard to your hand\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'returnOpponentsChoice', filter: m[2] ? 'nonland' : null }] : null) },
+    /* Bill Ferny, Bree Swindler: "Target opponent gains control of target Horse you control. If they do, remove Bill Ferny
+       from combat and create three Treasure tokens." — only once the Horse is theirs (giveControl then) */
+    { re: /^Target (opponent|player) gains control of (target [A-Z][a-z]+ you control)\. If they do, (remove CARDNAME from combat) and (create [^.]+)\.?$/,
+      make: (m) => {
+        const sp = targetSpec(m[2]);
+        const tp = parseSentenceList([m[3].charAt(0).toUpperCase() + m[3].slice(1) + '.', m[4].charAt(0).toUpperCase() + m[4].slice(1) + '.']);
+        return sp && !sp.unknown && tp.auto ? [{ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }, sp], then: tp.effects }] : null;
+      } },
     /* Kain, Traitorous Dragoon: "that player gains control of Kain. If they do, you draw that many cards, create that
        many tapped Treasure tokens, then lose that much life." — the player hit, and the damage dealt (giveControl then) */
     { re: /^That player gains control of CARDNAME\. If they do, you draw that many cards, create that many tapped Treasure tokens, then lose that much life\.?$/i,
@@ -13228,6 +13262,12 @@
     { re: /^pay ((?:\{[0-9WUBRGC]\}, )+)or (\{[0-9WUBRGC]\})$/i, make: (m) => ({ manaOneOf: m[1].split(/, /).filter(Boolean).concat([m[2]]).map(x => x.toUpperCase()) }) },
     // (Kinzu of the Bleak Coven: "you may pay 2 life and exile it. If you do, …")
     { re: /^pay (\d+) life and exile it$/i, make: (m) => ({ life: +m[1], exileTriggerCard: true }) },
+    // Bullseye, Death Dealer: "you may sacrifice an artifact or discard a nonland card. When you do, …" — either one (oneOf)
+    { re: /^(sacrifice an? [-a-z ]+?) or (discard an? [a-z ]*?card)$/i,
+      make: (m) => {
+        const both = [m[1], m[2]].map(w => { const c = asCost(w); return c && Object.assign(c, { label: w.charAt(0).toUpperCase() + w.slice(1) }); });
+        return both.every(Boolean) ? { oneOf: both } : null;
+      } },
     { re: /^discard (a|one|two|three|\d+) ([a-z ]*?)cards?$/i,
       make: (m) => ({ discard: num(m[1]), filter: (m[2] || '').trim() || 'card' }) },
     { re: /^sacrifice (a|an|one|two|three|\d+) ([-a-z ]+?)$/i,
