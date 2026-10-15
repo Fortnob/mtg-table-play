@@ -6615,4 +6615,30 @@ module.exports = (test) => {
     t.zone(other, 'graveyard', 'the other Korlash is discarded');
     t.eq(T.bfOf('A').filter(o => o.name === 'Swamp').length, before + 2, 'two Swamps put onto the battlefield');
   });
+
+  test('Audit: Map and Junk tokens are activated only as a sorcery, as printed', (mk, t) => {
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.top('A', 'Lightning Bolt');
+    g._createNamedToken('A', { token: 'Map', n: 1 });
+    g._createNamedToken('A', { token: 'Junk', n: 1 });
+    const map = T.bfOf('A').find(o => o.isToken && o.name === 'Map');
+    const junk = T.bfOf('A').find(o => o.isToken && o.name === 'Junk');
+    for (const o of [map, junk]) t.ok(o.analysis().fullyAutomated, o.name + ' is automated');
+    T.mana('A', '1');
+    // on the opponent's turn: not allowed
+    T.nextTurn('B');
+    g.priorityIndex = g.turnOrder.indexOf('A');      // A has priority on B's turn
+    t.ok(g.priorityPlayer && g.priorityPlayer.id === 'A', 'A holds priority');
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', map.id, 0, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'Map: not on another turn');
+    t.no(g.activateAbility('A', junk.id, 0, { auto: true }), 'Junk: not on another turn');
+    // on A's turn, in a main phase, with the stack empty: allowed
+    T.nextTurn('A');
+    T.mana('A', '1');
+    t.ok(g.activateAbility('A', junk.id, 0, { auto: true }), 'Junk: in a main phase');
+    T.resolve();
+    t.no(T.bfOf('A').includes(junk), 'Junk sacrificed');
+  });
 };
