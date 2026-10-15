@@ -1800,7 +1800,7 @@
           if (c.tap && o.tapped) return false;
           if (c.untap && !o.tapped) return false;
           if (c.life && p.life <= c.life) return false;
-          if (c.energy && (p.energy || 0) < c.energy) return false;
+          if (c.energy && c.energy !== 'X' && (p.energy || 0) < c.energy) return false;
           if (x.sorcerySpeed && !this._equipAnyTime(playerId, x, o) && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && this._loyaltyUsedUp(o)) return false;
@@ -10258,6 +10258,15 @@
         const sp = it && this.obj(it.objId);
         if (sp) opts = Object.assign({}, opts, { x: (sp.card && sp.card.cmc) || 0 });
       }
+      /* Chthonian Nightmare: "Pay X {E}, …: Return target creature card with mana value X from your graveyard" — X is
+         the target's mana value (energy 'X') */
+      if (opts.x == null && ab.cost && ab.cost.energy === 'X' && !/\{X\}/.test(ab.cost.mana || '')) {
+        const specsE = effectSpecs(ab.effects);
+        const ie = specsE.findIndex(sp => sp && sp.mv === 'X');
+        const te = ie >= 0 && (opts.targets || [])[ie];
+        const card = te && te.kind !== 'player' && this.obj(te.id);
+        if (card) opts = Object.assign({}, opts, { x: (card.card && card.card.cmc) || 0 });
+      }
       /* Sidisi, Regent of the Mire: "Sacrifice a creature you control with mana value X …: Return target creature
          card with mana value X plus 1" — X is the target's mana value less one (mvXPlus) */
       if (opts.x == null && ab.cost && ab.cost.sacrifice && /\bmana value X\b/i.test(ab.cost.sacrifice.filter || '') && !/\{X\}/.test(ab.cost.mana || '')) {
@@ -11208,7 +11217,7 @@
         if (this._counterSpreadTotal(pid, rs, self) < need) return `Not enough ${rs.kind} counters among ${O.nounPlural(rs.filter)} you control.`;
       }
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
-      if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
+      if (cost.energy && ((this.player(pid) || {}).energy || 0) < this._costCount(cost.energy, opts, pid)) return 'Not enough energy.';
       if (cost.returnOwn) {
         const back = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
           !(cost.returnOwn.untapped && x.tapped) && !(cost.returnOwn.tapped && !x.tapped));
@@ -11292,9 +11301,11 @@
         }
       }
       // "Pay {E}{E}"
-      if (cost.energy) {
+      // (Chthonian Nightmare: "Pay X {E}" — X of it)
+      const energyK = cost.energy ? this._costCount(cost.energy, opts, pid) : 0;
+      if (energyK) {
         const pe = this.player(pid);
-        if (pe) { pe.energy = Math.max(0, (pe.energy || 0) - cost.energy); this.logEvent('counters', `${pe.name} pays ${cost.energy} energy (${pe.energy} left).`); }
+        if (pe) { pe.energy = Math.max(0, (pe.energy || 0) - energyK); this.logEvent('counters', `${pe.name} pays ${energyK} energy (${pe.energy} left).`); }
       }
       const p = this.player(pid);
       const auto = !!(p && p.isBot) || !!opts.autoCost;
@@ -23189,6 +23200,8 @@
           if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { this._markUntapped(x); this.emit('sfx', 'untap'); } break; }
           // "untap that land": whatever the effect before this one fetched
           if (e.scope === 'lastAffected') { const x = this._lastAffected && this.obj(this._lastAffected.id); if (x && x.zone === 'battlefield') { this._markUntapped(x); this.emit('sfx', 'untap'); } break; }
+          // Animist's Awakening: "untap those lands" — the ones just put onto the battlefield (takenOntoBf)
+          if (e.scope === 'takenOntoBf') { for (const id of this._takenOntoBf || []) { const x = this.obj(id); if (x && x.zone === 'battlefield') this._markUntapped(x); } this.emit('sfx', 'untap'); break; }
           if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { this._markUntapped(x); this.emit('sfx', 'untap'); } }
           else if (e.scope === 'self' && src) { this._markUntapped(src); this.emit('sfx', 'untap'); }
           // Dihada, Binder of Wills: "Untap them." — the permanents just taken

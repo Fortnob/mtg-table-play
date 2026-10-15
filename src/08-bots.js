@@ -4732,6 +4732,19 @@
         exileIds = [best.id];
         if (flat.some(e => e.op === 'copyPermanent' && e.of === 'costExiled')) v += 1 + this.rating(best) * 0.8;
       }
+      /* Chthonian Nightmare: "Pay X {E}, …: Return target creature card with mana value X from your graveyard" — the best
+         card the energy there pays for, X its mana value (energy 'X') */
+      if (cost.energy === 'X' && x == null) {
+        const sp = flat.map(e => (e.targets || [])[0]).find(t => t && t.mv === 'X');
+        const have = this.me.energy || 0;
+        const best = sp ? g._legalTargetsFor(sp, this.pid, o.id).map(t => g.obj(t.id || t)).filter(c => c && ((c.card && c.card.cmc) || 0) <= have)
+          .sort((p, q) => this.rating(q) - this.rating(p))[0] : null;
+        if (!best) return null;
+        x = (best.card && best.card.cmc) || 0;
+        v += 1 + this.rating(best) * 0.6 - x * 0.2;
+        if (v <= 0) return null;
+        return { o, index, targets: [{ kind: 'object', id: best.id }], v, label, sacrificeIds, discardIds, x, exileIds };
+      }
       // targets: chosen as for a spell, and an ability with nothing worth pointing at waits
       const targets = this.chooseTargetsForEffects(effects.concat((ab.targets || []).map(spec => ({ op: flat[0].op, targets: [spec] }))), o);
       if (targets === null) return null;

@@ -69419,4 +69419,93 @@ module.exports = (test) => {
     t.eq(T.life('B'), 8, 'Bolt copied and cast (3), the other copy declined, Shock (2)');
     t.ok(g.zones.A.graveyard.filter(c => c.name === 'Shock').length >= 1, 'the Shock just cast to the graveyard');
   });
+
+  test("Cards: Chthonian Nightmare — pay X energy, sacrifice a creature, return it to hand: a creature card with mana value X back", (mk, t) => {
+    t.auto('Chthonian Nightmare');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const cn = T.bf('A', 'Chthonian Nightmare', { etb: true });
+    T.resolve();
+    t.eq(T.player('A').energy, 3, 'three energy on entering');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const bears = T.grave('A', 'Grizzly Bears'), wurm = T.grave('A', 'Craw Wurm');
+    t.no(g.activateAbility('A', cn.id, 0, { targets: [{ kind: 'object', id: wurm.id }], sacrificeIds: [elf.id], auto: true }), 'X = 6: not enough energy');
+    t.zone(elf, 'battlefield', 'nothing paid'); t.eq(T.player('A').energy, 3);
+    T.activate('A', cn, 0, { targets: [bears], sacrificeIds: [elf.id] });
+    t.zone(bears, 'battlefield', 'Bears back'); t.eq(bears.controller, 'A');
+    t.eq(T.player('A').energy, 1, 'X = 2 energy paid');
+    t.zone(elf, 'graveyard', 'Elves sacrificed'); t.zone(cn, 'hand', 'Nightmare to its hand');
+  });
+  test("Cards: The Indomitable — cast from the graveyard with three or more tapped Pirates and/or Vehicles", (mk, t) => {
+    t.auto('The Indomitable');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ind = T.grave('A', 'The Indomitable');
+    const p1 = T.bf('A', 'Fathom Fleet Captain'), v1 = T.bf('A', 'Smuggler\'s Copter'), p2 = T.bf('A', 'Fathom Fleet Captain');
+    T.mana('A', '2UU');
+    const offered = () => g.altUsesFor('A', ind.id).some(u => u.via === 'selfGrave');
+    t.no(offered(), 'untapped: not from the graveyard');
+    p1.tapped = true; v1.tapped = true;
+    t.no(offered(), 'two tapped: not yet');
+    p2.tapped = true;
+    t.ok(offered(), 'three tapped');
+    T.cast('A', ind, { via: 'selfGrave' });
+    t.zone(ind, 'battlefield', 'three tapped (Pirates and a Vehicle): cast from the graveyard');
+  });
+  test('Cards: Perch Protection — four Birds; with the gift, your permanents phase out and you are untouchable until your next turn', (mk, t) => {
+    t.auto('Perch Protection');
+    for (const gift of [true, false]) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const g = T.g;
+      const bears = T.bf('A', 'Grizzly Bears');
+      T.mana('A', '4WW');
+      const pp = T.hand('A', 'Perch Protection');
+      T.cast('A', pp, gift ? { gift: 'B' } : {});
+      const birds = T.bfOf('A').filter(o => o.name === 'Bird');
+      t.eq(birds.length, 4, 'four Birds');
+      t.zone(pp, 'exile', 'exiled');
+      if (gift) {
+        t.ok(bears.phasedOut && birds.every(b => b.phasedOut), 'gift: all phased out, the Birds too');
+        g.changeLife(T.player('A'), -5);
+        t.eq(T.life('A'), 20, "gift: life can't change");
+        t.ok(T.player('A').protection, 'protection from everything');
+      } else {
+        t.no(bears.phasedOut, 'no gift: nothing phases out');
+        t.no(T.player('A').protection);
+      }
+    }
+  });
+  test("Cards: PuPu UFO — {3}: its base power becomes the number of Towns you control", (mk, t) => {
+    t.auto('PuPu UFO');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ufo = T.bf('A', 'PuPu UFO');
+    const base = g.powerOf(ufo);
+    T.bf('A', 'Treetop Village');
+    const towns = g.battlefield.filter(o => o.controller === 'A' && g._cardFitsWords(o, 'town')).length;
+    T.mana('A', '3');
+    T.activate('A', ufo, 1);
+    t.eq(g.powerOf(ufo), towns, 'base power = Towns');
+    t.eq(g.toughnessOf(ufo), +ufo.card.toughness, 'toughness left alone');
+    T.nextTurn('B');
+    t.eq(g.powerOf(ufo), base, 'until end of turn');
+  });
+  test("Cards: Animist's Awakening — the lands among the top X onto the battlefield tapped, untapped with spell mastery", (mk, t) => {
+    t.auto("Animist's Awakening");
+    for (const mastery of [false, true]) {
+      const T = mk({ library: ['Grizzly Bears', 'Forest', 'Shock', 'Mountain', 'Island', 'Island'] });
+      const g = T.g;
+      const lib = T.zone('A', 'library');
+      lib.splice(0, lib.length);
+      const top = ['Island', 'Mountain', 'Grizzly Bears', 'Forest'].map(n => T.top('A', n)).reverse();
+      if (mastery) { T.grave('A', 'Shock'); T.grave('A', 'Divination'); }
+      T.mana('A', '3G');
+      T.cast('A', T.hand('A', "Animist's Awakening"), { x: 3 });
+      const lands = top.slice(0, 3).filter(c => /Forest|Mountain/.test(c.name));
+      t.ok(lands.every(c => c.zone === 'battlefield'), 'the lands among the top three');
+      t.zone(top[3], 'library', 'the fourth stays');
+      t.ok(top[1].zone === 'library' && T.zone('A', 'library').indexOf(top[1]) > 0, 'Bears to the bottom');
+      t.eq(lands.every(c => c.tapped), !mastery, mastery ? 'spell mastery: untapped' : 'tapped');
+    }
+  });
 };

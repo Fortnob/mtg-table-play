@@ -318,6 +318,8 @@
       // "Pay eight {E}": energy, counted in words
       const en = p.match(/^Pay (one|two|three|four|five|six|seven|eight|nine|ten|\d+) \{E\}$/i);
       if (en) { cost.energy = (cost.energy || 0) + num(en[1]); continue; }
+      // Chthonian Nightmare: "Pay X {E}" — as much energy as X (energy 'X')
+      if (/^Pay X \{E\}$/i.test(p)) { cost.energy = 'X'; continue; }
       if (/^(\{[^}]+\})+$/.test(p)) {
         const syms = MANA.parse(p);
         const manaSyms = syms.filter(s => s !== 'T' && s !== 'Q' && s !== 'E');
@@ -5428,6 +5430,10 @@
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
     // The Stasis Coffin: "You gain protection from everything until your next turn."
     { re: /^You gain protection from everything until your next turn\.?$/i, make: () => ({ op: 'playerProtection' }) },
+    /* Perch Protection: "(If the gift was promised,) all permanents you control phase out, and until your next turn, your
+       life total can't change and you gain protection from everything." — Teferi's Protection's words in another order */
+    { re: /^All permanents you control phase out, and until your next turn, your life total can'?t change and you gain protection from everything\.?$/i,
+      make: () => [{ op: 'phaseOut', scope: { who: 'you', what: 'permanent' } }, { op: 'playerProtection', lifeLocked: true }] },
     // Shallow Grave, Corpse Dance, Mistmoon Griffin: "Return the top creature card of your graveyard to the battlefield."
     { re: /^Return the top creature card of your graveyard to the battlefield\.?$/i, make: () => ({ op: 'reanimateTop', filter: 'creature' }) },
     /* Incremental Growth, Incremental Blight: "Put a +1/+1 counter on target creature, two +1/+1
@@ -5938,8 +5944,12 @@
       make: () => ({ op: 'lockOrUnlockDoor', targets: [targetSpec('target Room you control')] }) },
     // Muxus, Goblin Grandee: "Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield …" — every one (takeAll)
     // (Marina Vendrell: "Put all enchantment cards from among them into your hand and the rest …")
-    { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them (onto the battlefield|into your hand) and the rest on the bottom of your library in a random order\.?$/,
-      make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: /hand/.test(m[3]) ? 'hand' : 'battlefield', rest: 'bottomRandom' }) },
+    // (Animist's Awakening: "Put all land cards from among them onto the battlefield tapped and the rest …" — tapped)
+    { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them (onto the battlefield( tapped)?|into your hand) and the rest on the bottom of your library in a random order\.?$/,
+      make: (m) => Object.assign({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: /hand/.test(m[3]) ? 'hand' : 'battlefield', rest: 'bottomRandom' },
+        m[4] ? { tapped: true } : {}) },
+    // Animist's Awakening: "untap those lands" — the lands just put onto the battlefield (takenOntoBf)
+    { re: /^Untap those lands\.?$/i, make: () => ({ op: 'untap', scope: 'takenOntoBf' }) },
     /* Depala, Pilot Exemplar: "reveal the top X cards of your library, put all Dwarf and Vehicle cards from among them
        into your hand, then put the rest on the bottom of your library in a random order" — the reveal, then every one
        that is either */
@@ -7481,6 +7491,9 @@
       make: () => ({ op: 'becomes', scope: 'lastTarget', duration: 'eot', eff: {}, powerX: { ofSelf: 'power' }, toughnessX: { ofSelf: 'toughness' } }) },
     /* Arni Brokenbrow: "You may have Arni's base power become 1 plus the greatest power among other creatures you
        control until end of turn." — counted as it resolves, the toughness left alone (becomes, powerX) */
+    // PuPu UFO: "Until end of turn, this creature's base power becomes equal to the number of Towns you control." (becomes, powerX)
+    { re: /^Until end of turn, (?:CARDNAME|this creature)'?s base power becomes equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'becomes', scope: 'self', duration: 'eot', eff: {}, powerX: k } : null; } },
     { re: /^(You may )?have CARDNAME'?s base power become (.+?) until end of turn\.?$/i,
       make: (m) => { const k = amountOf(m[2]); if (!k) return null;
         const b = { op: 'becomes', scope: 'self', duration: 'eot', eff: {}, powerX: k };
@@ -16177,6 +16190,9 @@
     // counting the board
     // (Tovolar, Dire Overlord: "three or more Wolves and/or Werewolves" — either, by each one's own singular)
     [/^you control (\w+) or more ([a-z]+ and\/or [a-z]+)$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) })],
+    // The Indomitable: "you control three or more tapped Pirates and/or Vehicles" — tapped, either kind (thatIs)
+    [/^you control (\w+) or more (tapped|untapped) ([A-Za-z]+?)s and\/or ([A-Za-z]+?)s$/i, (m) => (typeof num(m[1]) === 'number'
+      ? { kind: 'control', n: num(m[1]), scope: { who: 'you', what: 'permanent', tapped: /^tapped$/i.test(m[2]), thatIs: (m[3] + ' or ' + m[4]).toLowerCase() } } : null)],
     [/^you control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: singularType(m[2] + 's'), n: num(m[1]) })],
     // Valakut: "if you control at least five other Mountains" (the one that entered among them)
     [/^you control at least (\w+) other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2].toLowerCase(), n: num(m[1]) + 1 })],
