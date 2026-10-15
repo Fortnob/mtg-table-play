@@ -12,15 +12,20 @@
 (function (MTG) {
   const U = MTG.util;
 
-  /** @type {Array<null|{n:number, name:string, blurb:string}>} by number */
+  /* Each bracket: what it is (about) and what it allows, one rule a line (rules); the blurb is the two in a sentence */
+  /** @type {Array<null|{n:number, name:string, about:string, rules:string[], blurb:string}>} by number */
   const BRACKETS = [
     null,
-    { n: 1, name: 'Exhibition', blurb: 'Decks built to show off an idea more than to win. No Game Changers, no mass land denial, no extra turns, no two-card combos.' },
-    { n: 2, name: 'Core', blurb: 'About as strong as a typical preconstructed deck. No Game Changers, mass land denial or two-card combos; an extra turn here and there, never one after another.' },
-    { n: 3, name: 'Upgraded', blurb: 'Stronger than a precon. Up to three Game Changers; no mass land denial; no two-card combo that comes together early; extra turns never one after another.' },
-    { n: 4, name: 'Optimized', blurb: 'High power: anything the banned list allows.' },
-    { n: 5, name: 'cEDH', blurb: 'Competitive: the strongest decks, built for tournament play.' },
+    { n: 1, name: 'Exhibition', about: 'Decks built to show off an idea more than to win.',
+      rules: ['No Game Changers', 'No mass land denial', 'No extra turns', 'No two-card combos'] },
+    { n: 2, name: 'Core', about: 'About as strong as a typical preconstructed deck.',
+      rules: ['No Game Changers', 'No mass land denial', 'No two-card combos', 'An extra turn here and there, never one after another'] },
+    { n: 3, name: 'Upgraded', about: 'Stronger than a precon.',
+      rules: ['Up to three Game Changers', 'No mass land denial', 'No two-card combo that comes together early', 'Extra turns never one after another'] },
+    { n: 4, name: 'Optimized', about: 'High power.', rules: ['Anything the banned list allows'] },
+    { n: 5, name: 'cEDH', about: 'Competitive: the strongest decks.', rules: ['Built for tournament play', 'Anything the banned list allows'] },
   ];
+  for (const b of BRACKETS) if (b) b.blurb = b.about + ' ' + b.rules.map((r, i) => (i ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join('; ') + '.';
   const nameOf = (n) => (BRACKETS[n] ? BRACKETS[n].name : '');
   const label = (n) => (BRACKETS[n] ? `Bracket ${n} · ${BRACKETS[n].name}` : 'Any bracket');
 

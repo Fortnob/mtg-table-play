@@ -1574,6 +1574,9 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .bracket-step:hover { opacity: .9; }
 .bracket-step.picked { opacity: 1; border-style: solid; border-color: var(--bc); outline: 2px solid color-mix(in srgb, var(--bc) 55%, transparent); outline-offset: 1px; }
 .bracket-hint { margin: -4px 0 8px; text-align: center; }
+.bracket-view > p.bracket-about { margin: 0 0 4px; }
+.bracket-rules { margin: 0 0 10px; padding-left: 20px; font-size: 13px; line-height: 1.5; color: var(--ink-2, #c9cfda); }
+.bracket-rules li::marker { color: var(--gold-hi, #e8c75c); }
 .bracket-view > p.small { margin: 0 0 8px; }
 .bracket-none.fits { border-color: color-mix(in srgb, var(--good, #6fbf8a) 40%, transparent); }
 .bracket-over { color: var(--bad); font-size: 13px; margin: 0 0 6px; }

@@ -355,7 +355,10 @@
     const drawView = () => {
       const n = shown;
       view.innerHTML = '';
-      view.appendChild(el('p', { class: 'small muted' }, [el('b', { text: B.label(n) + '. ' }), B.BRACKETS[n].blurb]));
+      // what the bracket is, then what it allows, a rule a line
+      view.appendChild(el('p', { class: 'small muted bracket-about' }, [el('b', { text: B.label(n) + '. ' }), B.BRACKETS[n].about || B.BRACKETS[n].blurb]));
+      if ((B.BRACKETS[n].rules || []).length)
+        view.appendChild(el('ul', { class: 'bracket-rules' }, B.BRACKETS[n].rules.map(r => el('li', { text: r }))));
       if (n === e.bracket) {
         // this deck's own: what puts it there
         if (opts.table && e.min > opts.table)
