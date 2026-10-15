@@ -15516,10 +15516,14 @@
         for (const x of this._scopeList(v.greatestMvOf, (src || o).controller, src || o, null, true)) best = Math.max(best, (x.card && x.card.cmc) || 0);
         return best * (v.mult || 1);
       }
+      // Bell Borca, Spectral Sergeant: "the greatest number noted for it this turn" (none noted: 0)
+      if (typeof v === 'object' && v.notedMv) { const nm = (src || o)._notedMv; return nm && nm.turn === this.turn ? nm.max : 0; }
       // Renata: "your devotion to green"
       if (typeof v === 'object' && v.devotion) return this.devotionOf((src || o).controller, v.devotion) * (v.mult || 1);
       // Toxrill: "for each slime counter on them" — on each one it touches
       // (Luxior: "for each counter on it" — of every kind)
+      // Takeno, Samurai General: "for each point of bushido it has" — every instance, on the one it touches (bushidoOnIt)
+      if (typeof v === 'object' && v.bushidoOnIt) return ((o.analysis() || {}).keywords || []).reduce((k, kw) => k + (/^bushido$/i.test(kw.keyword) ? (parseInt(kw.arg, 10) || 0) : 0), 0) * (v.mult || 1);
       if (typeof v === 'object' && v.countersOnIt) return (v.countersOnIt === '*' ? Object.values(o.counters || {}).reduce((k, x) => k + (Number(x) || 0), 0)
         : (Number((o.counters || {})[v.countersOnIt]) || 0)) * (v.mult || 1);
       // Banner of Kinship: "+1/+1 for each fellowship counter on this artifact" — the counters on the source
@@ -16470,6 +16474,12 @@
         if (ev.cancelled) return;
         n = ev.n;
       }
+      /* Melira, the Living Cure: "instead you get one poison counter and you can't get additional poison counters this
+         turn" — the lock outlasts her for the turn (poisonLockTurn) */
+      if (n > 0 && by !== undefined) {
+        if (p.poisonLockTurn === this.turn) return;
+        if (this._anyStaticOf(p.id, 'onePoison')) { n = 1; p.poisonLockTurn = this.turn; }
+      }
       p.poison += n;
       this.logEvent('poison', `${p.name} gets ${n} poison counter${n === 1 ? '' : 's'} (${p.poison}).`);
     }
@@ -16726,6 +16736,8 @@
       o._leftExileWith = from === 'exile' && toZone !== 'exile' ? (o.exiledWithId || null) : null;
       // (Hildibrand Manderville: out of the graveyard, the leave to cast it from there is over — graveAdventure)
       if (from === 'graveyard' && toZone !== 'graveyard') { o.graveAdvBy = null; o.flashbackGrant = null; }
+      // (Bell Borca, Spectral Sergeant: a new object has nothing noted for it)
+      if (from === 'battlefield' && toZone !== 'battlefield' && o._notedMv) o._notedMv = null;
       if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
@@ -16875,6 +16887,13 @@
       if (toZone === 'exile' && from !== 'exile' && !o.isToken && !o.isCopy) {
         const hx = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         hx.cardsExiled = (hx.cardsExiled || 0) + 1;
+        // Bell Borca, Spectral Sergeant: "Note the mana value of each card as it's put into exile." (_notedMv)
+        const nv = (o.card && o.card.cmc) || 0;
+        for (const x of this.battlefield) if (x !== o && !x.phasedOut && this._staticOp(x, 'noteExiledMv')) {
+          if (!x._notedMv || x._notedMv.turn !== this.turn) x._notedMv = { turn: this.turn, max: nv };
+          else x._notedMv.max = Math.max(x._notedMv.max, nv);
+          this.bumpBoard();
+        }
       }
       if (toZone === 'exile' && this.resolving) {
         (this._resExiled = this._resExiled || []).push(o.id);
@@ -17079,9 +17098,10 @@
           }
           this._fire('permDies', null, { object: o, objController: lastCtrl });
           if (comesBack) {
-            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: comesBack.retBy != null ? comesBack.retBy : lastCtrl,
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id,
+              controller: comesBack.retBy != null ? comesBack.retBy : comesBack.retCtl != null ? comesBack.retCtl : lastCtrl,
               name: `${o.name} \u2014 return it to the battlefield`, auto: true, abilityText: 'Return it to the battlefield',
-              effects: [{ op: 'returnSelfFromGrave', tapped: comesBack.returnOnDeath === 'tapped' }] });
+              effects: [{ op: 'returnSelfFromGrave', tapped: comesBack.returnOnDeath === 'tapped', owner: comesBack.retCtl != null || undefined }] });
           }
           if (heldBy.length) this._fire('equippedDies', null, { object: o, attachedIds: heldBy, objController: lastCtrl });
         }
@@ -23084,7 +23104,9 @@
         // Mirror Entity: "creatures you control have base power and toughness X/X"
         case 'setBaseAll': {
           // (Tanazir Quandrix: its own power and toughness, to the others — srcPower, srcToughness, other)
-          const p = e.p === 'srcPower' ? Math.max(0, this.powerOf(src)) : n(e.p), t = e.t === 'srcToughness' ? Math.max(0, this.toughnessOf(src)) : n(e.t);
+          const p = e.p === 'srcPower' ? Math.max(0, this.powerOf(src)) : n(e.p),
+            // (Sita Varma, Masked Racer: "equal to Sita Varma's power" — both)
+            t = e.t === 'srcToughness' ? Math.max(0, this.toughnessOf(src)) : e.t === 'srcPower' ? p : n(e.t);
           for (const x of this.creaturesOf(ctx.controller, 'yourCreatures')) {
             if (e.other && x === src) continue;
             // Allosaurus Shepherd: each Elf, which becomes a Dinosaur as well
@@ -27786,6 +27808,10 @@
 
         case 'winGame': {
           for (const p of this.opponentsOf(ctx.controller)) this.playerLoses(p, 'a card said so');
+          /* the game is over the moment the last opponent leaves (CR 104.2a) — nothing checked after can take it back
+             (Fblthp, Impossibly Lost: "If you draw from an empty library this way, you still win the game.") */
+          const wp = this.player(ctx.controller);
+          if (wp && this.players.every(p => p === wp || p.hasLost)) wp.drewFromEmpty = false;
           this.checkStateBasedActions();
           break;
         }
@@ -34428,7 +34454,9 @@
         /* Malakir Rebirth: "When this creature dies, return it to the battlefield tapped" */
         case 'grantDiesReturn':
           // (Saffi Eriksdotter: only if it goes to your graveyard, and the trigger is yours: retBy)
-          applyToScope(e, (o) => o.effects.push(Object.assign({ returnOnDeath: e.tapped ? 'tapped' : 'untapped', until: 'eot' }, e.ownedBy ? { retBy: ctx.controller } : {})));
+          // (Melira, the Living Cure: the trigger is yours, the card its owner's — retCtl)
+          applyToScope(e, (o) => o.effects.push(Object.assign({ returnOnDeath: e.tapped ? 'tapped' : 'untapped', until: 'eot' }, e.ownedBy ? { retBy: ctx.controller } : {},
+            e.retCtl ? { retCtl: ctx.controller } : {})));
           break;
         /* The One Ring, Teferi's Protection: protection from everything
            until your next turn (and, for Teferi's, a life total that

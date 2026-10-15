@@ -1956,6 +1956,8 @@
       make: () => ({ op: 'loreAddOrRemove', targets: [targetSpec('target Saga you control')] }) },
     // Etrata, the Silencer: "Etrata's owner shuffles Etrata into their library." — the permanent, if it is still there (fromBf)
     { re: /^CARDNAME'?s owner shuffles CARDNAME into their library\.?$/, make: () => ({ op: 'selfToLibrary', shuffle: true, fromBf: true, ifTargeted: true }) },
+    // Fblthp, Impossibly Lost: "Fblthp's owner shuffles him into their library." (fromBf)
+    { re: /^CARDNAME'?s owner shuffles (?:him|her|it) into their library\.?$/, make: () => ({ op: 'selfToLibrary', shuffle: true, fromBf: true }) },
     /* Etrata, the Silencer: "exile target creature that player controls and put a hit counter on that card. That player
        loses the game if they own three or more exiled cards with hit counters on them." (loseIfExiledCounters) */
     { re: /^Exile target creature that player controls and put an? ([a-z]+) counter on that card\.?$/i,
@@ -6834,6 +6836,10 @@
        Tanazir Quandrix's power and toughness until end of turn" — its, as this resolves (srcPower, srcToughness) */
     { re: /^(?:You may )?have the base power and toughness of other creatures you control become equal to (?:CARDNAME|this creature)'s power and toughness until end of turn\.?$/i,
       make: () => ({ op: 'may', then: [{ op: 'setBaseAll', p: 'srcPower', t: 'srcToughness', other: true }] }) },
+    /* Sita Varma, Masked Racer: "Then you may have the base power and toughness of each other creature you control become
+       equal to Sita Varma's power until end of turn." — both its power */
+    { re: /^(?:Then )?(?:you may )?have the base power and toughness of each other creature you control become equal to (?:CARDNAME|this creature)'s power until end of turn\.?$/i,
+      make: () => ({ op: 'may', then: [{ op: 'setBaseAll', p: 'srcPower', t: 'srcPower', other: true }] }) },
     /* Arni Brokenbrow: "You may have Arni's base power become 1 plus the greatest power among other creatures you
        control until end of turn." — counted as it resolves, the toughness left alone (becomes, powerX) */
     { re: /^(You may )?have CARDNAME'?s base power become (.+?) until end of turn\.?$/i,
@@ -12188,6 +12194,10 @@
         return tok && tok.op === 'createToken' ? [{ op: 'destroy', targets: [targetSpec(m[1])] },
           { op: 'ifDestroyed', died: true, then: [Object.assign(tok, { ptOfLast: true })] }] : null;
       } },
+    /* Melira, the Living Cure: "Choose another target creature or artifact. When it's put into a graveyard this turn,
+       return that card to the battlefield under its owner's control." — the trigger yours, the card its owner's (retCtl) */
+    { re: /^Choose (another target creature or artifact)\. When it'?s put into a graveyard this turn, return that card to the battlefield under its owner'?s control\.?$/i,
+      make: (m) => [{ op: 'grantDiesReturn', tapped: false, retCtl: true, targets: [targetSpec(m[1])] }] },
     /* Neyam Shai Murad: "you may have that player return target permanent card from their graveyard to their hand. If
        you do, that player chooses a permanent card in your graveyard, then you put it onto the battlefield under your
        control." — their card back to them, and one of yours, their pick, onto the battlefield for you (chooser) */
@@ -16123,6 +16133,9 @@
        more of your opponents," — one for the lot */
     { re: /^Whenever one or more creatures an opponent controls deal combat damage to one or more of your opponents,? /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature', who: 'opponent', batch: true }), extra: { hitYourOpponent: true } },
+    // Fblthp, Impossibly Lost: "When one or more of your opponents are dealt combat damage during your turn," — one for the lot
+    { re: /^When(?:ever)? one or more of your opponents are dealt combat damage during your turn,? /i,
+      event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature', batch: true }), extra: { hitYourOpponent: true, yourTurnOnly: true } },
     /* --- spells being cast, by whom and of what kind --- */
     // Edgar Markov: "Whenever you cast another Vampire spell" — not this card
     { re: /^When(?:ever)? you cast another ([a-zA-Z ,-]*?)spell, /i,
@@ -22264,6 +22277,11 @@
       // Duelist of the Mind: "CARDNAME's power is equal to the number of cards you've drawn this turn."
       { re: /^(?:CARDNAME|This creature)'?s power is equal to (the number of cards you'?ve drawn this turn|the amount of life you(?:'ve)? gained this turn)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && k.playerStat ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: null, keepToughness: true } } : null; }, auto: true },
+      /* Bell Borca, Spectral Sergeant: "Note the mana value of each card as it's put into exile." / "Bell Borca's power is
+         equal to the greatest number noted for it this turn." (noteExiledMv, notedMv) */
+      { re: /^Note the mana value of each card as it'?s put into exile\.?$/i, eff: { op: 'noteExiledMv' }, auto: true },
+      { re: /^(?:CARDNAME|This creature)'?s power is equal to the greatest number noted for it this turn\.?$/i,
+        eff: { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { notedMv: true }, t: null, keepToughness: true } }, auto: true },
       // Aggressive Mining: "You can't play lands."
       { re: /^You can'?t play lands\.?$/i, eff: { op: 'cantPlayLands' }, auto: true },
       // Cynical Loner: "This creature can't be blocked by Glimmers."
@@ -22300,6 +22318,10 @@
       { re: /^You have no maximum hand size\.?$/i, eff: { op: 'noMaxHandSize' }, auto: true },
       // Melira, Sylvok Outcast: "You can't get poison counters." (noPoison)
       { re: /^You can'?t get poison counters\.?$/i, eff: { op: 'noPoison' }, auto: true },
+      /* Melira, the Living Cure: "If you would get one or more poison counters, instead you get one poison counter and
+         you can't get additional poison counters this turn." (onePoison) */
+      { re: /^If you would get one or more poison counters, instead you get one poison counter and you can'?t get additional poison counters this turn\.?$/i,
+        eff: { op: 'onePoison' }, auto: true },
       { re: /^Equip (\{[^}]+\}(?:\{[^}]+\})*)\. This ability costs \{(\d+)\} less to activate for each colou?r of the creature it targets\.?$/i,
         make: (m) => ({ op: 'equip', cost: m[1], perTargetColor: +m[2] }), auto: true },
       /* Crown of Gondor, Plate Armor, Belt of Giant Strength: "Equip {4}. This
@@ -22607,6 +22629,10 @@
       { re: /^Each ([A-Z][a-z]+) creature gets \+1\/\+1 for each ([a-z]+) counter on it\.?$/,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'all', what: 'creature', subtype: m[1].toLowerCase() },
           pt: { p: { countersOnIt: m[2].toLowerCase(), mult: 1 }, t: { countersOnIt: m[2].toLowerCase(), mult: 1 } } }), auto: true },
+      // Takeno, Samurai General: "Each other Samurai creature you control gets +1/+1 for each point of bushido it has." (bushidoOnIt)
+      { re: /^Each other ([A-Z][a-z]+) creature you control gets \+1\/\+1 for each point of bushido it has\.?$/,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', subtype: m[1].toLowerCase(), other: true },
+          pt: { p: { bushidoOnIt: true, mult: 1 }, t: { bushidoOnIt: true, mult: 1 } } }), auto: true },
       // Toxrill, the Corrosive: "Creatures you don't control get -1/-1 for each slime counter on them."
       { re: /^Creatures you don'?t control get -1\/-1 for each ([a-z]+) counter on them\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'opponents', what: 'creature' },
