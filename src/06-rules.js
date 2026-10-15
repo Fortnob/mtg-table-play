@@ -7059,9 +7059,12 @@
           this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) return "You can't pay that additional cost.";
       if (add && add.optional && !add.choice && !opts.skipAdditional && opts.payAdditional == null) {
         if (this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) opts.payAdditional = false;
+        // Katara, Seeking Revenge: "you may waterbend {2}" — not offered when the mana is not there, taps and all
+        else if (add.mana && !this._optAddManaPlan(playerId, o, opts.free ? '' : chk.cost, add)) opts.payAdditional = false;
         else if (decides) opts.payAdditional = true;
         // Vicious Offering: "Kicker—Sacrifice a creature", asked as a kick
         else if (add.kicker) return ask('payAdditional', `${o.name}: kick it? (${add.label})`, ['Kick it', "Don't kick it"], [true, false]);
+        else if (add.waterbend) return ask('payAdditional', `${o.name}: waterbend ${add.mana} as an additional cost? (Each artifact and creature you tap pays for {1}.)`, ['Waterbend', "Don't waterbend"], [true, false]);
         else return ask('payAdditional', `${o.name}: pay the additional cost?`, ['Pay it', "Don't pay it"], [true, false]);
       }
       /* Bargain (CR 702.166): an artifact, enchantment or token sacrificed
@@ -7265,6 +7268,13 @@
       return JSON.parse(JSON.stringify(list || [])).map(mark);
     }
     /** Which of a choice of additional costs this player could pay right now. */
+    /** Katara, Seeking Revenge: an optional additional mana cost on top of `baseCost` — how it can be paid (a waterbend
+        one with artifacts and creatures tapped for {1} each of it, no more), or null */
+    _optAddManaPlan(playerId, o, baseCost, add) {
+      const full = String(baseCost || '') + add.mana;
+      if (!add.waterbend) return this.couldPay(playerId, full, this.manaSources(playerId)) ? { tap: [], mana: full } : null;
+      return this._waterbendPlan(playerId, o, {}, full, MANA.parse(add.mana).reduce((k, s) => k + (+s || 0), 0));
+    }
     _payableChoices(playerId, o, choices, baseCost, opts) {
       const purse = this.manaSources(playerId);
       const out = [];
@@ -7749,6 +7759,8 @@
       /* A mana price chosen as the additional cost is paid with the rest,
          even for a spell cast without paying its mana cost. */
       if (addPick && addPick.mana) cost = (cost || '') + addPick.mana;
+      // Katara, Seeking Revenge: "you may waterbend {2}" — paid with the rest when chosen (optAddMana)
+      const optAddMana = optAdd && opts.payAdditional && !opts.skipAdditional && a.additionalCost.mana ? a.additionalCost : null;
       /* Mavinda, Students' Advocate: "If that spell doesn't target a creature you control, it costs {8} more to cast
          this way." (graveCastTax) */
       if (via && via.via === 'granted' && o.graveCastTax && o.graveCastTax.turn === this.turn && !(opts.targets || []).some(t => {
@@ -7860,6 +7872,14 @@
           cost = wb.mana || '';
         }
         this._noteBend(playerId, 'water');
+      }
+      if (optAddMana) {
+        const wb = this._optAddManaPlan(playerId, o, cost, optAddMana);
+        if (!wb) return this.fail(`Not enough mana (${(cost || '') + optAddMana.mana}).`);
+        for (const x of wb.tap) this._markTapped(x);
+        if (wb.tap.length) this.logEvent('rules', `${p.name} waterbends, tapping ${wb.tap.map(x => x.name).join(', ')}.`);
+        cost = wb.mana || '';
+        if (optAddMana.waterbend) this._noteBend(playerId, 'water');
       }
       if (!opts.free || cost) {
         // what taps for convoke is not there to tap for mana
@@ -10853,7 +10873,7 @@
      * that what is left of the cost can be paid with mana — the fewest that
      * will do, cheapest first. Null when even all of them would not.
      */
-    _waterbendPlan(playerId, o, ab, mana) {
+    _waterbendPlan(playerId, o, ab, mana, cap) {
       const src = this.manaSources(playerId);
       const need = String(mana || '').replace(/\{X\}/g, '');
       if (this.couldPay(playerId, need, src)) return { tap: [], mana: need };
@@ -10862,7 +10882,8 @@
         !(x === o && ab.cost && ab.cost.tap) && ((x.analysis() || {}).manaAbilities || []).length === 0 &&
         (((x.analysis() || {}).isArtifact) || (this.characteristics(x) || {}).isCreature))
         .sort((x, y) => this._cardValue(x) - this._cardValue(y));
-      for (let k = 1; k <= Math.min(generic, pool.length); k++) {
+      // (Katara, Seeking Revenge: only the waterbend part of a bigger cost — cap)
+      for (let k = 1; k <= Math.min(generic, pool.length, cap == null ? Infinity : cap); k++) {
         const left = this._addGeneric(need, -k);
         if (this.couldPay(playerId, left, src)) return { tap: pool.slice(0, k), mana: left };
       }
@@ -15801,10 +15822,11 @@
       for (let i = 0; i < statics.length; i++) {
         const entry = statics[i];
         const ef = entry.ef;
-        if (!(ef.grant || ef.grantChosen || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
+        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
         if (!this._contReaches(entry, o, a, lb)) continue;
         // Greymond, Avacyn's Stalwart: "have each of the chosen abilities" — the ones chosen as it entered (grantChosen)
-        const grant = ef.grantChosen ? ((entry.src && entry.src.chosenKeywords) || []) : ef.grant;
+        const grant = ef.grantChosen ? ((entry.src && entry.src.chosenKeywords) || [])
+          : ef.grantFromExiled ? this._kwsOfExiledWithCounter(ef.grantFromExiled) : ef.grant;
         if (grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
@@ -15933,6 +15955,23 @@
         }
         return true;
       } finally { busy.delete(o.id); }
+    }
+
+    /** Rayami, First of the Fallen: "As long as an exiled creature card with a blood counter on it has flying, Rayami has
+        flying. The same is true for …, protection, …" — the printed keywords of those cards, any protection from anything */
+    _kwsOfExiledWithCounter(spec) {
+      const out = new Set();
+      for (const q of this.players) for (const c of this.zones[q.id].exile || []) {
+        const ca = !c.faceDown && Number((c.counters || {})[spec.counter]) > 0 && c.analysis();
+        if (!ca || !ca.isCreature) continue;
+        for (const k of ca.keywords || []) {
+          const kw = String((k && k.keyword) || '').toLowerCase();
+          if (!spec.kws.includes(kw)) continue;
+          // (protection from a quality: the same quality; "hexproof from …" is not hexproof)
+          if (kw === 'protection' && k.arg) { out.add('protection'); out.add('protection from ' + String(k.arg).toLowerCase()); } else if (!k.arg) out.add(kw);
+        }
+      }
+      return [...out];
     }
 
     /** A cheap fingerprint of the state that only belongs to this permanent. */
@@ -21898,6 +21937,8 @@
           const zone = e.op === 'destroyAll' ? 'graveyard' : e.op === 'exileAll' ? 'exile' : 'hand';
           // (Sarulf, Realm Eater: "less than or equal to the number of counters removed this way" — removedCounters)
           const cap = (v) => (v === 'X' ? (ctx.x || (src && src.chosenX) || 0) : v === 'removedCounters' ? (this._lastRemovedCounters || 0) : v);
+          // Celestial Kirin: "with that spell's mana value" (mvIs)
+          const mvIs = e.mvIs === 'triggerSpell' ? this._triggerSpellMv(ctx.triggerData) : null;
           let n = 0;
           /* Everything that goes, goes at once: the list is settled before
              anything moves, so losing an anthem halfway through does not
@@ -21912,6 +21953,7 @@
             if (e.mvParity && (((x.card && x.card.cmc) || 0) % 2 === 0) !== ((e.mvParity === 'chosen' ? ctx.chosenParity : e.mvParity) === 'even')) return false;
             if (e.maxMv != null && ((x.card && x.card.cmc) || 0) > cap(e.maxMv)) return false;
             if (e.minMv != null && ((x.card && x.card.cmc) || 0) < cap(e.minMv)) return false;
+            if (mvIs != null && (x.faceDown ? 0 : ((x.card && x.card.cmc) || 0)) !== mvIs) return false;
             // Ugin: "that's one or more colors"
             if (e.colored && !(((x.analysis() || {}).colors) || []).length) return false;
             if (e.minPower != null && this.powerOf(x) < (e.minPower === 'chosen' ? ((src && src.chosenNumber) || 0) : e.minPower)) return false;
@@ -28745,6 +28787,8 @@
               if (e.tapped) o.tapped = true;
               // Kastral: "with a finality counter on it"
               if (e.counter && o.zone === 'battlefield') this.addCounters(o, e.counter, 1);
+              // Nick Fury, Spymaster: "It enters tapped and attacking and gains indestructible until end of turn." (gains)
+              if (e.gains && o.zone === 'battlefield') o.effects.push({ keywords: e.gains, until: 'eot' });
               // The Invincible Iron Man: "If it's an Equipment, attach it to The Invincible Iron Man." (equipToSelf)
               if (e.equipToSelf && o.zone === 'battlefield' && (o.analysis() || {}).isEquipment && src && src.zone === 'battlefield' &&
                   (src.analysis() || {}).isCreature && !o.attachedTo) {
@@ -32987,7 +33031,7 @@
         }
         // Yosei, the Morning Star: "target player skips their next untap step." (skipUntaps)
         case 'skipUntap': {
-          const p = e.who === 'target' ? firstPlayer() : me;
+          const p = e.who === 'target' ? firstPlayer() : e.who === 'triggerPlayer' ? triggerPlayer() : me;
           if (!p || p.hasLost) break;
           p.skipUntaps = (p.skipUntaps || 0) + 1;
           this.logEvent('turn', `${p.name} will skip their next untap step.`);

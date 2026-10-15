@@ -4013,6 +4013,9 @@
     // Bottle-Cap Blast: "If excess damage was dealt to a permanent this way, create that many tapped Treasure tokens."
     { re: /^If excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))? this way, create that many (tapped )?(Treasure|Clue|Food|Blood) tokens\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'lastExcess' }, then: [{ op: 'createNamedToken', token: m[2], n: 'lastExcess', tapped: !!m[1] }] }) },
+    // Katara, Seeking Revenge: "draw a card, then discard a card unless her additional cost was paid" — the draw either way
+    { re: /^Draw a card, then discard a card unless (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[1]); return c ? [{ op: 'draw', n: 1, who: 'you' }, { op: 'ifCond', cond: { kind: 'not', cond: c }, then: [{ op: 'discard', n: 1, who: 'you' }] }] : null; } },
     /* Chart a Course */
     { re: /^Then discard (a card|two cards) unless (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: { kind: 'not', cond: c }, then: [{ op: 'discard', n: /two/i.test(m[1]) ? 2 : 1, who: 'you' }] } : null; } },
@@ -5204,6 +5207,9 @@
     /* ===== wider sweepers ===== */
     { re: /^Destroy all ([a-z]+s) with (?:mana value|converted mana cost) (\d+|X) or less\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), maxMv: m[2] === 'X' ? 'X' : +m[2] }) },
+    // Celestial Kirin: "destroy all permanents with that spell's mana value." (mvIs)
+    { re: /^Destroy all ([a-z]+s) with that spell'?s mana value\.?$/i,
+      make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), mvIs: 'triggerSpell' }) },
     { re: /^Destroy all ([a-z]+s) with power (\d+) or (greater|more)\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), minPower: +m[2] }) },
     // Expel the Interlopers: "…with power greater than or equal to the chosen number"
@@ -8112,8 +8118,10 @@
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Yosei, the Morning Star: "target player skips their next untap step."
-    { re: /^(You|Target player|Target opponent) skips? (?:your|their) next untap step\.?$/i,
-      make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipUntap', who: 'you' } : { op: 'skipUntap', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Shisato, Whispering Hunter: "that player skips their next untap step." (who 'triggerPlayer')
+    { re: /^(You|Target player|Target opponent|That player) skips? (?:your|their) next untap step\.?$/i,
+      make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipUntap', who: 'you' } : /^that/i.test(m[1]) ? { op: 'skipUntap', who: 'triggerPlayer' }
+        : { op: 'skipUntap', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Wan Shi Tong, All-Knowing: "target nonland permanent's owner puts it into their library second from the top or on the bottom." (secondOrBottom)
     { re: /^(target [a-z ]+?)'s owner puts it into their library second from the top or on the bottom\.?$/i,
       make: (m) => { const a = tgt(m[1]); return a ? { op: 'toLibrary', where: 'secondOrBottom', targets: [a] } : null; } },
@@ -12533,6 +12541,13 @@
     { re: /^(Target player|Target opponent) skips their next untap step\. Tap up to (one|two|three|four|five) target permanents that player controls\.?$/i,
       make: (m) => [{ op: 'skipUntap', who: 'target', tapTargets: true, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }].concat(
         Array.from({ length: num(m[2]) }, () => ({ type: 'permanent', filter: 'permanent', zone: 'battlefield', upTo: true, distinct: true, sameControllerAsPrev: true }))) }] },
+    /* Nick Fury, Spymaster: "draw a card. Then you may put a creature card with mana value 3 or less from your hand onto
+       the battlefield. It enters tapped and attacking and gains indestructible until end of turn." — at whoever the
+       attacker the trigger is about attacks (atTriggerDefender), the keyword for the card put only (gains) */
+    { re: /^Draw a card\. Then you may put an? ([a-z]+) card with mana value (\d+) or less from your hand onto the battlefield\. It enters tapped and attacking and gains ([a-z ]+?) until end of turn\.?$/i,
+      make: (m) => [{ op: 'draw', n: 1, who: 'you' },
+        { op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxMv: +m[2], tapped: true, attacking: true, atTriggerDefender: true,
+          gains: m[3].split(/ and /).map(x => U.titleCase(x.trim())) }] },
     /* Sarulf, Realm Eater: "if Sarulf has one or more +1/+1 counters on it, you may remove all of them. If you do, exile
        each other nonland permanent with mana value less than or equal to the number of counters removed this way."
        — "them" the +1/+1 counters the condition names (removeAllButCounters keeping none; maxMv removedCounters) */
@@ -13171,6 +13186,8 @@
     let k;
     if ((k = what.match(/^pay ((?:\{[^}]+\})+)$/i))) return { mana: k[1], optional };
     if ((k = what.match(/^blight (\d+)$/i))) return { blight: +k[1], optional };
+    // Katara, Seeking Revenge: "you may waterbend {2}" — mana, with artifacts and creatures tapped to help pay it
+    if ((k = what.match(/^waterbend ((?:\{\d+\})+)$/i))) return { mana: k[1], waterbend: true, optional };
     if (/^forage$/i.test(what)) return { forage: true, optional };
     if ((k = what.match(/^collect evidence (\d+)$/i))) return { evidence: +k[1], optional };
     if ((k = what.match(/^reveal (?:a|an) ([A-Za-z -]+?) card from your hand$/i))) return { reveal: { filter: k[1].trim() }, optional };
@@ -15181,7 +15198,8 @@
     // Yusri, Fortune's Flame: "if you won five flips this way" (flipsWonCond)
     [/^you won (one|two|three|four|five|\d+) flips? this way$/i, (m) => ({ kind: 'flipsWonAtLeast', n: num(m[1]) })],
     // an optional additional cost, paid, is counted as the spell's kicker
-    [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
+    // (Katara, Seeking Revenge: "unless her additional cost was paid")
+    [/^(?:this spell'?s|its|his|her|their) additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
     // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost
     [/^the (?:\{[^}]+\})+ cost was paid$/i, () => ({ kind: 'altPaid' })],
     // Delayed Blast Fireball: "If this spell was cast from exile"
@@ -20351,6 +20369,11 @@
         if (!kws.every(k => kwKnown(k))) return null;
         return { op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws };
       } },
+    /* Rayami, First of the Fallen: "As long as an exiled creature card with a blood counter on it has flying, Rayami has
+       flying. The same is true for first strike, …, and vigilance." — each of those words any such card has (grantFromExiled) */
+    { re: /^As long as an exiled creature card with an? ([a-z]+) counter on it has ([a-z ]+), CARDNAME has \2\. The same is true for ((?:[a-z ]+, )+and [a-z ]+)\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' },
+        grantFromExiled: { counter: m[1].toLowerCase(), kws: [m[2]].concat(m[3].split(/, (?:and )?/)).map(k => k.trim().toLowerCase()) } }) },
     // "<scope> has flying as long as you control an Island."
     { re: /^(.+?) (?:has|have) ([a-z, '{}0-9]+?) as long as (.+?)\.?$/i,
       make: (m) => {
@@ -20682,6 +20705,10 @@
         withCounter: m[2].toLowerCase(), withCounterN: /^an?$/i.test(m[1]) ? 1 : num(m[1]) }) },
     { re: /^If a creature would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dieExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
+    // Rayami, First of the Fallen: "If a nontoken creature would die, exile that card with a blood counter on it instead." (withCounter)
+    { re: /^If a nontoken creature would die, exile that card with an? ([a-z]+) counter on it instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dieExileNontokenCounter', event: 'zoneChange', who: 'all', nontoken: true, creatureCards: true,
+        fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile', withCounter: m[1].toLowerCase(), withCounterN: 1 }) },
     // Kumano, Frostwielder: "If a creature dealt damage by this creature this turn would die, exile it instead."
     { re: /^If a creature dealt damage by (?:this creature|CARDNAME) this turn would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgBySelfExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile',
