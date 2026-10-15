@@ -54523,4 +54523,248 @@ module.exports = (test) => {
     t.eq(Number(tapped.counters['+1/+1']) || 0, 1, 'Anafenza: the tapped Hill Giant gets a counter');
     t.no(Number(an.counters['+1/+1']) || 0, 'Anafenza: not herself');
   });
+  test('Commanders: Cyclonus, the Saboteur — the Fighter hitting a player converts and there is an additional beginning phase', (mk, t) => {
+    t.auto('Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.nextTurn('B'); T.nextTurn('A');
+    const cy = T.bf('A', 'Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter');
+    cy.face = 1; g.bumpBoard();
+    t.ok(g.characteristics(cy).isCreature, 'living metal: a creature on your turn');
+    const turn = g.turn, hand0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: cy.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(T.life('B'), 15, 'five damage');
+    t.eq(cy.face, 0, 'converted to the Saboteur');
+    const seen = [];
+    for (let i = 0; i < 40 && !(g.phase.id === 'postcombat'); i++) {
+      T.settle(); seen.push(g.phase.id + ':' + g.step);
+      g.passPriority(g.priorityPlayer.id, true);
+    }
+    t.eq(g.turn, turn, 'the same turn');
+    t.ok(seen.some(x => x === 'beginning:upkeep'), 'an upkeep after combat');
+    t.eq(g.phase.id, 'postcombat', 'then the second main phase');
+    t.no(cy.tapped, 'Cyclonus untapped in the extra untap step');
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'a card drawn in the extra draw step');
+    // the Saboteur hitting a player: connives, no extra phase while its power is under 5
+    T.nextTurn('A');
+    const turn2 = g.turn;
+    T.answer('declareAttackers', () => [{ attackerId: cy.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(cy.face, 0, 'power under 5: not converted');
+    const seen2 = [];
+    for (let i = 0; i < 40 && !(g.phase.id === 'postcombat'); i++) {
+      T.settle(); seen2.push(g.phase.id);
+      g.passPriority(g.priorityPlayer.id, true);
+    }
+    t.eq(g.turn, turn2, 'the same turn');
+    t.no(seen2.includes('beginning'), 'no additional beginning phase');
+  });
+  test('Commanders: Shadowfax, Lord of Horses — Horses have haste; attacks: a creature card with lesser power from hand, tapped and attacking', (mk, t) => {
+    t.auto('Shadowfax, Lord of Horses');
+    const T = mk();
+    const g = T.g;
+    const sf = T.bf('A', 'Shadowfax, Lord of Horses');
+    const bears = T.hand('A', 'Grizzly Bears'), giant = T.hand('A', 'Hill Giant');
+    const wurm = T.hand('A', 'Craw Wurm'), twin = T.hand('A', 'Shadowfax, Lord of Horses');
+    let q = null;
+    T.answer('declareAttackers', () => [{ attackerId: sf.id, defenderId: 'B' }]);
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [giant.id] }; });
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(q, 'asked which card');
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'no separate yes/no question');
+    t.ok(q.cards.some(c => c.id === bears.id) && q.cards.some(c => c.id === giant.id), 'the Bears and the Giant offered');
+    t.no(q.cards.some(c => c.id === wurm.id || c.id === twin.id), 'not the Wurm, nor a card of equal power');
+    t.zone(giant, 'battlefield', 'the Giant put onto the battlefield');
+    t.ok(giant.tapped && giant.attacking === 'B', 'tapped and attacking');
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 13, 'both hit');
+    // Horses you control have haste
+    const horse = T.put('A', 'Shadowfax, Lord of Horses', 'battlefield', { sick: true });
+    t.ok(g.hasKw(horse, 'haste'), 'a Horse has haste');
+    const sickBears = T.bf('A', 'Grizzly Bears', { sick: true });
+    t.no(g.hasKw(sickBears, 'haste'), 'not a Bear');
+  });
+  test('Commanders: Pia Nalaar, Chief Mechanic — artifact creatures hitting a player: {E}{E} once; end step: pay {E} for an X/X Nalaar Aetherjet', (mk, t) => {
+    t.auto('Pia Nalaar, Chief Mechanic');
+    const T = mk();
+    const g = T.g;
+    const pia = T.bf('A', 'Pia Nalaar, Chief Mechanic');
+    const so = T.bf('A', 'Steel Overseer'), me = T.bf('A', 'Myr Enforcer');
+    T.answer('declareAttackers', () => [{ attackerId: so.id, defenderId: 'B' }, { attackerId: me.id, defenderId: 'B' }, { attackerId: pia.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(g.player('A').energy, 2, 'two energy, once for the lot');
+    g.player('A').energy = 3;
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { number: 2 }; });
+    T.toMain('A', 'end'); T.resolve();
+    t.ok(q && q.purpose === 'payEnergyAmount' && q.number.max === 3, 'asked how much energy, up to 3');
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'no yes/no question besides');
+    const jet = g.battlefield.find(o => o.isToken && o.name === 'Nalaar Aetherjet');
+    t.ok(jet, 'a Nalaar Aetherjet');
+    t.eq(g.player('A').energy, 1, 'two paid');
+    t.eq(g.powerOf(jet) + '/' + g.toughnessOf(jet), '2/2', 'X/X for the two paid');
+    t.ok(g.hasKw(jet, 'flying'), 'flying');
+    t.no(g.characteristics(jet).isCreature, 'a Vehicle, no creature until crewed');
+    t.ok((jet.analysis().subtypes || []).includes('Vehicle'), 'a Vehicle');
+    // only Pia hitting (not an artifact): no energy; none paid: no token
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: pia.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(g.player('A').energy, 1, 'Pia is no artifact: no energy');
+    T.answer('choose', { number: 0 });
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(g.battlefield.filter(o => o.name === 'Nalaar Aetherjet').length, 1, 'none paid: no new Aetherjet');
+    t.eq(g.player('A').energy, 1, 'the energy kept');
+  });
+  test('Commanders: Galea, Kindler of Hope — Auras and Equipment cast from the top of the library; such an Equipment attaches as it enters', (mk, t) => {
+    t.auto('Galea, Kindler of Hope');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Galea, Kindler of Hope');
+    const bears = T.bf('A', 'Grizzly Bears'), giant = T.bf('A', 'Hill Giant');
+    const bs = T.top('A', 'Bonesplitter');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+    T.mana('A', '1');
+    T.cast('A', bs);
+    t.zone(bs, 'battlefield', 'Bonesplitter cast from the top of the library');
+    t.ok(q && q.options[0].some(x => x.id === bears.id) && q.options[0].every(x => g.obj(x.id).controller === 'A'), 'a creature you control to attach it to');
+    t.eq(bs.attachedTo, giant.id, 'attached to the Giant');
+    t.eq(g.powerOf(giant), 5, '+2/+0');
+    // an Aura from the top
+    const rancor = T.top('A', 'Rancor');
+    T.mana('A', 'G');
+    T.cast('A', rancor, { targets: [bears] });
+    t.eq(rancor.attachedTo, bears.id, 'Rancor cast from the top onto the Bears');
+    // not a creature card from the top
+    const wurm = T.top('A', 'Craw Wurm');
+    T.mana('A', '4GG');
+    t.no(g.castSpell('A', wurm.id, { auto: true, targets: [] }), 'a creature spell: not from the top');
+    // an Equipment cast from hand: no attach trigger
+    g.zones.A.library.shift(); wurm.zone = 'gone';
+    const bs2 = T.hand('A', 'Bonesplitter');
+    T.player('A').pool.clear(); T.mana('A', '1');
+    const n0 = T.asked.length;
+    T.cast('A', bs2);
+    t.zone(bs2, 'battlefield', 'cast from hand');
+    t.no(bs2.attachedTo, 'from hand: not attached');
+    t.no(T.asked.slice(n0).some(ch => ch.type === 'pickTarget'), 'no target asked');
+  });
+  test('Commanders: Johann, Apprentice Sorcerer — once each turn, an instant or sorcery spell from the top of the library', (mk, t) => {
+    t.auto('Johann, Apprentice Sorcerer');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Johann, Apprentice Sorcerer');
+    const b1 = T.top('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', b1, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'Bolt cast from the top');
+    const b2 = T.top('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    t.no(g.castSpell('A', b2.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'a second one this turn: no');
+    // on the opponent's turn, again (an instant)
+    T.nextTurn('B');
+    g.passPriority('B');
+    T.player('A').pool.clear(); T.mana('A', 'R');
+    t.ok(g.castSpell('A', b2.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'once on the next turn');
+    T.resolve();
+    t.eq(T.life('B'), 14, 'the second Bolt');
+    // not a creature spell
+    T.nextTurn('A');
+    const bears = T.top('A', 'Grizzly Bears');
+    T.mana('A', '1G');
+    t.no(g.castSpell('A', bears.id, { auto: true, targets: [] }), 'a creature: not from the top');
+  });
+  test('Commanders: Ib Halfheart, Goblin Tactician — another Goblin blocked: sacrificed, 4 damage to each creature blocking it; two Mountains: two Goblins', (mk, t) => {
+    t.auto('Ib Halfheart, Goblin Tactician');
+    const T = mk();
+    const g = T.g;
+    const ib = T.bf('A', 'Ib Halfheart, Goblin Tactician');
+    const gob = T.bf('A', 'Goblin Piker');
+    const giant = T.bf('B', 'Hill Giant'), bears = T.bf('B', 'Grizzly Bears'), wurm = T.bf('B', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: gob.id, defenderId: 'B' }, { attackerId: ib.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: giant.id, attackerIds: [gob.id] }, { blockerId: bears.id, attackerIds: [gob.id] }, { blockerId: wurm.id, attackerIds: [ib.id] }]);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.zone(gob, 'graveyard', 'the Goblin Piker sacrificed');
+    t.zone(giant, 'graveyard', 'the Giant dealt 4');
+    t.zone(bears, 'graveyard', 'the Bears dealt 4');
+    t.zone(ib, 'graveyard', 'Ib himself is no "another Goblin": blocked by the Wurm, no trigger');
+    t.zone(wurm, 'battlefield', 'the Wurm untouched but by Ib');
+    t.eq(wurm.damage || 0, 3, 'only Ib\'s 3 damage on the Wurm');
+    // Sacrifice two Mountains: two 1/1 red Goblins
+    const m1 = T.bf('A', 'Mountain'), m2 = T.bf('A', 'Mountain');
+    const ib2 = T.bf('A', 'Ib Halfheart, Goblin Tactician');
+    T.activate('A', ib2, 0);
+    t.zone(m1, 'graveyard', 'a Mountain sacrificed'); t.zone(m2, 'graveyard', 'the other too');
+    t.eq(g.battlefield.filter(o => o.isToken && o.name === 'Goblin' && o.controller === 'A').length, 2, 'two Goblin tokens');
+  });
+  test('Commanders: Ormos, Archive Keeper — a draw from an empty library is five +1/+1 counters; discard three cards with different names: draw five', (mk, t) => {
+    t.auto('Ormos, Archive Keeper');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const orm = T.bf('A', 'Ormos, Archive Keeper');
+    const i1 = T.hand('A', 'Island'), i2 = T.hand('A', 'Island');
+    T.mana('A', '1UU');
+    t.no(g.activateAbility('A', orm.id, 0, { targets: [] }), 'two cards of one name: can\'t pay');
+    t.ok(/different names/.test(g.lastError || ''), 'and says why');
+    const bolt = T.hand('A', 'Lightning Bolt'), bears = T.hand('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('discard', (ch) => { q = ch; return { cardIds: [i1.id, bolt.id, bears.id] }; });
+    t.ok(g.activateAbility('A', orm.id, 0, { targets: [] }), 'three names now: activated');
+    T.resolve();
+    t.ok(q && q.differentNames && /different names/.test(q.prompt), 'asked for three cards with different names');
+    t.zone(i1, 'graveyard', 'an Island discarded');
+    t.zone(i2, 'hand', 'not the second Island');
+    t.zone(bolt, 'graveyard', 'the Bolt discarded'); t.zone(bears, 'graveyard', 'the Bears too');
+    t.eq(T.zone('A', 'hand').length, 6, 'the Island kept and five drawn');
+    // an empty library: counters instead
+    g.zones.A.library.length = 0;
+    g._drawCards(g.player('A'), 2);
+    t.eq(orm.counters['+1/+1'], 10, 'five counters for each draw');
+    t.no(g.player('A').drewFromEmpty, 'no draw from an empty library');
+    orm.zone = 'gone'; g.battlefield.splice(g.battlefield.indexOf(orm), 1);
+    g._drawCards(g.player('A'), 1);
+    t.ok(g.player('A').drewFromEmpty, 'without Ormos the draw fails');
+  });
+  test('Commanders: Jorn, God of Winter — attacks: untap your snow permanents; Kaldring: play a snow permanent card from your graveyard, tapped', (mk, t) => {
+    t.auto('Jorn, God of Winter // Kaldring, the Rimestaff');
+    const T = mk();
+    const g = T.g;
+    const jorn = T.bf('A', 'Jorn, God of Winter // Kaldring, the Rimestaff');
+    const sf = T.bf('A', 'Snow-Covered Forest', { tapped: true }), fo = T.bf('A', 'Forest', { tapped: true });
+    T.answer('declareAttackers', () => [{ attackerId: jorn.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.no(sf.tapped, 'the snow land untapped');
+    t.ok(fo.tapped, 'not the Forest');
+    // Kaldring
+    T.nextTurn('A');
+    const kal = T.bf('A', 'Jorn, God of Winter // Kaldring, the Rimestaff');
+    kal.face = 1; g.bumpBoard();
+    const land = T.grave('A', 'Snow-Covered Island'), troll = T.grave('A', 'Icehide Troll'), bears = T.grave('A', 'Grizzly Bears');
+    t.no(g.activateAbility('A', kal.id, 0, { targets: [{ kind: 'object', id: bears.id }] }), 'not the Bears: no snow card');
+    T.activate('A', kal, 0, { targets: [land] });
+    t.ok(g.playLand('A', land.id), 'the snow land played from the graveyard');
+    t.ok(land.zone === 'battlefield' && land.tapped, 'tapped');
+    t.no(g.playLand('A', T.grave('A', 'Snow-Covered Island').id), 'another one: no leave for it');
+    T.nextTurn('A');
+    kal.tapped = false;
+    T.activate('A', kal, 0, { targets: [troll] });
+    T.mana('A', '2G');
+    T.cast('A', troll);
+    t.zone(troll, 'battlefield', 'the Troll cast from the graveyard');
+    t.ok(troll.tapped, 'and it enters tapped');
+  });
 };

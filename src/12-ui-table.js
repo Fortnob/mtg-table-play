@@ -1810,6 +1810,9 @@
         }
         if (ch.type === 'discard' || ch.type === 'discardToHandSize') {
           const need = ch.count || 1;
+          // (Ormos, Archive Keeper: "cards with different names")
+          const names = ch.differentNames ? this.discardSel.map(id => (this.objIn(id) || {}).name) : [];
+          if (new Set(names).size !== names.length) return { label: 'Discard', sub: 'They must all have different names.', cls: 'go', disabled: true };
           return { label: 'Discard', sub: `${this.discardSel.length}/${need} chosen`, cls: 'go', disabled: this.discardSel.length !== need };
         }
         if (this.chooseHere(ch)) return this.choosePrimary(ch);

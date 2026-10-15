@@ -675,6 +675,11 @@ function checkAnswer(ch, data, game) {
       if (game) {
         const hand = (game.zones[ch.playerId] || {}).hand || [];
         within(data.cardIds, ch.candidates || hand.map(o => o.id), 'answer.cardIds', 'a card that can be discarded');
+        // (Ormos, Archive Keeper: "cards with different names")
+        if (ch.differentNames && Array.isArray(data.cardIds)) {
+          const names = data.cardIds.map(id => (hand.find(o => o.id === id) || {}).name).filter(Boolean);
+          if (new Set(names).size !== names.length) bad('answer.cardIds', 'answer', 'two cards with the same name, where they must have different names');
+        }
       }
       break;
     }

@@ -340,7 +340,12 @@
         continue;
       }
       // (Gix, Yawgmoth Praetor: "Discard X cards" — the X chosen as it is activated)
-      if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) { cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : /^X$/.test(m[1]) ? 'X' : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' }; continue; }
+      if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) {
+        cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : /^X$/.test(m[1]) ? 'X' : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' };
+        // Ormos, Archive Keeper: "Discard three cards with different names" (differentNames)
+        if (/ with different names$/i.test(cost.discard.filter)) { cost.discard.filter = cost.discard.filter.replace(/ with different names$/i, ''); cost.discard.differentNames = true; }
+        continue;
+      }
       if ((m = p.match(/^Pay (\d+) life$/i))) { cost.life = +m[1]; continue; }
       /* The Capitoline Triad: "Exile any number of historic cards from your graveyard with total mana value 30 or
          greater" — evidence of one kind (evidenceFilter) */
@@ -2514,7 +2519,7 @@
       make: (m) => ({ op: 'doubleCounters', allKinds: true, scope: { who: 'you', what: 'creature', thatIs: m[1] + ' or legendary' } }) },
     // Mu Yanling, Wind Rider: "create a 3/2 colorless Vehicle artifact token with crew 1" — an artifact, no creature until crewed
     // (Lita, Mechanical Engineer: "a 5/5 colorless Vehicle artifact token named Zeppelin with flying and crew 3")
-    { re: /^Create an? (\d+)\/(\d+) colorless Vehicle artifact token(?: named ([A-Z][A-Za-z' -]+?))? with (?:(flying|trample|vigilance|haste|reach) and )?crew (\d+)\.?$/i,
+    { re: /^Create an? (\d+|X)\/(\d+|X) colorless Vehicle artifact token(?: named ([A-Z][A-Za-z' -]+?))? with (?:(flying|trample|vigilance|haste|reach) and )?crew (\d+)\.?$/i,
       make: (m) => ({ op: 'createToken', n: 1, pt: m[1] + '/' + m[2], colorWords: ['colorless'], subtypes: 'Vehicle', addTypes: ['Artifact'],
         noncreature: true, keywords: m[4] ? [U.titleCase(m[4])] : [], grantedText: 'Crew ' + m[5], name: m[3] || undefined }) },
     // Setzer, Wandering Gambler: "create The Blackjack, a legendary 3/3 colorless Vehicle artifact token with flying and crew 2"
@@ -5956,6 +5961,10 @@
        onto the battlefield tapped and attacking" — the attacker the trigger is about (maxMv ofTrigger) */
     { re: /^you may put an? ([a-z]+) card with mana value less than that creature'?s mana value from your hand onto the battlefield tapped and attacking\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxMv: { ofTrigger: 'mv', plus: -1 }, tapped: true, attacking: true, atTriggerDefender: true }) },
+    /* Shadowfax, Lord of Horses: "you may put a creature card with lesser power from your hand onto the battlefield
+       tapped and attacking" — lesser than Shadowfax's power as it resolves (lesserPower) */
+    { re: /^(?:you may )?put an? ([a-z]+) card with lesser power from your hand onto the battlefield tapped and attacking\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', lesserPower: true, tapped: true, attacking: true }) },
     /* Maralen of the Mornsong: "that player loses 3 life, searches their library for a card, puts it into their hand,
        then shuffles." — the player whose draw step it is, and their own choice of card */
     { re: /^that player loses (\d+) life, searches their library for a card, puts it into their hand, then shuffles\.?$/i,
@@ -9239,6 +9248,8 @@
         else if (lw === 'historic') spec.historic = true;
         else if (lw === 'nonbasic') spec.nonbasic = true;
         else if (lw === 'basic') spec.basic = true;
+        // Kaldring, the Rimestaff: "target snow permanent card"
+        else if (lw === 'snow') spec.snow = true;
         else if (lw === 'noncreature') spec.notType = (spec.notType || []).concat('creature');
         else if (lw === 'nonartifact') spec.notType = (spec.notType || []).concat('artifact');
         else if (lw === 'nonenchantment') spec.notType = (spec.notType || []).concat('enchantment');
@@ -9349,6 +9360,7 @@
     if (spec.notSubtypes && (a.subtypes || []).some(t => spec.notSubtypes.includes(t.toLowerCase()))) return false;
     if (spec.nonlegendary && (a.supertypes || []).includes('Legendary')) return false;
     if (spec.legendary && !(a.supertypes || []).includes('Legendary')) return false;
+    if (spec.snow && !(a.supertypes || []).includes('Snow')) return false;
     if (spec.historic && !((a.supertypes || []).includes('Legendary') || a.isArtifact || (a.subtypes || []).includes('Saga'))) return false;
     if (spec.nonbasic && (a.supertypes || []).includes('Basic')) return false;
     if (spec.basic && !(a.supertypes || []).includes('Basic')) return false;
@@ -9996,6 +10008,22 @@
     { re: /^Choose a card type, then reveal the top (two|three|four|\d+) cards of your library\. Put all cards of the chosen type revealed this way into your hand and the rest on the bottom of your library in any order\.?$/i,
       make: (m) => [{ op: 'chooseCardTypeNow', types: ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'], forLibrary: true },
         { op: 'lookAt', n: num(m[1]), reveal: true }, { op: 'takeFromLooked', all: true, n: num(m[1]), filter: 'card', ofChosenCardType: true, to: 'hand' }, { op: 'restToBottom' }] },
+    /* Cyclonus, Cybertronian Fighter: "convert it. If you do, there is an additional beginning phase after this phase."
+       — only when it did turn over (then) */
+    { re: /^convert (?:CARDNAME|it)\. If you do, there is an additional beginning phase after this phase\.?$/i,
+      make: () => [{ op: 'transformSelf', then: [{ op: 'extraBeginningPhase' }] }] },
+    /* Pia Nalaar, Chief Mechanic: "you may pay one or more {E}. If you do, create an X/X … token …, where X is the
+       amount of {E} paid this way." — how much, none for no (payEnergyAny) */
+    { re: /^(?:you may )?pay one or more \{E\}\. If you do, (create an X\/X [^.]+?), where X is the amount of \{E\} paid this way\.?$/i,
+      make: (m) => { const pe = voteBody(m[1]); return pe && pe.length === 1 && pe[0].op === 'createToken' ? [{ op: 'payEnergyAny', then: pe }] : null; } },
+    /* Ib Halfheart, Goblin Tactician: "sacrifice it. If you do, it deals 4 damage to each creature blocking it." — the
+       creatures blocking it as it goes, dealt damage by it, gone (sacThatDamageBlockers) */
+    { re: /^Sacrifice it\. If you do, it deals (\d+) damage to each creature blocking it\.?$/i,
+      make: (m) => [{ op: 'sacThatDamageBlockers', n: +m[1] }] },
+    /* Kaldring, the Rimestaff: "You may play target snow permanent card from your graveyard this turn. If you do, it
+       enters tapped." — the leave to play it, a land or a spell, entering tapped if played by it (mayPlayFromGraveyard) */
+    { re: /^You may play (target [a-z ]+? card) from your graveyard this turn\. If you do, it enters tapped\.?$/i,
+      make: (m) => { const spec = targetSpec(m[1], 'graveyard'); return spec && !spec.unknown ? [{ op: 'mayPlayFromGraveyard', tapped: true, targets: [Object.assign(spec, { zone: 'graveyard', controller: 'you' })] }] : null; } },
     /* Obzedat, Ghost Council: "you may exile Obzedat. If you do, return it to the battlefield under its owner's control
        at the beginning of your next upkeep. It gains haste." — back only if it is still that card in exile (whileExiled) */
     { re: /^You may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield under (?:its|his|her) owner'?s control at the beginning of your next upkeep\. (?:It|He|She) gains haste\.?$/i,
@@ -15196,7 +15224,9 @@
       filt: () => ({ who: 'you', words: 'creature', batch: true }) },
     { re: /^When(?:ever)? a creature you control becomes blocked,? /i, event: 'becomesBlocked', filt: () => ({ who: 'you', words: 'creature' }) },
     // She-Hulk, Wallbreaker: "Whenever a Hero you control becomes blocked"
-    { re: /^When(?:ever)? an? ([A-Z][a-z]+) you control becomes blocked,? /, event: 'becomesBlocked', filt: (m) => ({ who: 'you', words: m[1].toLowerCase() }) },
+    // (Ib Halfheart, Goblin Tactician: "Whenever another Goblin you control becomes blocked" — other)
+    { re: /^When(?:ever)? (an?|another) ([A-Z][a-z]+) you control becomes blocked,? /, event: 'becomesBlocked',
+      filt: (m) => Object.assign({ who: 'you', words: m[2].toLowerCase() }, /^another$/i.test(m[1]) ? { other: true } : {}) },
     { re: /^When(?:ever)? an opponent casts their second spell each turn(?:,| )/i, event: 'opponentSecondSpell' },
     { re: /^At the beginning of your next end step(?:,| )/i, event: 'yourEndStep' },
     { re: /^At the beginning of the next end step(?:,| )/i, event: 'eachEndStep' },
@@ -21408,6 +21438,9 @@
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
       { re: /^If you would draw a card while your library has no cards in it, you win the game instead\.?$/i,
         eff: { op: 'winOnEmptyDraw' }, auto: true },
+      // Ormos, Archive Keeper: "If you would draw a card while your library has no cards in it, instead put five +1/+1 counters on Ormos."
+      { re: /^If you would draw a card while your library has no cards in it, instead put (a|one|two|three|four|five|six|\d+) \+1\/\+1 counters? on CARDNAME\.?$/i,
+        make: (m) => ({ op: 'countersOnEmptyDraw', n: num(m[1]) }), auto: true },
       /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off */
       { re: /^(Creatures|Permanents) entering(?: the battlefield)?( or dying)? don'?t cause abilities( of permanents your opponents control)? to trigger\.?$/i,
         make: (m) => ({ op: 'noEnterTriggers', what: /creature/i.test(m[1]) ? 'creature' : 'permanent',
@@ -21585,6 +21618,13 @@
         make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
           // (Melek, Izzet Paragon: "instant and sorcery spells" — either kind)
           filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ').replace(/ and /g, ' or ') || null }, m[4] ? { flash: true } : {}), auto: true },
+      /* Galea, Kindler of Hope: "You may cast Aura and Equipment spells from the top of your library. When you cast an
+         Equipment spell this way, it gains "When this Equipment enters, attach it to target creature you control."" (equipAttach) */
+      { re: /^You may cast Aura and Equipment spells from the top of your library\. When you cast an Equipment spell this way, it gains "When this Equipment enters, attach it to target creature you control\."\.?$/i,
+        make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'aura or equipment', equipAttach: true }), auto: true },
+      // Johann, Apprentice Sorcerer: "Once each turn, you may cast an instant or sorcery spell from the top of your library." (oncePerTurn)
+      { re: /^Once each turn, you may cast an? ([a-z]+(?: or [a-z]+)?) spell from the top of your library\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: m[1].toLowerCase(), oncePerTurn: true }), auto: true },
       // Nalia de'Arnise: "You may cast Cleric, Rogue, Warrior, and Wizard spells from the top of your library." — any of them
       { re: /^You may cast ((?:[A-Z][a-z]+, )+(?:and|or) [A-Z][a-z]+) spells from the top of your library\.?$/,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: m[1].split(/,\s*(?:and |or )?/).map(x => x.trim().toLowerCase()).filter(Boolean).join(' or ') }), auto: true },

@@ -3698,7 +3698,8 @@
       if (back) o.face = 1;
       // Nashi, Moon Sage's Scion: "one of those cards" — a land played is the one
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
-      this._landPlayed(p, o);
+      // (Kaldring, the Rimestaff: "If you do, it enters tapped." — enterTappedAny)
+      this._landPlayed(p, o, leave && leave.enterTappedAny ? { tapped: true } : null);
       // (The Eighth Doctor: a historic land played this way leaves for exile — leaveExileAfter)
       if (leave && leave.leaveExileAfter && o.zone === 'battlefield') o.leaveExile = true;
       this.checkStateBasedActions();
@@ -3713,14 +3714,16 @@
     }
 
     /** A land played, from wherever it was let be played: one of the turn's land plays, and what watches for it. */
-    _landPlayed(p, o) {
+    _landPlayed(p, o, extra) {
       const playerId = p.id;
       p.landsPlayed++;
       const fromZone = o.zone;
       // Spider-Man 2099: "played a land … from anywhere other than your hand"
       if (fromZone !== 'hand') p.landNotFromHandTurn = this.turn;
       o._playedFromHand = fromZone === 'hand';
-      this.moveObject(o, 'battlefield', { asLand: true, controller: playerId });
+      this.moveObject(o, 'battlefield', Object.assign({ asLand: true, controller: playerId }, extra || {}));
+      // (Kaldring, the Rimestaff: "it enters tapped")
+      if (extra && extra.tapped && o.zone === 'battlefield' && !o._keepUntapped) o.tapped = true;
       o._playedFromHand = false;
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
@@ -5175,7 +5178,8 @@
       // Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt" — that one, on the battlefield or gone
       if (this._exiledWithLinkEmblem(playerId, o)) return { op: 'playFrom', zone: 'exiledWith', what: 'any', anyMana: true };
       // Kethis, the Hidden Hand: a card that gained "You may play this card from your graveyard" this turn (gravePlayBy)
-      if (o && o.zone === 'graveyard' && o.owner === playerId && o.gravePlayBy === playerId && o.gravePlayTurn === this.turn) return { op: 'playFrom', zone: 'graveyard', what: 'any' };
+      // (Kaldring, the Rimestaff: "If you do, it enters tapped." — gravePlayTapped)
+      if (o && o.zone === 'graveyard' && o.owner === playerId && o.gravePlayBy === playerId && o.gravePlayTurn === this.turn) return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'any' }, o.gravePlayTapped === this.turn ? { enterTappedAny: true } : {});
       const z = this.zones[playerId];
       // Xanathar, Guild Kingpin: "you may play the top card of their library, and you may spend mana as though it were mana of any color"
       if (this._oppTopGrant(playerId, o)) return { op: 'playFrom', zone: 'oppTop', what: 'any', anyMana: true };
@@ -7516,6 +7520,7 @@
       o._enterTappedCast = null;
       o._leaveExileCast = null;
       o._enterPlusCounters = 0;
+      o._enterAttachCast = null;
       // (Hauken's Insight: a card exiled with it, cast by its leave — not by a leave of the card's own)
       if ((o.zone === 'graveyard' || o.zone === 'library' || (o.zone === 'exile' && o.exiledWithId && !this._impulseOpen(o, playerId))) && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
@@ -7534,6 +7539,10 @@
         }
         // Mikey & Don, Party Planners: "If you cast a creature spell this way, that creature enters with an additional +1/+1 counter on it."
         if (lv && lv.plusCounter && o.zone === 'library' && (o.analysis() || {}).isCreature) o._enterPlusCounters = (o._enterPlusCounters || 0) + 1;
+        // Kaldring, the Rimestaff: "If you do, it enters tapped." (enterTappedAny)
+        if (lv && lv.enterTappedAny && o.zone === 'graveyard') o._enterTappedCast = true;
+        // Galea, Kindler of Hope: "When you cast an Equipment spell this way, it gains "When this Equipment enters, …"" (equipAttach)
+        if (lv && lv.equipAttach && o.zone === 'library' && (o.analysis() || {}).isEquipment) o._enterAttachCast = true;
         if (lv && lv.srcId) {
           const ls = this.obj(lv.srcId);
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
@@ -8618,6 +8627,19 @@
       // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
       if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
+      /* Galea, Kindler of Hope: the Equipment cast from the top of the library: "When this Equipment enters, attach it to
+         target creature you control." — its target chosen as it goes on the stack */
+      if (o._enterAttachCast) {
+        o._enterAttachCast = null;
+        if (o.enteredFrom === 'stack') {
+          this.pendingTriggers.push({
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+            name: o.name, auto: true, abilityText: 'When this Equipment enters, attach it to target creature you control.',
+            effects: [{ op: 'attachSelf', targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], text: 'Attach it to target creature you control.' }],
+          });
+          this.emit('sfx', 'trigger');
+        }
+      }
       /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
@@ -9659,6 +9681,8 @@
       if (/^(?:a )?card with mana value X$/i.test(f)) return hand.filter(c => ((c.card && c.card.cmc) || 0) === ((opts && opts.x) || 0));
       return /^(?:card|cards|a card)$/i.test(f) ? hand : hand.filter(c => this._cardFitsWords(c, f));
     }
+    /** Ormos, Archive Keeper: "cards with different names" — how many such a hand can make up at most. */
+    _distinctNames(list) { return new Set((list || []).map(c => c.name)).size; }
     /** The cards in a graveyard an exile cost could take. */
     _exileCostPool(pid, spec, self) {
       const yard = ((this.zones[pid] || {}).graveyard || []).filter(c => !self || c.id !== self.id);
@@ -9750,7 +9774,8 @@
       }
       if (cost.discard && cost.discard.n !== 'all') {
         const need = this._costCount(cost.discard.n, opts);
-        if (this._discardPool(pid, cost.discard, self, opts).length < need) return 'Not enough cards in hand to discard.';
+        const dpool = this._discardPool(pid, cost.discard, self, opts);
+        if ((cost.discard.differentNames ? this._distinctNames(dpool) : dpool.length) < need) return cost.discard.differentNames ? 'Not enough cards with different names in hand to discard.' : 'Not enough cards in hand to discard.';
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && !cost.exile.viaAbility) {
         const need = this._costCount(cost.exile.n, opts, pid);
@@ -9913,13 +9938,16 @@
       if (cost.discard) {
         const pool = this._discardPool(pid, cost.discard, self, opts);
         const need = cost.discard.n === 'all' ? pool.length : Math.min(pool.length, this._costCount(cost.discard.n, opts));
-        let pick = (opts.discardIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
+        const dn = !!cost.discard.differentNames;
+        // (Ormos, Archive Keeper: "with different names" — one card of a name, the first named — differentNames)
+        const oneEach = (list) => (dn ? list.filter((c, i) => list.findIndex(x => x.name === c.name) === i) : list);
+        let pick = oneEach((opts.discardIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)).slice(0, need);
         if (need > 0 && pick.length < need) {
-          if (auto || pool.length === need || this._alike(pool)) pick = this._cheapestFirst(pool).slice(0, need);
+          if (auto || (dn ? this._distinctNames(pool) === need && pool.length === need : pool.length === need) || (!dn && this._alike(pool))) pick = oneEach(this._cheapestFirst(pool)).slice(0, need);
           else {
             pick = null;
-            ask({ type: 'discard', count: need, candidates: pool.map(x => x.id),
-              prompt: `Discard ${need === 1 ? 'a card' : need + ' cards'} to pay the cost.` });
+            ask(Object.assign({ type: 'discard', count: need, candidates: pool.map(x => x.id),
+              prompt: `Discard ${need === 1 ? 'a card' : need + ' cards'}${dn ? ' with different names' : ''} to pay the cost.` }, dn ? { differentNames: true } : {}));
           }
         }
         if (pick) this._discardNow(pid, pick, item);
@@ -16275,6 +16303,15 @@
         }
         if (this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id) p._drawStepTurn = this.turn;
         if (!z.library.length) {
+          /* Ormos, Archive Keeper: "instead put five +1/+1 counters on Ormos" — each draw from the empty library
+             (countersOnEmptyDraw) */
+          const orm = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'countersOnEmptyDraw'));
+          if (orm) {
+            const k = Number(this._staticOp(orm, 'countersOnEmptyDraw').n) || 1;
+            this.logEvent('rules', `${orm.name}: instead of drawing from an empty library, ${p.name} puts ${k} +1/+1 counter${k === 1 ? '' : 's'} on it.`);
+            this.addCounters(orm, '+1/+1', k);
+            continue;
+          }
           // Laboratory Maniac: the draw that would lose wins instead
           if (this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'winOnEmptyDraw'))) {
             this.logEvent('rules', `${p.name} would draw from an empty library, and wins the game instead.`);
@@ -20036,6 +20073,21 @@
           if (k > 0) this._fire('youGetEnergy', me.id, { playerId: me.id, amount: k });
           break;
         }
+        /* Pia Nalaar, Chief Mechanic: "you may pay one or more {E}. If you do, create an X/X … token" — how much, 0 for
+           none; X is what was paid (payEnergyAny) */
+        case 'payEnergyAny': {
+          const most = me.energy || 0;
+          if (!most) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'payEnergyAmount', kind: 'number', number: { min: 0, max: most },
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}pay how much {E}? None to pay nothing.` }, 'pea');
+          if (got === SUSPEND) return SUSPEND;
+          const k = Math.max(0, Math.min(most, Math.floor(Number(got && got.number) || 0)));
+          if (!k) break;
+          me.energy -= k;
+          this.logEvent('counters', `${me.name} pays ${k} energy (${me.energy}).`);
+          this._spliceNext((e.then || []).map(x => (x.op === 'createToken' && /^X\/X$/i.test(String(x.pt || '')) ? Object.assign({}, x, { ptX: k }) : x)));
+          break;
+        }
         case 'payEnergy': {
           const k = n(e.n) || 1;
           if ((me.energy || 0) < k) break;
@@ -23767,6 +23819,8 @@
             this.bumpBoard();
             this.logEvent('rules', `${x.name} transforms.`);
             this._fire('transforms', x.controller, { object: x, source: x });
+            // (Cyclonus, Cybertronian Fighter: "convert it. If you do, …" — then)
+            if (e.then && e.then.length) this._spliceNext(e.then);
           } else if (x) {
             // nothing to turn over: the Saga has simply finished
             this.logEvent('rules', `${x.name} finishes its story.`);
@@ -26942,9 +26996,12 @@
             const mvIs = e.exactMv != null ? n(e.exactMv) : null;
             // Kastral, the Windcrested: "a Bird creature card from your hand or graveyard" (from)
             const fromZones = e.from || ['hand'];
+            // (Shadowfax, Lord of Horses: "with lesser power" — than its own, last known if it has left — lesserPower)
+            const powCap = e.lesserPower ? (src ? this.powerOf(src) : 0) : null;
             // (an instant or sorcery card never goes onto the battlefield: "a permanent card" or not, only those — CR 110.4b)
             const pool = [].concat(...fromZones.map(zn => this.zones[p.id][zn] || [])).filter(o => (o.analysis() || {}).isPermanent && this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
-              (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
+              (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs) &&
+              (powCap == null || this.powerOf(o) < powCap));
             if (!pool.length) continue;
             // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
             if (!e.any && e.n != null && typeof e.n === 'object' && !(n(e.n) > 0)) continue;
@@ -27299,6 +27356,14 @@
           this.logEvent('rules', `There ${k > 1 ? 'are ' + k + ' additional upkeep steps' : 'is an additional upkeep step'} after this phase.`);
           break;
         }
+        /* Cyclonus, Cybertronian Fighter: "there is an additional beginning phase after this phase" — untap, upkeep
+           and draw steps, then the turn carries on where it would have gone */
+        case 'extraBeginningPhase': {
+          if (!this.phase) break;
+          (this._extraPhases = this._extraPhases || []).push({ turn: this.turn, after: this.phaseIndex, phases: [0] });
+          this.logEvent('rules', 'There is an additional beginning phase after this phase.');
+          break;
+        }
         /* The Ninth Doctor: "you get an additional upkeep step after this step" — triggered in the untap step, it
            resolves in the upkeep, and that upkeep comes again (extraUpkeepStep) */
         case 'extraUpkeepStep': {
@@ -27598,6 +27663,20 @@
         /* "Return it to your hand": the card the trigger is about (Zodiac
            Dragon), or this card, from the graveyard (Ghastly Remains) */
         // Grafted Exoskeleton: "sacrifice that permanent" — only one you control
+        /* Ib Halfheart, Goblin Tactician: "sacrifice it. If you do, it deals 4 damage to each creature blocking it." —
+           the blockers as it is sacrificed; the damage comes from it as it last was (sacThatDamageBlockers) */
+        case 'sacThatDamageBlockers': {
+          const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          if (!x || x.zone !== 'battlefield' || x.controller !== ctx.controller || !this._canSacrifice(x)) break;
+          const blockers = this.battlefield.filter(o => !o.phasedOut && (o.blocking || []).includes(x.id));
+          this.moveObject(x, 'graveyard');
+          this.logEvent('sacrifice', `${me.name} sacrifices ${x.name}.`);
+          this._fire('youSacrifice', ctx.controller, { count: 1, object: x, objController: ctx.controller });
+          const k = n(e.n);
+          for (const b of blockers) if (b.zone === 'battlefield' && !b.phasedOut) this.dealDamageToObject(b, k, x);
+          if (blockers.length) this.emit('sfx', 'damage');
+          break;
+        }
         case 'sacrificeTriggerObject': {
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           if (x && x.zone === 'battlefield' && x.controller === ctx.controller && this._canSacrifice(x)) {
@@ -29574,6 +29653,18 @@
           break;
         /* Kethis, the Hidden Hand: "Until end of turn, each legendary card in your graveyard gains 'You may play this
            card from your graveyard.'" — the cards there now (CR 611.2c), not ones that arrive later (gravePlayBy) */
+        // Kaldring, the Rimestaff: "You may play target snow permanent card from your graveyard this turn. If you do, it enters tapped."
+        case 'mayPlayFromGraveyard': {
+          for (const t of targets) {
+            const c = t.kind === 'object' && this.obj(t.id);
+            if (!c || c.zone !== 'graveyard') continue;
+            c.gravePlayBy = ctx.controller; c.gravePlayTurn = this.turn;
+            c.gravePlayTapped = e.tapped ? this.turn : null;
+            this.logEvent('rules', `${me.name} may play ${c.name} from the graveyard this turn.`);
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'gravePlayThisTurn': {
           let k = 0;
           for (const c of this.zones[ctx.controller].graveyard) {
@@ -35708,9 +35799,13 @@
       const pool = ch.candidates ? z.hand.filter(x => ch.candidates.includes(x.id)) : z.hand.slice();
       const want = Math.min(ch.count || 0, pool.length);
       let pick = ids.map(id => pool.find(x => x.id === id)).filter(Boolean);
-      pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
+      pick = pick.filter((o, i) => pick.indexOf(o) === i);
+      // Ormos, Archive Keeper: "cards with different names" — never two of a name (differentNames)
+      const dn = !!ch.differentNames;
+      if (dn) pick = pick.filter((o, i) => pick.findIndex(x => x.name === o.name) === i);
+      pick = pick.slice(0, want);
       if (!ch.optional && pick.length < want) {
-        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
+        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o) && !(dn && pick.some(x => x.name === o.name))) pick.push(o); }
       }
       for (const o of pick) { this.moveObject(o, 'graveyard'); tossed.push(o); }
       const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;

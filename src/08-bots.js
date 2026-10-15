@@ -1800,6 +1800,8 @@
     },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
+    // Pia Nalaar, Chief Mechanic: all the energy, for the biggest Aetherjet
+    payEnergyAmount(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Gilgamesh, Master-at-Arms: the best of the Equipment it put there, always worth wearing */
     attachOneOfTaken(s) {
       const g = this.game;
