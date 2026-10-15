@@ -119,6 +119,8 @@ declare namespace MTG {
     /** Zilortha, Strength Incarnate: lethal damage to it is determined by its power rather than its toughness */
     lethalByPower?: true;
     keywords: string[];
+    /** Autumn Willow: it has shroud, but the viewer may target it this turn */
+    shroudOpen?: true;
     /** Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
     manaExtra?: Array<{ i: number; label: string }> | null;
     /** Kibo's Banana, Birds of Paradise: for its controller, each mana ability (by the index the mana intent

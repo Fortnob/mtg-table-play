@@ -62264,7 +62264,7 @@ module.exports = (test) => {
     const g = T.g;
     const nb = T.bf('A', 'Nebuchadnezzar');
     const b1 = T.hand('B', 'Lightning Bolt'), b2 = T.hand('B', 'Lightning Bolt'), opt = T.hand('B', 'Opt');
-    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'Lightning Bolt')] }));
+    T.answer('choose', () => ({ name: 'Lightning Bolt' }));  // (typed: B's hand is hidden from A)
     T.mana('A', '3');
     T.activate('A', nb, 0, { targets: ['B'], x: 3 });
     t.zone(b1, 'graveyard', 'Nebuchadnezzar: all three revealed — both Bolts');
@@ -62274,7 +62274,7 @@ module.exports = (test) => {
     // X = 1 of 3: one card revealed at random; at most that one goes
     const cs = [T.hand('B', 'Lightning Bolt'), T.hand('B', 'Lightning Bolt')]; T.hand('B', 'Opt');
     nb.tapped = false;
-    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'Lightning Bolt')] }));
+    T.answer('choose', () => ({ name: 'Lightning Bolt' }));  // (typed: B's hand is hidden from A)
     T.mana('A', '1');
     T.activate('A', nb, 0, { targets: ['B'], x: 1 });
     t.ok(cs.filter(c => c.zone === 'graveyard').length <= 1, 'Nebuchadnezzar: only the one revealed can go');
@@ -62453,5 +62453,42 @@ module.exports = (test) => {
     t.eq(Number(bears.counters['+1/+1'] || 0), 1);
     T.nextTurn('B');
     t.no(g.hasKw(bears, 'deathtouch'), 'Teyo: until end of turn');
+  });
+  test("Commanders: Autumn Willow — shroud; {G}: target player's spells and abilities may target it this turn", (mk, t) => {
+    t.auto('Autumn Willow');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    T.toMain('A');
+    const aw = T.bf('A', 'Autumn Willow');
+    const spec = { type: 'creature', filter: 'creature', zone: 'battlefield' };
+    const can = (pid) => g._legalTargetsFor(spec, pid, null).some(x => x.id === aw.id);
+    t.no(can('A') || can('B'), 'Autumn Willow: shroud — nobody');
+    T.mana('A', 'G');
+    T.activate('A', aw, 0, { targets: ['A'] });
+    t.ok(can('A'), 'Autumn Willow: you may target it now');
+    t.no(can('B'), 'Autumn Willow: not the other player');
+    t.ok(g.viewFor('A').players.length && JSON.stringify(g.viewFor('A')).includes('"shroudOpen":true'), 'Autumn Willow: the table lights it for you');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [aw] });
+    t.eq(g.powerOf(aw), 7, 'Autumn Willow: your Giant Growth on it');
+    T.mana('A', 'G');
+    T.activate('A', aw, 0, { targets: ['B'] });
+    t.ok(can('B'), 'Autumn Willow: and the opponent, once named');
+    T.nextTurn('B');
+    t.no(can('A') || can('B'), 'Autumn Willow: until end of turn');
+  });
+  test("Commanders: Lord Magnus — plainswalk and forestwalk creatures can be blocked as though they didn't have it", (mk, t) => {
+    t.auto('Lord Magnus');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.bf('B', 'Plains'); T.bf('B', 'Forest'); T.bf('B', 'Island');
+    const wall = T.bf('B', 'Wall of Wood');
+    const pw = T.bf('A', 'Zodiac Rooster'), fw = T.bf('A', 'Lynx'), iw = T.bf('A', 'Segovian Leviathan');
+    for (const x of [pw, fw, iw]) x.attacking = 'B';
+    t.no(g.canBlock(wall, fw) || g.canBlock(wall, pw), 'Lord Magnus: (without him, forestwalk and plainswalk)');
+    T.bf('A', 'Lord Magnus');
+    t.ok(g.canBlock(wall, fw), "Lord Magnus: forestwalk blockable — the attacker's own Lord Magnus too");
+    t.ok(g.canBlock(wall, pw), 'Lord Magnus: plainswalk blockable');
+    t.no(g.canBlock(wall, iw), 'Lord Magnus: not islandwalk');
   });
 };

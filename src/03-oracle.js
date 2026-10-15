@@ -2724,6 +2724,10 @@
     { re: /^Sacrifice (?:that token|those tokens) at end of combat\.?$/i, make: () => ({ op: 'sacMadeEoc' }) },
     // Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." (exileMadeWhenSelfLeaves)
     { re: /^Exile (?:that token|those tokens) when (?:CARDNAME|this creature) leaves the battlefield\.?$/i, make: () => ({ op: 'exileMadeWhenSelfLeaves' }) },
+    /* Autumn Willow: "Until end of turn, Autumn Willow can be the target of spells and abilities controlled by target player
+       as though it didn't have shroud." (shroudExceptFor) */
+    { re: /^Until end of turn, CARDNAME can be the target of spells and abilities controlled by target (player|opponent) as though it didn'?t have shroud\.?$/i,
+      make: (m) => ({ op: 'shroudExceptFor', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Stangg: "Sacrifice Stangg when that token leaves the battlefield." (sacSelfWhenMadeLeaves)
     { re: /^Sacrifice (?:CARDNAME|this creature) when that token leaves the battlefield\.?$/i, make: () => ({ op: 'sacSelfWhenMadeLeaves' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
@@ -21514,6 +21518,8 @@
       // Urza, Planeswalker: "You may activate the loyalty abilities of Urza twice each turn rather than only once." (loyaltyTwice)
       { re: /^You may activate the loyalty abilities of (?:CARDNAME|this planeswalker) twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice' }, auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },
+      // Lord Magnus: "Creatures with plainswalk can be blocked as though they didn't have plainswalk." — anyone's (walkBlockable)
+      { re: /^Creatures with ([a-z]+)walk can be blocked as though they didn'?t have \1walk\.?$/i, make: (m) => ({ op: 'walkBlockable', kind: m[1].toLowerCase() }), auto: true },
       // Doc Aurlock, Aven Interrupter: "Spells you cast (your opponents cast) from your graveyard (graveyards) or from exile cost {2} less (more) to cast."
       { re: /^Spells (you|your opponents) cast from (?:your |their )?graveyards? or from exile cost \{(\d+)\} (less|more) to cast\.?$/i,
         make: (m) => ({ op: 'taxSpells', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', amount: (/less/i.test(m[3]) ? -1 : 1) * +m[2],

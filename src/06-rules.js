@@ -3935,7 +3935,7 @@
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
           if (item.obj && this._untargetableHit(o, item.obj, item.controller)) return false;
           if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
-          if (this.hasKw(o, 'shroud')) return false;
+          if (this._shroudFor(o, item.controller)) return false;
           // protection from a quality the spell or ability's source has
           if (item.obj && this._protectedFrom(o, item.obj)) return false;
         }
@@ -12517,7 +12517,10 @@
         const w = String(k).match(/^(nonbasic land|legendary land|[a-z]+)walk$/i);
         if (w) walkKinds.push(w[1].toLowerCase());
       }
+      // Lord Magnus: "Creatures with plainswalk can be blocked as though they didn't have plainswalk." (walkBlockable)
+      const walkOff = walkKinds.length ? new Set(this.battlefield.filter(o => !o.phasedOut).flatMap(o => this._staticOpsAll(o, 'walkBlockable').map(e => e.kind))) : null;
       for (const kind of walkKinds) {
+        if (walkOff && walkOff.has(kind)) continue;
         const walks = this.battlefield.some(l => l.controller === defPid && (l.analysis() || {}).isLand &&
           (kind === 'nonbasic land' || kind === 'nonbasic' ? !((l.analysis() || {}).supertypes || []).includes('Basic')
             // Ayumi, the Last Visitor: "Legendary landwalk" — a legendary land
@@ -33314,6 +33317,14 @@
           }
           break;
         }
+        // Autumn Willow: "Until end of turn, Autumn Willow can be the target of spells and abilities controlled by target player …"
+        case 'shroudExceptFor': {
+          const p = firstPlayer();
+          if (!p || !src || src.zone !== 'battlefield') break;
+          src.effects.push({ shroudExceptFor: p.id, until: 'eot' });
+          this.logEvent('rules', `${p.name} can target ${src.name} this turn as though it didn't have shroud.`);
+          break;
+        }
         // Wall of Tears: back to its owner's hand as combat ends
         // Curtain of Light: blocked, though nothing blocks it
         case 'becomeBlocked':
@@ -35923,6 +35934,10 @@
       return Math.max(1, (st && st.minBlockers) || 1);
     }
 
+    /** Shroud against this player's spells and abilities — Autumn Willow: "as though it didn't have shroud" for one player (shroudExceptFor). */
+    _shroudFor(o, pid) {
+      return this.hasKw(o, 'shroud') && !(o.effects || []).some(e => e && e.shroudExceptFor != null && e.shroudExceptFor === pid);
+    }
     /** Every static effect with this op on a permanent (Gaddock Teeg: two lines, one op). */
     _staticOpsAll(o, op) {
       const a = o && o.analysis(), out = [];
@@ -37972,7 +37987,7 @@
           const a = o.analysis();
           if (!a || o.phasedOut) continue;
           if (!MTG.oracle.matchesSpec(Object.assign({}, spec, { type: 'permanent' }), o, a, controllerId, this._specCtx())) continue;
-          if (o.controller !== controllerId && (this.hasKw(o, 'hexproof') || this.hasKw(o, 'shroud'))) continue;
+          if (o.controller !== controllerId && (this.hasKw(o, 'hexproof') || this._shroudFor(o, controllerId))) continue;
           out2.push({ kind: 'object', id: o.id, name: o.name });
         }
         return out2;
@@ -37996,9 +38011,9 @@
         // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
         if (spec.artifactOrMaxMv != null && !a.isArtifact && ((o.card && o.card.cmc) || 0) > spec.artifactOrMaxMv) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
-            (this.hasKw(o, 'hexproof') || this.hasKw(o, 'shroud'))) continue;
+            (this.hasKw(o, 'hexproof') || this._shroudFor(o, controllerId))) continue;
         // shroud: not even its own controller's (CR 702.18a)
-        if (zone === 'battlefield' && this.hasKw(o, 'shroud')) continue;
+        if (zone === 'battlefield' && this._shroudFor(o, controllerId)) continue;
         // protection: not by a spell or ability from a source with that quality (CR 702.16b)
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && s0 !== o && this._protectedFrom(o, s0)) continue; }
         // hexproof from a quality: not by an opponent's spell or ability with it (CR 702.11d)
@@ -39293,6 +39308,8 @@
         /* what it has right now, granted keywords included, so the table can
            tell which permanents a spell is allowed to point at */
         keywords: blank(o) ? [] : this._viewKeywords(o),
+        // Autumn Willow: shroud, though this player may target it this turn (shroudExceptFor)
+        shroudOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'shroud') && !this._shroudFor(o, playerId) ? true : undefined,
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
         /* Kibo's Banana, Birds of Paradise, Arcane Signet: what tapping it by hand lets its controller choose (the

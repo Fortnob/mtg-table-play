@@ -2636,7 +2636,8 @@
     /** Whether what is choosing targets may point at this permanent at all. */
     _canAimAt(o) {
       const kw = (o.keywords || []).map(k => String(k).toLowerCase());
-      if (kw.includes('shroud')) return false;
+      // (Autumn Willow: "as though it didn't have shroud" for you — shroudOpen)
+      if (kw.includes('shroud') && !o.shroudOpen) return false;
       if (o.controller !== this.meId && kw.includes('hexproof')) return false;
       const t = this.targeting;
       const src = t && t.source ? this.objIn(t.source) : null;
