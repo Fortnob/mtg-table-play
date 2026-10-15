@@ -454,6 +454,8 @@
       }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
+      // Sasaya, Orochi Ascendant: "Reveal your hand"
+      if (/^Reveal your hand$/i.test(p)) { cost.revealHand = true; continue; }
       // Glen Elendra Guardian, Loch Mare: "Remove a counter from this creature" — of any kind
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|\d+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|enchantment|land))$/i))) {
         cost.removeCounters = { n: WORDN(m[1]) || num(m[1]), kind: '*' }; continue;
@@ -3560,6 +3562,10 @@
         if (ptX) out.ptX = ptX;
         return out;
       } },
+    /* Iron Man, Futurist Paragon: "target artifact or creature becomes an artifact creature with base power and toughness
+       5/5 and gains flying." — for good */
+    { re: /^((?:another )?target [a-z ]+?) (becomes an? (?:(?:artifact|enchantment|land) )*creature with base power and toughness \d+\/\d+(?: and gains [a-z, ]+)?)\.?$/i,
+      make: (m) => { const eff = becomesEff(m[2]); return eff && eff.setPt ? becomesSubject(m[1], eff, 'permanent') : null; } },
     /* Gornog, the Red Reaper: "target creature that player controls becomes a Coward." — that creature type in place
        of its others (layer 4), for good; Boldwyr Intimidator's "… until end of turn" for the turn */
     { re: /^((?:[Tt]arget|[Aa]nother target) creature(?: that player controls| an opponent controls| you control)?) becomes an? ([A-Z][a-z]+)( until end of turn)?\.?$/,
@@ -5000,6 +5006,8 @@
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
     { re: /^You may play (two|three) additional lands(?: on each of your turns| this turn)?\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
     { re: /^Take an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn' }) },
+    // Kang the Conqueror: "During that turn, power-up abilities can't be activated." — on the extra turn just taken (noPowerUp)
+    { re: /^During that turn, power-up abilities can'?t be activated\.?$/i, make: () => ({ op: 'manual', noPowerUpRider: true }) },
     // Final Fortune: "At the beginning of that turn's end step, you lose the game."
     { re: /^At the beginning of that turn'?s end step, you lose the game\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, name: 'You lose the game', effects: [{ op: 'loseGame' }] }) },
@@ -13947,6 +13955,12 @@
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
+      // (Kang the Conqueror: "During that turn, power-up abilities can't be activated." — the extra turn before it)
+      if (e && e.noPowerUpRider) {
+        if (prevE && prevE.op === 'extraTurn' && !prevE.noPowerUp) { prevE.noPowerUp = true; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
       // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." (extraCounterIf)
       if (e && e.extraCounterIfRider) {
         if (prevE && prevE.op === 'reanimate' && !prevE.extraCounterIf) { prevE.extraCounterIf = e.extraCounterIfRider; continue; }
@@ -14892,6 +14906,9 @@
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[2]) ? 'atMost' : 'atLeast', who: 'triggerPlayer' })],
     [/^you have (\w+) or (?:more|fewer) cards in (?:your )?hand$/i,
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[0]) ? 'atMost' : 'atLeast' })],
+    // Sasaya, Orochi Ascendant: "If you have seven or more land cards in your hand" (hand, words)
+    [/^you have (\w+) or more (land|creature|instant|sorcery|artifact|enchantment) cards in (?:your )?hand$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'hand', n: num(m[1]), cmp: 'atLeast', words: m[2].toLowerCase() } : null)],
     [/^you have (\d+) or (?:more|less) life$/i,
       (m) => ({ kind: 'life', n: +m[1], cmp: /less/i.test(m[0]) ? 'atMost' : 'atLeast' })],
     [/^you(?:'ve)? gained (\w+) or more life this turn$/i, (m) => ({ kind: 'lifeGained', n: num(m[1]) })],
@@ -17017,7 +17034,8 @@
          handing out ("Lands you control have \"{T}: Add {G}.\""), not to an
          ability of the card itself. */
       if (m && /"/.test(m[1])) m = null;
-      if (m && /\{|Sacrifice|Discard|Pay \d+ life|Remove|Exile|Tap an? |Tap \w+ untapped|Return|Put an? [-+]\d\/[-+]\d counter on this/i.test(m[1]) && !/^(?:When|Whenever|At|As|If)\b/.test(m[1])) {
+      // (Sasaya, Orochi Ascendant: "Reveal your hand:")
+      if (m && /\{|Sacrifice|Discard|Pay \d+ life|Remove|Exile|Tap an? |Tap \w+ untapped|Return|Put an? [-+]\d\/[-+]\d counter on this|^Reveal your hand$/i.test(m[1]) && !/^(?:When|Whenever|At|As|If)\b/.test(m[1])) {
         const cost = parseCost(m[1]);
         /* Skinshifter: "Choose one. Activate only once each turn." — the footnote sits between
            the choice and its modes; it belongs to the ability, not to a mode */
@@ -19345,6 +19363,11 @@
         continue;
       }
       if ((m = p.match(/^(?:becomes?|is|are) (\d+)\/(\d+)$/i))) { eff.setPt = { p: +m[1], t: +m[2] }; continue; }
+      // Iron Man, Futurist Paragon: "becomes an artifact creature with base power and toughness 5/5"
+      if ((m = p.match(/^becomes? an? ((?:(?:artifact|enchantment|land) )*creature) with base power and toughness (\d+)\/(\d+)$/i))) {
+        if (!typed('', m[1], [m[2], m[3]])) return null;
+        continue;
+      }
       // "becomes a 3/3 creature that's still a land", "becomes a 2/2 red Elemental creature"
       if ((m = p.match(/^(?:becomes?|is|are) an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green|colorless) )*)((?:[A-Za-z'-]+ )*?)creatures?(?: that'?s still an? (?:land|artifact|enchantment))?$/))) {
         if (!typed(m[3], (m[4] + ' Creature').trim(), [m[1], m[2]])) return null;
@@ -20860,6 +20883,10 @@
       { re: /^Whenever you tap an? (land|Forest|Island|Swamp|Mountain|Plains|basic land) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      /* Sasaya's Essence: "Whenever a land you control is tapped for mana, add an additional one mana of any type that land
+         produced for each other land you control with the same name as it." (perSameName) */
+      { re: /^Whenever a land you control is tapped for mana, add an additional one mana of any type that land produced for each other land you control with the same name as it\.?$/i,
+        eff: { op: 'extraManaOnTap', who: 'you', filter: 'land', sameType: true, perSameName: true }, auto: true },
       // Pariah, Empyrial Archangel, Pariah's Shield: "All damage that would be dealt to you is dealt to this creature instead."
       { re: /^All damage that would be dealt to you is dealt to (this creature|CARDNAME|enchanted creature|equipped creature) instead\.?$/i,
         make: (m) => ({ op: 'redirectYourDamage', to: /enchanted|equipped/i.test(m[1]) ? 'attached' : 'self' }), auto: true },

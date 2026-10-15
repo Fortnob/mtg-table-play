@@ -932,7 +932,9 @@
       this.isExtraTurn = false;
       // extra turns first
       if (this.extraTurnsQueue.length) {
-        const pid = this.extraTurnsQueue.shift();
+        // (Kang the Conqueror: an extra turn with a rule of its own — { pid, noPowerUp })
+        const ent = this.extraTurnsQueue.shift();
+        const pid = ent && typeof ent === 'object' ? ent.pid : ent;
         // Stranglehold, Ugin's Nexus: that extra turn is skipped
         const stop = this.battlefield.some(o => { const e = !o.phasedOut && this._staticOp(o, 'skipExtraTurns'); return e && (e.who === 'all' || o.controller !== pid); });
         if (stop) {
@@ -941,6 +943,7 @@
         }
         this.activeIndex = this.turnOrder.indexOf(pid);
         this.isExtraTurn = true;
+        if (ent && typeof ent === 'object' && ent.noPowerUp) this.noPowerUpTurn = this.turn + 1;
       } else {
         let guard = 0, np = null;
         do {
@@ -10051,6 +10054,8 @@
       if (label === 'exhaust' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That exhaust ability has been used.';
       // power-up: once, as exhaust is
       if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That power-up ability has been used.';
+      // Kang the Conqueror: "During that turn, power-up abilities can't be activated." (noPowerUpTurn)
+      if (label === 'power-up' && this.noPowerUpTurn && this.noPowerUpTurn === this.turn) return "Power-up abilities can't be activated this turn.";
       if (ab && ab.only && ab.only.once && o._usedOnce && o._usedOnce[ab.text] === o.entered) return 'That ability can be activated only once.';
       // Pithing Needle: "activated abilities of sources with the chosen name can't be activated"
       for (const s0 of this.battlefield) {
@@ -10871,6 +10876,11 @@
       // (Avatar Aang: "Whenever you waterbend" — a waterbend cost paid, whatever it was paid with)
       if (cost.waterbend && !opts.free) this._noteBend(playerId, 'water');
       if (cost.exert) o.noUntapNext = true;
+      // Sasaya, Orochi Ascendant: "Reveal your hand:" — everyone sees it (revealHand)
+      if (cost.revealHand) {
+        this._knowHand(playerId, '*');
+        this.logEvent('reveal', `${p.name} reveals their hand: ${this.zones[playerId].hand.map(c => c.name).join(', ') || 'no cards'}.`);
+      }
       // Devoted Druid: "Put a -1/-1 counter on this creature" as the price
       if (cost.putCounters) this.addCounters(o, cost.putCounters.kind, cost.putCounters.n || 1, { noReplace: true });
       if (cost.untap) this._markUntapped(o);
@@ -11584,6 +11594,11 @@
         }
         // Fertile Ground: one mana of any colour, the one the player is shortest of (Market Festival: two)
         if (e.anyColor) syms = Array.from({ length: e.n || 1 }, () => this._preferredColor(p) || 'G');
+        // Sasaya's Essence: "for each other land you control with the same name as it" (perSameName)
+        if (e.perSameName) {
+          const k = this.battlefield.filter(x => x !== o && !x.phasedOut && x.controller === src.controller && (x.analysis() || {}).isLand && x.name === o.name).length;
+          syms = [].concat(...Array.from({ length: k }, () => syms));
+        }
         // Elvish Guidance: "{G} for each Elf on the battlefield"
         if (e.perSubtype) {
           const k = this.battlefield.filter(x => !x.phasedOut && this._hasCreatureType(x, e.perSubtype)).length;
@@ -15147,7 +15162,8 @@
           // Ghirapur Orrery: "if that player has no cards in hand" — the player whose upkeep it is
           const td = (ctx && ctx.triggerData) || {};
           const whose = cond.who === 'triggerPlayer' ? this.player(td.playerId || td.player || td.drawer) : me;
-          return !!whose && at(this.zones[whose.id].hand.length);
+          // (Sasaya, Orochi Ascendant: "seven or more land cards" — those only: words)
+          return !!whose && at(cond.words ? this.zones[whose.id].hand.filter(c => this._cardFitsWords(c, cond.words)).length : this.zones[whose.id].hand.length);
         }
         case 'life': return !!me && at(me.life);
         case 'opponentLife':
@@ -34422,7 +34438,8 @@
           // "target player takes an extra turn after this one"
           const who = e.who === 'target' ? firstPlayer() : me;
           if (!who || who.hasLost) break;
-          this.extraTurnsQueue.push(who.id);
+          // (Kang the Conqueror: "During that turn, power-up abilities can't be activated." — noPowerUp)
+          this.extraTurnsQueue.push(e.noPowerUp ? { pid: who.id, noPowerUp: true } : who.id);
           // Time Stretch: two of them
           for (let k = 1; k < (e.n || 1); k++) this.extraTurnsQueue.push(who.id);
           this.logEvent('rules', `${who.name} takes an extra turn.`);

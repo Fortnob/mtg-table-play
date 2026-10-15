@@ -4181,6 +4181,8 @@
       if (cost.life && this.me.life <= cost.life + 5) return null;
       // (Vish Kal, Blood Arbiter; Catti-brie of Mithral Hall: "Remove all" — a bot only with one to remove at least)
       if (cost.removeCounters && (Number(o.counters[String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0) < (cost.removeCounters.min || (typeof cost.removeCounters.n === 'number' ? cost.removeCounters.n : 1))) return null;
+      // Sasaya, Orochi Ascendant: a hand shown for nothing — only when its "If …" holds (revealHand)
+      if (cost.revealHand && (ab.effects || []).every(e => e && e.op === 'ifCond') && !(ab.effects || []).some(e => g._condMet(e.cond, { controller: this.pid, obj: o }))) return null;
       // Shelob, Dread Weaver: a card exiled with it to put into a graveyard (processWith)
       if (cost.processWith && !g._exiledWithPool(o, cost.processWith.filter).length) return null;
       const sorcery = ab.sorcerySpeed || ab.kind === 'loyalty';
