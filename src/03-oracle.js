@@ -3236,6 +3236,8 @@
     { re: /^Activate (?:this ability )?only during an opponent'?s turn\.?$/i, make: () => ({ op: 'activateOnly', when: 'opponentTurn' }) },
     // Desert: "Activate only during the end of combat step."
     { re: /^Activate (?:this ability )?only during the end of combat step\.?$/i, make: () => ({ op: 'activateOnly', when: 'endCombat' }) },
+    // Angus Mackenzie: "Activate only before the combat damage step."
+    { re: /^Activate (?:this ability )?only before the combat damage step\.?$/i, make: () => ({ op: 'activateOnly', when: 'beforeCombatDamage' }) },
     // Trap Runner: "Activate only during combat after blockers are declared."
     { re: /^Activate (?:this ability )?only during combat after blockers are declared\.?$/i, make: () => ({ op: 'activateOnly', when: 'afterBlockers' }) },
     // Vivi Ornitier, Nimbleclaw Adept: two restrictions at once
@@ -4823,6 +4825,9 @@
     { re: /^Exile the card that died with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
     // Grolnok, the Omnivore: "Whenever a permanent card is put into your graveyard from your library, exile it with a croak counter on it."
     { re: /^Exile it with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
+    // Mairsil, the Pretender: "exile an artifact or creature card from your hand or graveyard and put a cage counter on it" (exileHandGraveCounter)
+    { re: /^Exile an? ([a-z ]+?) card from your hand or graveyard and put an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => ({ op: 'exileHandGraveCounter', filter: m[1].toLowerCase(), counter: m[2].toLowerCase() }) },
     /* Rhuk, Hexgold Nabber: "attach all Equipment attached to that creature to Rhuk" — the creature the trigger is about,
        as it is, or as it was when it died (attachAllToSelf) */
     { re: /^Attach all Equipment attached to that creature to CARDNAME\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
@@ -5780,6 +5785,13 @@
       make: (m) => Object.assign({ op: 'poison', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: /opponent/i.test(m[1]) ? 'opponent' : 'player' }] } : {}) },
     { re: /^You gain life equal to the damage dealt this way\.?$/i, make: () => ({ op: 'gainLife', who: 'you', n: 'lastDamage' }) },
+    /* Lyra, Tolarian Archangel: "Until end of turn, whenever Lyra deals combat damage to a player, draw two cards." —
+       the trigger on Lyra for the turn, one more for each activation */
+    { re: /^Until end of turn, whenever CARDNAME deals combat damage to (a player|an opponent), ([\s\S]+)$/,
+      make: (m) => {
+        const ab = 'Whenever this creature deals combat damage to ' + m[1] + ', ' + m[2].replace(/\.?$/, '.');
+        return grantableText(ab) ? { op: 'grantAbility', ability: ab, duration: 'eot', scope: 'self' } : null;
+      } },
     // High Tide, Bubbling Muck: "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}."
     { re: /^Until end of turn, whenever a player taps an? (Island|Swamp|Mountain|Forest|Plains|land) for mana, that player adds an additional (\{[WUBRGC]\})\.?$/i,
       make: (m) => ({ op: 'extraManaThisTurn', filter: m[1].toLowerCase(), symbols: MANA.parse(m[2]) }) },
@@ -20907,6 +20919,10 @@
       // Rex, Cyber-Hound: "Rex has all activated abilities of all cards in exile with brain counters on them." (exiledCounter)
       { re: /^(?:CARDNAME|This creature) has all activated abilities of all cards in exile with ([a-z]+) counters on them\.?$/i,
         make: (m) => ({ op: 'borrowActivated', exiledCounter: m[1].toLowerCase() }), auto: true },
+      /* Mairsil, the Pretender: "Mairsil has all activated abilities of all cards you own in exile with cage counters on
+         them. You may activate each of those abilities only once each turn." (exiledCounter, owned, oncePerTurn) */
+      { re: /^(?:CARDNAME|This creature) has all activated abilities of all cards you own in exile with ([a-z]+) counters on them\. You may activate each of those abilities only once each turn\.?$/i,
+        make: (m) => ({ op: 'borrowActivated', exiledCounter: m[1].toLowerCase(), owned: true, oncePerTurn: true }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^(?:CARDNAME|This creature) can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
       /* Shalai: "You, planeswalkers you control, and other creatures you control have hexproof." */

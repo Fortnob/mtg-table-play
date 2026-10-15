@@ -3148,7 +3148,8 @@
       // (Jeleva, Nephalia's Scourge: "you may cast an instant or sorcery spell from among cards exiled with Jeleva" — pickOne)
       // (Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it" — becomeExiledWithCopy)
       // (Feather, Radiant Arbiter: "you may choose any number of other creatures … and pay {2} for each" — copySpellEachOther payEach)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
+      // (Mairsil, the Pretender: "you may exile an artifact or creature card from your hand or graveyard …" — exileHandGraveCounter)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -9780,6 +9781,11 @@
           : order.indexOf(this.step) < order.indexOf('declareAttackers');
         if (!mine || !before) return 'Only during your turn, before attackers are declared.';
       }
+      // Angus Mackenzie: "Activate only before the combat damage step." — this turn's
+      if (only.when === 'beforeCombatDamage') {
+        const before = this.phase.id !== 'combat' ? this.phaseIndex < 2 : !['firstStrikeDamage', 'combatDamage', 'endCombat'].includes(this.step);
+        if (!before) return 'Only before the combat damage step.';
+      }
       if (only.when === 'upkeep' && this.step !== 'upkeep') return 'Only during upkeep.';
       // "only during your turn": any time in it; "only during combat"; "only during your upkeep"
       if (only.when === 'yourTurn' && !(this.activePlayer && this.activePlayer.id === playerId)) return 'Only during your turn.';
@@ -11031,6 +11037,11 @@
       if (cost.untap) this._markUntapped(o);
       if (cost.mana) { if (!this.player(playerId).pool.pay(cost.mana)) return false; }
       if (cost.life) this.changeLife(playerId, -cost.life, 'mana');
+      // (Mairsil, the Pretender: "only once each turn" — a mana ability counted as activateAbility counts it)
+      if (ab.only && ab.only.perTurn) {
+        if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
+        o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
+      }
       this._runManaAbility(playerId, o, ab, { controller: playerId, obj: o, name: o.name, manaChoice: symbol });
       if (cost.sacSelf) {
         this.logEvent('sacrifice', `${this.player(playerId).name} sacrifices ${o.name}.`);
@@ -15203,8 +15214,9 @@
       // (Thranduil, the Elvenking: the cards in its controller's graveyard, as they are now)
       if (spec.graveyard) sig += '|' + ((this.zones[o.controller] || {}).graveyard || []).map(x => x.id).join(',');
       // (Rex, Cyber-Hound: which cards in exile have the counter — exiledCounter)
+      // (Mairsil, the Pretender: "all cards you own in exile with cage counters on them" — owned)
       const exiledWith = () => spec.exiledCounter ? this.players.flatMap(p => (this.zones[p.id] || {}).exile || [])
-        .filter(c => Number((c.counters || {})[spec.exiledCounter]) > 0) : [];
+        .filter(c => Number((c.counters || {})[spec.exiledCounter]) > 0 && (!spec.owned || c.owner === o.controller)) : [];
       if (spec.exiledCounter) sig += '|x' + exiledWith().map(c => c.id).join(',');
       // (Experiment Kraj: which creatures have the counter — withCounter)
       if (spec.withCounter) sig += '|c' + this.battlefield.filter(x => Number((x.counters || {})[spec.withCounter]) > 0).map(x => x.id).join(',');
@@ -15219,7 +15231,9 @@
           const k = ab.kind + ':' + (ab.text || JSON.stringify(ab.effects || []));
           if (seen.has(k)) return;
           seen.add(k);
-          list.push(Object.assign({}, ab, { granted: false, grantTs: undefined, borrowed: true, spendAnyColor: !!spec.anyColor }));
+          list.push(Object.assign({}, ab, { granted: false, grantTs: undefined, borrowed: true, spendAnyColor: !!spec.anyColor },
+            // Mairsil, the Pretender: "You may activate each of those abilities only once each turn." (oncePerTurn)
+            spec.oncePerTurn ? { only: Object.assign({}, ab.only || {}, { perTurn: 1 }) } : {}));
         };
         /* Koh, the Face Stealer: "all activated and triggered abilities of the last chosen card" — a card in exile,
            still the one chosen (chosenCard) */
@@ -26961,6 +26975,27 @@
           }
           if (add) this._advanceSaga(x, 1);
           else { this.addCounters(x, 'lore', -1); this.logEvent('saga', `A lore counter is removed from ${x.name}.`); }
+          break;
+        }
+        /* Mairsil, the Pretender: "you may exile an artifact or creature card from your hand or graveyard and put a cage
+           counter on it" — one pick, which may be left empty (ownPick); exiled with it */
+        case 'exileHandGraveCounter': {
+          const z = this.zones[ctx.controller] || {};
+          const pool = (z.hand || []).concat(z.graveyard || []).filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          if (!pool.length) break;
+          const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: !!e.optional, purpose: 'exileHandGraveCounter',
+            cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.optional ? 'you may exile' : 'exile'} ${/^[aeiou]/.test(e.filter || '') ? 'an' : 'a'} ${e.filter || ''} card from your hand or graveyard and put a ${e.counter} counter on it.`.replace(/ {2,}/g, ' ') }, 'ehgc');
+          if (got === SUSPEND) return SUSPEND;
+          const c = pool.find(x => (got || []).includes(x.id)) || (e.optional ? null : pool[0]);
+          if (!c) break;
+          this.moveObject(c, 'exile');
+          if (c.zone !== 'exile') break;
+          c.counters = c.counters || {}; c.counters[e.counter] = (Number(c.counters[e.counter]) || 0) + 1;
+          if (src) c.exiledWithId = src.id;
+          this._lastExiled = c.id; this._lastExiledList = [c.id];
+          this.bumpBoard();
+          this.logEvent('exile', `${me.name} exiles ${c.name} with a ${e.counter} counter on it.`);
           break;
         }
         /* Immard, the Stormcleaver: "put a charge counter on it or remove one from it. When you remove a counter this

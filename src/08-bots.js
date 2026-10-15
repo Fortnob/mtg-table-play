@@ -3157,6 +3157,14 @@
         const best = fits.sort((x, y) => this.rating(y) + ((y.analysis() || {}).mv || 0) / 2 - this.rating(x) - ((x.analysis() || {}).mv || 0) / 2)[0];
         return [(best || cards[0]).id];
       }
+      /* Mairsil, the Pretender: a card whose activated abilities Mairsil will have — from the graveyard before the
+         hand; none worth it, none (exileHandGraveCounter) */
+      if (ch.purpose === 'exileHandGraveCounter') {
+        const acts = (o) => { const a = o.analysis() || {}; return (a.abilities || []).filter(x => x.kind === 'activated').length + (a.manaAbilities || []).length; };
+        const best = cards.filter(o => acts(o) > 0)
+          .sort((x, y) => (y.zone === 'graveyard') - (x.zone === 'graveyard') || this.rating(y) - this.rating(x))[0];
+        return best ? [best.id] : ch.optional ? [] : cards.slice(0, 1).map(o => o.id);
+      }
       /* Gonti, Lord of Luxury: the card to exile face down is the one we will most want to cast from
          there — a land only if it may be played */
       if (ch.purpose === 'exileFaceDown') {
