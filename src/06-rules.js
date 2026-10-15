@@ -4784,6 +4784,10 @@
         if (this._staticOp(s0, 'nameLockSpells') && this._chosenNameOf(s0, o)) return { ok: false, reason: `${s0.name}: spells named ${s0.chosenName} can't be cast.` };
         if (this._staticOp(s0, 'colorLockSpells') && s0.chosenColor && s0.controller !== playerId && (a.colors || []).includes(s0.chosenColor))
           return { ok: false, reason: `${s0.name}: spells of that colour can't be cast.` };
+        // Circu, Dimir Lobotomist: "Your opponents can't cast spells with the same name as a card exiled with Circu."
+        if (s0.controller !== playerId && this._staticOp(s0, 'exiledNameLock') &&
+            this.players.some(q => ((this.zones[q.id] || {}).exile || []).some(c => c.exiledWithId === s0.id && this._nameAmong(o, [c.name, (c.card && c.card.name) || c.name]))))
+          return { ok: false, reason: `${s0.name}: a card with that name is exiled with it.` };
       }
       /* Deafening Silence, Rule of Law: "Each player can't cast more than one
          (noncreature) spell each turn." */
@@ -5842,9 +5846,12 @@
          mana cost for spells you cast" — one more price for any spell from the
          hand or the command zone (a commander's tax still on top) (grantAltCost) */
       if ((o.zone === 'hand' || o.zone === 'command') && !a.isLand) {
-        const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost') && !this._staticOp(s0, 'grantAltCost').energy);
+        // (Kentaro, the Smiling Cat: "{X} … for Samurai spells …, where X is that spell's mana value" — words, mvGeneric)
+        const gsOp = (s0) => { const g0 = this._staticOp(s0, 'grantAltCost'); return g0 && !g0.energy && (!g0.words || this._cardFitsWords(o, g0.words)) ? g0 : null; };
+        const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && gsOp(s0));
         if (gs) {
-          const mana = this._staticOp(gs, 'grantAltCost').mana;
+          const g0 = gsOp(gs);
+          const mana = g0.mvGeneric ? '{' + ((o.card && o.card.cmc) || 0) + '}' : g0.mana;
           const tax = this._commanderTax(o).mana;
           out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
         }
@@ -12895,6 +12902,8 @@
         // (Eligeth, Crossroads Augur: a scry made bigger first, then drawn instead — the most cards for the one scrying)
         if (ev.drawInstead) break;
         if (order.some(e => e.ef.how === 'drawInstead')) order = order.filter(e => e.ef.how !== 'drawInstead').concat(order.filter(e => e.ef.how === 'drawInstead'));
+        // (Hyperion, Supreme Hero: the player dealt the damage leaves "all but 1" for last, after anything doubles it — capAt)
+        if (order.some(e => e.ef.how === 'capAt')) order = order.filter(e => e.ef.how !== 'capAt').concat(order.filter(e => e.ef.how === 'capAt'));
         for (const entry of order) {
           const ef = entry.ef;
           const key = entry.src.id + ':' + (ef.id || ef.event);
@@ -12999,6 +13008,8 @@
         if (ef.toYou && ev.victimController !== src.controller) return false;
         // Djeru, With Eyes Open: "to a planeswalker you control" (victimWords)
         if (ef.victimWords && !(ev.victimId && !ev.toPlayer && this.obj(ev.victimId) && this._cardFitsWords(this.obj(ev.victimId), ef.victimWords))) return false;
+        // Hyperion, Supreme Hero: "to you or a Hero you control" (victimOrYouWords)
+        if (ef.victimOrYouWords && !ev.toPlayer && !(ev.victimId && this.obj(ev.victimId) && this._cardFitsWords(this.obj(ev.victimId), ef.victimOrYouWords))) return false;
         // a prevention is no prevention when damage can't be prevented
         if (ef.prevention && this._noPrevention(ev.combat)) return false;
         // Fiendish Duo: "to an opponent" — the player, not their permanents
@@ -13042,6 +13053,8 @@
         case 'half': ev.n = Math.floor((ev.n || 0) / 2); if (!ev.n) ev.cancelled = true; break;
         // Valkmira, Protector's Shield: "prevent 1 of that damage"
         case 'subtract': ev.n = Math.max(0, (ev.n || 0) - (ef.n || 1)); if (!ev.n) ev.cancelled = true; break;
+        // Hyperion, Supreme Hero: "prevent all but 1 of that damage"
+        case 'capAt': ev.n = Math.min(ev.n || 0, ef.n || 1); break;
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
@@ -15516,8 +15529,22 @@
     loyaltyOf(o) { return o.counters.loyalty || 0; }
 
     /* ---------- damage & life ---------- */
+    /** Opal-Eye, Konda's Yojimbo: "the next time a source of your choice would deal damage this turn, that damage is
+        dealt to Opal-Eye instead" — used up by that damage; still there, and not already its victim (srcRedirect) */
+    _srcRedirect(source, victim) {
+      const list = source && source.srcRedirect && source.srcRedirect.filter(r => r.turn === this.turn);
+      if (!list || !list.length) { if (source && source.srcRedirect) source.srcRedirect = null; return null; }
+      const r = list.shift();
+      source.srcRedirect = list.length ? list : null;
+      const to = this.obj(r.to);
+      if (!to || to.zone !== 'battlefield' || to === victim) return null;
+      return to;
+    }
+
     dealDamageToObject(o, amount, source, isCombat) {
       if (amount <= 0) return 0;
+      const rdTo = this._srcRedirect(source, o);
+      if (rdTo) { this.logEvent('damage', `Damage ${source.name} would deal to ${o.name} is dealt to ${rdTo.name} instead.`); return this.dealDamageToObject(rdTo, amount, source, isCombat); }
       /* the en-Kor: "the next 1 damage that would be dealt to this creature
          this turn is dealt to target creature you control instead" */
       const shields = (o.redirectNext || []).filter(x => x.turn === this.turn && x.n > 0);
@@ -15729,6 +15756,8 @@
 
     dealDamageToPlayer(p, amount, source, combat) {
       if (!p || amount <= 0) return 0;
+      const rdTo = this._srcRedirect(source, null);
+      if (rdTo) { this.logEvent('damage', `Damage ${source.name} would deal to ${p.name} is dealt to ${rdTo.name} instead.`); return this.dealDamageToObject(rdTo, amount, source, combat); }
       // Pariah, Empyrial Archangel: "all damage that would be dealt to you is dealt to this creature instead"
       for (const r of this.battlefield) {
         if (r.controller !== p.id || r.phasedOut) continue;
@@ -22468,11 +22497,20 @@
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'preventSource', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 1, max: 1, sourceId: src ? src.id : null, sourceName: ctx.name || null,
-            prompt: e.all ? `Choose a source: all damage it would deal${e.to === 'you' ? ' to you' : e.to === 'self' && src ? ' to ' + src.name : ''} this turn is prevented.`
+            prompt: e.redirectSelf && src ? `Choose a source: the next time it would deal damage this turn, that damage is dealt to ${src.name} instead.`
+              : e.all ? `Choose a source: all damage it would deal${e.to === 'you' ? ' to you' : e.to === 'self' && src ? ' to ' + src.name : ''} this turn is prevented.`
               : `Choose a ${e.color ? ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[e.color] + ' ' : ''}source: the next damage it would deal${e.anyTarget ? '' : ' you'} this turn is prevented.` }, 'src');
           if (got === SUSPEND) return SUSPEND;
           const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
           if (!x) break;
+          /* Opal-Eye, Konda's Yojimbo: "The next time a source of your choice would deal damage this turn, that damage
+             is dealt to Opal-Eye instead." — kept on the source (srcRedirect), used up the next time it deals damage */
+          if (e.redirectSelf) {
+            if (!src) break;
+            (x.srcRedirect = (x.srcRedirect || []).filter(r => r.turn === this.turn)).push({ to: src.id, turn: this.turn });
+            this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal this turn is dealt to ${src.name} instead.`);
+            break;
+          }
           // Rith's Charm: all of it, to anything (or to you, or to this creature), for the turn
           if (e.all) {
             this.prevention.push({ to: e.to === 'you' ? 'you' : null, toObj: e.to === 'self' && src ? src.id : null, who: ctx.controller, sourceId: x.id, until: 'eot' });
@@ -29126,9 +29164,13 @@
           if (e.ifWasNonland && x._leftAsLand) break;
           // "return it to the battlefield transformed": the back face arrives
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
+          // Homura, Human Ascendant: "return it to the battlefield flipped" — a flip card, its other half up
+          const flipIt = !!(e.flipped && x.card.layout === 'flip');
+          if (flipIt) { x.face = 1; x.flipped = true; }
           // (Tom, Bert, and William: "They're an artifact." — what it is as it enters: enterEff)
           this.moveObject(x, 'battlefield', Object.assign({ controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
           if (e.tapped) x.tapped = true;
+          if (flipIt && x.zone === 'battlefield') { x.flipped = true; x.face = 1; x._chr = null; x._dyn = null; x._dynKey = null; this.bumpBoard(); }
           // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
           if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
             // (Senu: whoever the creature that set it off is attacking — besideTrigger)

@@ -2721,8 +2721,9 @@
     /* the self-dies return ("When this creature dies, return it to the
        battlefield tapped under its owner's control with a +1/+1 counter on
        it"), with the "it" already read as the creature itself */
-    { re: /^Return CARDNAME to the battlefield( tapped)?( and transformed)?( under (?:its owner'?s|your) control)?(?: with (a|an|one|two|three) ([+\-0-9/a-z]+) counters? on it)?\.?$/i,
-      make: (m) => Object.assign({ op: 'returnSelfFromGrave', tapped: !!m[1] }, m[2] ? { transformed: true } : {},
+    // (Homura, Human Ascendant: "return it to the battlefield flipped" — a Kamigawa flip card, flipped)
+    { re: /^Return CARDNAME to the battlefield( tapped)?( and transformed| flipped)?( under (?:its owner'?s|your) control)?(?: with (a|an|one|two|three) ([+\-0-9/a-z]+) counters? on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'returnSelfFromGrave', tapped: !!m[1] }, /transformed/i.test(m[2] || '') ? { transformed: true } : m[2] ? { flipped: true } : {},
         /owner/i.test(m[3] || '') ? { owner: true } : {},
         m[4] ? { counter: m[5].toLowerCase(), n: num(m[4]) } : {}) },
     { re: /^Return CARDNAME to its owner'?s hand\.?$/i, make: () => ({ op: 'selfFromGraveyard', to: 'hand' }) },
@@ -11787,6 +11788,9 @@
     // Rith's Charm, Pay No Heed, Auriok Replica: "Prevent all damage a source of your choice would deal (to you) this turn."
     { re: /^Prevent all damage a source of your choice would deal( to you| to (?:this creature|CARDNAME))? this turn\.?$/i,
       make: (m) => [{ op: 'preventSourceOnce', all: true, to: !m[1] ? null : /you/i.test(m[1]) ? 'you' : 'self' }] },
+    // Opal-Eye, Konda's Yojimbo: "The next time a source of your choice would deal damage this turn, that damage is dealt to Opal-Eye instead." (redirectSelf)
+    { re: /^The next time a source of your choice would deal damage this turn, that damage is dealt to (?:CARDNAME|this creature) instead\.?$/i,
+      make: () => [{ op: 'preventSourceOnce', redirectSelf: true }] },
     // (Martyr's Cause, Circle of Despair: "… would deal damage to any target this turn" — anyTargetOnce)
     { re: /^The next time an? (?:(white|blue|black|red|green) )?source of your choice would deal damage to (?:you|(any target)) this turn, prevent that damage\.(?: (You gain life equal to the damage prevented this way|If damage is prevented this way, (?:CARDNAME|this spell) deals that much damage to that source'?s controller)\.)?$/i,
       make: (m0) => { const m = [m0[0], m0[1], m0[3]]; return [Object.assign({ op: 'preventSourceOnce' }, m0[2] ? { anyTarget: true } : {},
@@ -14367,6 +14371,11 @@
     }],
     // Ajani, Nacatl Avenger: "if you control a red permanent other than Ajani" — another one
     [/^you control an? ([a-zA-Z ,'-]+?) other than CARDNAME$/i, (m) => condOf('you control another ' + m[1])],
+    // W'Kabi, Shield of the Nation: "if you control an artifact with mana value 4 or greater"
+    [/^you control an? ([a-z]+) with mana value (\d+) or greater$/i, (m) => {
+      const sc = scopeOf(m[1].toLowerCase() + 's you control with mana value ' + m[2] + ' or greater');
+      return sc ? { kind: 'control', scope: sc, n: 1 } : null;
+    }],
     // the Scarabs: "an opponent controls a black permanent" — any group the scope words can describe
     [/^an opponent controls (?:an?|one or more) ([a-zA-Z ,'-]+?)$/i, (m) => {
       const words = m[1].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)/g, '$1s');
@@ -20024,6 +20033,9 @@
     // Djeru, With Eyes Open: "If a source would deal damage to a planeswalker you control, prevent 1 of that damage." (victimWords)
     { re: /^If a source would deal damage to a planeswalker you control, prevent (one|two|three|\d+) of that damage\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgPreventSomePw', event: 'damage', who: 'any', how: 'subtract', n: num(m[1]), toYou: true, victimWords: 'planeswalker', prevention: true }) },
+    // Hyperion, Supreme Hero: "If a source would deal damage to you or a Hero you control, prevent all but 1 of that damage." (capAt)
+    { re: /^If a source would deal damage to you or an? ([A-Z][a-z]+) you control, prevent all but (?:one|1) of that damage\.?$/,
+      make: (m) => ({ op: 'replace', id: 'dmgAllButOne', event: 'damage', who: 'any', how: 'capAt', n: 1, toYou: true, victimOrYouWords: m[1].toLowerCase(), prevention: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
@@ -20559,6 +20571,8 @@
       { re: /^Spells with the chosen name can'?t be cast\.?$/i, eff: { op: 'nameLockSpells' }, auto: true },
       // Iona: "Your opponents can't cast spells of the chosen color."
       { re: /^Your opponents can'?t cast spells of the chosen colou?r\.?$/i, eff: { op: 'colorLockSpells' }, auto: true },
+      // Circu, Dimir Lobotomist: "Your opponents can't cast spells with the same name as a card exiled with Circu." (exiledNameLock)
+      { re: /^Your opponents can'?t cast spells with the same name as a card exiled with CARDNAME\.?$/i, eff: { op: 'exiledNameLock' }, auto: true },
       // Voice of All, Flickering Ward
       { re: /^(?:CARDNAME|This creature) has protection from the chosen colou?r\.?$/i, eff: { op: 'protChosenColor' }, auto: true },
       { re: /^Enchanted creature has protection from the chosen colou?r\.?$/i, eff: { op: 'protChosenColor', attached: true }, auto: true },
@@ -20750,6 +20764,9 @@
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
       { re: /^You may pay ((?:\{[WUBRG]\})+) rather than pay the mana cost for spells (?:that )?you cast\.?$/i,
         make: (m) => ({ op: 'grantAltCost', mana: m[1] }), auto: true },
+      // Kentaro, the Smiling Cat: "You may pay {X} rather than pay the mana cost for Samurai spells you cast, where X is that spell's mana value." (mvGeneric)
+      { re: /^You may pay \{X\} rather than pay the mana cost for ([A-Z][a-z]+ )?spells you cast, where X is that spell'?s mana value\.?$/,
+        make: (m) => Object.assign({ op: 'grantAltCost', mana: '', mvGeneric: true }, m[1] ? { words: m[1].trim().toLowerCase() } : {}), auto: true },
       /* Amazing Spider-Man: "Each legendary spell you cast that's one or more colors has web-slinging {G}{W}{U}." —
          another way to cast it, returning a tapped creature you control (grantWebSlinging) */
       { re: /^Each ([a-z]+) spell you cast that'?s one or more colou?rs has web-slinging ((?:\{[^}]+\})+)\.?$/i,
