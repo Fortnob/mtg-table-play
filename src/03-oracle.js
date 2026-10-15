@@ -8796,6 +8796,8 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'restrict', flag: 'lure', targets: [targetSpec('target creature')] }
         : { op: 'restrict', flag: 'lure', scope: 'self' }) },
     { re: /^(?:CARDNAME|This creature|It) becomes prepared\.?$/i, make: () => ({ op: 'becomePrepared' }) },
+    // Codie, Ravenous Codex: "Each creature you control becomes prepared." (scope)
+    { re: /^Each creature you control becomes prepared\.?$/i, make: () => ({ op: 'becomePrepared', scope: { who: 'you', what: 'creature' } }) },
     { re: /^Regenerate each creature you control\.?$/i, make: () => ({ op: 'regenerate', scope: 'yourCreatures' }) },
 
     /* ===== zone movement ===== */
@@ -9179,6 +9181,14 @@
     // Jace, the Perfected Mind: "Until your next turn, up to one target creature gets -3/-0."
     { re: /^Until your next turn, (.+?) (gain|gains|get|gets) ([^.]+?)\.?$/i,
       make: (m) => { const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' ' + m[2] + ' ' + m[3] + ' until your next turn.'); return e && e.op !== 'manual' ? e : null; } },
+    /* Jolrael, Empress of Beasts: "All lands target player controls become 3/3 creatures until end of turn." (They're
+       still lands: nothing to do) */
+    { re: /^All lands target (player|opponent) controls become (\d+)\/(\d+) creatures until end of turn\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: 'eot', eff: { addTypes: ['Creature'], setPt: { p: +m[2], t: +m[3] } },
+        scope: { who: 'target', what: 'land' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Zirilan of the Claw: "That Dragon gains haste until end of turn." — the one just put onto the battlefield, as "it"
+    { re: /^That ([A-Z][a-z]+) gains ([a-z ,]+?) until end of turn\.?$/,
+      make: (m) => { const e = parseEffectSentence('It gains ' + m[2] + ' until end of turn.'); return e && e.op === 'grantLast' ? e : null; } },
     // "All lands you control become 2/2 Elemental creatures …": each of them becomes one
     // (Life // Death: "All lands you control become 1/1 creatures until end of turn.")
     { re: /^All ([a-z]+)s you control become (\d+\/\d+) ((?:[A-Z][a-z]+ )*)creatures( with [^.]+?)?( until end of turn)?\.?$/,
@@ -11432,6 +11442,14 @@
         { op: 'reflexive', ifSacrificed: true, whenText: m[0].replace(/^[^.]+\. /, ''), effects: [
           { op: 'tap', targets: [Object.assign(targetSpec('target ' + m[2].toLowerCase()), { distinct: true, multi: { count: 'triggerAmount', exact: false } })] },
           { op: 'draw', n: 'triggerAmount', who: 'you' }] }] },
+    /* Kylox, Visionary Inventor: "sacrifice any number of other creatures, then exile the top X cards of your library,
+       where X is their total power. You may cast any number of instant and/or sorcery spells from among the exiled
+       cards without paying their mana costs." (lastSacPower) */
+    { re: /^Sacrifice any number of other creatures, then exile the top X cards of your library, where X is their total power\. (You may cast [\s\S]+)$/i,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences(m[1]));
+        return rest.auto ? [{ op: 'sacrificeAnyNumber', filter: 'creature', other: true }, { op: 'impulse', n: { lastSacPower: true, mult: 1 }, play: false }, ...rest.effects] : null;
+      } },
     // (God-Eternal Bontu: "any number of other permanents" — never itself)
     { re: /^Sacrifice any number of (other )?((?:[a-z]+(?:, and\/or |, | and\/or | or ))*[a-zA-Z]+?)s?(?: you control)?(?:, then |\. )([\s\S]+)$/i,
       make: (m0) => {
@@ -15784,6 +15802,8 @@
       event: 'anyCastSpell', also: 'anyPlayLand', extra: { fromExileOnly: true } },
     // Nalfeshnee: "Whenever you cast a spell from exile"
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
+    // Codie, Ravenous Codex: "Whenever you cast a prepared spell," (preparedOnly)
+    { re: /^Whenever you cast a prepared spell,? /i, event: 'youCastSpell', extra: { preparedOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
     // (Kaalia of the Vast: "Whenever Kaalia attacks an opponent" — a player, who is always an opponent)
     /* Namor, Atlantean King: "Whenever Namor attacks a player who has more life than you," — as it attacks, not an
@@ -16060,6 +16080,9 @@
     { re: new RegExp('^Whenever ' + SUBJ + ' dies during your turn,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Boneyard Scourge: "Whenever a Dragon you control dies while this card is in your graveyard"
     { re: new RegExp('^Whenever ' + SUBJ + ' dies while this card is in your graveyard,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]) },
+    // Hawkeye, Avenging Archer: "Whenever a creature an opponent controls dies, if Hawkeye dealt damage to it this turn," (damagedByMe)
+    { re: /^Whenever a creature an opponent controls dies, if (?:this creature|CARDNAME) dealt damage to it this turn,? /i, event: 'permDies',
+      filt: () => ({ words: 'creature', who: 'opponent' }), extra: { damagedByMe: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     // Dour Port-Mage: "leave the battlefield without dying"; Soulherder: "is exiled from the battlefield"

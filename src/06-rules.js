@@ -7344,6 +7344,8 @@
       if (!o || !spell || !o.prepared || o.zone !== 'battlefield' || o.controller !== playerId) return this.fail('That is not prepared.');
       const dup = this._register(new GObj(spell, playerId, 'exile'));
       dup.isCopy = true;
+      // (Codie, Ravenous Codex: "Whenever you cast a prepared spell" — _fromPrepared)
+      dup._fromPrepared = true;
       dup.impulseBy = playerId; dup.impulseUntil = this.turn;
       this.zones[playerId].exile.push(dup);
       const ok = this.castSpell(playerId, dup.id, Object.assign({}, opts, { via: null }));
@@ -17920,6 +17922,8 @@
           if (ab.castFromLibraryOnly && !(data.spell && data.spell.fromZone === 'library')) continue;
           // Nalfeshnee: "a spell from exile"
           if (ab.fromExileOnly && !((data.spell && data.spell.fromZone === 'exile') || data.fromZone === 'exile')) continue;
+          // Codie, Ravenous Codex: "a prepared spell" — a copy cast from a prepared permanent (preparedOnly)
+          if (ab.preparedOnly && !(data.object && data.object._fromPrepared)) continue;
           // The Ninth Doctor: "during your untap step"
           if (ab.duringYourUntap && !(this.step === 'untap' && this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // "attacks a player": not a planeswalker or a battle
@@ -19794,6 +19798,8 @@
         if (v && typeof v === 'object' && v.lifePaid) return Number((ctx.triggerData || {}).lifePaid) || 0;
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
+        // Kylox, Visionary Inventor: "where X is their total power" — of those just sacrificed, as they last were (lastSacPower)
+        if (v && typeof v === 'object' && v.lastSacPower) return (this._lastSacPower || 0) * (v.mult || 1);
         // "… minus four": never less than zero
         if (v && typeof v === 'object' && v.floorZero) return Math.max(0, n(Object.assign({}, v, { floorZero: false })));
         if (v === 'X') return ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0;
@@ -24343,6 +24349,14 @@
           break;
         }
         case 'becomePrepared':
+          /* Codie, Ravenous Codex: "Each creature you control becomes prepared. (Only creatures with prepare spells can
+             become prepared.)" (scope) */
+          if (e.scope && typeof e.scope === 'object') {
+            const got = this._scopeList(e.scope, ctx.controller, src).filter(x => !x.prepared && this._preparedSpell(x));
+            for (const x of got) x.prepared = true;
+            if (got.length) this.logEvent('rules', `${got.map(x => x.name).join(', ')} ${got.length === 1 ? 'becomes' : 'become'} prepared.`);
+            break;
+          }
           if (src && src.zone === 'battlefield' && !src.prepared) {
             src.prepared = true;
             this.logEvent('rules', `${src.name} becomes prepared.`);
@@ -33731,6 +33745,8 @@
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x));
           // "that many": what the next words count
           this._lastSacCount = picks.length;
+          // (Kylox, Visionary Inventor: "their total power" — lastSacPower)
+          this._lastSacPower = picks.reduce((k, x) => k + Math.max(0, this.powerOf(x)), 0);
           if (picks.length) {
             this._sacrificeNow(ctx.controller, picks);   // (it tells the table: oneSacrificeEach)
           }
