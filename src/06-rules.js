@@ -3094,7 +3094,8 @@
       /* Minn, Wily Illusionist: "you may put a permanent card … from your hand onto the battlefield" — one pick that
          may be left empty, not a yes or no and then the pick (ownPick) */
       // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || (only.from === 'exiledWith' && only.pickOne)))) && !once;
+      // (Jeleva, Nephalia's Scourge: "you may cast an instant or sorcery spell from among cards exiled with Jeleva" — pickOne)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -5246,7 +5247,7 @@
               if (!freeTypes.length) continue;
               return Object.assign({}, ef, { srcId: src.id, freeTypes });
             }
-            if (ef.oncePerTurn || ef.exileAfter || ef.oncePerKind) return Object.assign({}, ef, { srcId: src.id });
+            if (ef.oncePerTurn || ef.exileAfter || ef.oncePerKind || ef.finalityCast) return Object.assign({}, ef, { srcId: src.id });
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Augur of Autumn, The Reality Chip: only while the condition holds
@@ -7537,6 +7538,8 @@
           if (lv.exileAfter) o._exileFromStack = true;
           // Edgar, Master Machinist: "that artifact enters tapped" (enterTapped)
           if (lv.enterTapped) o._enterTappedCast = true;
+          // Leonardo, Sewer Samurai: "that creature enters with a finality counter on it" (finalityCast)
+          if (lv.finalityCast) o._enterFinality = true;
           // The Eighth Doctor: "it gains "If this permanent would leave the battlefield, exile it instead …"" (leaveExileAfter)
           if (lv.leaveExileAfter) o._leaveExileCast = true;
           // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
@@ -13658,7 +13661,7 @@
         // Essence Channeler: "if you've lost life this turn"
         case 'lostLife': {
           if (!me) return false;
-          const who = cond.who === 'opponent' ? this.opponentsOf(me.id) : [me];
+          const who = cond.who === 'opponent' ? this.opponentsOf(me.id) : cond.who === 'other' ? this.players.filter(q => q.id !== me.id) : [me];
           return who.some(q => (q.lifeLostThisTurn || 0) >= (cond.n || 1));
         }
         case 'controlNotOwned': return !!me && this.battlefield.filter(x => x.controller === me.id && x.owner !== me.id && !x.phasedOut).length >= (cond.n || 1);
@@ -24269,6 +24272,20 @@
           this.bumpBoard();
           break;
         }
+        /* Super-Adaptoid: "If that creature has haste and Super-Adaptoid doesn't, put a haste counter on Super-Adaptoid. Do
+           the same for flying, …" — the creature chosen, each keyword in turn */
+        case 'copyKeywordCounters': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield' || !src || src.zone !== 'battlefield') break;
+          const got = [];
+          for (const k of e.keywords || []) {
+            if (!this.hasKw(x, k) || this.hasKw(src, k)) continue;
+            this.addCounters(src, k, 1);
+            got.push(k);
+          }
+          if (got.length) this.logEvent('counters', `${src.name} gets ${got.length === 1 ? 'a' + (/^[aeiou]/.test(got[0]) ? 'n ' : ' ') + got[0] + ' counter' : got.join(', ') + ' counters'}.`);
+          break;
+        }
         // Teferi's Puzzle Box: the hand to the bottom, and as many drawn
         case 'handToBottomRedraw': {
           const p = triggerPlayer() || me;
@@ -34833,9 +34850,11 @@
       /* Savage Order: "sacrifice a creature with power 4 or greater"; Trap Digger: "a land with a trap
          counter on it" — what it has, then what it is */
       let wq;
-      if ((wq = String(phrase || '').match(/^(.+?) with (power|toughness|mana value) (\d+) or (greater|more|less)$/i))) {
+      if ((wq = String(phrase || '').match(/^(.+?) with (power or toughness|power|toughness|mana value) (\d+) or (greater|more|less)$/i))) {
         const onBf = o.zone === 'battlefield';
-        const v = /power/i.test(wq[2]) ? (onBf ? this.powerOf(o) : parseInt((o.card || {}).power, 10) || 0)
+        // (Leonardo, Sewer Samurai: "creature spells with power or toughness 1 or less" — either will do)
+        const v = /power or/i.test(wq[2]) ? Math[/less/i.test(wq[4]) ? 'min' : 'max'](onBf ? this.powerOf(o) : parseInt((o.card || {}).power, 10) || 0, onBf ? this.toughnessOf(o) : parseInt((o.card || {}).toughness, 10) || 0)
+          : /power/i.test(wq[2]) ? (onBf ? this.powerOf(o) : parseInt((o.card || {}).power, 10) || 0)
           : /toughness/i.test(wq[2]) ? (onBf ? this.toughnessOf(o) : parseInt((o.card || {}).toughness, 10) || 0)
           : ((o.card && o.card.cmc) || 0);
         if (/less/i.test(wq[4]) ? v > +wq[3] : v < +wq[3]) return false;

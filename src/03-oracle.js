@@ -1771,6 +1771,9 @@
     { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
       make: () => [{ op: 'giveControl', to: 'triggerPlayer', self: true }, { op: 'untap', scope: 'self' },
         { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
+    // Karona, False God: "At the beginning of each player's upkeep, that player untaps Karona and gains control of it."
+    { re: /^That player untaps CARDNAME and gains control of it\.?$/i,
+      make: () => [{ op: 'untap', scope: 'self' }, { op: 'giveControl', to: 'triggerPlayer', self: true }] },
     /* Slicer, Hired Muscle: "you may have that player gain control of Slicer until end of turn. If you do,
        untap Slicer, goad it, and it can't be sacrificed this turn." — whose upkeep it is */
     { re: /^Have that player gain control of CARDNAME until end of turn\.?$/i,
@@ -4551,6 +4554,9 @@
     { re: /^Each player exiles the top card of their library\.?$/i, make: () => ({ op: 'exileTop', who: 'each', n: 1 }) },
     { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }) },
+    // Jeleva, Nephalia's Scourge: "each player exiles the top X cards of their library, where X is the amount of mana spent to cast Jeleva"
+    { re: /^Each player exiles the top X cards of their library, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && !k.unread ? { op: 'exileTop', who: 'each', n: k } : null; } },
     { re: /^Each player exiles cards from the top of their library until they exile a nonland card\.?$/i,
       make: () => ({ op: 'exileTop', who: 'each', untilNonland: true }) },
     // Krang & Shredder: "each opponent exiles cards from the top of their library until they exile a nonland card"
@@ -4613,6 +4619,10 @@
        Scarlet Witch without paying its mana cost." — any of them, from this time or before, one picked or none (exiledWith) */
     { re: /^(?:Then )?you may cast an? ([A-Z][a-z]+) or (noncreature|nonland|instant or sorcery) spell from among cards exiled with CARDNAME without paying its mana cost\.?$/,
       make: (m) => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true, filter: m[1].toLowerCase() + ' or ' + m[2] }) },
+    /* Jeleva, Nephalia's Scourge: "you may cast an instant or sorcery spell from among cards exiled with Jeleva without
+       paying its mana cost" — any of them, one picked or none (exiledWith) */
+    { re: /^(?:You may )?cast an? (instant or sorcery|instant|sorcery|creature|noncreature|nonland) spell from among cards exiled with CARDNAME without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true, filter: m[1].toLowerCase() }) },
     /* Velomachus Lorehold: "You may cast an instant or sorcery spell with mana value less than or equal to Velomachus
        Lorehold's power from among them without paying its mana cost." — the cards looked at, one picked or none (pickOne) */
     { re: /^You may cast an? (instant or sorcery|instant|sorcery|creature|artifact|enchantment|noncreature|nonland|permanent) spell with mana value less than or equal to (CARDNAME'?s power|CARDNAME'?s toughness) from among them without paying its mana cost\.?$/i,
@@ -7685,6 +7695,13 @@
     // (Willowdusk, Essence Seer: "Choose another target creature.")
     { re: /^Choose ((?:another )?target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
+    /* Super-Adaptoid: "If that creature has haste and Super-Adaptoid doesn't, put a haste counter on Super-Adaptoid. Do the
+       same for flying, first strike, …" — the creature chosen before, each keyword in turn (copyKeywordCounters) */
+    { re: /^If that creature has ([a-z ]+?) and CARDNAME doesn'?t, put an? \1 counter on CARDNAME\. Do the same for ([a-z ,]+?)\.?$/i,
+      make: (m) => {
+        const kws = [m[1]].concat(m[2].split(/,\s*(?:and\s+)?|\s+and\s+/)).map(k => k.trim().toLowerCase()).filter(Boolean);
+        return kws.every(k => ['flying', 'first strike', 'double strike', 'deathtouch', 'haste', 'hexproof', 'indestructible', 'lifelink', 'menace', 'reach', 'shadow', 'trample', 'vigilance'].includes(k)) ? { op: 'copyKeywordCounters', keywords: kws } : null;
+      } },
     // Ramos, Dragon Engine: "put a +1/+1 counter on Ramos for each of that spell's colors" (spellColorCount)
     { re: /^Put an? ([+-]\d+\/[+-]\d+) counter on (?:CARDNAME|this creature) for each of that spell'?s colou?rs\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1], n: { ofTrigger: 'colorCount' }, scope: 'self' }) },
@@ -10647,6 +10664,10 @@
        permanents you control during their next turn." — the player dealt the damage (eachMay who triggerPlayer, noAttackNext) */
     { re: /^You draw a card and that player may draw a card\. If they do, that player can'?t attack you or permanents you control during their next turn\.?$/i,
       make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'eachMay', draw: 1, who: 'triggerPlayer', noAttackNext: true }] },
+    /* Ludevic, Necro-Alchemist: "that player may draw a card if a player other than you lost life this turn" — the player
+       whose end step it is; the condition as it resolves */
+    { re: /^That player may draw a card if (.+?)\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? [{ op: 'ifCond', cond, then: [{ op: 'eachMay', draw: 1, who: 'triggerPlayer' }] }] : null; } },
     // Will of the Jeskai, Wheel of Fortune kin: "Each player may discard their hand and draw five cards."
     { re: /^Each player may discard their hand and draw (\w+) cards\.$/i,
       make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]) }] },
@@ -12407,6 +12428,12 @@
         }
       }
 
+      // Super-Adaptoid: "… put a haste counter on Super-Adaptoid. Do the same for flying, …" — read as one
+      if (/^Do the same for /i.test(next)) {
+        const both = parseEffectSentence(s + ' ' + next);
+        if (both && !Array.isArray(both)) { effects.push(Object.assign(both, { text: s + ' ' + next })); i++; continue; }
+      }
+
       /* "That player may pay {2}. If the player doesn't, you create a
          Treasure token." — somebody else's choice, with a price on it. */
       const theyMay = s.match(/^(That player|They|Its controller|Target opponent|That spell'?s controller) may pay ((?:\{[^}]+\})+|\d+ life)\.$/i);
@@ -13669,6 +13696,8 @@
     [/^a creature or planeswalker an opponent controlled was dealt excess damage this turn$/i, () => ({ kind: 'oppExcessThisTurn' })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
+    // Ludevic, Necro-Alchemist: "a player other than you lost life this turn" (who other)
+    [/^a player other than you lost life this turn$/i, () => ({ kind: 'lostLife', who: 'other', n: 1 })],
     // Vengevine: "if it's the second creature spell you cast this turn"
     [/^it'?s the (second|third) creature spell you(?:'ve)? cast this turn$/i, (m) => ({ kind: 'nthCreatureSpell', n: /second/i.test(m[1]) ? 2 : 3 })],
     // the Backgrounds: "if no opponent has more life than that player"
@@ -16499,6 +16528,11 @@
             if ((m2 = t.match(/^add (twice )?that much \{([WUBRGC])\}\.?$/i))) {
               changed = true;
               return (m2[1] ? [1, 2] : [1]).map(() => ({ op: 'addManaX', amount: 'triggerAmount', symbol: m2[2].toUpperCase(), text: e.text }));
+            }
+            // Photon, Mighty Marvel: "add that much mana of any one color" — the damage dealt, the colour named as it resolves
+            if (/^add that much mana of any one colou?r\.?$/i.test(t)) {
+              changed = true;
+              return [{ op: 'addManaAny', amount: 'triggerAmount', sameColor: true, text: e.text }];
             }
             if ((m2 = t.match(/^add that much mana in any combination of \{([WUBRGC])\} and\/or \{([WUBRGC])\}\.?$/i))) {
               changed = true;
@@ -21399,6 +21433,10 @@
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {}, /enters tapped/.test(m[0]) ? { enterTapped: true } : {});
         }, auto: true },
+      /* Leonardo, Sewer Samurai: "During your turn, you may cast creature spells with power or toughness 1 or less from your
+         graveyard. If you cast a spell this way, that creature enters with a finality counter on it." — any number (finalityCast) */
+      { re: /^During your turn, you may cast creature spells with power or toughness (\d+) or less from your graveyard\. If you cast a spell this way, that creature enters with a finality counter on it\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, filter: 'creature with power or toughness ' + m[1] + ' or less', finalityCast: true }), auto: true },
       /* The Eighth Doctor: "Once during each of your turns, you may play a historic land or cast a historic permanent spell
          from your graveyard. If you do, it gains "If this permanent would leave the battlefield, exile it instead of
          putting it anywhere else."" — one leave for either; what it lets in leaves for exile (leaveExileAfter) */
