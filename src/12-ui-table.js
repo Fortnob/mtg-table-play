@@ -1986,7 +1986,9 @@
           el('span', { class: 'bb-timer', 'aria-hidden': 'true' }),
         ]);
         // an opponent's spell to answer: what it is, what it is aimed at, and what you could answer with
-        d._respond = el('div', { class: 'dock-respond', hidden: true, role: 'status', 'aria-live': 'polite' });
+        d._respond = el('div', { class: 'dock-respond', hidden: true });
+        // (and said: whose spell is waiting on you, and what you could answer it with)
+        d._respondSr = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
         // anything you do at the table starts the timer again
         const bump = () => { if (d._timerKey) this._startPriorityTimer(d._timerSecs, d._timerKey); };
         this.arena.addEventListener('pointerdown', bump, true);
@@ -1996,7 +1998,7 @@
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
         d._row = el('div', { class: 'dock-row' });
-        d.append(d._turn, d._strip, d._respond, d._above, d._main, d._row);
+        d.append(d._turn, d._strip, d._respondSr, d._respond, d._above, d._main, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -2146,9 +2148,12 @@
     }
 
     /**
-     * An opponent's spell or ability waiting on you: it slides in over the
-     * button, the card, who it is from and what it is aimed at, and under it
-     * whatever you could answer it with, each a click to cast or use.
+     * An opponent's spell or ability waiting on you: over the button, what
+     * you could answer it with, each a click to cast or use. What the spell
+     * is, whose and at what, is the card's to say — held up in the middle,
+     * then on the stack — so it is not said here a third time (Arena's
+     * button area offers, it does not describe). A screen reader is told in
+     * a sentence that it is waiting on you, and with what you could answer.
      */
     _renderRespond(d) {
       const v = this.view, live = this.live || v;
@@ -2162,26 +2167,15 @@
       const sig = show ? top.id + '|' + playable.join(',') : '';
       if (d._respond._sig === sig) return;
       d._respond._sig = sig;
-      d._respond.hidden = !show;
+      d._respond.hidden = !playable.length;
       d._respond.innerHTML = '';
-      if (!show) return;
+      if (!show) { d._respondSr.textContent = ''; return; }
       const who = v.players.find(p => p.id === top.controller);
       const card = top.card || ((this.objIn(top.objId) || {}).card) || null;
-      const aims = (top.targets || []).map(tg => tg.kind === 'player'
-        ? (tg.id === this.meId ? 'you' : ((v.players.find(p => p.id === tg.id) || {}).name || 'a player'))
-        : tg.kind === 'object' ? (((this.objIn(tg.id) || {}).card || {}).name || 'a permanent') : 'a spell');
-      const art = el('span', { class: 'dr-art', 'aria-hidden': 'true' });
-      if (card && UI.setArt) UI.setArt(art, card);
-      const head = el('div', { class: 'dr-head' }, [
-        art,
-        el('div', { class: 'dr-text' }, [
-          el('span', { class: 'dr-who', text: `${who ? who.name : 'An opponent'} ${top.kind === 'spell' || !top.kind ? 'casts' : 'uses'}` }),
-          el('b', { class: 'dr-name', text: this.stackName(top) || (card && card.name) || 'something' }),
-          aims.length ? el('span', { class: 'dr-aim', text: '\u2192 ' + aims.join(', ') }) : null,
-        ].filter(Boolean)),
-      ]);
-      if (card) UI.attachPreview(head, card, 0);
-      d._respond.appendChild(head);
+      const name = this.stackName(top) || (card && card.name) || 'a spell';
+      const names = playable.slice(0, 6).map(id => ((this.objIn(id) || {}).card || {}).name).filter(Boolean);
+      d._respondSr.textContent = `${possessive(who ? who.name : 'An opponent')} ${name} is waiting on you: ` +
+        (names.length ? `respond with ${names.join(' or ')}, or press Resolve.` : 'press Resolve to let it happen.');
       if (playable.length) {
         d._respond.appendChild(el('div', { class: 'dr-could', text: 'You could respond with' }));
         d._respond.appendChild(el('div', { class: 'dr-row' }, playable.slice(0, 6).map((id) => {

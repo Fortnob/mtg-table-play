@@ -332,6 +332,8 @@
       }
       const banner = this.banner && this.banner.classList.contains('on') ? this.banner.textContent.trim() : '';
       if (banner) bits.push(banner.replace(/\s+/g, ' ') + (/[.!?]$/.test(banner) ? '' : '.'));
+      // an opponent's spell waiting on you is not a banner: what the dock says of it
+      else if (this.dock && this.dock._respondSr && this.dock._respondSr.textContent) bits.push(this.dock._respondSr.textContent);
       if (!v.over) {
         const act = this.primaryInfo();
         if (act && act.label) bits.push(`The big button says ${act.label}${act.sub ? ', ' + act.sub : ''}${act.disabled ? ', and cannot be pressed yet' : ''}.`);

@@ -1035,7 +1035,6 @@
   top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 6px); bottom: calc(var(--dock-h, 200px) + var(--hand-peek) + 6px + 8px); }
 /* (the question asked up top, under the opponent's nameplate: the stack starts below it) */
 :root[data-phone] .arena:has(.arena-banner.on) .stack-col { top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 4px + var(--banner-h, 0px) + 6px); }
-:root[data-phone] .dr-art { width: 34px; height: 28px; }
 :root[data-phone] .stack-item > .cv { --w: 56px; }
 :root[data-phone] .stack-item.top > .cv { --w: 76px; }
 /* a triggered ability on a phone's stack: its art and name on one line, its whole text under them across the column */
@@ -1440,13 +1439,6 @@
   box-shadow: 0 10px 30px rgba(0,0,0,.6), 0 0 22px rgba(255, 110, 60, .18); animation: drIn .32s cubic-bezier(.2,.8,.2,1) both; }
 .dock-respond[hidden] { display: none; }
 @keyframes drIn { from { opacity: 0; transform: translateX(26px); } }
-.dr-head { display: flex; gap: 10px; align-items: center; min-width: 0; cursor: help; }
-.dr-art { width: 54px; height: 40px; flex: none; border-radius: 7px; background: #1b1f28 center 30% / cover no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
-.dr-text { display: grid; gap: 1px; min-width: 0; }
-.dr-who { font-size: 11px; color: #c9b8a8; }
-/* (its name and what it is aimed at whole, wrapped: never cut short) */
-.dr-name { font: 600 14px/1.15 var(--serif); color: #fff1dc; overflow-wrap: anywhere; }
-.dr-aim { font-size: 11.5px; color: #ffb39c; overflow-wrap: anywhere; }
 .dr-could { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #9aa4b6; }
 .dr-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .dr-opt { position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 9px 3px 3px; border-radius: 99px; cursor: pointer;

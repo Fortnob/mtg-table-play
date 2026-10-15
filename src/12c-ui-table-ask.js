@@ -138,12 +138,9 @@
         // anyone else deciding is said once, on the big button, with the ring round their portrait
         return off();
       }
-      if (live.priorityPlayer === this.meId && (live.stack || []).length && !this.isTop()) {
-        const top = live.stack[live.stack.length - 1];
-        const who = v.players.find(p => p.id === top.controller);
-        return set('respond', `${escapeHtml(possessive(who ? who.name : 'Someone'))} ${escapeHtml(this.stackName(top))} is on the stack`,
-          (live.playable || []).length ? 'Respond with an instant or ability, or press <b>Resolve</b>.' : 'Press <b>Resolve</b> to let it happen.');
-      }
+      /* An opponent's spell waiting on you is said by the card itself — held up in the middle, then on the stack —
+         and the button under it offers what to do (Resolve, and what you could respond with: renderDock); no third
+         line here saying it again. A screen reader hears the spell as it is held up and the dock's prompt. */
       off();
     },
 
