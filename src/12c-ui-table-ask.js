@@ -69,8 +69,10 @@
         const pool = this.me && this.me.pool ? ['W', 'U', 'B', 'R', 'G', 'C'].map(c => `{${c}}`.repeat(this.me.pool[c] || 0)).join('') : '';
         const cost = p.intent.x ? p.cost.replace(/\{X\}/g, `{${p.intent.x}}`) : p.cost;
         // (a phone shows the title alone, so the title says what to do)
+        // (a Spirit Guide in your hand is offered the same way, beside the lands)
+        const guides = this.handManaGuides().length;
         return set('ask pay', `${escapeHtml(p.name)}: tap lands to pay ${MTG.mana.html(cost)}`,
-          `${press()} a glowing land to tap it for mana. Once your mana pool covers the cost, it ${p.intent.kind === 'cast' ? 'is cast' : 'happens'}.` +
+          `${press()} a glowing land to tap it for mana${guides ? `, or a glowing card in your hand to exile it for mana` : ''}. Once your mana pool covers the cost, it ${p.intent.kind === 'cast' ? 'is cast' : 'happens'}.` +
           (pool ? ` In your pool: ${MTG.mana.html(pool)}.` : ''));
       }
       const ch = live.pendingChoice;
@@ -1770,6 +1772,20 @@
         // a creature that arrived this turn cannot use {T} yet, not even for mana
         return !(a.isCreature && o.summoningSick && !(o.keywords || []).some(k => /^haste$/i.test(String(k))));
       });
+    },
+
+    /** A card in your hand that exiles itself for mana (a Spirit Guide): that use of it, while it can be made now. */
+    _handManaUse(id) {
+      const live = this.live || this.view;
+      if (!live || !(live.playable || []).includes(id)) return null;
+      return ((live.uses || {})[id] || []).find(u => u.kind === 'cycle' && u.channel && u.mana) || null;
+    },
+
+    /** Your cards in hand that could be exiled for mana now (Spirit Guides): what glows beside the lands while a
+        spell waits, never the spell itself. */
+    handManaGuides() {
+      const me = this.me;
+      return ((me && me.hand) || []).filter(o => o && o.id && !(this.paying && this.paying.objId === o.id) && this._handManaUse(o.id));
     },
 
     /** Before a render: a spell whose moment has passed is put back, and one that has gone through is done with. */

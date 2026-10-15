@@ -7274,7 +7274,8 @@
       make: (m) => ({ op: 'grantFlashbackCost', cost: m[1], targets: [Object.assign(targetSpec('target instant or sorcery card', 'graveyard'), { controller: 'you' })] }) },
     /* Emrakul, the Exigent Doom: "Target land gains "{T}: Add {C}{C}" until this card is cast from exile." — not for a
        card that leaves exile some other way: the land keeps it (the rulings; untilCastFromExile) */
-    { re: /^Target land gains "(\{T\}: Add (?:\{[WUBRGC]\})+\.?)" until this card is cast from exile\.?$/i,
+    // (Spara's Adjudicators and the other Omenpath travellers: "{T}: Add {G}, {W}, or {U}" — one of three)
+    { re: /^Target land gains "(\{T\}: Add (?:(?:\{[WUBRGC]\})+|\{[WUBRGC]\}(?:, \{[WUBRGC]\})*,? or \{[WUBRGC]\})\.?)" until this card is cast from exile\.?$/i,
       make: (m) => ({ op: 'grantAbility', ability: m[1].replace(/\.?$/, '.'), duration: 'untilCastFromExile', targets: [targetSpec('target land')] }) },
     // Emrakul, the Exigent Doom: "You may cast this card for as long as it remains exiled." (selfCastFromExile)
     { re: /^You may cast (?:this card|CARDNAME) for as long as it remains exiled\.?$/i, make: () => ({ op: 'selfCastFromExile' }) },

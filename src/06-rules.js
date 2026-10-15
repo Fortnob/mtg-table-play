@@ -2436,6 +2436,10 @@
         return this._seenTop(playerId) !== (top && top.id);
       }
       const mine = this.activePlayer && this.activePlayer.id === playerId;
+      /* Forecast works only in your upkeep: a card in your hand that could forecast now makes that a moment to stop
+         at, as a step you asked to stop at is (a stop you set nowhere else would see it gone by) */
+      if (mine && this.step === 'upkeep' && this.playableNow(playerId).some(x => x.kind === 'cycle' &&
+          this.altUsesFor(playerId, x.objId).some(u => u.forecast))) return true;
       const key = this.step === 'main' ? (this.phase === 'precombat' ? 'main1' : 'main2') : this.step;
       const stops = (cfg.stops || {})[mine ? 'yours' : 'theirs'] || {};
       return !!stops[key];
@@ -5977,7 +5981,15 @@
       /* Cheaper ways in from your hand, each with a string attached:
            evoke sacrifices it as it lands, dash sends it home at the end
            of the turn but lets it attack the moment it arrives. */
-        if (o.zone === 'hand' && arg && (k === 'evoke' || k === 'dash')) {
+        /* (Solitude, Subtlety, Grief, Endurance, Fury: "Evoke—Exile a white card from your hand." — no mana at all, a
+           card of that colour from the hand instead, paid as Force of Will's is; offered with one to exile) */
+        const evx = o.zone === 'hand' && k === 'evoke' && String(arg).match(/^Exile (a|an|one|two) ([a-z ]+?) cards? from your hand\.?$/i);
+        if (evx) {
+          const fh = { n: WORD_NUM(evx[1]), filter: evx[2].trim().toLowerCase() };
+          if (this._discardPool(playerId, fh, o).length >= fh.n) {
+            out.push({ kind: 'cast', via: 'evoke', cost: '', alt: { exileFromHand: fh, label: 'Evoke' }, label: 'Evoke: ' + String(arg).replace(/\.$/, '').replace(/^E/, 'e') });
+          }
+        } else if (o.zone === 'hand' && arg && (k === 'evoke' || k === 'dash')) {
           out.push({ kind: 'cast', via: k, cost: arg, label: ab.keyword + ' ' + arg });
         }
         /* Blitz (CR 702.152): cheap and fast, gone at end of turn, and it
@@ -6286,8 +6298,10 @@
       if (o.zone === 'hand' && a.channel && !(a.channel.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId))) {
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
-        out.push({ kind: 'cycle', channel: true, cost,
-          label: a.channel.exile ? (a.channel.mana ? 'Exile for mana' : 'Exile it ' + (cost || '{0}')) : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
+        // (a Spirit Guide's is a mana ability: `mana`, for the table to offer it as a source while a spell waits for mana)
+        out.push(Object.assign({ kind: 'cycle', channel: true, cost,
+          label: a.channel.exile ? (a.channel.mana ? 'Exile for mana' : 'Exile it ' + (cost || '{0}')) : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') },
+        a.channel.exile && a.channel.mana ? { mana: true } : {}));
       }
       /* Overload (CR 702.96): pay more and every "target" becomes "each". */
       if (o.zone === 'hand' && a.overloadEffects) {
@@ -6977,13 +6991,14 @@
       }
       /* A Spirit Guide is exiled, and its mana arrives at once: a mana
          ability never uses the stack. */
+      if (a.channel.exile && a.channel.mana) {
+        this._exileForMana(playerId, o, null);
+        this.touch();
+        return true;
+      }
       if (a.channel.exile) {
         this.moveObject(o, 'exile');
         this.logEvent('ability', `${this.player(playerId).name} exiles ${o.name} from their hand.`);
-        if (a.channel.mana) {
-          this._runManaAbility(playerId, o, { effects: a.channel.effects }, { controller: playerId, obj: o, name: o.name });
-          return true;
-        }
       } else if (!a.channel.keep) {
         this.moveObject(o, 'graveyard');
         this._afterDiscard(playerId, o);
@@ -11705,7 +11720,8 @@
        and put to them as a question (purpose sacMana): "Sacrifice 3 Treasures to cast Lightning Bolt?"; yes does
        it again with their say-so (sacOk), no leaves it undone. A question that offers to pay a price says what
        paying it would sacrifice (_noteSacMana), and its yes is the say-so. Bots spend them as they always have,
-       and a Treasure tapped by hand is the person's own doing. */
+       and a Treasure tapped by hand is the person's own doing. A Spirit Guide in a person's hand is one more of
+       these, last of all: "Exile Simian Spirit Guide from your hand to cast Lightning Bolt?" (_handManaGuides). */
 
     /** What paying `cost` for this player the way payMana would sacrifices for the mana: [] when the pool and taps
         pay it (or it can't be paid at all). */
@@ -11726,10 +11742,26 @@
       for (const o of objs) {
         // a Treasure is called a Treasure; any other token says it is one
         const noun = o.isToken && o.name !== 'Treasure' ? o.name + ' token' : o.name;
-        groups.set(noun, (groups.get(noun) || 0) + 1);
+        // (a card from your hand, a Spirit Guide, by its name alone)
+        const g = groups.get(noun) || { n: 0, card: o.zone === 'hand' };
+        g.n++;
+        groups.set(noun, g);
       }
-      const parts = Array.from(groups).map(([noun, n]) => (n === 1 ? (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun : O.nounCount(n, noun)));
+      const parts = Array.from(groups).map(([noun, g]) => (g.n === 1 ? (g.card ? '' : /^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun : O.nounCount(g.n, noun)));
       return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0] || '';
+    }
+    /** What paying with these does, said: "Sacrifice 3 Treasures", "Exile Simian Spirit Guide from your hand", or
+        both ("Sacrifice a Treasure and exile …"); `third`: "sacrifices …", "exiles …", for "Paying it …". */
+    _sacPhrase(objs, third) {
+      const sac = objs.filter(o => o.zone !== 'hand'), ex = objs.filter(o => o.zone === 'hand');
+      const parts = [];
+      if (sac.length) parts.push((third ? 'sacrifices ' : 'Sacrifice ') + this._sacWords(sac));
+      if (ex.length) parts.push((third ? 'exiles ' : sac.length ? 'exile ' : 'Exile ') + this._sacWords(ex) + ' from your hand');
+      return parts.join(' and ');
+    }
+    /** The yes of a question about paying with these: "Sacrifice and cast", or "Exile and cast" for Spirit Guides alone. */
+    _sacYes(objs, yes) {
+      return objs.length && objs.every(o => o.zone === 'hand') ? String(yes).replace(/^Sacrifice\b/, 'Exile') : yes;
     }
     /**
      * May the game sacrifice these for mana it is paying for this player? A bot's yes is taken for granted.
@@ -11759,8 +11791,8 @@
     _sacGateWanted(playerId, opts) {
       if (this._sacGate || this.resolving || (opts && opts.fromPool)) return false;
       const p = this.player(playerId);
-      return !!p && !p.isBot && this.battlefield.some(o => o.controller === playerId && !o.tapped && !o.phasedOut &&
-        this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab)));
+      return !!p && !p.isBot && (this.battlefield.some(o => o.controller === playerId && !o.tapped && !o.phasedOut &&
+        this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab))) || this._handManaGuides(playerId, opts).length > 0);
     }
     /** Do `run` (the action `redo` names); if its payment stopped for want of a sacrifice, ask. */
     _sacGated(playerId, redo, run) {
@@ -11806,8 +11838,9 @@
       const o = redo.objId ? this.obj(redo.objId) : null;
       const text = this._sacWords(objs);
       const act = this._sacActionWords(redo, o);
-      const q = { type: 'confirm', playerId, purpose: 'sacMana', prompt: `Sacrifice ${text} to ${act.what}?`,
-        yesLabel: act.yes, noLabel: 'Cancel', sacMana: { ids: objs.map(x => x.id), n: objs.length, text }, redo };
+      // ("Exile Simian Spirit Guide from your hand to cast Lightning Bolt?" — a Spirit Guide in hand: _handManaGuides)
+      const q = { type: 'confirm', playerId, purpose: 'sacMana', prompt: `${this._sacPhrase(objs)} to ${act.what}?`,
+        yesLabel: this._sacYes(objs, act.yes), noLabel: 'Cancel', sacMana: { ids: objs.map(x => x.id), n: objs.length, text }, redo };
       if (o) Object.assign(q, { sourceId: o.id, sourceName: o.name, sourceCard: o.card || null });
       if (o && redo.kind === 'activate') {
         const a = o.analysis();
@@ -11853,7 +11886,8 @@
       const note = this._sacNote(ch.playerId, this._questionMana(ch));
       if (!note) return;
       ch.sacMana = note;
-      ch.prompt = (ch.prompt ? String(ch.prompt).replace(/\s*$/, ' ') : '') + `Paying it sacrifices ${note.text}.`;
+      const objs = note.ids.map(id => this.obj(id)).filter(Boolean);
+      ch.prompt = (ch.prompt ? String(ch.prompt).replace(/\s*$/, ' ') : '') + `Paying it ${this._sacPhrase(objs, true)}.`;
     }
     /** Mid-resolution, before paying a price no question has offered yet (an X just chosen): should it take a
         sacrifice, the person is asked first. SUSPEND while asked; false when they say no. */
@@ -11864,8 +11898,9 @@
       const r = this.resolving;
       const said = r && r.answers ? r.answers[r.index + '#sacOk'] : null;
       if (said && said.pid === playerId && said.n >= note.n) return true;
+      const objs = note.ids.map(id => this.obj(id)).filter(Boolean);
       return this._ask({ type: 'confirm', playerId, purpose: 'sacMana', payMana: cost, sacMana: note,
-        prompt: `Sacrifice ${note.text} to pay ${cost}?`, yesLabel: 'Sacrifice and pay', noLabel: "Don't pay" }, sub);
+        prompt: `${this._sacPhrase(objs)} to pay ${cost}?`, yesLabel: this._sacYes(objs, 'Sacrifice and pay'), noLabel: "Don't pay" }, sub);
     }
 
     /** The untapped permanents auto-tap may draw on. */
@@ -11899,8 +11934,9 @@
       // (a Treasure: only with the person's say-so, and asked for before anything is tapped — _sacConsent)
       const sacs = plan.filter(x => x.sac).map(x => x.obj);
       if (sacs.length && !this._sacConsent(playerId, sacs, opts)) return false;
-      for (const { obj, ability, symbol } of plan) {
-        this._activateManaDirect(playerId, obj, ability, symbol);
+      for (const { obj, ability, symbol, hand } of plan) {
+        if (hand) this._exileForMana(playerId, obj, symbol);
+        else this._activateManaDirect(playerId, obj, ability, symbol);
       }
       if (p.pool.canPay(need, opts)) { this._spendPlan(p, p.pool.pay(need, opts)); return true; }
       return false;
@@ -12240,16 +12276,46 @@
     /** Greedy solver: colored requirements first, generic last. */
     /* Taps first; only when they can't cover it, a source that sacrifices itself for mana (a Treasure, Gold, Lotus
        Petal) as well, the last thing spent: the spell is yours to cast with it, and auto-pass sees that you can. */
+    /* (A person's Spirit Guide in hand is one of those last things too: exiled for its mana, with their say-so —
+       _handManaGuides.) */
     _planAutoTap(playerId, sources, cost, opts) {
-      return this._planAutoTapWith(playerId, sources, cost, opts, false) ||
-        (sources.some(o => this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab))) ? this._planAutoTapWith(playerId, sources, cost, opts, true) : null);
+      const plain = this._planAutoTapWith(playerId, sources, cost, opts, false);
+      if (plain) return plain;
+      const hand = this._handManaGuides(playerId, opts);
+      return hand.length || sources.some(o => this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab)))
+        ? this._planAutoTapWith(playerId, sources, cost, opts, true, hand) : null;
+    }
+    /**
+     * A person's cards in hand that exile themselves for mana ("Exile this card from your hand: Add {R}." — Simian
+     * and Elvish Spirit Guide): what paying for them may draw on once the taps fall short, after any Treasure, and
+     * only with their say-so (the sacMana question names them). Never the card being paid for, and not a bot's,
+     * which uses them as it always has.
+     */
+    _handManaGuides(playerId, opts) {
+      const p = this.player(playerId);
+      const z = this.zones[playerId];
+      if (!p || p.isBot || !z || this._abilityLocked(playerId)) return [];
+      const self = opts ? (opts.forSpell || opts.forAbility || null) : null;
+      return z.hand.filter(o => {
+        if (o === self || o.controller !== playerId) return false;
+        const ch = (o.analysis() || {}).channel;
+        return !!(ch && ch.exile && ch.mana && !ch.cost);
+      });
+    }
+    /** A Spirit Guide used: exiled from the hand, its mana made at once (a mana ability never uses the stack). */
+    _exileForMana(playerId, o, symbol) {
+      const a = o.analysis();
+      this.moveObject(o, 'exile');
+      this.logEvent('ability', `${this.player(playerId).name} exiles ${o.name} from their hand.`);
+      this._runManaAbility(playerId, o, { effects: a.channel.effects }, { controller: playerId, obj: o, name: o.name, manaChoice: symbol });
+      this.emit('sfx', 'tap');
     }
     /** A mana ability whose only cost beyond {T} is sacrificing itself (a Treasure's). */
     _sacOnlyMana(ab) {
       const c = ab && ab.cost;
       return !!(c && c.sacSelf && !c.mana && !c.sacrifice && !c.discard && !c.mill && !c.exile && !c.removeCounters && !(c.other || []).length);
     }
-    _planAutoTapWith(playerId, sources, cost, opts, withSac) {
+    _planAutoTapWith(playerId, sources, cost, opts, withSac, hand) {
       const p = this.player(playerId);
       const syms = MANA.parse(cost);
       const need = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
@@ -12299,12 +12365,20 @@
             flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) + (sacs ? 20 : 0) });
         }
       }
+      // a Spirit Guide in hand: the very last thing spent, after a Treasure (_handManaGuides)
+      for (const o of withSac ? hand || [] : []) {
+        const ab = { effects: o.analysis().channel.effects, cost: {}, text: 'Exile this card from your hand' };
+        const opt = this._manaOptions(ab, o, playerId);
+        if (!opt.any && !opt.produces.size) continue;
+        cand.push({ obj: o, ability: ab, index: -1, produces: opt.produces, any: opt.any, amount: opt.amount, sac: true, hand: true,
+          flexibility: (opt.any ? 9 : opt.produces.size) + 30 });
+      }
       // prefer least flexible sources for colored needs, and the painless over the painful
       cand.sort((a, b) => a.flexibility - b.flexibility || b.amount - a.amount);
 
       const used = new Set();
       const plan = [];
-      const take = (source, symbol) => { used.add(source.obj.id); plan.push({ obj: source.obj, ability: source.ability, symbol, sac: !!source.sac }); };
+      const take = (source, symbol) => { used.add(source.obj.id); plan.push({ obj: source.obj, ability: source.ability, symbol, sac: !!source.sac, hand: !!source.hand }); };
 
       for (const color of MANA.COLORS.concat('C')) {
         while (need[color] > 0) {

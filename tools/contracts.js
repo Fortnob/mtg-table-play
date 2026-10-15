@@ -164,7 +164,8 @@ const PlayerView = obj({
   hand: arr(AnyObject), graveyard: arr(ObjectView), exile: arr(ObjectView), command: arr(ObjectView),
 });
 const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str });
-const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str)) });
+/* channel: an ability used from the hand; mana: one that makes mana (a Spirit Guide), a mana source while paying */
+const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str)), channel: opt(bool), mana: opt(bool) });
 /* An extra cost that is itself a question (replicate, splice) carries it as `choose`. */
 const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
   /* an "and/or" kicker: each of its costs, any or all of them paid (the cast's kickPaid) */

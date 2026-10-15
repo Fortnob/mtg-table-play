@@ -2366,7 +2366,8 @@
       const blk = this.blockPlan ? new Set(this.blockPlan.declarations.map(d => d.blockerId)) : null;
       // a spell waiting for mana: it is marked, and what could tap to pay for it glows
       // (and a question about Treasures the game would sacrifice for you: those glow — sacMana)
-      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id))
+      // (a Spirit Guide in your hand glows too: clicked, it is exiled for its mana — _handManaGuides)
+      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id).concat(this.handManaGuides().map(o => o.id)))
         : ch && ch.sacMana && Array.isArray(ch.sacMana.ids) ? new Set(ch.sacMana.ids) : null;
       // creatures tapped to convoke: what each pays, on the card
       const conv = this.convoking ? this.convokeSums() : null;
@@ -2506,10 +2507,19 @@
       // touch: hold a card to read it
       let lp = null;
       a.addEventListener('touchstart', (e) => {
+        /* a new touch: the click a long-press held back belonged to the touch before, and a phone that sends none
+           after a long-press (most do not) would otherwise swallow this tap */
+        this._suppressClick = false;
         const cv = e.target.closest('.cv');
         if (!cv) return;
         const t = e.touches[0];
-        lp = { x: t.clientX, y: t.clientY, timer: setTimeout(() => { lp = null; this._suppressClick = true; this.showCard(cv.dataset.id); }, 430) };
+        /* (a card in your hand offers what else it can do under Actions, as a right-click does: a Spirit Guide's
+           Exile for mana, cycling, channel) */
+        lp = { x: t.clientX, y: t.clientY, timer: setTimeout(() => {
+          lp = null; this._suppressClick = true;
+          const loc = this.locate(cv.dataset.id);
+          this.showCard(cv.dataset.id, loc && loc.zone === 'hand' && loc.player === this.meId ? { actions: true } : undefined);
+        }, 430) };
       }, { passive: true });
       const cancel = (e) => {
         if (!lp) return;
@@ -2690,6 +2700,12 @@
       }
       // the spell waiting for mana, clicked again: it goes back to waiting in your hand
       if (this.paying && this.paying.objId === id && loc.zone !== 'battlefield') return this.cancelPay();
+      /* a Spirit Guide in your hand while a spell waits for mana: a mana source like a land, exiled for its mana
+         the moment it is clicked, and the spell goes once the pool covers it (as Arena lets you mid-payment) */
+      if (this.paying && loc.zone === 'hand' && loc.player === this.meId) {
+        const guide = this._handManaUse(id);
+        if (guide) { MTG.sfx('click'); return this._cycleUse(loc.o, this.analysis(loc.o), guide); }
+      }
       if (loc.zone === 'hand' && loc.player === this.meId) return this.playFromHand(loc.o);
       // Sen Triplets: a card in another player's revealed hand that you may cast or play this turn
       if (loc.zone === 'hand' && (live.playable || []).includes(id)) return this.playFromHand(loc.o);
@@ -2787,15 +2803,21 @@
       this.popover(node, o, uses);
     }
 
-    /** @this {MTG.TableInstance} */
-    playFromHand(o) {
+    /**
+     * Play a card from your hand: a click on it, a drag, Enter.
+     * @this {MTG.TableInstance}
+     * @param {any} o
+     * @param {boolean} [plain] just the ordinary cast or land drop, chosen already (the card's menu's "Cast it"),
+     *   with no menu of the other things it can do
+     */
+    playFromHand(o, plain) {
       const a = this.analysis(o);
       if (!a) return;
       if (!this._ready()) return;
       const live = this.live;
       if (!(live.playable || []).includes(o.id)) {
         const alt = (live.uses || {})[o.id] || [];
-        if (alt.length) return this.cardMenu(o.id, null);
+        if (alt.length && !plain) return this.cardMenu(o.id, null);
         // the engine's own reason, where it gave one: a tap on a phone is the only way to ask
         const why = this.whyNot(o.id);
         if (why) return UI.toast(why.text);
@@ -2806,7 +2828,7 @@
       if (a.isLand) {
         // a channel land (Otawara): play it, or channel it
         const chans = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cycle');
-        if (chans.length && o.zone === 'hand') {
+        if (chans.length && o.zone === 'hand' && !plain) {
           const me = this.me;
           const canLand = me && live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length &&
             me.landsPlayed < (me.maxLands || 1);
@@ -2827,24 +2849,32 @@
       /* Another way to cast it from where it is (spectacle, evoke, surge,
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */
-      if (o.zone === 'hand') {
+      if (o.zone === 'hand' && !plain) {
         const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot', 'foretell'].includes(u.kind));
         if (alts.length) {
           /* the ordinary cast, when it could be made right now: the engine's
              reason covers cost, and its timing is checked here because a card
              with another way in (sneak in combat) is not "unplayable" */
+          /* (the engine's reason itself, not whyNot's: a card is "playable" for another of its uses — a Spirit Guide
+             that can always be exiled for mana — while its ordinary cast can't be paid for) */
           const sorcerySpeed = live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length;
-          const normal = !this.whyNot(o.id) && (sorcerySpeed || a.isInstant || a.has('flash'));
-          /** @type {Array<[string, () => void]>} */
+          const normal = !(live.unplayable || {})[o.id] && (sorcerySpeed || a.isInstant || a.has('flash'));
+          /** @type {Array<[string, () => void, boolean?]>} */
           const items = alts.map(u => [u.label, () => (u.kind === 'cycle' ? this._cycleUse(o, a, u)
             : u.kind === 'suspend' ? this._suspendUse(o, u)
             : u.kind === 'plot' ? this.send({ kind: 'plot', objId: o.id })
             : u.kind === 'foretell' ? this.send({ kind: 'foretell', objId: o.id })
             : u.via === 'morph' ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
             : this.castUse(o, a, u))]);
-          if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
-          // (foretelling exiles the card: never done on a bare click, always picked from the menu)
-          if (items.length === 1 && alts[0].kind !== 'foretell') return items[0][1]();
+          const castLabel = `Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim();
+          if (normal) items.unshift([castLabel, () => this.beginCast(o, a)]);
+          /* A card whose other use gives up a card from your hand (a Spirit Guide's Exile for mana, channel, "Exile
+             it {2}", Force of Will's or Solitude's way in) and that can't be cast just now: its cast shown all the
+             same, dimmed, beside that use — the two things the card does, as Arena shows them */
+          const givesUp = (u) => !!(u.channel || (u.alt && u.alt.exileFromHand));
+          if (!normal && !a.isLand && alts.some(givesUp)) items.unshift([castLabel, () => {}, true]);
+          // (foretelling exiles the card, and so do these: never done on a bare click, always picked from the menu)
+          if (items.length === 1 && alts[0].kind !== 'foretell' && !givesUp(alts[0])) return items[0][1]();
           const n = this.els.get(o.id);
           const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
           return UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
@@ -3875,8 +3905,12 @@
       const items = [];
       const live = this.live || this.view;
       if (loc.zone === 'hand' && mine) {
-        if (a && a.isLand) items.push(['Play this land', () => this.playFromHand(o)]);
-        else items.push(['Cast it', () => this.playFromHand(o)]);
+        /* the ordinary play, chosen here (not another menu of the card's uses, which follow); when it can't be made
+           and something else can, it is shown dimmed (whyNot says why on the card) */
+        const others = ((live.uses || {})[o.id] || []).length > 0;
+        const cantCast = others && !!(live.unplayable || {})[o.id];
+        if (a && a.isLand) items.push(['Play this land', () => this.playFromHand(o, true), cantCast]);
+        else items.push([`Cast it${a && a.manaCost ? ' ' + a.manaCost : ''}`, () => this.playFromHand(o, true), cantCast]);
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cycle') items.push([use.label, () => this._cycleUse(o, a, use)]);
           else if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);

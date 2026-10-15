@@ -242,8 +242,10 @@ declare namespace MTG {
     sourceName: string | null;
   }
 
-  /** Another way to use a card: cycle it, cast it face down, from the graveyard... */
-  interface AltUse { kind: string; label: string; via?: string; cost?: string | null; [k: string]: any }
+  /** Another way to use a card: cycle it, cast it face down, from the graveyard... `channel`: an ability used
+      from the hand (channel, forecast, "Exile this card from your hand: …"); `mana`: one that makes mana (a Spirit
+      Guide), which the table offers as a mana source while a spell waits for mana. */
+  interface AltUse { kind: string; label: string; via?: string; cost?: string | null; channel?: boolean; mana?: boolean; [k: string]: any }
   /** A modal spell's modes, offered as it is cast (CR 601.2b): how many may be chosen, and which can be — `ok` false
       for a mode with nothing it could target (CR 700.2a). `kicked`: the count once kicked ("If this spell was kicked,
       choose any number instead"). `pawprint`: a budget the modes' weights add up to. */
