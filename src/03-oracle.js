@@ -1697,6 +1697,10 @@
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', anyAbility: true }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'ancestryScry', open: true }) },
+    /* Primal Wellspring: "When that mana is spent to cast an instant or sorcery spell, copy that spell and you may choose
+       new targets for the copy." — a rider whose trigger knows the spell (copyThatSpell) */
+    { re: /^When that mana is spent to cast an instant or sorcery spell, copy that spell and you may choose new targets for the copy\.?$/i,
+      make: (m) => ({ op: 'spendOnly', open: true, rider: { words: 'instant or sorcery', effects: [{ op: 'copyThatSpell' }], text: m[0] } }) },
     /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
        you gain 2 life." — a rider on the mana: what it pays for, and what happens then (nothing said of the spell itself) */
     { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?(?:creature |instant or sorcery |noncreature )?)spell( with mana value (\d+) or greater)?, (.+?)\.?$/,
@@ -2572,6 +2576,10 @@
     // Senu, Keen-Eyed Protector: "if this card is exiled, put it onto the battlefield attacking" — beside the one that set it off
     { re: /^if this card is exiled, put it onto the battlefield attacking\.?$/i,
       make: () => ({ op: 'returnSelfFromGrave', fromZone: 'exile', attacking: true, besideTrigger: true }) },
+    /* Burning Wish, Living Wish, Glittering Wish: "You may reveal a sorcery card you own from outside the game and put it
+       into your hand." — from the sideboard (wish) */
+    { re: /^You may reveal an? ([a-z ]+?) card you own from outside the game and put it into your hand\.?$/i,
+      make: (m) => ({ op: 'wish', filter: m[1].toLowerCase() }) },
     // Grist, the Plague Swarm: "Put a deathtouch counter on the token if a black card was milled this way." — the token just made
     { re: /^Put an? ([+\-0-9/a-z]+) counter on the token if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
@@ -11076,6 +11084,20 @@
         if (!body.auto || !body.effects.length || !cond || body.effects.some(x => x && x.op === 'manual')) return null;
         return body.effects.concat([{ op: 'ifCond', cond, then: JSON.parse(JSON.stringify(body.effects)) }]);
       } },
+    /* Grist, the Hunger Tide: "Create a 1/1 … Insect creature token, then mill a card. If an Insect card was milled this
+       way, put a loyalty counter on Grist and repeat this process." — again and again while it says so (repeatWhile) */
+    { re: /^(.+?\.) If (an? [A-Za-z]+ card was milled this way), put an? ([a-z+\-0-9/]+) counter on CARDNAME and repeat this process\.$/,
+      make: (m) => {
+        const body = parseSentenceList(splitSentences(m[1]));
+        const cond = condOf(m[2]);
+        if (!body.auto || !body.effects.length || !cond || body.effects.some(x => x && x.op === 'manual')) return null;
+        return body.effects.concat([{ op: 'repeatWhile', cond, before: [{ op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'self' }],
+          body: JSON.parse(JSON.stringify(body.effects)) }]);
+      } },
+    /* Karn, the Great Creator: "You may reveal an artifact card you own from outside the game or choose a face-up
+       artifact card you own in exile. Put that card into your hand." (wish, alsoExile) */
+    { re: /^You may reveal an? ([a-z ]+?) card you own from outside the game or choose a face-up \1 card you own in exile\. Put that card into your hand\.$/i,
+      make: (m) => [{ op: 'wish', filter: m[1].toLowerCase(), alsoExile: true }] },
     /* Garth One-Eye: "Choose a card name that hasn't been chosen from among Disenchant, …, and Black Lotus. Create a
        copy of the card with the chosen name. You may cast the copy." — paying its costs, as the ability resolves (castNamedCopy) */
     { re: /^Choose a card name that hasn'?t been chosen from among ([^.]+?)\. Create a copy of the card with the chosen name\. You may cast the copy\.?$/i,
@@ -15856,6 +15878,8 @@
     // "if a black card was milled this way" — a colour too)
     [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent|white|blue|black|red|green|colorless|multicolored)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)|, non(?:land|creature|artifact|enchantment))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
+    // Grist, the Hunger Tide: "an Insect card was milled this way" — a creature type
+    [/^an? ([A-Z][a-z]+) card (?:was|is) (exiled|milled|revealed|discarded) this way$/, (m) => ({ kind: 'didThisWay', how: m[2], filter: m[1].toLowerCase() })],
     // Battle Cry Goblin: "you attacked with creatures with total power 6 or greater this combat"
     [/^you attacked with creatures with total power (\d+) or greater this combat$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],
     // (Ultra Magnus, Armored Carrier: "If those creatures have total power 8 or greater" — the attacking creatures you control)
@@ -20758,6 +20782,18 @@
     // Maha: "Creatures your opponents control have base toughness 1."
     { re: /^(.+?) (?:have|has) base toughness (\d+)\.?$/i,
       make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 7, scope, setPt: { t: +m[2] } } : null; } },
+    /* Barracks of the Thousand: "Whenever you cast an artifact or creature spell using mana produced by Barracks of the
+       Thousand, create a … token" — a promise its mana carries, kept as the spell is cast (manaRiderSelf) */
+    { re: /^Whenever you cast an? ((?:artifact|creature|instant|sorcery|enchantment|noncreature)(?: or (?:artifact|creature|instant|sorcery|enchantment))?) spell using mana produced by CARDNAME, (.+)$/i,
+      make: (m) => {
+        const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+        if (!then.auto || !then.effects.length || then.effects.some(e => e && e.op === 'manual')) return null;
+        return { op: 'noop', manaRiderSelf: { words: m[1].toLowerCase(), effects: then.effects, text: m[0] } };
+      } },
+    /* Mycosynth Lattice: "All cards that aren't on the battlefield, spells, and permanents are colorless." — the
+       permanents in layer 5, every other card and spell by its analysis (allCards) */
+    { re: /^All cards that aren'?t on the battlefield, spells, and permanents are colorless\.?$/i,
+      make: () => ({ op: 'continuous', layer: 5, scope: { who: 'all', what: 'permanent' }, setColors: [], allCards: true }) },
     // Leyline of the Guildpact: "Each nonland permanent you control is all colors."
     { re: /^(.+?) (?:is|are) all colors\.?$/i,
       make: (m) => {
@@ -23821,6 +23857,10 @@
          Oswald is the chosen color." — asked as the game begins (impossibleGirl) */
       { re: /^If CARDNAME is your commander, choose a colou?r before the game begins\. CARDNAME is the chosen colou?r\.?$/i,
         eff: { op: 'impossibleGirl' }, auto: true },
+      /* Grist, the Hunger Tide: "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its
+         other types." — in every other zone, the stack included (offFieldCreature; the object's analysis) */
+      { re: /^As long as CARDNAME isn'?t on the battlefield, it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
+        make: (m) => ({ op: 'offFieldCreature', p: +m[1], t: +m[2], subtype: m[3] }), auto: true },
       { re: /^If you would draw a card while your library has no cards in it, you win the game instead\.?$/i,
         eff: { op: 'winOnEmptyDraw' }, auto: true },
       // Ormos, Archive Keeper: "If you would draw a card while your library has no cards in it, instead put five +1/+1 counters on Ormos."

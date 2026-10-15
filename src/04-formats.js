@@ -224,6 +224,8 @@
     // Brawl: a planeswalker may lead as well
     if (fmt && fmt.walkerCommander && a.isPlaneswalker) return true;
     if (/can be your commander/i.test(text)) return true;
+    // Grist, the Hunger Tide: a creature everywhere but the battlefield, the command zone too
+    if (a.isLegendary && /isn't on the battlefield, it's a [^.]*creature/i.test(text)) return true;
     // back face of a transforming legend (e.g. a legendary creature // planeswalker)
     if (card.card_faces) {
       for (let i = 0; i < card.card_faces.length; i++) {

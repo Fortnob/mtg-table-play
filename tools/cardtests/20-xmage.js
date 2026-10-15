@@ -67544,4 +67544,134 @@ module.exports = (test) => {
     t.zone(b, 'library');
     t.eq(U.names(U.zone('A', 'hand')).join(), 'Island', 'the bot took a land');
   });
+
+  test('Cards: Grist, the Hunger Tide — a 1/1 Insect creature off the battlefield; +1 repeats while it mills Insects', (mk, t) => {
+    t.auto('Grist, the Hunger Tide');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const inHand = T.hand('A', 'Grist, the Hunger Tide');
+    t.ok(inHand.analysis().isCreature && T.g._cardFitsWords(inHand, 'insect'), 'in hand: an Insect creature card');
+    t.eq(inHand.analysis().power, 1);
+    t.ok(require('../harness').engine().formats.canBeCommander(inHand.card), 'it can be a commander');
+    // a second Grist and a Giant Cockroach on top: two Insects milled, then an Island
+    T.top('A', 'Giant Cockroach');
+    T.top('A', 'Grist, the Hunger Tide');
+    T.mana('A', 'BG1');
+    T.cast('A', inHand);
+    t.ok(!inHand.analysis().isCreature, 'on the battlefield: a planeswalker only');
+    t.ok(inHand.analysis().isPlaneswalker);
+    const loy = inHand.counters.loyalty;
+    t.ok(T.g.activateAbility('A', inHand.id, 0, { auto: true }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Insect').length, 3, 'three Insects made');
+    t.eq(inHand.counters.loyalty, loy + 3, '+1, then a loyalty counter for each Insect milled');
+    const milled = T.zone('A', 'graveyard');
+    t.eq(milled.map(o => o.name).join(), 'Grist, the Hunger Tide,Giant Cockroach,Island', 'Grist in the graveyard counts as an Insect');
+  });
+
+  test('Cards: Mycosynth Lattice — permanents, spells and cards everywhere are colorless artifacts; any mana pays', (mk, t) => {
+    t.auto('Mycosynth Lattice');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const inHand = T.hand('A', 'Lightning Bolt');
+    const inYard = T.put('B', 'Llanowar Elves', 'graveyard');
+    t.ok(T.g._cardFitsWords(inHand, 'red'), 'before: the Bolt is red');
+    T.bf('A', 'Mycosynth Lattice');
+    t.eq((T.g.characteristics(bear).colors || []).length, 0, 'a permanent: colorless');
+    t.ok(T.g._cardFitsWords(bear, 'artifact'), 'and an artifact');
+    t.no(T.g._cardFitsWords(inHand, 'red'), 'in hand: colorless');
+    t.ok(T.g._cardFitsWords(inHand, 'colorless'));
+    t.no(T.g._cardFitsWords(inYard, 'green'), 'in a graveyard: colorless');
+    // a spell: Bolt with blue mana, colourless on the stack
+    T.mana('A', 'U');
+    T.cast('A', inHand, { targets: ['B'], resolve: false });
+    t.eq((inHand.analysis().colors || []).length, 0, 'a spell: colorless');
+    T.resolve();
+    t.eq(T.life('B'), 17, 'paid with blue');
+  });
+
+  test('Cards: Thousand Moons Smithy // Barracks of the Thousand — its mana casting an artifact or creature spell makes a Gnome Soldier', (mk, t) => {
+    t.auto('Thousand Moons Smithy // Barracks of the Thousand');
+    const T = mk();
+    T.toMain('A');
+    const bar = T.bf('A', 'Thousand Moons Smithy // Barracks of the Thousand');
+    bar.face = 1; bar._chr = null; T.g.bumpBoard();
+    const gnomes = () => T.bfOf('A').filter(o => o.isToken && /Gnome/.test(o.name)).length;
+    // tapped by hand, then a creature spell
+    t.ok(T.g.tapForMana('A', bar.id, 0), T.g.lastError);
+    T.cast('A', T.hand('A', 'Savannah Lions'));
+    T.settle(); T.resolve();
+    t.eq(gnomes(), 1, 'a creature spell with its mana: a Gnome Soldier');
+    // an instant with its mana: nothing
+    bar.tapped = false;
+    t.ok(T.g.tapForMana('A', bar.id, 0));
+    T.cast('A', T.hand('A', 'Swords to Plowshares'), { targets: [T.bf('B', 'Grizzly Bears')] });
+    T.settle(); T.resolve();
+    t.eq(gnomes(), 1, 'an instant: no Gnome');
+    // paid automatically: an artifact spell
+    bar.tapped = false;
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    T.settle(); T.resolve();
+    t.eq(gnomes(), 1, 'Ornithopter costs nothing: no mana from it');
+    T.cast('A', T.hand('A', 'Sol Ring'));
+    T.settle(); T.resolve();
+    t.eq(gnomes(), 2, 'Sol Ring paid with its mana: another');
+  });
+
+  test('Cards: Karn, the Great Creator — −2 takes an artifact from outside the game or a face-up one of yours in exile; Burning Wish', (mk, t) => {
+    t.auto('Karn, the Great Creator'); t.auto('Burning Wish');
+    const { card } = require('../harness');
+    const T = mk();
+    T.toMain('A');
+    T.player('A').sideboard = [{ card: card('Sol Ring'), qty: 1 }, { card: card('Grizzly Bears'), qty: 1 }];
+    const ex = T.put('A', 'Mind Stone', 'exile');
+    T.put('B', 'Ornithopter', 'exile');
+    const karn = T.bf('A', 'Karn, the Great Creator');
+    let offered = null;
+    T.answer('choose', (ch) => { offered = ch; return { picks: [1] }; });
+    t.ok(T.g.activateAbility('A', karn.id, 1, { auto: true }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.eq(offered.purpose, 'wish');
+    t.eq(offered.options.length, 2, "Sol Ring, and the Mind Stone in exile — not the Bears, nor B's Ornithopter");
+    t.eq(ex.zone, 'hand', 'the Mind Stone to hand');
+    t.eq(T.player('A').sideboard[0].qty, 1, 'Sol Ring stays outside');
+    // Burning Wish: a sorcery from the sideboard, then the Wish exiles itself
+    const U = mk();
+    U.toMain('A');
+    U.player('A').sideboard = [{ card: card('Wildfire'), qty: 1 }, { card: card('Shock'), qty: 1 }];
+    U.answer('choose', () => ({ picks: [0] }));
+    U.mana('A', 'R1');
+    const bw = U.hand('A', 'Burning Wish');
+    U.cast('A', bw);
+    t.ok(U.zone('A', 'hand').some(o => o.name === 'Wildfire'), 'Wildfire in hand');
+    t.eq(U.player('A').sideboard[0].qty, 0);
+    t.eq(bw.zone, 'exile');
+    // a bot takes the costliest
+    const M = require('../harness').engine();
+    const got = M.bots.answerChoose(U.g, 'A', { playerId: 'A', purpose: 'wish', kind: 'options', optional: true, min: 0, max: 1,
+      options: [{ i: 0, label: 'Reveal Shock', value: 1 }, { i: 1, label: 'Reveal Wildfire', value: 6 }] });
+    t.eq((got.picks || []).join(), '1', 'the bot wishes for Wildfire');
+  });
+
+  test('Cards: Primal Amulet // Primal Wellspring — its mana copies the instant or sorcery it casts; not a creature', (mk, t) => {
+    t.auto('Primal Amulet // Primal Wellspring');
+    const T = mk();
+    T.toMain('A');
+    const w = T.bf('A', 'Primal Amulet // Primal Wellspring');
+    w.face = 1; w._chr = null; T.g.bumpBoard();
+    t.ok(T.g.tapForMana('A', w.id, 0, 'R'), T.g.lastError);
+    const lifeB = T.life('B');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), lifeB - 6, 'Bolt and its copy');
+    // a creature spell paid with it: no copy
+    w.tapped = false;
+    t.ok(T.g.tapForMana('A', w.id, 0, 'G'));
+    T.mana('A', '1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    T.settle(); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 1, 'no copy of a creature');
+  });
 };

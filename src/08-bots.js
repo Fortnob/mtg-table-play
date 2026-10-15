@@ -1985,6 +1985,11 @@
       if (!me || hand.length > 2 || me.life <= 6) return { number: 0 };
       return { number: Math.min((s.number && s.number.max) || 1, 1 + (hand.length === 0 && me.life > 15 ? 1 : 0)) };
     },
+    // Burning Wish, Karn, the Great Creator: the costliest card on offer
+    wish(s) {
+      const os = (s.options || []).slice().sort((a, b) => (b.value || 0) - (a.value || 0));
+      return { picks: os.length ? [os[0].i] : [] };
+    },
     // Pia Nalaar, Chief Mechanic: all the energy, for the biggest Aetherjet
     payEnergyAmount(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Gilgamesh, Master-at-Arms: the best of the Equipment it put there, always worth wearing */

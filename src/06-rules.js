@@ -142,6 +142,28 @@
         }
         base = this._igAnalysis;
       }
+      /* Grist, the Hunger Tide: "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to
+         its other types." — in hand, library, graveyard, exile, the command zone and on the stack (offFieldCreature) */
+      if (base && this.zone !== 'battlefield' && !this.faceDown) {
+        if (this._chrOffBase !== base) {
+          this._chrOffBase = base;
+          const ofc = (base.abilities || []).filter(ab => ab.kind === 'static').map(ab => (ab.effects || []).find(e => e && e.op === 'offFieldCreature')).find(Boolean);
+          this._chrOffA = ofc ? Object.assign({}, base, {
+            types: (base.types || []).includes('Creature') ? base.types : (base.types || []).concat('Creature'),
+            subtypes: (base.subtypes || []).includes(ofc.subtype) ? base.subtypes : (base.subtypes || []).concat(ofc.subtype),
+            isCreature: true, power: ofc.p, toughness: ofc.t }) : null;
+        }
+        if (this._chrOffA) base = this._chrOffA;
+      }
+      /* Mycosynth Lattice: "All cards that aren't on the battlefield, spells, and permanents are colorless." — every
+         card off the battlefield, and every spell (allCards; the permanents in layer 5) */
+      if (base && this.zone !== 'battlefield' && this.game) {
+        const gc = this.game._allCardsColors();
+        if (gc) {
+          if (this._chrAllBase !== base || this._chrAllGc !== gc) { this._chrAllBase = base; this._chrAllGc = gc; this._chrAllA = Object.assign({}, base, { colors: gc.slice() }); }
+          base = this._chrAllA;
+        }
+      }
       /* On the battlefield a permanent can be more than its printed text:
          an ability handed to it in quotation marks, a god that is not a
          creature while your devotion is short, a land Blood Moon has made a
@@ -3733,8 +3755,11 @@
     }
     /** One word of "it's a … card": a card type, "nonland", "legendary", "basic land". */
     _itFits(o, w) {
-      const a = (o.zone === 'battlefield' ? o.analysis() : O.analyze(o.card, o.face)) || {};
+      // (Grist, the Hunger Tide: an Insect creature card off the battlefield — the object's own analysis there too)
+      const a = (o.zone === 'battlefield' || o.analysis ? o.analysis() : O.analyze(o.card, o.face)) || {};
       const types = (a.types || []).map(t => t.toLowerCase());
+      // ("an Insect card was milled this way" — a creature type)
+      const subs = (a.subtypes || []).map(t => t.toLowerCase());
       const sup = (a.supertypes || []).map(t => t.toLowerCase());
       return w.split(/\s+/).every(x => {
         if (x === 'card' || !x) return true;
@@ -3744,9 +3769,11 @@
         const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
         // (Aurelia, Exemplar of Justice: "if it's red" — a permanent's colours as they are now)
         if (COL[x] && o.zone === 'battlefield' && (this.characteristics(o) || {}).colors) return this.characteristics(o).colors.includes(COL[x]);
+        // (Mycosynth Lattice: a card made colorless where it is — the object's analysis)
+        if (COL[x] && o.analysis && this._allCardsColors()) return (a.colors || []).includes(COL[x]);
         if (COL[x]) return ((o.card && (o.card.card_faces && o.card.card_faces[o.face || 0] && o.card.card_faces[o.face || 0].colors || o.card.colors)) || []).includes(COL[x]);
         if (x.startsWith('non')) return !types.includes(x.slice(3)) && !sup.includes(x.slice(3));
-        return types.includes(x);
+        return types.includes(x) || subs.includes(x);
       });
     }
     /** Chromatic Orrery, Mycosynth Lattice: may this player spend mana as though it were any colour? */
@@ -12113,6 +12140,15 @@
         this._fire('tapForMana', playerId, { source: o, object: o, objController: o.controller, player: playerId, playerId });
         this._fire('anyTapForMana', null, { object: o, objController: o.controller, player: playerId, playerId });
       }
+      /* Barracks of the Thousand: "Whenever you cast an artifact or creature spell using mana produced by" it — its
+         mana carries the promise, once to a spell (manaRiderSelf) */
+      if (!ab.spendOnly && o) {
+        const rs = ((o.analysis() || {}).abilities || []).filter(x => x.kind === 'static').map(x => (x.effects || []).find(e => e && e.manaRiderSelf)).find(Boolean);
+        if (rs) {
+          const list = this._payingFor ? ((this._payFlags = this._payFlags || {}).riders = this._payFlags.riders || []) : (p.manaRiders = p.manaRiders || []);
+          if (!list.some(x => x && x.srcId === o.id)) list.push(Object.assign({}, rs.manaRiderSelf, { srcId: o.id, text: String(rs.manaRiderSelf.text || '').replace(/CARDNAME/g, o.name) }));
+        }
+      }
       if (!ab.spendOnly) return tagPool();
       const paying = this._payingFor;
       /* Path of Ancestry: the mana is anybody's to spend, but remembers
@@ -12153,9 +12189,9 @@
         if (rider.minMv != null && ((so.card && so.card.cmc) || 0) + this._xMv(item) < rider.minMv) return;
         this.pendingTriggers.push(Object.assign({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
           // (its words whole: the stack shows them all, wrapped)
-          name: rider.text || 'Mana rider', effects: rider.effects, auto: true, abilityText: rider.text || '' },
-          // (Tecutlan, the Searing Rift: "that spell's mana value" — the spell it paid for: aboutSpell)
-          rider.aboutSpell ? { triggerData: { event: 'manaRider', objectId: so.id } } : {}));
+          name: rider.text || 'Mana rider', effects: rider.effects, auto: true, abilityText: rider.text || '',
+          // (the spell it paid for — Tecutlan's "that spell's mana value", Primal Wellspring's "copy that spell")
+          triggerData: { event: 'manaSpent', stackId: item.id, objectId: so.id, playerId } }));
         return;
       }
       // Arena of Glory: a creature spell paid with it arrives with haste
@@ -16895,6 +16931,22 @@
 
     /** Something changed on the battlefield: recompute rather than remember. */
     bumpBoard() { this._boardEpoch = (this._boardEpoch || 0) + 1; }
+    /** Mycosynth Lattice: the colours every card off the battlefield and every spell has now, or null (allCards). */
+    _allCardsColors() {
+      if (this.__allColKey === this._boardKey) return this.__allCol;
+      // (asked again while it is being worked out: nothing yet)
+      this.__allColKey = this._boardKey; this.__allCol = null;
+      let out = null;
+      for (const x of this.battlefield) {
+        if (x.phasedOut) continue;
+        for (const ab of ((x.analysis() || {}).abilities || [])) {
+          if (ab.kind !== 'static') continue;
+          for (const e of ab.effects || []) if (e && e.op === 'continuous' && e.allCards && Array.isArray(e.setColors)) out = e.setColors;
+        }
+      }
+      this.__allColKey = this._boardKey; this.__allCol = out;
+      return out;
+    }
 
     /** What the cached characteristics were computed against. */
     get _boardKey() { return (this._boardEpoch || 0) * 4096 + this.battlefield.length; }
@@ -25645,6 +25697,15 @@
            questions of their own. */
         /* "If you control three or more artifacts, draw a card." The check is
            made as the effect resolves, on the state at that moment. */
+        /* Grist, the Hunger Tide: "If an Insect card was milled this way, put a loyalty counter on Grist and repeat this
+           process." — what comes first, the process again, and this again after it (repeatWhile; a hundred times at most) */
+        case 'repeatWhile': {
+          if (!this._condMet(e.cond, ctx)) break;
+          const k = (e._k || 0) + 1;
+          if (k > 100) break;
+          this._spliceNext((e.before || []).concat(JSON.parse(JSON.stringify(e.body || [])), [Object.assign({}, e, { _k: k })]));
+          break;
+        }
         case 'ifCond': {
           /* Sorin, Ravenous Neonate: "if you control a white permanent other than that creature or Sorin" —
              besides the one targeted and this one (controlExcept) */
@@ -35565,6 +35626,34 @@
           this._afterDiscard(ctx.controller, c);
           this.logEvent('discard', `${me.name} discards ${c.name}.`);
           this._drawCards(me, 1);
+          break;
+        }
+        /* Burning Wish: "You may reveal a sorcery card you own from outside the game and put it into your hand." — one of
+           the sideboard's; Karn, the Great Creator: "or choose a face-up artifact card you own in exile" (alsoExile) */
+        case 'wish': {
+          const f = e.filter || 'card';
+          const fits = (card) => this._cardFitsWords({ card, zone: 'outside', counters: {}, analysis: () => O.analyze(card) }, f);
+          const side = (me.sideboard || []).filter(x => x.qty > 0 && x.card && fits(x.card));
+          const exiled = e.alsoExile ? this.zones[ctx.controller].exile.filter(c => c.owner === ctx.controller && !c.faceDown && !c.faceDownExile && this._cardFitsWords(c, f)) : [];
+          const options = side.map((x, i) => ({ i, label: `Reveal ${x.card.name} from outside the game`, value: x.card.cmc || 0 }))
+            .concat(exiled.map((c, k) => ({ i: side.length + k, label: `${c.name}, from exile`, value: (c.card && c.card.cmc) || 0 })));
+          if (!options.length) { this.logEvent('rules', `${me.name} has no ${f} card outside the game${e.alsoExile ? ' or in exile' : ''}.`); break; }
+          const got = this._choose({ playerId: ctx.controller, purpose: 'wish', kind: 'options', optional: true, min: 0, max: 1, options,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put a ${f} card you own from outside the game${e.alsoExile ? ' or a face-up one in exile' : ''} into your hand.` }, 'wish');
+          if (got === SUSPEND) return SUSPEND;
+          const at = got && got.picks && got.picks.length ? got.picks[0] : null;
+          if (at == null || !options[at]) break;
+          if (at < side.length) {
+            const entry = side[at];
+            entry.qty--;
+            const card = this._register(new GObj(entry.card, ctx.controller, 'hand'));
+            this.zones[ctx.controller].hand.push(card);
+            this._know(card, '*');
+            this.logEvent('reveal', `${me.name} reveals ${entry.card.name} from outside the game and puts it into their hand.`);
+          } else {
+            const c = exiled[at - side.length];
+            if (c && c.zone === 'exile') { this.moveObject(c, 'hand'); this.logEvent('zone', `${me.name} puts ${c.name} from exile into their hand.`); }
+          }
           break;
         }
         /* Learn (CR 701.48): a Lesson from outside the game into your hand,
