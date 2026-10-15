@@ -3687,7 +3687,9 @@
       const fromZone = o.zone;
       // Spider-Man 2099: "played a land … from anywhere other than your hand"
       if (fromZone !== 'hand') p.landNotFromHandTurn = this.turn;
+      o._playedFromHand = fromZone === 'hand';
       this.moveObject(o, 'battlefield', { asLand: true, controller: playerId });
+      o._playedFromHand = false;
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
       this._fire('youPlayLand', playerId, { object: o, fromZone });
@@ -13973,6 +13975,8 @@
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
+        // Fetching Garden: played as a land from its owner's hand (set by playLand while it moves)
+        case 'playedFromHand': return !!(ctx && ctx.obj && ctx.obj._playedFromHand);
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
         // Liliana, Heretical Healer: "If you do" — it came back transformed
         case 'selfTransformed': return !!(src && src.zone === 'battlefield' && (src.face || 0) === 1);
@@ -27638,8 +27642,9 @@
 
         case 'etbTappedUnlessLands': {
           if (!src) break;
+          // Sunken Hollow: "two or more basic lands" (basic)
           const lands = this.battlefield.filter(o => o !== src && o.controller === ctx.controller &&
-            (o.analysis() || {}).isLand).length;
+            (o.analysis() || {}).isLand && (!e.basic || this._cardFitsWords(o, 'basic land'))).length;
           if (e.atLeast != null) { if (lands < e.atLeast) src.tapped = true; break; }
           if (lands > (n(e.n) || 2)) src.tapped = true;
           break;

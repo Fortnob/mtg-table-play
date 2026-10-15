@@ -13926,6 +13926,9 @@
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
+    [/^you were the starting player$/i, () => ({ kind: 'not', cond: { kind: 'notStartingPlayer' } })],
+    // Fetching Garden: "if it was played from your hand" (a land drop from the hand, not put onto the battlefield)
+    [/^it was played from your hand$/i, () => ({ kind: 'playedFromHand' })],
     // Feywild Caretaker: "you have the initiative"
     [/^you have the initiative$/i, () => ({ kind: 'hasInitiative' })],
     // Ordeal of Nylea: "it has three or more +1/+1 counters on it" — the creature the trigger is about, or the one this is on
@@ -19614,9 +19617,9 @@
       { re: /^(?:CARDNAME|This (?:land|permanent)) enters(?: the battlefield)? tapped unless you control an? ((?:basic )?[A-Za-z]+)(?: or an? ([A-Za-z]+))?\.?$/i,
         make: (m) => ({ op: 'etbTappedUnlessType', types: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }), auto: true },
       { re: /^(?:CARDNAME|This (?:land|permanent)) enters(?: the battlefield)? tapped unless you control two or more basic lands\.?$/i,
-        make: () => ({ op: 'etbTappedUnlessLands', n: 1, atLeast: 2 }), auto: true },
+        make: () => ({ op: 'etbTappedUnlessLands', n: 1, atLeast: 2, basic: true }), auto: true },
       { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless (?:you control|there are) (\w+) or more other lands?\.?$/i,
-        make: (m) => ({ op: 'etbTappedUnlessLands', n: 1, atLeast: num(m[1]) + 1 }), auto: true },
+        make: (m) => ({ op: 'etbTappedUnlessLands', n: 1, atLeast: num(m[1]) }), auto: true },
       { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless (?:a|any) player has (\d+) or less life\.?$/i,
         make: (m) => ({ op: 'etbTappedUnlessLife', life: +m[1] }), auto: true },
       { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you have two or more opponents\.?$/i,
@@ -19748,8 +19751,21 @@
       // Mana Reflection, Nyxbloom Ancient: "If you tap a permanent for mana, it produces twice as much of that mana instead."
       { re: /^If you tap an? (permanent|land|basic land) for mana, it produces (twice|three times) as much of that mana instead\.?$/i,
         make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), times: /twice/i.test(m[2]) ? 2 : 3 }), auto: true },
-      { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless (.+?)\.?$/i,
+      { re: /^(?:CARDNAME|This (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)? tapped unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: c } : { op: 'manual' }; }, auto: true },
+      // Eddymurk Crab: "This creature enters tapped if it's not your turn."; Fetching Garden: "…if it was played from your hand."
+      { re: /^(?:CARDNAME|This (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)? tapped if (.+?)\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: { kind: 'not', cond: c } } : { op: 'manual' }; }, auto: true },
+      // Rising Chicane: "If you were the starting player, this land enters tapped."
+      { re: /^If (you were the starting player|it'?s not your turn), (?:this (?:land|creature|artifact|permanent)|CARDNAME) enters(?: the battlefield)? tapped\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: { kind: 'not', cond: c } } : { op: 'manual' }; }, auto: true },
+      // Captivating Crossroads: "During your first three turns of the game, CARDNAME enters tapped if you were the starting player."
+      { re: /^During your first three turns of the game, (?:CARDNAME|this land) enters(?: the battlefield)? tapped if you were the starting player\.?$/i,
+        make: () => ({ op: 'etbTappedUnlessCond', cond: { kind: 'not', cond: { kind: 'all', of: [{ kind: 'earlyTurn', n: 3 }, { kind: 'not', cond: { kind: 'notStartingPlayer' } }] } } }), auto: true },
+      /* Temple of the Dragon Queen, Fortified Beachhead: "As this land enters, you may reveal a Dragon card from your hand.
+         This land enters tapped unless you revealed a Dragon card this way or you control a Dragon." */
+      { re: /^As (?:CARDNAME|this land) enters(?: the battlefield)?,? you may reveal an? ([A-Za-z]+) card from your hand\. (?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you revealed an? [A-Za-z]+ card this way or you control an? ([A-Za-z]+)\.?$/i,
+        make: (m) => ({ op: 'etbTappedUnlessReveal', types: [m[1].toLowerCase()], orControl: m[2].toLowerCase() }), auto: true },
       { re: /^Equip (legendary creature|commander|Knight|Samurai|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,
         make: (m) => ({ op: 'equip', cost: m[2], only: m[1] }), auto: true },
       /* The Theros gods: not a creature until your devotion is high enough.
