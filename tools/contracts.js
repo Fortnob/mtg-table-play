@@ -191,6 +191,8 @@ const common = {
     rest: opt(nat), same: opt(arr(arr(Target))) }, { closed: true }))),
 };
 const choice = (fields) => obj(Object.assign({}, common, fields));
+/* what the game would sacrifice for mana to pay for you: only ever in your own question */
+const SacManaNote = obj({ ids: arr(id, { min: 1 }), n: nat, text: str }, { closed: true });
 /* a player, or a planeswalker or battle ('object') */
 const Defender = obj({ kind: lit('player', 'object'), id, name: str });
 /* the generic question (src/06a-choice.js, docs/choices.md) */
@@ -216,10 +218,13 @@ const CHOICES = {
   pickCard: choice({ count: nat, cards: arr(ChoiceCard), optional: opt(bool), candidates: opt(arr(id)), fromLibrary: opt(bool) }),
   pickTarget: choice({ specs: arr(S.plainObj, { min: 1 }), options: arr(arr(Target)), count: nat }),
   mode: choice({ count: int, options: arr(obj({ i: int, label: str }), { min: 1 }), repeatable: opt(bool) }),
-  confirm: choice({}),
+  /* sacMana: what paying would sacrifice for mana (Treasures), named in the question; redo: what a yes to
+     "Sacrifice 3 Treasures to cast Lightning Bolt?" does again (purpose sacMana) */
+  confirm: choice({ yesLabel: opt(str), noLabel: opt(str), payMana: opt(str), sacMana: opt(SacManaNote),
+    redo: opt(obj({ kind: str, objId: opt(id), index: opt(nat), declarations: opt(arr(S.plainObj)), opts: S.plainObj })) }),
   /* The table shows a mana cost (a string) or { life }. */
-  payOrDont: choice({ cost: either('a mana cost, { life } or { energy }', str, obj({ life: num }), obj({ energy: num })) }),
-  payOrCounter: choice({ cost: str, stackId: id }),
+  payOrDont: choice({ cost: either('a mana cost, { life } or { energy }', str, obj({ life: num }), obj({ energy: num })), sacMana: opt(SacManaNote) }),
+  payOrCounter: choice({ cost: str, stackId: id, sacMana: opt(SacManaNote) }),
   riot: choice({ objId: id }),
   /* a part of a card the engine cannot do, done on the table by its controller, who says when it is done (_byHand) */
   byHand: choice({ text: str }),

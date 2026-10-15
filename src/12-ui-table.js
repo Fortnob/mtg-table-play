@@ -1932,7 +1932,9 @@
       const atk = this.attackPlan ? new Set(this.attackPlan.declarations.map(d => d.attackerId)) : null;
       const blk = this.blockPlan ? new Set(this.blockPlan.declarations.map(d => d.blockerId)) : null;
       // a spell waiting for mana: it is marked, and what could tap to pay for it glows
-      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id)) : null;
+      // (and a question about Treasures the game would sacrifice for you: those glow — sacMana)
+      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id))
+        : ch && ch.sacMana && Array.isArray(ch.sacMana.ids) ? new Set(ch.sacMana.ids) : null;
       // creatures tapped to convoke: what each pays, on the card
       const conv = this.convoking ? this.convokeSums() : null;
       for (const [id, n] of this.els) {

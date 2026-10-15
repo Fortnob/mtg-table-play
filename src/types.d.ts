@@ -357,6 +357,8 @@ declare namespace MTG {
     count?: number;
     cards?: ChoiceCard[];
     options?: unknown[];
+    /** a price this question offers (or asks about) that the game would pay by sacrificing Treasures and the like */
+    sacMana?: SacManaNote;
   }
   interface Defender { kind: 'player' | 'object'; id: Id; name: string }
   type AutoKind = 'may' | 'pay' | 'mode' | 'targets';
@@ -400,7 +402,20 @@ declare namespace MTG {
     type: 'mode'; count: number; options: Array<{ i: number; label: string }>; repeatable?: boolean;
     values?: any[]; types?: string[]; colors?: string[]; field?: string; castOpts?: Record<string, any>;
   }
-  interface ConfirmChoice extends ChoiceBase { type: 'confirm'; life?: number }
+  /** What the game would sacrifice for mana to pay a price for you (Treasures and the like), said in the question
+      that offers it or asks about it: their ids, how many, and the words ("2 Treasures and a Gold token"). Only
+      the player asked sees it, as with the rest of their question. */
+  interface SacManaNote { ids: Id[]; n: number; text: string }
+  /** What a 'sacMana' question does again once you say yes: a cast, an activation, an attack or another action
+      paid for by the game, as it was asked for. */
+  interface SacManaRedo { kind: string; objId?: Id; index?: number; declarations?: Array<{ attackerId: Id; defenderId: Id; band?: string }>; opts: Record<string, any> }
+  interface ConfirmChoice extends ChoiceBase {
+    type: 'confirm'; life?: number; yesLabel?: string; noLabel?: string;
+    /** the mana a "pay it?" question offers to pay */
+    payMana?: string;
+    /** purpose 'sacMana' ("Sacrifice 3 Treasures to cast Lightning Bolt?"): what a yes does again */
+    redo?: SacManaRedo;
+  }
   /** The table shows a mana cost (a string) or { life }. */
   interface PayOrDontChoice extends ChoiceBase { type: 'payOrDont'; cost: string | { life: number } | { energy: number }; life?: number; energy?: number }
   interface PayOrCounterChoice extends ChoiceBase { type: 'payOrCounter'; cost: string; stackId: Id }

@@ -303,7 +303,7 @@
      for a player, the deck it sat down with (not game state, and large). */
   const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis|_zone$)/;
   const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn)$/;
-  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring)$/;
+  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring|_sacGate)$/;
   const NOT_PLAIN = Symbol('not plain data');
   /** A copy of plain data (numbers, strings, arrays, plain objects; a card is shared), or NOT_PLAIN. */
   function _plainData(v, depth) {
@@ -5893,6 +5893,7 @@
      * turn on, it may be cast from exile for its foretell cost (altUses: via 'foretell').
      */
     foretellCard(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'foretell', objId, opts: opts || {} }, () => this.foretellCard(playerId, objId, opts));
       const o = this.obj(objId);
       if (!o || o.zone !== 'hand' || o.owner !== playerId) return this.fail('That is not in your hand.');
       const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'foretell');
@@ -5985,6 +5986,7 @@
      * each opponent gets a copy of it coming at them for one turn.
      */
     encoreCard(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'encore', objId, opts: opts || {} }, () => this.encoreCard(playerId, objId, opts));
       const o = this.obj(objId);
       if (!o || o.zone !== 'graveyard' || o.owner !== playerId) return this.fail('That is not in your graveyard.');
       const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'encore');
@@ -6027,6 +6029,7 @@
      * can be cast from exile for nothing.
      */
     plotCard(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'plot', objId, opts: opts || {} }, () => this.plotCard(playerId, objId, opts));
       const o = this.obj(objId);
       // (Fblthp, Lost on the Range: the top card of your library too — topPlot)
       const top = o && o.zone === 'library' && o.owner === playerId && this.zones[playerId].library[0] === o;
@@ -6055,6 +6058,7 @@
      * card is cast for free — with haste, if it is a creature.
      */
     suspendCard(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'suspend', objId, opts: opts || {} }, () => this.suspendCard(playerId, objId, opts));
       const o = this.obj(objId);
       if (!o || o.zone !== 'hand' || o.controller !== playerId) return this.fail('That is not in your hand.');
       const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'suspend');
@@ -6128,6 +6132,7 @@
      * same mana value comes out of your library instead.
      */
     transmuteCard(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'transmute', objId, opts: opts || {} }, () => this.transmuteCard(playerId, objId, opts));
       const o = this.obj(objId);
       if (!o || o.zone !== 'hand' || o.controller !== playerId) return this.fail('That is not in your hand.');
       const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'transmute');
@@ -6171,7 +6176,7 @@
       if (!ab) return;
       if (!this.couldPay(playerId, ab.arg, this.manaSources(playerId))) return;
       this.queueChoice({
-        type: 'confirm', playerId, purpose: 'madness', objId: o.id, cost: ab.arg,
+        type: 'confirm', playerId, purpose: 'madness', objId: o.id, cost: ab.arg, payMana: ab.arg,
         prompt: `Cast ${o.name} for its madness cost (${ab.arg})?`,
       });
     }
@@ -6219,7 +6224,7 @@
       const m = this._miracleCost(playerId, o);
       if (!m) return;
       this.queueChoice({
-        type: 'confirm', playerId, purpose: 'miracle', objId: o.id, cost: m.cost,
+        type: 'confirm', playerId, purpose: 'miracle', objId: o.id, cost: m.cost, payMana: m.cost,
         prompt: `Miracle: reveal ${o.name} and cast it for ${m.cost || '{0}'}${m.x ? ` (X = ${m.x})` : ''}?`,
       });
     }
@@ -6317,6 +6322,7 @@
      * not use the stack, and nobody can respond to it.
      */
     companionToHand(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'companion', objId, opts: opts || {} }, () => this.companionToHand(playerId, objId, opts));
       opts = opts || {};
       const p = this.player(playerId);
       const o = this.obj(objId);
@@ -6361,6 +6367,7 @@
     }
 
     turnFaceUp(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'turnFaceUp', objId, opts: opts || {} }, () => this.turnFaceUp(playerId, objId, opts));
       opts = opts || {};
       const o = this.obj(objId);
       if (!o || o.zone !== 'battlefield') return this.fail('That is not on the battlefield.');
@@ -6389,6 +6396,7 @@
      * for the typecycling variants, go and find the land instead.
      */
     cycleCard(playerId, objId, opts) {
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'cycle', objId, opts: opts || {} }, () => this.cycleCard(playerId, objId, opts));
       opts = opts || {};
       const o = this.obj(objId);
       if (!o || o.zone !== 'hand' || o.controller !== playerId) return this.fail('That is not in your hand.');
@@ -6957,6 +6965,7 @@
 
     castSpell(playerId, objId, opts) {
       opts = opts || {};
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'cast', objId, opts }, () => this.castSpell(playerId, objId, opts));
       if (opts.via === 'prepared') return this._castPrepared(playerId, objId, opts);
       /* A split card (CR 709): cast one half or the other, as `face` says.
          The half is what the spell is while it is on the stack; a cast that
@@ -9056,6 +9065,7 @@
 
     activateAbility(playerId, objId, abilityIndex, opts) {
       opts = opts || {};
+      if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'activate', objId, index: abilityIndex, opts }, () => this.activateAbility(playerId, objId, abilityIndex, opts));
       // the same guard for abilities used over and over without the game moving on
       if (this._loopTick('activate', 5000)) return this.fail('That has been done too many times this step.');
       const o = this.obj(objId);
@@ -10658,9 +10668,14 @@
      * table offers as playable is what castSpell will then pay for.
      */
     canPayNow(playerId, cost, opts) {
+      return !!this._payPlanNow(playerId, cost, opts);
+    }
+    /** canPayNow's answer, said in full: true when the pool (or nothing) pays it, the auto-tap plan when lands and
+        the like have to, null when it can't be paid. */
+    _payPlanNow(playerId, cost, opts) {
       opts = Object.assign({ auto: true }, opts || {});
       const p = this.player(playerId);
-      if (!p) return false;
+      if (!p) return null;
       if (opts.lifeLimit == null) opts.lifeLimit = this._lifePayable(p);
       if (!cost || !MANA.parse(cost).length) return true;
       if (opts.forSpell) cost = this._anyColorCost(playerId, opts.forSpell, cost);
@@ -10679,12 +10694,183 @@
       try {
         const need = opts.x ? cost.replace(/\{X\}/g, '{' + opts.x + '}') : cost;
         if (p.pool.canPay(need, opts)) return true;
-        if (opts.fromPool) return false;
-        return !!this._planAutoTap(playerId, this._autoTapSources(playerId), need, opts);
+        if (opts.fromPool) return null;
+        return this._planAutoTap(playerId, this._autoTapSources(playerId), need, opts) || null;
       } finally {
         this._returnLent(p, lent);
         this._payingFor = wasFor;
       }
+    }
+
+    /* ---------- mana a person's permanents are sacrificed for ----------
+       Paying for a person (Tap lands for me, Pay for me, the price a question offers), the game taps what it can
+       and spends a permanent that sacrifices itself for mana (a Treasure, a Gold token, Lotus Petal) only when
+       the taps can't cover it (_planAutoTap) — and then only once that person has said yes to it, never by
+       itself. A cast, an activation or an attack that would need one is tried, stopped before anything is paid,
+       and put to them as a question (purpose sacMana): "Sacrifice 3 Treasures to cast Lightning Bolt?"; yes does
+       it again with their say-so (sacOk), no leaves it undone. A question that offers to pay a price says what
+       paying it would sacrifice (_noteSacMana), and its yes is the say-so. Bots spend them as they always have,
+       and a Treasure tapped by hand is the person's own doing. */
+
+    /** What paying `cost` for this player the way payMana would sacrifices for the mana: [] when the pool and taps
+        pay it (or it can't be paid at all). */
+    _sacsToPay(playerId, cost, opts) {
+      const plan = this._payPlanNow(playerId, cost, opts);
+      return Array.isArray(plan) ? plan.filter(x => x.sac).map(x => x.obj) : [];
+    }
+    /** For a person, what paying `cost` automatically would sacrifice, said for a question: { ids, n, text } or null. */
+    _sacNote(playerId, cost, opts) {
+      const p = this.player(playerId);
+      if (!p || p.isBot || typeof cost !== 'string' || !cost) return null;
+      const objs = this._sacsToPay(playerId, cost, opts);
+      return objs.length ? { ids: objs.map(o => o.id), n: objs.length, text: this._sacWords(objs) } : null;
+    }
+    /** "3 Treasures", "2 Treasures and a Gold token": what is sacrificed, by name and how many. */
+    _sacWords(objs) {
+      const groups = new Map();
+      for (const o of objs) {
+        // a Treasure is called a Treasure; any other token says it is one
+        const noun = o.isToken && o.name !== 'Treasure' ? o.name + ' token' : o.name;
+        groups.set(noun, (groups.get(noun) || 0) + 1);
+      }
+      const parts = Array.from(groups).map(([noun, n]) => (n === 1 ? (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun : O.nounCount(n, noun)));
+      return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0] || '';
+    }
+    /**
+     * May the game sacrifice these for mana it is paying for this player? A bot's yes is taken for granted.
+     * A person's comes from the question about the action being done (the gate's sacOk), from the question
+     * that offered the price (opts.sacOk, or the answer an effect waited on: '#sacOk'), or not at all — and
+     * then, under a gate, what would have gone is noted for the question to name.
+     */
+    _sacConsent(playerId, objs, opts) {
+      const p = this.player(playerId);
+      if (!p || p.isBot) return true;
+      const n = objs.length;
+      const gate = this._sacGate;
+      if (gate && gate.pid === playerId) {
+        if (gate.left >= n) { gate.left -= n; return true; }
+        gate.need = objs.slice();
+        return false;
+      }
+      if (opts && (opts.sacOk === true || Number(opts.sacOk) >= n)) return true;
+      const r = this.resolving;
+      const said = r && r.answers ? r.answers[r.index + '#sacOk'] : null;
+      if (said && said.pid === playerId && said.n >= n) { said.n -= n; return true; }
+      return false;
+    }
+    /** Is this a person's action to try under a gate: something of theirs untapped that sacrifices itself for mana?
+        (Not in the middle of something resolving, which can't be undone and started again: a cast an effect makes
+        is paid with what taps, or with what a question there said it would sacrifice.) */
+    _sacGateWanted(playerId, opts) {
+      if (this._sacGate || this.resolving || (opts && opts.fromPool)) return false;
+      const p = this.player(playerId);
+      return !!p && !p.isBot && this.battlefield.some(o => o.controller === playerId && !o.tapped && !o.phasedOut &&
+        this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab)));
+    }
+    /** Do `run` (the action `redo` names); if its payment stopped for want of a sacrifice, ask. */
+    _sacGated(playerId, redo, run) {
+      redo = Object.assign({}, redo, { opts: JSON.parse(JSON.stringify(redo.opts || {})) });
+      /* What an attempt does before it pays (a creature tapped to harmonize, a once-a-turn leave used, life paid
+         to a Defiler) is undone with it: the game as it was, the same objects, and then the question. */
+      const snap = this.snapshot();
+      const gate = this._sacGate = { pid: playerId, left: redo.opts.sacOk === true ? 99 : Math.max(0, Math.floor(Number(redo.opts.sacOk) || 0)), need: null };
+      delete redo.opts.sacOk;
+      let ok;
+      try { ok = run(); } finally { this._sacGate = null; }
+      // (a ward's {2} is paid as the spell is cast: a Treasure it would have taken stops the whole cast too)
+      if (!gate.need) return ok;
+      const keep = this._undo;
+      this._restoring = true;
+      try { this.restore(snap, { keep: true }); } finally { this._restoring = false; this._undo = keep; }
+      return this._askSacMana(playerId, redo, gate.need.filter(o => this.obj(o.id) === o));
+    }
+    /** What the action is, for the question: the words after "to", and the button that says yes. */
+    _sacActionWords(redo, o) {
+      const name = o ? o.name : '';
+      const op = redo.opts || {};
+      switch (redo.kind) {
+        case 'cast': {
+          // the half being cast, or both
+          const faces = o && o.card && o.card.card_faces;
+          const f = op.fuse ? null : /^(?:aftermath|disturb|mtmte)$/.test(String(op.via || '')) ? 1 : op.face != null ? Number(op.face) : null;
+          const spell = f != null && faces && faces[f] && faces[f].name ? faces[f].name : name;
+          return { what: `cast ${spell}`, yes: 'Sacrifice and cast' };
+        }
+        case 'activate': return { what: `activate ${name}’s ability`, yes: 'Sacrifice and activate' };
+        case 'attack': return { what: 'pay for the attack', yes: 'Sacrifice and attack' };
+        case 'cycle': return op.channel ? { what: `channel ${name}`, yes: 'Sacrifice and channel' } : { what: `cycle ${name}`, yes: 'Sacrifice and cycle' };
+        case 'turnFaceUp': return { what: `turn ${name} face up`, yes: 'Sacrifice and turn it face up' };
+        case 'companion': return { what: `put ${name} into your hand`, yes: 'Sacrifice and pay' };
+        case 'encore': return { what: `pay the encore cost of ${name}`, yes: 'Sacrifice and pay' };
+        default: return { what: `${redo.kind} ${name}`, yes: 'Sacrifice and ' + redo.kind };
+      }
+    }
+    /** Put it to the person: "Sacrifice 3 Treasures to cast Lightning Bolt?" — in front of any question it was asked
+        in the middle of (declaring attackers), which comes back once this one is answered. */
+    _askSacMana(playerId, redo, objs) {
+      const o = redo.objId ? this.obj(redo.objId) : null;
+      const text = this._sacWords(objs);
+      const act = this._sacActionWords(redo, o);
+      const q = { type: 'confirm', playerId, purpose: 'sacMana', prompt: `Sacrifice ${text} to ${act.what}?`,
+        yesLabel: act.yes, noLabel: 'Cancel', sacMana: { ids: objs.map(x => x.id), n: objs.length, text }, redo };
+      if (o) Object.assign(q, { sourceId: o.id, sourceName: o.name, sourceCard: o.card || null });
+      if (o && redo.kind === 'activate') {
+        const a = o.analysis();
+        const ab = a && a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'))[redo.index];
+        if (ab && ab.text) q.sourceText = String(ab.text);
+      }
+      this.choiceQueue = this.choiceQueue || [];
+      if (this.pendingChoice) { this.choiceQueue.unshift(this.pendingChoice); this.pendingChoice = null; }
+      this.choiceQueue.unshift(q);
+      this._nextChoice();
+      this.touch();
+      return true;
+    }
+    /** Yes: the action again, with leave to sacrifice as many as the question named. */
+    _sacRedo(playerId, redo, n) {
+      const opts = Object.assign({}, redo.opts, { sacOk: n });
+      switch (redo.kind) {
+        case 'cast': return this.castSpell(playerId, redo.objId, opts);
+        case 'activate': return this.activateAbility(playerId, redo.objId, redo.index, opts);
+        case 'attack': return this.declareAttackers(playerId, redo.declarations || [], opts);
+        case 'cycle': return this.cycleCard(playerId, redo.objId, opts);
+        case 'plot': return this.plotCard(playerId, redo.objId, opts);
+        case 'suspend': return this.suspendCard(playerId, redo.objId, opts);
+        case 'transmute': return this.transmuteCard(playerId, redo.objId, opts);
+        case 'foretell': return this.foretellCard(playerId, redo.objId, opts);
+        case 'encore': return this.encoreCard(playerId, redo.objId, opts);
+        case 'turnFaceUp': return this.turnFaceUp(playerId, redo.objId, opts);
+        case 'companion': return this.companionToHand(playerId, redo.objId, opts);
+        default: return false;
+      }
+    }
+    /** The mana a question offers to pay, if it offers that: what its note is about. */
+    _questionMana(ch) {
+      if (!ch) return null;
+      if ((ch.type === 'payOrDont' || ch.type === 'payOrCounter') && typeof ch.cost === 'string') return ch.cost;
+      if (typeof ch.payMana === 'string') return ch.payMana;
+      if (ch.ward && typeof ch.ward.mana === 'string') return ch.ward.mana;
+      return null;
+    }
+    /** As a question that offers to pay a price comes up: what paying it would sacrifice, said in it. */
+    _noteSacMana(ch) {
+      if (!ch || ch.sacMana || ch.waiting) return;
+      const note = this._sacNote(ch.playerId, this._questionMana(ch));
+      if (!note) return;
+      ch.sacMana = note;
+      ch.prompt = (ch.prompt ? String(ch.prompt).replace(/\s*$/, ' ') : '') + `Paying it sacrifices ${note.text}.`;
+    }
+    /** Mid-resolution, before paying a price no question has offered yet (an X just chosen): should it take a
+        sacrifice, the person is asked first. SUSPEND while asked; false when they say no. */
+    _sacAskFirst(playerId, cost, sub) {
+      const note = this._sacNote(playerId, cost);
+      if (!note) return true;
+      // (already said yes to as much in this step's question)
+      const r = this.resolving;
+      const said = r && r.answers ? r.answers[r.index + '#sacOk'] : null;
+      if (said && said.pid === playerId && said.n >= note.n) return true;
+      return this._ask({ type: 'confirm', playerId, purpose: 'sacMana', payMana: cost, sacMana: note,
+        prompt: `Sacrifice ${note.text} to pay ${cost}?`, yesLabel: 'Sacrifice and pay', noLabel: "Don't pay" }, sub);
     }
 
     /** The untapped permanents auto-tap may draw on. */
@@ -10713,6 +10899,9 @@
 
       const plan = this._planAutoTap(playerId, sources, need, opts);
       if (!plan) return false;
+      // (a Treasure: only with the person's say-so, and asked for before anything is tapped — _sacConsent)
+      const sacs = plan.filter(x => x.sac).map(x => x.obj);
+      if (sacs.length && !this._sacConsent(playerId, sacs, opts)) return false;
       for (const { obj, ability, symbol } of plan) {
         this._activateManaDirect(playerId, obj, ability, symbol);
       }
@@ -11092,7 +11281,7 @@
           // a source that would make nothing right now is no source at all
           if (!opt.any && !opt.produces.size) continue;
           const pain = (ab.effects || []).some(e => e.op === 'damage' || e.op === 'loseLife') ? 1 : 0;
-          cand.push({ obj: o, ability: ab, index: i, produces: opt.produces, any: opt.any, amount: opt.amount,
+          cand.push({ obj: o, ability: ab, index: i, produces: opt.produces, any: opt.any, amount: opt.amount, sac: sacs,
             flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) + (sacs ? 20 : 0) });
         }
       }
@@ -11101,7 +11290,7 @@
 
       const used = new Set();
       const plan = [];
-      const take = (source, symbol) => { used.add(source.obj.id); plan.push({ obj: source.obj, ability: source.ability, symbol }); };
+      const take = (source, symbol) => { used.add(source.obj.id); plan.push({ obj: source.obj, ability: source.ability, symbol, sac: !!source.sac }); };
 
       for (const color of MANA.COLORS.concat('C')) {
         while (need[color] > 0) {
@@ -11307,10 +11496,15 @@
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
     }
 
-    declareAttackers(playerId, declarations) {
+    declareAttackers(playerId, declarations, opts) {
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareAttackers' || ch.playerId !== playerId) return this.fail('Not declaring attackers.');
       declarations = declarations || [];
+      // (an attack that costs mana — Ghostly Prison — paid with a Treasure only with a yes: _sacGated)
+      if (this._sacGateWanted(playerId, opts)) {
+        const decl = declarations;
+        return this._sacGated(playerId, { kind: 'attack', declarations: JSON.parse(JSON.stringify(decl)), opts: opts || {} }, () => this.declareAttackers(playerId, decl, opts));
+      }
       /* "can't attack alone" (CR 506.5): a lone attacker that can't stays
          at home, and nobody attacks */
       if (declarations.length === 1) {
@@ -17802,6 +17996,14 @@
       /* a question its player has already answered for the turn, or for the rest of a batch: that answer, if
          it is still a legal one (_autoAnswerFor); otherwise asked, saying what could be answered once for all */
       let auto = null;
+      // (a price that would take a Treasure is asked each time, saying so: _noteSacMana)
+      if (choice && choice.remember === 'pay') {
+        const mana = this._questionMana(choice) || (typeof choice.payCost === 'string' ? choice.payCost : null);
+        if (mana && this._sacNote(choice.playerId, mana)) {
+          choice = Object.assign({}, choice, { payMana: mana });
+          for (const k of ['remember', 'rememberBatch', 'sameTargets', 'payCost']) delete choice[k];
+        }
+      }
       if (choice && choice.remember) {
         auto = this._autoOffer(choice, r, sub);
         const said = auto ? this._autoAnswerFor(choice, auto) : undefined;
@@ -23170,7 +23372,9 @@
               prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay {X}').replace(/^./, c => c.toUpperCase()), 110)} Choose X (0 pays nothing).` }, 'q');
             if (gotX === SUSPEND) return SUSPEND;
             const xPaid = Math.min(capX, Math.max(0, Number(gotX && gotX.number) || 0));
-            if (!xPaid || !this.payMana(ctx.controller, '{' + xPaid + '}' + restCost, { auto: true })) { this._spliceNext(e.otherwise); break; }
+            const sacYes = xPaid ? this._sacAskFirst(ctx.controller, '{' + xPaid + '}' + restCost, 'qs') : true;
+            if (sacYes === SUSPEND) return SUSPEND;
+            if (!xPaid || !sacYes || !this.payMana(ctx.controller, '{' + xPaid + '}' + restCost, { auto: true })) { this._spliceNext(e.otherwise); break; }
             ctx.x = xPaid;
             this.logEvent('rules', `${me.name} pays X = ${xPaid}.`);
             this._spliceNext(e.then);
@@ -23215,6 +23419,7 @@
           // ("you may pay {1}": always, or never, for the rest of the turn — a price that is mana, life or energy alone)
           const plainPay = Object.keys(pay).every(k => k === 'mana' || k === 'life' || k === 'energy' || pay[k] == null) && (pay.mana || pay.life != null || pay.energy);
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            ...(typeof pay.mana === 'string' && pay.mana ? { payMana: pay.mana } : {}),
             ...(plainPay ? { remember: 'pay', payCost: pay.mana && pay.life == null && !pay.energy ? pay.mana
               : !pay.mana && pay.life != null && !pay.energy ? { life: pay.life } : !pay.mana && pay.life == null && pay.energy ? { energy: pay.energy } : undefined } : {}),
             // (Koskun Falls: "Tap one" / "Sacrifice it")
@@ -24373,6 +24578,7 @@
             if (!can) { st.decided = true; break; }
             const price = e.cost === 'none' ? '' : e.cost === 'sacLand' ? 'sacrifice a land to ' : e.cost === 'discard' ? 'discard a card to ' : `pay ${e.cost} to `;
             const yes = this._ask({ type: 'confirm', playerId: who.id, purpose: 'chainCopy', costKind: e.cost === 'none' || /^\{/.test(e.cost) ? 'mana' : e.cost,
+              ...(/^\{/.test(String(e.cost)) ? { payMana: e.cost } : {}),
               prompt: `${ctx.name || 'Spell'}: ${price}copy it and choose a new target?` }, 'chain');
             if (yes === SUSPEND) return SUSPEND;
             if (!yes) { st.decided = true; break; }
@@ -24661,7 +24867,9 @@
             prompt: `${ctx.name ? ctx.name + ': ' : ''}pay {X} to draw X cards (X up to ${cap})?` }, 'pxd');
           if (got === SUSPEND) return SUSPEND;
           const x = Math.min(cap, Math.max(0, (got && got.number) || 0));
-          if (x > 0 && this.payMana(ctx.controller, '{' + x + '}', { auto: true })) this._drawCards(me, x);
+          const sacYes = x > 0 ? this._sacAskFirst(ctx.controller, '{' + x + '}', 'pxds') : true;
+          if (sacYes === SUSPEND) return SUSPEND;
+          if (x > 0 && sacYes && this.payMana(ctx.controller, '{' + x + '}', { auto: true })) this._drawCards(me, x);
           break;
         }
         // Finale of Revelation
@@ -30517,7 +30725,7 @@
           if (!pool.length || !this.couldPay(ctx.controller, e.mana, this.manaSources(ctx.controller))) break;
           let aura = null;
           if (pool.length === 1) {
-            const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, payMana: e.mana,
               prompt: `${src.name}: Pay ${e.mana} and sacrifice ${pool[0].name} (attached to ${src.name})?` }, 'q');
             if (yes === SUSPEND) return SUSPEND;
             if (yes) aura = pool[0];
@@ -30530,7 +30738,10 @@
             if (aura && !pool.includes(aura)) aura = null;
           }
           if (!aura) { this.logEvent('rules', `${me.name} declines.`); break; }
-          if (!this.payMana(ctx.controller, e.mana, { auto: true })) break;
+          // (picked from several: the Treasure it would take is asked about now — _sacAskFirst)
+          const sacYes = this._sacAskFirst(ctx.controller, e.mana, 'qs');
+          if (sacYes === SUSPEND) return SUSPEND;
+          if (!sacYes || !this.payMana(ctx.controller, e.mana, { auto: true })) break;
           const card = aura.card;
           this._sacrificeNow(ctx.controller, [aura]);
           if (aura.zone === 'battlefield') break;
@@ -31938,7 +32149,7 @@
         case 'echo': {
           if (!src || src.zone !== 'battlefield') break;
           const can = this.couldPay(ctx.controller, e.cost, this.manaSources(ctx.controller));
-          const yes = !can ? false : me.isBot ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+          const yes = !can ? false : me.isBot ? true : this._ask({ type: 'confirm', playerId: ctx.controller, payMana: e.cost,
             prompt: `Pay the echo cost ${e.cost} for ${src.name}? If you don't, it is sacrificed.` }, 'echo');
           if (yes === SUSPEND) return SUSPEND;
           src.echoDue = false;
@@ -33188,7 +33399,7 @@
       {
         const price = this._freePrice(playerId, o, how && how.cost);
         if (price) {
-          if (!this.payMana(playerId, price, { auto: true, forSpell: o })) {
+          if (!this.payMana(playerId, price, { auto: true, forSpell: o, sacOk: (how && how.sacOk) || 0 })) {
             this.logEvent('rules', `${p.name} can't pay ${price} for ${o.name}, so it isn't cast.`);
             return false;
           }
@@ -34380,6 +34591,8 @@
     _nextChoice() {
       this.choiceQueue = this.choiceQueue || [];
       this.pendingChoice = this.choiceQueue.shift() || null;
+      // a price to pay: what paying it would sacrifice, said in the question (_noteSacMana)
+      if (this.pendingChoice) this._noteSacMana(this.pendingChoice);
       if (this.pendingChoice) this._seenInQuestion(this.pendingChoice);
       if (this.pendingChoice) this.emit('choice', this.pendingChoice);
       /* The Leyline questions are asked before the game starts, so the
@@ -34614,6 +34827,16 @@
         /* "…you may pay 2 life. If you don't, it enters tapped." The land is
            already on the table, tapped; paying stands it up. */
         case 'confirm': {
+          /* "Sacrifice 3 Treasures to cast Lightning Bolt?" — yes: cast again, with leave to; no: nothing is done,
+             and the question it was asked in front of (declaring attackers) comes back (_askSacMana) */
+          if (ch.purpose === 'sacMana' && ch.redo) {
+            this.pendingChoice = null;
+            this._nextChoice();
+            if (data && data.yes) this._sacRedo(playerId, ch.redo, (ch.sacMana && ch.sacMana.n) || 0);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'leyline') {
             const o = this.obj(ch.objId);
             if (!o || o.zone !== 'hand' || !(data && data.yes)) break;
@@ -34646,7 +34869,7 @@
           if (ch.purpose === 'madness') {
             const o = this.obj(ch.objId);
             if (!o || !(data && data.yes)) break;
-            this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [] });
+            this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [], sacOk: (ch.sacMana && ch.sacMana.n) || 0 });
             break;
           }
           // Paradigm: a copy of the exiled card, cast for nothing (it is not a card)
@@ -34668,7 +34891,7 @@
             if (!m) break;
             o.chosenX = m.x;
             // the miracle cost is paid with its taxes and Trinisphere's floor (_castFree)
-            if (!this._castFree(playerId, o, { x: m.x, via: 'miracle', cost: m.cost, how: `for its miracle cost (${m.cost || '{0}'})` })) delete o.chosenX;
+            if (!this._castFree(playerId, o, { x: m.x, via: 'miracle', cost: m.cost, how: `for its miracle cost (${m.cost || '{0}'})`, sacOk: (ch.sacMana && ch.sacMana.n) || 0 })) delete o.chosenX;
             break;
           }
           if (ch.purpose !== 'payToUntap') break;
@@ -34701,7 +34924,7 @@
           if (ch.life && data && data.pay && canPayLife) {
             this.changeLife(p, -ch.life, 'cost');
             this.logEvent('upkeep', `${p.name} pays ${ch.life} life for ${o.name}.`);
-          } else if (!ch.life && data && data.pay && this.payMana(playerId, ch.cost, { auto: true })) {
+          } else if (!ch.life && data && data.pay && this.payMana(playerId, ch.cost, { auto: true, sacOk: (ch.sacMana && ch.sacMana.n) || 0 })) {
             this.logEvent('upkeep', `${p.name} pays ${ch.cost} for ${o.name}.`);
           } else {
             this.logEvent('sacrifice', `${p.name} does not pay; ${o.name} is sacrificed.`);
@@ -34835,7 +35058,7 @@
         case 'payOrCounter': {
           const item = this.stack.find(st => st.id === ch.stackId);
           if (!item) break;
-          if (data && data.pay && this.payMana(playerId, ch.cost, { auto: true })) {
+          if (data && data.pay && this.payMana(playerId, ch.cost, { auto: true, sacOk: (ch.sacMana && ch.sacMana.n) || 0 })) {
             this.logEvent('counter', `${this.player(playerId).name} pays ${ch.cost}.`);
           } else {
             item.countered = true;
@@ -34852,6 +35075,12 @@
       // if an effect was waiting on this, give it the answer and start it again
       if (resumeKey != null && this.resolving) {
         this.resolving.answers[resumeKey] = this._answerFor(ch, data);
+        // (a price that said what paying it sacrifices: the yes is leave to, for that step — _sacConsent)
+        if (ch.sacMana && data && (data.yes || data.pay)) {
+          const k = String(resumeKey).split(':')[0] + '#sacOk';
+          const was = this.resolving.answers[k];
+          this.resolving.answers[k] = { pid: playerId, n: ((was && was.pid === playerId && was.n) || 0) + (ch.sacMana.n || 0) };
+        }
         this._pumpResolution();
         if (!this.pendingChoice) this._nextChoice();
         if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
@@ -36093,7 +36322,12 @@
       if (this.log.length > 4000) this.log.splice(0, 1000);
       this.emit('log', entry);
     }
-    fail(msg) { this.emit('error', msg); this.lastError = msg; return false; }
+    fail(msg) {
+      this.lastError = msg;
+      // (stopped for want of a Treasure the person hasn't said may go: they are asked instead — _sacGated)
+      if (!(this._sacGate && this._sacGate.need)) this.emit('error', msg);
+      return false;
+    }
     touch() { this.bumpBoard(); this.stateVersion++; this.emit('state', this.stateVersion); }
 
     /* ---------- the whole game, as plain data ----------
@@ -36262,14 +36496,20 @@
       return snap;
     }
 
-    restore(snap) {
+    /** `opts.keep`: the objects and players that are still here are put back as they were in the same JS objects,
+        for whatever holds on to them (an attempt undone in the middle of an action — _sacGated). */
+    restore(snap, opts) {
       if (!snap || snap.v !== 1) return false;
       this.config = Object.assign(this.config, snap.config);
       if (snap.rngState != null) this.rng.s = snap.rngState >>> 0;
+      const keepObjs = opts && opts.keep ? this.objects : null;
+      const keepPlayers = opts && opts.keep ? new Map(this.players.map(x => [x.id, x])) : null;
+      const inPlace = (was, now) => { for (const k of Object.keys(was)) delete was[k]; return Object.assign(was, now); };
       this.objects = new Map();
       for (const d of snap.objs) {
-        const o = new GObj(d.card, d.owner, d.zone);
+        let o = new GObj(d.card, d.owner, d.zone);
         Object.assign(o, d);
+        if (keepObjs && keepObjs.get(d.id)) o = inPlace(keepObjs.get(d.id), o);
         o.id = d.id;
         this.objects.set(o.id, o);
         this._own(o);
@@ -36290,7 +36530,7 @@
         p.game = this;
         p.pool = new MTG.ManaPool();
         if (d.pool) p.pool.restore(d.pool);
-        return p;
+        return keepPlayers && keepPlayers.get(d.id) ? inPlace(keepPlayers.get(d.id), p) : p;
       });
       this.zones = {};
       for (const [pid, z] of Object.entries(snap.zones)) {

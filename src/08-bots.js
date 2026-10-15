@@ -2879,6 +2879,8 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      // a Treasure spent for mana: a bot is never asked, and would say yes (sacMana)
+      if (ch.purpose === 'sacMana') return true;
       // Atemsis, All-Seeing: revealing a hand of six mana values wins
       if (ch.purpose === 'revealHandMvLose') return true;
       // Kellan, Daring Traveler: a revealed card off the top into the graveyard — a land kept only when lands are short
