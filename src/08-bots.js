@@ -1664,6 +1664,11 @@
       const theirs = x && x.controller !== this.pid;
       return { picks: (s.options || []).map((o, i) => ({ i, k: o && o.kind })).filter(o => theirs ? !BAD.test(o.k) : BAD.test(o.k)).map(o => o.i) };
     },
+    /* Wan Shi Tong, All-Knowing: our own permanent second from the top, to draw again soon; nobody else's is asked of us */
+    secondOrBottom(s) {
+      const i = (s.options || []).findIndex(o => o && o.where === 'second');
+      return { picks: [i < 0 ? 0 : i] };
+    },
     /* Illuna, Apex of Wishes: a permanent on the battlefield now is worth more than one in hand */
     battlefieldOrHand(s) {
       const i = (s.options || []).findIndex(o => o && o.to === 'battlefield');

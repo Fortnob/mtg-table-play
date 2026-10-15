@@ -56934,4 +56934,110 @@ module.exports = (test) => {
     t.eq(T.life('A'), 15, 'five damage');
     t.eq(rs.counters.indestructible, 1, 'two creatures at once: one counter off');
   });
+
+  test('Commanders: Wan Shi Tong, All-Knowing — its owner puts the permanent second from the top or on the bottom; cards into a library: two Spirits', (mk, t) => {
+    t.auto('Wan Shi Tong, All-Knowing');
+    const T = mk();
+    const g = T.g;
+    const spirits = () => g.battlefield.filter(o => o.isToken && o.name.includes('Spirit')).length;
+    const giant = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [1] }; });
+    const wst = T.put('A', 'Wan Shi Tong, All-Knowing', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(q && q.playerId === 'B', 'the owner chooses');
+    t.zone(giant, 'library', 'the Giant goes to the library');
+    t.eq(T.zone('B', 'library').slice(-1)[0], giant, 'on the bottom');
+    t.eq(spirits(), 2, 'a card put into a library: two Spirits');
+    const sp = g.battlefield.find(o => o.isToken && o.name.includes('Spirit'));
+    t.ok(sp && g.powerOf(sp) === 1 && (sp.analysis().colors || []).length === 0, 'colorless 1/1s');
+    // second from the top
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('choose', { picks: [0] });
+    g.moveObject(wst, 'hand');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.mana('A', 'UU3');
+    T.cast('A', wst);
+    t.eq(T.zone('B', 'library')[1], bear, 'the Bears second from the top');
+    t.eq(spirits(), 4, 'two more');
+    // a lot at once is one trigger: Brainstorm
+    T.hand('A', 'Island'); T.hand('A', 'Island'); T.hand('A', 'Island');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Brainstorm'));
+    t.eq(spirits(), 6, 'Brainstorm puts two back: one trigger, two Spirits');
+    // nothing goes into a library: nothing
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(spirits(), 6, 'no card into a library: no Spirits');
+  });
+
+  test('Commanders: Kraven the Hunter — an opponent\'s creature with the greatest power among theirs dies: draw, and a +1/+1 counter', (mk, t) => {
+    t.auto('Kraven the Hunter');
+    const T = mk();
+    const g = T.g;
+    const kr = T.bf('A', 'Kraven the Hunter');
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    t.eq(T.zone('A', 'hand').length, hand, 'the Bears (2) were not the greatest: nothing');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [giant] });
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'the Giant (3): a card');
+    t.eq(kr.counters['+1/+1'], 1, 'and a counter');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [elf] });
+    t.eq(kr.counters['+1/+1'], 2, 'the Elves, alone now, are the greatest');
+    const mine = T.bf('A', 'Craw Wurm');
+    g.moveObject(mine, 'graveyard'); T.settle(); T.resolve();
+    t.eq(kr.counters['+1/+1'], 2, 'yours: nothing');
+  });
+
+  test('Commanders: Lagorin, Soul of Alacria — attacks while saddled: a +1/+1 counter on each of up to two target Mounts and/or Vehicles', (mk, t) => {
+    t.auto('Lagorin, Soul of Alacria');
+    const T = mk();
+    const g = T.g;
+    const lg = T.bf('A', 'Lagorin, Soul of Alacria');
+    const cop = T.bf('A', "Smuggler's Copter");
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: lg.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.eq(lg.counters['+1/+1'] || 0, 0, 'not saddled: nothing');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.activate('A', lg, 0);
+    t.ok(bear.tapped, 'the Bears saddle it');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: lg.id }, { kind: 'object', id: cop.id }] }; });
+    T.answer('declareAttackers', () => [{ attackerId: lg.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.ok(q && !(q.options || []).flat().some(o => o && o.id === bear.id), 'the Bears are no Mount or Vehicle');
+    t.eq(lg.counters['+1/+1'], 1, 'Lagorin (a Mount) gets one');
+    t.eq(cop.counters['+1/+1'], 1, 'the Copter (a Vehicle) gets one');
+  });
+
+  test('Commanders: Bebop & Rocksteady — attacks or blocks: sacrifice a permanent unless you discard a card', (mk, t) => {
+    t.auto('Bebop & Rocksteady');
+    const T = mk();
+    const g = T.g;
+    const br = T.bf('A', 'Bebop & Rocksteady');
+    const sw = T.bf('A', 'Swamp');
+    const isl = T.hand('A', 'Island');
+    T.answer('declareAttackers', () => [{ attackerId: br.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.zone(isl, 'graveyard', 'a card discarded');
+    t.zone(sw, 'battlefield', 'nothing sacrificed');
+    t.eq(T.life('B'), 13, 'seven damage');
+    // no card in hand: a permanent
+    T.nextTurn('B');
+    br.tapped = false;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: br.id, attackerIds: [bear.id] }]);
+    T.answer('sacrifice', { cardIds: [sw.id] });
+    T.toMain('B', 'endCombat'); T.resolve();
+    t.eq(T.zone('A', 'hand').length, 0, 'an empty hand');
+    t.zone(sw, 'graveyard', 'blocks: the Swamp sacrificed');
+    t.zone(br, 'battlefield', 'Bebop & Rocksteady stay');
+  });
 };

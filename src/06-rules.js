@@ -12010,6 +12010,7 @@
         if (to === 'top') lib.unshift(o);
         else if (to === 'topRandom') lib.splice(Math.floor(this.rng.next() * (Math.min(lib.length, (e && e.depth) || 1) + 1)), 0, o);
         else lib.push(o);
+        this._toLibraryNote(o, 'outside');
       } else {
         o.zone = to === 'graveyard' ? 'graveyard' : to === 'exile' ? 'exile' : 'hand';
         this.zones[pid][o.zone].push(o);
@@ -16059,6 +16060,13 @@
       }
     }
 
+    /* Wan Shi Tong, All-Knowing: "Whenever one or more cards are put into a library from anywhere" — a card (not a token or
+       a copy) that came from another zone; the moves that skip moveObject call this too (cardToLibrary) */
+    _toLibraryNote(o, from) {
+      if (!o || from === 'library' || o.isToken || o.isCopy) return;
+      this._fire('cardToLibrary', null, { object: o, objController: o.owner, fromZone: from });
+    }
+
     moveObject(o, toZone, opts) {
       opts = opts || {};
       if (!o) return;
@@ -16523,6 +16531,8 @@
       if (toZone === 'graveyard' && !o.isToken) this._fire('cardToGraveyardAny', null, { object: o, objController: o.owner, fromZone: from, amount: 1 });
       // Ketramose, the New Dawn: cards (not tokens) exiled from graveyards and/or the battlefield, one trigger for the lot
       if (toZone === 'exile' && (from === 'graveyard' || from === 'battlefield') && !o.isToken) this._fire('cardExiledGyBf', null, { object: o, objController: o.owner, fromZone: from });
+      // Wan Shi Tong, All-Knowing: a card put into a library from anywhere (cardToLibrary)
+      if (toZone === 'library') this._toLibraryNote(o, from);
       // Laelia: cards exiled from a library or graveyard, one trigger for the lot
       if (toZone === 'exile' && (from === 'library' || from === 'graveyard')) this._fire('youExileFromLibGy', o.owner, { object: o, playerId: o.owner });
       // The War Doctor: "one or more other cards are put into exile from anywhere" — cards, not tokens or copies
@@ -17344,6 +17354,15 @@
           if (ab.hasAdventure && !(data.object && data.object.card && data.object.card.layout === 'adventure')) continue;
           // Vine Gecko: only a spell that was kicked
           if (ab.kickedOnly && !(data.object && data.object.wasKicked)) continue;
+          /* Kraven the Hunter: "with the greatest power among creatures that player controls" — its power as it died, against
+             theirs still there and any that died with it (greatestPowerOfTheirs; a tie is the greatest too) */
+          if (ab.greatestPowerOfTheirs && data.object) {
+            const x = data.object, pw = (q) => (q.zone === 'battlefield' ? this.powerOf(q) : q._lastPower != null ? q._lastPower : parseInt((q.card && q.card.power) || '0', 10) || 0);
+            const ctl = data.objController != null ? data.objController : x.controller;
+            const rivals = this.battlefield.filter(q => q !== x && q.controller === ctl && (this.characteristics(q) || {}).isCreature)
+              .concat((this._leavingTogether || []).filter(q => q !== x && q.zone !== 'battlefield' && q.controller === ctl));
+            if (rivals.some(q => pw(q) > pw(x))) continue;
+          }
           // Inkling Mascot: a spell aimed at a creature (an artifact or land, …), maybe one of yours or not
           if (ab.targetsWhat && !((data.spell && data.spell.targets) || []).some(t => {
             const x = t.kind === 'object' && this.obj(t.id);
@@ -23201,7 +23220,7 @@
           const live = e.who === 'you' ? [me] : this.players.filter(p => !p.hasLost);
           for (const p of live) {
             const z = this.zones[p.id];
-            for (const o of z.hand.concat(z.graveyard)) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+            for (const o of z.hand.concat(z.graveyard)) { const fz = o.zone; this._removeFromZone(o); o.zone = 'library'; z.library.push(o); this._toLibraryNote(o, fz); }
             this.rng.shuffle(z.library);
           }
           this.emit('sfx', 'shuffle');
@@ -24251,11 +24270,13 @@
           // Sensei's Divining Top: a permanent going home leaves the battlefield like any other
           if (src.zone === 'battlefield' && !e.depth) { this.moveObject(src, 'library'); break; }
           const z = this.zones[src.owner].library;
+          const fz = src.zone;
           this._removeFromZone(src);
           src.zone = 'library';
           // "third from the top" has two cards above it: index 2 (libraryDepthFix)
           z.splice(Math.min((e.depth || 7) - 1, z.length), 0, src);
           src._wentToLibrary = true;
+          this._toLibraryNote(src, fz);
           { const ord = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'][e.depth] || e.depth;
             this.logEvent('zone', `${src.name} goes into ${(this.player(src.owner) || {}).name || 'its owner'}'s library ${ord} from the top.`); }
           break;
@@ -24906,7 +24927,7 @@
           const p = (e.who !== 'you' && triggerPlayer()) || me;
           const z = this.zones[p.id];
           const hand = this.rng.shuffle(z.hand.slice());
-          for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+          for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); this._toLibraryNote(o, 'hand'); }
           this._drawCards(p, hand.length);
           this.logEvent('rules', `${p.name} puts ${hand.length} card${hand.length === 1 ? '' : 's'} on the bottom and draws as many.`);
           break;
@@ -24923,7 +24944,7 @@
           for (const id of (got && got.picks) || []) {
             const x = this.obj(id);
             if (!x || x.zone !== 'graveyard') continue;
-            this._removeFromZone(x); x.zone = 'library'; z.library.push(x);
+            this._removeFromZone(x); x.zone = 'library'; z.library.push(x); this._toLibraryNote(x, 'graveyard');
           }
           this.rng.shuffle(z.library);
           this.bumpBoard();
@@ -25135,7 +25156,7 @@
           const x = n('X');
           if (x >= 10) {
             const z = this.zones[ctx.controller];
-            for (const c of z.graveyard.slice()) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
+            for (const c of z.graveyard.slice()) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); this._toLibraryNote(c, 'graveyard'); }
             this.rng.shuffle(z.library);
             this._drawCards(me, x);
             const lands = this.battlefield.filter(o => o.controller === ctx.controller && o.tapped && (o.analysis() || {}).isLand).slice(0, 5);
@@ -25184,7 +25205,7 @@
           for (const x of picks) this._removeFromZone(x);
           const top = z.library.splice(0, picks.length);
           for (const c of top) { c.zone = 'hand'; z.hand.push(c); }
-          for (const x of picks.slice().reverse()) { x.zone = 'library'; z.library.unshift(x); }
+          for (const x of picks.slice().reverse()) { x.zone = 'library'; z.library.unshift(x); this._toLibraryNote(x, 'hand'); }
           this.logEvent('rules', `${me.name} swaps ${picks.length} card${picks.length === 1 ? '' : 's'} with the top of their library.`);
           this.bumpBoard();
           break;
@@ -25617,7 +25638,7 @@
           }
           const z = this.zones[st.pid];
           const rest = this.rng.shuffle(st.exiled.map(id => this.obj(id)).filter(c => c && c.zone === 'exile'));
-          for (const c of rest) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
+          for (const c of rest) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); this._toLibraryNote(c, 'exile'); }
           break;
         }
         // The Infinity Stones: harnessed, its ∞ abilities work from now on
@@ -25945,7 +25966,7 @@
         case 'exchangeHandLibrary': {
           const z = this.zones[ctx.controller];
           const hand = z.hand.slice(), lib = z.library.slice();
-          for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+          for (const o of hand) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); this._toLibraryNote(o, 'hand'); }
           for (const o of lib) { this._removeFromZone(o); o.zone = 'hand'; z.hand.push(o); }
           this.rng.shuffle(z.library);
           this.logEvent('rules', `${me.name} exchanges hand (${hand.length}) and library (${lib.length}).`);
@@ -27199,6 +27220,7 @@
             this._removeFromZone(o);
             o.zone = 'library';
             z.library.unshift(o);
+            this._toLibraryNote(o, 'hand');
           }
           break;
         }
@@ -27281,8 +27303,8 @@
             const gy = z.graveyard.slice();
             // "on the bottom of their library in a random order": not shuffled into it
             const moved = e.bottom ? this.rng.shuffle(gy.slice()) : gy;
-            for (const o of moved) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
-            if (e.withSelf && src && p === me) { this._removeFromZone(src); src.zone = 'library'; z.library.push(src); }
+            for (const o of moved) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); this._toLibraryNote(o, 'graveyard'); }
+            if (e.withSelf && src && p === me) { const fz = src.zone; this._removeFromZone(src); src.zone = 'library'; z.library.push(src); this._toLibraryNote(src, fz); }
             if (!e.bottom) this.rng.shuffle(z.library);
             this.logEvent('zone', `${p.name} shuffles ${gy.length} card(s) back in.`);
           }
@@ -27905,11 +27927,13 @@
           this.changeLife(me, e.life || 7);
           if (src) {
             const z = this.zones[ctx.controller].library;
+            const fz = src.zone;
             this._removeFromZone(src);
             src.zone = 'library';
             // "seventh from the top": six cards above it (libraryDepthFix)
             z.splice(Math.min((e.depth || 7) - 1, z.length), 0, src);
             src._wentToLibrary = true;
+            this._toLibraryNote(src, fz);
           }
           break;
         }
@@ -27938,6 +27962,7 @@
             this._removeFromZone(o);
             o.zone = 'library';
             this.zones[ctx.controller].library.unshift(o);
+            this._toLibraryNote(o, 'hand');
           }
           break;
         }
@@ -28191,11 +28216,13 @@
           // Kogla and Yidaro: only if it is still in the graveyard it was discarded to
           if (e.fromGraveyard && src.zone !== 'graveyard') break;
           const z = this.zones[src.owner].library;
+          const fz = src.zone;
           this._removeFromZone(src);
           src.zone = 'library';
           z.push(src);
           if (e.shuffle) this.rng.shuffle(z);
           src._wentToLibrary = true;
+          this._toLibraryNote(src, fz);
           break;
         }
         /* "Return it to the battlefield under its owner's control": the card
@@ -29284,14 +29311,23 @@
               if (item && item.kind === 'spell' && item.obj && !item.isCopy) o = item.obj;
             }
             if (!o) continue;
-            this.moveObject(o, 'library', { toBottom: e.where === 'bottom' });
+            // Wan Shi Tong, All-Knowing: "its owner puts it into their library second from the top or on the bottom" (secondOrBottom)
+            let where = e.where;
+            if (where === 'secondOrBottom') {
+              const opts = [{ label: 'Second from the top', where: 'second' }, { label: 'On the bottom', where: 'bottom' }];
+              const got = this._choose({ playerId: o.owner, purpose: 'secondOrBottom', kind: 'options', options: opts, min: 1, max: 1,
+                targetId: o.id, prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${o.name} into your library second from the top or on the bottom?` }, 'sob');
+              if (got === SUSPEND) return SUSPEND;
+              where = (opts[(got && got.picks && got.picks[0]) || 0] || opts[0]).where;
+            }
+            this.moveObject(o, 'library', { toBottom: where === 'bottom' });
             // Chronostutter: second from the top
-            if (e.where === 'second') { const lib = this.zones[o.owner].library; if (lib[0] === o && lib.length > 1) { lib[0] = lib[1]; lib[1] = o; } }
+            if (where === 'second') { const lib = this.zones[o.owner].library; if (lib[0] === o && lib.length > 1) { lib[0] = lib[1]; lib[1] = o; } }
             // Teferi, Hero of Dominaria: third from the top
             if (e.where === 'third') { const lib = this.zones[o.owner].library; if (lib[0] === o) { lib.splice(0, 1); lib.splice(Math.min(2, lib.length), 0, o); } }
             if (e.where === 'shuffle') this.rng.shuffle(this.zones[o.owner].library);
-            this.logEvent('zone', e.where === 'second' || e.where === 'third' ? `${o.name} goes into its owner's library ${e.where} from the top.`
-              : e.where === 'shuffle' ? `${o.name} is shuffled into its owner's library.` : `${o.name} goes to the ${e.where || 'top'} of its owner's library.`);
+            this.logEvent('zone', where === 'second' || where === 'third' ? `${o.name} goes into its owner's library ${where} from the top.`
+              : where === 'shuffle' ? `${o.name} is shuffled into its owner's library.` : `${o.name} goes to the ${where || 'top'} of its owner's library.`);
           }
           break;
         }

@@ -5313,6 +5313,10 @@
     { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each of up to (two|three|four|\d+) target ([a-z ]+?)s\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].trim(), n: num(m[1]),
         targets: Array.from({ length: num(m[3]) }, () => Object.assign(targetSpec(m[4]), { upTo: true })) }) },
+    // Lagorin, Soul of Alacria: "put a +1/+1 counter on each of up to two target Mounts and/or Vehicles"
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d) counters? on each of up to (two|three|four|\d+) target ([A-Z][a-z]+)s and\/or ([A-Z][a-z]+)s\.?$/,
+      make: (m) => { const sp = targetSpec(`target ${m[4]} or ${m[5]}`); return sp && !sp.unknown ? { op: 'counters', kind: m[2], n: num(m[1]),
+        targets: Array.from({ length: num(m[3]) }, () => Object.assign({}, sp, { upTo: true, distinct: true })) } : null; } },
 
     /* ===== graveyards ===== */
     { re: /^Each player exiles their graveyard\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
@@ -7801,6 +7805,9 @@
     // Yosei, the Morning Star: "target player skips their next untap step."
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next untap step\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipUntap', who: 'you' } : { op: 'skipUntap', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Wan Shi Tong, All-Knowing: "target nonland permanent's owner puts it into their library second from the top or on the bottom." (secondOrBottom)
+    { re: /^(target [a-z ]+?)'s owner puts it into their library second from the top or on the bottom\.?$/i,
+      make: (m) => { const a = tgt(m[1]); return a ? { op: 'toLibrary', where: 'secondOrBottom', targets: [a] } : null; } },
     // Chronostutter: "Put target creature into its owner's library second from the top."
     // (Teferi, Hero of Dominaria: "third from the top"; Commit: "target spell or nonland permanent", off the stack)
     { re: /^Put (target [a-z ]+?) into its owner'?s library (second|third) from the top\.?$/i,
@@ -7831,6 +7838,11 @@
         return cost && cost.tapUntapped ? { op: 'mayPay', pay: cost, then: [], otherwise: [{ op: 'sacrificeSelf' }],
           prompt: m[1].replace(/^tap/i, 'Tap') + ', or sacrifice this?', yesLabel: 'Tap one', noLabel: 'Sacrifice it' } : null;
       } },
+    // Bebop & Rocksteady: "sacrifice a permanent unless you discard a card" — a card, or else a permanent of your choice
+    { re: /^Sacrifice an? (permanent|creature|artifact|land) unless you discard a card\.?$/i,
+      make: (m) => ({ op: 'mayPay', pay: { discard: 1, filter: 'card' }, then: [],
+        otherwise: [{ op: 'sacrificeChoice', n: 1, who: 'you', filter: m[1].toLowerCase(), other: false }],
+        prompt: `Discard a card, or sacrifice a ${m[1].toLowerCase()}?`, yesLabel: 'Discard a card', noLabel: `Sacrifice a ${m[1].toLowerCase()}` }) },
     // Balduvian Horde: "sacrifice it unless you discard a card at random"
     { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you discard a card at random\.?$/i,
       make: () => ({ op: 'sacSelfUnless', how: 'discard', filter: 'card', random: true, untapped: false, another: false }) },
@@ -15298,6 +15310,10 @@
         if (f && m[2]) f.who = /your/i.test(m[2]) ? 'you' : 'opponent';
         return f;
       } },
+    /* Kraven the Hunter: "Whenever a creature an opponent controls with the greatest power among creatures that player
+       controls dies" — as it last was, against theirs (greatestPowerOfTheirs) */
+    { re: /^Whenever a creature an opponent controls with the greatest power among creatures that player controls dies,? /i, event: 'permDies',
+      filt: () => ({ words: 'creature', who: 'opponent' }), extra: { greatestPowerOfTheirs: true } },
     // Edea, Possessed Sorceress: "Whenever a creature you control but don't own dies" (notOwned)
     { re: /^Whenever an? ([a-z]+) you control but don'?t own dies,? /i, event: 'permDies',
       filt: (m) => ({ words: m[1].toLowerCase(), who: 'you', notOwned: true }) },
@@ -15668,6 +15684,8 @@
        your turn," — anybody's cards, one trigger for the lot (cardExiledGyBf) */
     { re: /^Whenever one or more cards are put into exile from graveyards and\/or the battlefield( during your turn)?,? /i,
       event: 'cardExiledGyBf', extraOf: (m) => Object.assign({ batch: true }, m[1] ? { yourTurnOnly: true } : {}) },
+    // Wan Shi Tong, All-Knowing: "Whenever one or more cards are put into a library from anywhere" — anybody's, one trigger for the lot (cardToLibrary)
+    { re: /^Whenever one or more cards are put into a library from anywhere,? /i, event: 'cardToLibrary', extra: { batch: true } },
     // Laelia, the Blade Reforged: "Whenever one or more cards are put into exile from your library and/or your graveyard"
     { re: /^Whenever one or more cards are put into exile from your library and\/or your graveyard,? /i, event: 'youExileFromLibGy', extra: { batch: true } },
     /* The War Doctor: "whenever one or more other cards are put into exile from anywhere" — anybody's, one trigger
