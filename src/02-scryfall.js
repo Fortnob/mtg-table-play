@@ -181,7 +181,124 @@
   const ANTE = new Set(['Amulet of Quoz', 'Bronze Tablet', 'Contract from Below', 'Darkpact', 'Demonic Attorney',
     'Jeweled Bird', 'Rebirth', 'Tempest Efreet', 'Timmerian Fiends']);
   const isAnte = (c) => !!c && (ANTE.has(c.name) || /\bplaying for ante\b/i.test(c.oracle_text || ''));
-  const noAnte = (cards) => (cards || []).filter(c => !isAnte(c));
+
+  /* ---------------- joke and playtest cards ----------------
+     Not part of this game: the Un-sets and every other card made as a
+     joke or a playtest. None of them is found, offered, opened, drafted,
+     bought, suggested, generated or played. A deck or a collection that
+     already holds one keeps it, marked as not in the game
+     (MTG.formats.validate), and it cannot be added again.
+
+     A printing is a joke's (jokePrint) when Scryfall says so: its set is
+     of the "funny" kind (Unglued, Unhinged, Unstable, Unsanctioned,
+     Unfinity and its sticker sheets, Unknown Event, the Mystery Booster
+     playtest cards, The List's Unfinity Foil Edition, the Heroes of the
+     Realm, holiday and convention jokes) or one of those sets' own token
+     and promo sets; or it has the acorn stamp, a silver border, or the
+     "playtest" promo type (Mystery Booster 2's playtest cards, MagicFest's).
+     A card is out when it has no printing but those, or none but those
+     and reprint lists, Secret Lairs and oversized prizes (OUT_ELSEWHERE:
+     Space Beleren on The List, Comet, Stellar Pup in Mystery Booster 2,
+     Clown Car…). A card printed for real too stays, without its joke
+     printings (STAYS: the shock lands, Saw in Half in Bloomburrow
+     Commander, Steamflogger Boss from Future Sight).
+
+     The one exception: Unfinity's full-art galaxy basic lands stay, as art
+     to choose for the basics. Both lists were worked out from Scryfall
+     (all printings of every card ever printed in such a set, October 2026);
+     tools/cardtests/52-no-jokes.js checks them against the bulk file.
+     The card database (src/02a-carddb.js) works the same out of every
+     printing it has. */
+  const JOKE_SETS = new Set(['ugl', 'unh', 'ust', 'und', 'unf', 'sunf', 'ulst', 'unk', 'punk', 'cmb1', 'cmb2',
+    'h17', 'hho', 'ptg', 'phtr', 'ph17', 'ph18', 'ph19', 'ph20', 'ph21', 'ph22', 'ph23',
+    // the joke sets' own tokens and promos
+    'tugl', 'punh', 'tust', 'pust', 'tund', 'tunf']);
+  const UNFINITY = new Set(['unf', 'sunf', 'tunf', 'ulst']);
+  // printings that do not make a joke card a real one: reprint lists, Secret Lairs, Astral cards (and oversized prizes, by set type)
+  const REPRINT_ONLY = new Set(['plst', 'plist', 'mb1', 'mb2', 'fmb1', 'sld', 'slc', 'sld2', 'slz', 'pz1', 'pz2', 'past']);
+  // out though printed outside the joke sets: on reprint lists, in Secret Lairs, as oversized prizes
+  const OUT_ELSEWHERE = new Map([
+    ['89e90361-822f-42b6-9ed9-d94e6d24fb95', ['unf', 'Attempted Murder']],     // The List
+    ['41dd29b9-f08d-4ccc-8dc0-da11d2d456e9', ['ugl', 'Blacker Lotus']],     // Secret Lair, oversized
+    ['252ff28e-3ea7-4e2c-a30c-3cb80aa278d0', ['mb2', 'Call from the Grave']],     // playtest; Astral
+    ['e0a6947f-3d52-45e0-8fd7-0bc07cc8c784', ['unf', 'Clown Car']],     // The List, The Zeta Set
+    ['e7c67480-1816-4071-9eab-a1d1b535a344', ['unf', 'Comet, Stellar Pup']],     // Mystery Booster 2
+    ['a55ef412-257b-4ecd-9440-4545521be938', ['unf', 'Exchange of Words']],     // The List
+    ['35caa378-440d-41a1-8ce4-174bfb7c16ac', ['ugl', 'Incoming!']],     // oversized
+    ['e88f6b45-0cde-4fd4-80f0-f252f6fd59fa', ['ugl', 'Infernal Spawn of Evil']],     // oversized
+    ['f0ba392b-fd12-441c-a68b-a53dffe27f7f', ['ugl', 'Mirror Mirror']],     // oversized
+    ['cfca44cb-8ca5-4ebb-bd5c-b621eca41944', ['unf', 'Space Beleren']],     // The List
+    ['8673cc01-7d5d-41ee-aede-f21efc74216c', ['ugl', 'Squirrel Farm']],     // oversized
+  ]);
+  // printed in a joke set and for real too: in the game, without the joke printings
+  const STAYS = new Map([
+    ['43985bbc-a0f6-4812-984e-392bc8562633', 'Blood Crypt'], ['20283c4a-f1f0-42f0-bc08-6da87474426b', 'Breeding Pool'],
+    ['73864fcc-1bde-4bc0-831e-2b93e546e417', 'Godless Shrine'], ['f1750962-a87c-49f6-b731-02ae971ac6ea', 'Hallowed Fountain'],
+    ['975ec9a3-6f20-4177-8211-82526e092538', 'Overgrown Tomb'], ['45181cb8-2090-4471-ba90-e5a8f04d525f', 'Sacred Foundry'],
+    ['17039058-822d-409f-938c-b727a366ba63', 'Steam Vents'], ['16052b52-ade1-406f-a06b-ce7ea607fb63', 'Stomping Ground'],
+    ['f413a83d-a40d-434c-b20a-4c707c0527fa', 'Temple Garden'], ['fc9ec820-4245-4a96-b009-5308a818ca58', 'Watery Grave'],
+    ['eea18c55-8695-4ba1-9b38-3e7638692f5f', 'Saw in Half'], ['4d614c79-7934-4662-9ce1-22b57d5137f7', 'Steamflogger Boss'],
+  ]);
+  // the same by name, for what is known by name and set only (a collection's entries)
+  const OUT_NAMES = new Map([...OUT_ELSEWHERE.values()].map(([set, name]) => [name, set]));
+  const STAY_NAMES = new Set(STAYS.values());
+  // what Scryfall is asked along with every search: no joke printing, but Unfinity's basics
+  const JOKE_QUERY = '-((is:funny or st:funny or e:tugl or e:punh or e:tust or e:pust or e:tund or e:tunf) -(e:unf t:basic))';
+  // words that set how Scryfall shows what it found, which it will not take inside brackets
+  const DISPLAY_RE = /(^|\s)(?:unique|order|dir|direction|display|prefer|include):\S+/gi;
+  const setOf = (c) => String((c && c.set) || '').toLowerCase();
+  const BASIC_NAME = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/;
+  const isBasic = (c) => /\bBasic\b/.test(String(c.type_line || ((c.card_faces || [])[0] || {}).type_line || '').split('//')[0]);
+  const isToken = (c) => /token|emblem/.test(c.layout || '') || /^Token\b/.test(c.type_line || '');
+  const oracleOf = (c) => c.oracle_id || ((c.card_faces || [])[0] || {}).oracle_id || '';
+  /** Whether this printing is a joke's: by its set, its stamp, its border or its promo type. */
+  const jokePrint = (c) => !!c && (JOKE_SETS.has(setOf(c)) || c.set_type === 'funny' || c.security_stamp === 'acorn' ||
+    c.border_color === 'silver' || (c.promo_types || []).includes('playtest'));
+  const J = MTG.jokes = {
+    SETS: JOKE_SETS,
+    QUERY: JOKE_QUERY,
+    /** Whether this set is a joke set (or one of their token and promo sets). */
+    isSet: (code) => JOKE_SETS.has(String(code || '').toLowerCase()),
+    isPrint: jokePrint,
+    REPRINT_ONLY,
+    /** Out whatever printing (OUT_ELSEWHERE), in whatever printing (STAYS): by oracle id. */
+    outId: (oid) => OUT_ELSEWHERE.has(oid),
+    staysId: (oid) => STAYS.has(oid),
+    /**
+     * Whether this card, whichever printing of it this is, is out of the
+     * game. A joke printing says so of its card, unless the card was
+     * printed for real too (STAYS, a basic land); the acorn stamp alone
+     * does not (Mystery Booster Commander stamps Alchemy's cards with it).
+     */
+    isCard(c) {
+      if (!c) return false;
+      const oid = oracleOf(c);
+      if (oid ? OUT_ELSEWHERE.has(oid) : OUT_NAMES.has(c.name)) return true;
+      if (!jokePrint(c) || (oid ? STAYS.has(oid) : STAY_NAMES.has(c.name)) || isBasic(c) || BASIC_NAME.test(c.name || '')) return false;
+      if (isToken(c)) return true;
+      return JOKE_SETS.has(setOf(c)) || c.set_type === 'funny' || c.border_color === 'silver' || (c.promo_types || []).includes('playtest');
+    },
+    /** Whether this printing may be shown: not a joke's, or one of Unfinity's basics. */
+    printOk: (c) => !!c && (!jokePrint(c) || (setOf(c) === 'unf' && isBasic(c))),
+    /** In the card pool: not a joke card, nor a joke printing of a real one. */
+    inPool: (c) => !!c && !J.isCard(c) && J.printOk(c),
+    /** A Scryfall query with the jokes left out (the words that say how to show it kept outside the brackets). */
+    query(q) {
+      q = String(q || '').trim();
+      if (q.includes(JOKE_QUERY)) return q;
+      const shows = (q.match(DISPLAY_RE) || []).map(s => s.trim());
+      const rest = q.replace(DISPLAY_RE, ' ').trim();
+      return [rest ? '(' + rest + ')' : '', JOKE_QUERY].concat(shows).filter(Boolean).join(' ');
+    },
+    /** Why a card held from before is not played, in a few words. */
+    why(c) {
+      const from = (OUT_ELSEWHERE.get(oracleOf(c)) || [OUT_NAMES.get(c && c.name)])[0] || setOf(c);
+      return UNFINITY.has(from) ? 'Unfinity cards aren’t in this game' : 'Joke and playtest cards aren’t in this game';
+    },
+  };
+  /** In the card pool: neither an ante card nor a joke (MTG.jokes). */
+  const inPool = (c) => !!c && !isAnte(c) && J.inPool(c);
+  const poolOnly = (cards) => (cards || []).filter(inPool);
 
   /* ---------------- the client ---------------- */
   class Scryfall {
@@ -279,6 +396,8 @@
         rarity: c.rarity, released_at: c.released_at, digital: c.digital, games: c.games,
         border_color: c.border_color, frame: c.frame, frame_effects: c.frame_effects,
         promo_types: c.promo_types, finishes: c.finishes, full_art: c.full_art, textless: c.textless,
+        // the acorn stamp: a joke card's (MTG.jokes)
+        security_stamp: c.security_stamp === 'acorn' ? 'acorn' : undefined,
         artist: c.artist, illustration_id: c.illustration_id, flavor_text: c.flavor_text,
         scryfall_uri: c.scryfall_uri, edhrec_rank: c.edhrec_rank, penny_rank: c.penny_rank,
         hand_modifier: c.hand_modifier, life_modifier: c.life_modifier,
@@ -465,14 +584,14 @@
       const max = opts.max || 175;
       const local = await this._localDb(opts);
       if (local && local.answers(query, opts)) {
-        try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); }
+        try { const cards = local.search(query, opts); this.stats.local++; return poolOnly(cards); }
         catch (e) { if (!(e instanceof local.Unsupported)) throw e; /* beyond the local engine: Scryfall it is */ }
       }
-      try { return noAnte(await this._liveSearch(query, opts, max)); }
+      try { return poolOnly(await this._liveSearch(query, opts, max)); }
       catch (e) {
         if (e && e.stale) throw e;
         // offline with a database that could not answer exactly: its best is better than nothing
-        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return noAnte(cards); } catch (e2) {} }
+        if (local) { try { const cards = local.search(query, opts); this.stats.local++; return poolOnly(cards); } catch (e2) {} }
         throw e;
       }
     }
@@ -518,7 +637,7 @@
             const out = [];
             while (out.length < per && at < ids.length) {
               const c = local.idx.card(ids[at++]);
-              if (c && !isAnte(c)) out.push(c);
+              if (inPool(c)) out.push(c);
             }
             if (at >= ids.length) p.done = true;
             return out;
@@ -526,7 +645,7 @@
           while (buf.length < per && gi < GROUPS.length) {
             if (!url) {
               const g = GROUPS[gi];
-              const params = new URLSearchParams({ q: g ? `(${query}) ${g}` : query, unique: opts.unique,
+              const params = new URLSearchParams({ q: MTG.jokes.query(g ? `(${query}) ${g}` : query), unique: opts.unique,
                 order: colourWise ? 'cmc' : (opts.order || 'name') });
               if (opts.dir) params.set('dir', opts.dir);
               url = '/cards/search?' + params.toString();
@@ -535,7 +654,7 @@
             const groupDone = () => { gi++; url = null; buf.push(...held); held = []; };
             // nothing in this colour (Scryfall says so with a 404): on to the next
             if (!data) { groupDone(); continue; }
-            for (const c of noAnte(await self._store(data.data || []))) {
+            for (const c of poolOnly(await self._store(data.data || []))) {
               if (seen.has(c.id)) continue;
               seen.add(c.id);
               (colourWise && MTG.mana.hasX(c) ? held : buf).push(c);
@@ -552,7 +671,7 @@
     }
 
     async _liveSearch(query, opts, max) {
-      const params = new URLSearchParams({ q: query });
+      const params = new URLSearchParams({ q: MTG.jokes.query(query) });
       if (opts.unique) params.set('unique', opts.unique);
       if (opts.order) params.set('order', opts.order);
       if (opts.dir) params.set('dir', opts.dir);
@@ -590,9 +709,12 @@
       if (!q || q.length < 2) return [];
       const local = await this._localDb();
       if (local) return local.idx.autocomplete(q, 20).filter(n => !ANTE.has(n));
+      /* Scryfall's own autocomplete knows nothing of what is left out of the
+         pool (MTG.jokes), so the names come from a search that does */
       try {
-        const d = await this._fetch('/cards/autocomplete?q=' + encodeURIComponent(q), { signal: opts && opts.signal });
-        return ((d && d.data) || []).filter(n => !ANTE.has(n));
+        const params = new URLSearchParams({ q: MTG.jokes.query('name:"' + String(q).replace(/"/g, '') + '"'), order: 'edhrec' });
+        const d = await this._fetch('/cards/search?' + params.toString(), { signal: opts && opts.signal });
+        return ((d && d.data) || []).filter(inPool).map(c => c.name).slice(0, 20);
       } catch (e) { return []; }
     }
 
@@ -603,14 +725,14 @@
           const ids = local.idx.query(query || '-t:basic', {});
           for (let tries = 0; ids.length && tries < 8; tries++) {
             const c = local.idx.card(ids[Math.floor(Math.random() * ids.length)]);
-            if (!isAnte(c)) return c;
+            if (inPool(c)) return c;
           }
         } catch (e) { /* Scryfall can */ }
       }
       for (let tries = 0; tries < 4; tries++) {
-        const c = await this._fetch('/cards/random' + (query ? '?q=' + encodeURIComponent(query) : ''));
+        const c = await this._fetch('/cards/random?q=' + encodeURIComponent(MTG.jokes.query(query)));
         if (!c) return null;
-        if (!isAnte(c)) return (await this._store([c]))[0];
+        if (inPool(c)) return (await this._store([c]))[0];
       }
       return null;
     }
@@ -626,6 +748,8 @@
       /* A printing whose words play differently from the card's today is
          left out, unless the card has no other (src/02d-oldprints.js). */
       const current = (list) => {
+        // no joke printing, but Unfinity's basics (MTG.jokes)
+        list = list.filter(c => MTG.jokes.printOk(c) || c.id === card.id);
         const ok = MTG.oldPrints ? list.filter(c => !MTG.oldPrints.isOld(c)) : list;
         return ok.length ? ok : list;
       };
@@ -662,7 +786,12 @@
 
     /* ================= sets ================= */
 
+    /** Scryfall's sets, the joke sets left out (nothing of them is drafted, opened or sold). */
     async sets(opts) {
+      const all = await this._sets(opts);
+      return all.filter(s => s.set_type !== 'funny' && !MTG.jokes.isSet(s.code) && !MTG.jokes.isSet(s.parent_set_code));
+    }
+    async _sets(opts) {
       opts = opts || {};
       const hit = await this.db.get(STORES.meta, 'setlist');
       if (hit && !opts.force && Date.now() - hit._t < SET_TTL) return hit.sets;
@@ -962,7 +1091,7 @@
     }
 
     _bucket(cards) {
-      cards = noAnte(cards);
+      cards = poolOnly(cards);
       const b = {
         all: cards, playable: [], common: [], uncommon: [], rare: [], mythic: [],
         special: [], bonus: [], basics: [], nonbasicLands: [],
@@ -1087,6 +1216,8 @@
   MTG.scry = new Scryfall();
   /** Whether a card is one of the ante cards, left out of the card pool. */
   MTG.scry.isAnte = isAnte;
+  /** Whether a card is in the card pool: not an ante card, nor a joke (MTG.jokes). */
+  MTG.scry.inPool = inPool;
 
   /* ---------------- a game in progress ----------------
      Kept in IndexedDB rather than localStorage: a snapshot carries whole

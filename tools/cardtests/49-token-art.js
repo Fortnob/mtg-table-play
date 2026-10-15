@@ -171,14 +171,14 @@ module.exports = (test) => {
     const T = mk();
     const MTG = engine();
     const tk = TA();
-    MTG.store.set('tokenArt.v1', {});
+    MTG.store.set('tokenArt.v2', {});
     const o = fromCard(T, 'Lingering Souls');
     const k = tk.key(o.card);
     // with nothing found before (an entry saying none), the frame
-    MTG.store.set('tokenArt.v2', { [k]: '' });
+    MTG.store.set('tokenArt.v3', { [k]: '' });
     tk._reset();
     t.eq(tk.url(o.card), null, 'no picture: the drawn frame');
-    MTG.store.set('tokenArt.v2', { [k]: 'https://cards.scryfall.io/normal/front/a/b/spirit.jpg' });
+    MTG.store.set('tokenArt.v3', { [k]: 'https://cards.scryfall.io/normal/front/a/b/spirit.jpg' });
     tk._reset();
     t.eq(tk.url(o.card), 'https://cards.scryfall.io/normal/front/a/b/spirit.jpg', 'the one found');
     tk.choose(o.card, 0, { url: 'https://cards.scryfall.io/normal/front/c/d/other.jpg' });
@@ -186,14 +186,14 @@ module.exports = (test) => {
     t.eq(tk.url(fromCard(T, 'Spectral Procession').card), 'https://cards.scryfall.io/normal/front/c/d/other.jpg', 'for every such token');
     t.eq(MTG.store.get('tokenArtChoice.v1', {})[k], 'https://cards.scryfall.io/normal/front/c/d/other.jpg', 'kept');
     const plain = fromCard(T, 'Great Arashin City');
-    MTG.store.set('tokenArt.v2', Object.assign(MTG.store.get('tokenArt.v2', {}), { [tk.key(plain.card)]: '' }));
+    MTG.store.set('tokenArt.v3', Object.assign(MTG.store.get('tokenArt.v3', {}), { [tk.key(plain.card)]: '' }));
     tk._reset();
     t.eq(tk.url(plain.card), null, 'not for a Spirit without flying');
     tk.choose(o.card, 0, null);
     t.eq(tk.url(o.card), 'https://cards.scryfall.io/normal/front/a/b/spirit.jpg', 'back to the default');
     t.ok(tk.drawn(o.card), 'a token of the engine\'s is drawn (no picture of its own)');
     t.no(tk.drawn(card('Grizzly Bears')), 'a card is not');
-    MTG.store.del('tokenArt.v2'); MTG.store.del('tokenArtChoice.v1'); MTG.store.del('tokenArt.v1');
+    MTG.store.del('tokenArt.v3'); MTG.store.del('tokenArtChoice.v1'); MTG.store.del('tokenArt.v2');
     tk._reset();
   });
 };

@@ -20,6 +20,7 @@ with `OFFLINE=1` to stay off the network.
 | `tutorialtest.js` | the first-game walkthrough on a real table on a pretend DOM: lands tapped by hand, then by the game, and your own setting back after; hiding the Tutorials; what a tutorial's result offers |
 | `xmage/` | the XMage translator, below |
 | `socialtest.js` | friends, invites, trades and moving a save: devices against a pretend PeerJS broker, and their windows clicked through on a pretend DOM (`fakedom.js`) |
+| `jokestest.js` | joke and playtest cards (the Un-sets, Unfinity, the playtest cards) left out of the pool: every Scryfall query, imports, the collection; the pool itself in `cardtests/52-no-jokes.js` |
 | `tournamenttest.js` | friends tournaments: Swiss pairing and the standings on their own, whole tournaments between devices (hostile messages and apps closed part way included), the windows on the pretend DOM; and the draft that waits for every deck |
 
 ## xmage/: card scripts translated from XMage

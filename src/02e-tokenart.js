@@ -18,7 +18,7 @@
    When nothing matches, there is no picture: the table draws the token
    (tokenFrame in 12-ui-table.js) rather than show a different one.
 
-   The first matching picture is kept on this device (tokenArt.v2, keyed by
+   The first matching picture is kept on this device (tokenArt.v3, keyed by
    everything compared). A player may choose another of the matching
    printings for each kind of token (tokenArtChoice.v1, this device only,
    never sent to anyone); it is shown for every such token on their table.
@@ -26,7 +26,8 @@
 'use strict';
 (function (MTG) {
   const U = MTG.util;
-  const CACHE_KEY = 'tokenArt.v2';
+  // v3: chosen again without the joke sets' tokens (MTG.jokes)
+  const CACHE_KEY = 'tokenArt.v3';
   const CHOICE_KEY = 'tokenArtChoice.v1';
   const CACHE_MAX = 400;
 
@@ -130,6 +131,8 @@
     const seen = { exact: new Set(), size: new Set() };
     for (const c of list || []) {
       if (!c || c.digital || c.layout === 'art_series') continue;
+      // never a joke set's token (Unfinity's, Unstable's): they are not in the game (MTG.jokes)
+      if (MTG.jokes && !MTG.jokes.printOk(c)) continue;
       for (const f of printedFaces(c)) {
         const how = compare(want, f.facts);
         if (!how || !f.img || !f.img.normal) continue;

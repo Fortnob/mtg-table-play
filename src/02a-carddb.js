@@ -402,6 +402,7 @@
         this.R[oi] = r;
         this.byOracle.set(o[O.oracle_id], oi);
       }
+      this._leaveOutJokes();
       // each card's printings, the one to show first at the front
       for (const r of this.R) {
         if (r.prints.length < 2) continue;
@@ -416,6 +417,36 @@
           if ((pass === 0) === r.extra) continue;
           for (const k of [r.nameL, ...r.faceNames]) if (k && !this.names.has(k)) this.names.set(k, r.oi);
         }
+      }
+    }
+
+    /* The joke and playtest cards are not in the game (MTG.jokes): marked,
+       and no search, list or name suggestion turns one up, though a deck
+       that holds one still finds it by id or name. A card with a printing
+       that is not a joke's, outside the reprint lists, is a real card and
+       stays, without its joke printings (Unfinity's basics aside, kept as
+       art). A token is out only when every printing of it is a joke's. */
+    _leaveOutJokes() {
+      const J = MTG.jokes;
+      if (!J) return;
+      const P_ = this.P, S = this.setTable;
+      const joke = (pi) => {
+        const p = P_[pi];
+        return J.isPrint({ set: p[P.set], set_type: (S[p[P.set]] || [])[1], border_color: p[P.border_color],
+          security_stamp: p[P.flags] & FLAG.acorn ? 'acorn' : null, promo_types: p[P.promo_types] });
+      };
+      const real = (pi) => !joke(pi) && !J.REPRINT_ONLY.has(P_[pi][P.set]) && (S[P_[pi][P.set]] || [])[1] !== 'memorabilia';
+      const keepArt = (pi) => P_[pi][P.set] === 'unf' && /\bbasic\b/.test(this.R[P_[pi][P.oracle]].type);
+      for (const r of this.R) {
+        const oid = this.O[r.oi][O.oracle_id];
+        if (J.outId(oid)) { r.joke = true; continue; }
+        if (!r.prints.some(joke)) continue;
+        const stays = J.staysId(oid) || /\bbasic\b/.test(r.type) || (r.extra ? !r.prints.every(joke) : r.prints.some(real));
+        // the one printing known, joke only by its acorn stamp (Mystery Booster Commander's Alchemy cards): not a joke card
+        const acornOnly = r.prints.length === 1 && !r.extra && !J.isCard(this.card(r.prints[0]));
+        if (!stays && !acornOnly) { r.joke = true; continue; }
+        const keep = r.prints.filter(pi => !joke(pi) || keepArt(pi));
+        if (keep.length) r.prints = keep;
       }
     }
 
@@ -470,6 +501,7 @@
         rarity: p[P.rarity], released_at: p[P.released_at], digital: !!(flags & FLAG.digital), games: unbits(p[P.games], GAMES),
         border_color: p[P.border_color] || 'black', frame: nu(p[P.frame]), frame_effects: nu(p[P.frame_effects]),
         promo_types: nu(p[P.promo_types]), finishes: unbits(p[P.finishes], FINISHES),
+        security_stamp: flags & FLAG.acorn ? 'acorn' : undefined,
         full_art: !!(flags & FLAG.full_art), textless: !!(flags & FLAG.textless),
         artist: nu(p[P.artist]), illustration_id: nu(p[P.illustration_id]), flavor_text: nu(p[P.flavor_text]),
         scryfall_uri: `https://scryfall.com/card/${p[P.set]}/${encodeURIComponent(p[P.collector_number])}/${slugOf(o[O.name])}`,
@@ -558,7 +590,7 @@
       if (k.length < 2) return [];
       const starts = [], within = [];
       for (const r of this.R) {
-        if (r.extra) continue;
+        if (r.extra || r.joke) continue;
         if (r.nameL.startsWith(k)) starts.push(r);
         else if (within.length < 40 && r.nameL.includes(k)) within.push(r);
       }
@@ -566,7 +598,7 @@
       return starts.sort(by).concat(within.sort(by)).slice(0, n || 20).map(r => r.name);
     }
     setList() {
-      return Object.entries(this.setTable).map(([code, s]) => ({
+      return Object.entries(this.setTable).filter(([code, s]) => !(MTG.jokes && MTG.jokes.isSet(code)) && s[1] !== 'funny').map(([code, s]) => ({
         code, name: s[0], set_type: s[1], released_at: s[2], card_count: s[3],
         digital: s[3] > 0 && s[4] === s[3], booster: s[5] > 0,
         icon_svg_uri: `https://svgs.scryfall.io/sets/${code}.svg`, parent_set_code: null, block: null, block_code: null,
@@ -601,7 +633,7 @@
       // unique:art keeps each picture once, from the printing it first appeared in, as Scryfall does
       const seenArt = unique === 'art' ? new Map() : null;
       for (const r of this.R) {
-        if (r.extra && !extras) continue;
+        if ((r.extra && !extras) || r.joke) continue;
         let ok = true;
         for (const f of oF) if (!f(r, null)) { ok = false; break; }
         if (!ok) continue;

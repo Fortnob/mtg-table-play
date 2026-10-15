@@ -58,7 +58,8 @@ const COLLECTOR_MIN = 15;
 const NOT_A_PULL = new Set(['serialized', 'headliner', 'doublerainbow', 'gleaminggold',
   'playpromo', 'prerelease', 'promopack', 'buyabox', 'bundle', 'datestamped', 'stamped', 'judgegift', 'league',
   'convention', 'tourney', 'release', 'instore', 'event', 'giftbox', 'setpromo', 'wizardsplaynetwork', 'premiereshop', 'intropack']);
-const TYPES = new Set(['expansion', 'core', 'draft_innovation', 'masters', 'eternal', 'commander', 'alchemy', 'funny', 'starter']);
+// (not the joke sets, which are not in the game: src/02-scryfall.js, MTG.jokes)
+const TYPES = new Set(['expansion', 'core', 'draft_innovation', 'masters', 'eternal', 'commander', 'alchemy', 'starter']);
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 let last = 0;

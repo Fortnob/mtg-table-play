@@ -252,6 +252,8 @@ def steps(quick):
         Step('eliminations', node(TOOLS / 'eliminationtest.js'), judge_exit, 300, needs_bulk=True),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
+        # joke and playtest cards left out of the pool: what Scryfall is asked, imports, the collection
+        Step('jokes', node(TOOLS / 'jokestest.js'), judge_exit, 120),
         # printings whose words play differently from the card's today, and the printing shown instead
         Step('old prints', node(TOOLS / 'oldprintstest.js'), judge_exit, 60),
         # Commander suggestions from Recommander, against a pretend relay
