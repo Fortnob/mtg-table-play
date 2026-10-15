@@ -265,6 +265,41 @@ module.exports = (test) => {
     t.no(g.player('B').isBot, 'B is a person again');
   });
 
+  test('Player control: with Sen Triplets — A, controlling B, plays from its own hand as B; the lock still holds', (mk, t) => {
+    const { T, g, bolt, bm } = slaved(mk);
+    // B's Sen Triplets: at B's upkeep, A (the only opponent) is locked out and B may cast from A's hand
+    T.bf('B', 'Sen Triplets');
+    const aBolt = T.hand('A', 'Lightning Bolt');
+    T.nextTurn('B');
+    t.eq(g.playerController('B'), 'A', 'A controls B');
+    t.ok(g.viewFor('A').players.find(p => p.id === 'A').lockedOut, 'A is locked out by B\'s Sen Triplets');
+    t.eq(g.intentActor('A', { kind: 'cast', objId: aBolt.id, as: 'B' }), 'B', 'A may act as B');
+    const seat = g.viewFor('A').controlling[0].view;
+    t.ok(seat.playable.includes(aBolt.id), 'A\'s own Bolt is playable from B\'s seat (B\'s leave, from Sen)');
+    t.ok(seat.playable.includes(bolt.id), 'and B\'s own');
+    t.no(g.castSpell('A', aBolt.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'A, locked out, can\'t cast it as A');
+    t.ok(g.castSpell('B', aBolt.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), 'but as B it can');
+    t.eq(T.stackItem(aBolt).controller, 'B', 'B\'s spell');
+    t.ok(bm.tapped, 'paid with B\'s mana');
+    T.resolve();
+    t.eq(T.life('A'), 17, 'A Bolted itself, as B');
+    // and a lock on B holds while A controls B
+    const T2 = mk();
+    const g2 = T2.g;
+    g2._controlNextTurn('A', 'B', 'Mindslaver', false);
+    T2.bf('A', 'Sen Triplets');
+    const b2 = T2.hand('B', 'Lightning Bolt');
+    T2.bf('B', 'Mountain');
+    T2.nextTurn('B');
+    T2.nextTurn('A');
+    t.eq(g2.playerController('B'), null, 'A\'s own turn');
+    t.ok(g2.viewFor('B').players.find(p => p.id === 'B').lockedOut, 'B locked out by A\'s Sen Triplets');
+    g2.player('B').controlledBy = { by: 'A', turn: g2.turn, src: 'Mindslaver', extra: 0 };
+    t.eq(g2.playerController('B'), 'A', 'and (as a test) controlled by A this turn too');
+    t.no(g2.viewFor('A').controlling[0].view.playable.includes(b2.id), 'B\'s Bolt is not playable from B\'s seat');
+    t.no(g2.castSpell('B', b2.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), 'nor castable as B');
+  });
+
   test('Player control: Mindslaver on yourself does nothing', (mk, t) => {
     const T = mk();
     const g = T.g;
