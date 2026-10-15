@@ -558,6 +558,9 @@
       if (this._conspiracyOps(o.controller, 'toughnessDamage').length > 0) return true;
       // Plagon, Lord of the Beach: this creature, this turn
       if (o.toughDamageTurn === this.turn) return true;
+      // The Kingpin of Crime: its controller's creatures this turn (player toughDamageTurn)
+      const tdp = (this.player(o.controller) || {}).toughDamageTurn;
+      if (tdp && tdp.turn === this.turn && (!tdp.ifTougher || this.toughnessOf(o) > this.powerOf(o))) return true;
       // Doran: "Each creature assigns combat damage equal to its toughness rather than its power"
       return this.battlefield.some(s => {
         const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
@@ -2501,7 +2504,7 @@
       this._returnedNow = [];
       this._lastAffected = null; this._lastAffectedAll = null; this._trigObjCtlId = null;
       this._lastCopy = null;
-      this._lastPut = null; this._lastSearched = null;
+      this._lastPut = null; this._lastSearched = null; this._putThisWay = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
       this._exileUntil = null; this._exiledChosen = null;
       this._chosenCard = null; this._attachedAnyTo = null;
@@ -4734,7 +4737,8 @@
       let out = cr;
       // Archway of Innovation: "The next spell you cast this turn has improvise."
       const nk = (this.player(pid) || {}).nextSpellKeyword;
-      if (nk && nk.turn === this.turn && o.zone !== 'stack') {
+      // (Don & Raph, Hard Science: "the next noncreature spell" — only a spell of those words: words)
+      if (nk && nk.turn === this.turn && o.zone !== 'stack' && (!nk.words || this._cardFitsWords(o, nk.words))) {
         out = Object.assign({}, cr);
         // Saheeli, the Gifted: "has affinity for artifacts" — unless the card has an affinity of its own
         if (nk.keyword === 'affinity') { if (!out.affinity) out.affinity = nk.affinityFor || 'artifacts'; } else out[nk.keyword] = true;
@@ -19076,7 +19080,12 @@
         for (const t of (e.addTypes || [])) {
           if (new RegExp('\\b' + t + '\\b').test(line)) continue;
           // a card type goes in front; a creature type ("Illusion") after the dash
-          if (/^(?:Artifact|Creature|Enchantment|Land|Planeswalker|Battle)$/.test(t)) line = t + ' ' + line;
+          // (Absorbing Man: "Creature" after the other card types — "Legendary Artifact Creature — Human Villain")
+          if (t === 'Creature' && /^(?:(?:Legendary|Snow|Basic) )*(?:Artifact|Enchantment|Land)\b/.test(line)) {
+            const d = line.indexOf(' —');
+            line = d >= 0 ? line.slice(0, d) + ' Creature' + line.slice(d) : line + ' Creature';
+          }
+          else if (/^(?:Artifact|Creature|Enchantment|Land|Planeswalker|Battle)$/.test(t)) line = t + ' ' + line;
           else line = /—/.test(line) ? line + ' ' + t : line + ' — ' + t;
         }
         // (Spark Double copying a legend: its short name in its words is still itself — wasLegendary)
@@ -22819,7 +22828,8 @@
         /* "It fights up to one target creature you don't control": this
            creature against the one it points at */
         case 'fightSelf': {
-          const y = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).find(Boolean);
+          // (Hans Eriksson: "it fights Hans Eriksson" — the creature the reflexive trigger is about: vsTriggerObj)
+          const y = e.vsTriggerObj ? this.obj((ctx.triggerData || {}).objectId) : targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).find(Boolean);
           if (!src || src.zone !== 'battlefield' || !y || y.zone !== 'battlefield') break;
           const ys = this.characteristics(y), ss = this.characteristics(src);
           if (!(ys && ys.isCreature) || !(ss && ss.isCreature)) break;
@@ -27019,6 +27029,12 @@
         }
         // Plagon, Lord of the Beach: it deals its combat damage by its toughness this turn
         case 'toughDamageTurn': {
+          // The Kingpin of Crime: every creature of yours this turn, those tougher than strong only (yours, ifTougher)
+          if (e.yours) {
+            me.toughDamageTurn = { turn: this.turn, ifTougher: !!e.ifTougher };
+            this.logEvent('rules', `Until end of turn, ${me.name}'s creatures${e.ifTougher ? ' with toughness greater than their power' : ''} assign combat damage equal to their toughness.`);
+            break;
+          }
           const x = firstObj();
           if (!x || x.zone !== 'battlefield') break;
           x.toughDamageTurn = this.turn;
@@ -27730,6 +27746,9 @@
           // Augusta, Order Returned: "When one or more nonland cards are exiled this way, put that many …" (ifExiledNonland)
           const exN = e.ifExiledNonland ? (this._exiledNonlandN || 0) : 0;
           if (e.ifExiledNonland && !exN) break;
+          // Hans Eriksson: "When you put a creature card onto the battlefield this way" — "it" is that creature (ifPut)
+          const putOne = e.ifPut ? this._putThisWay : null;
+          if (e.ifPut && !putOne) break;
           // Nyssa of Traken: "When you sacrifice one or more artifacts this way, … that many …" — only if some went (ifSacrificed)
           const sacN = e.ifSacrificed ? (this._lastSacCount || 0) : 0;
           if (e.ifSacrificed && !sacN) break;
@@ -27746,6 +27765,7 @@
             effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN }))
               : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
+              putOne ? { objectId: putOne } : {},
               sacN ? { amount: sacN } : {},
               // Hawkeye, Master Marksman: "choose up to that many" — the times paid (amountX)
               e.amountX ? { amount: Number(ctx.x) || 0 } : {}) });
@@ -32142,6 +32162,43 @@
           src._chr = null;
           this.bumpBoard();
           this.logEvent('control', `${tp.name} gains control of ${src.name} until end of combat; it is attacking ${label(def)}.`);
+          break;
+        }
+        /* Hans Eriksson: "reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped
+           and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand."
+           (revealTopAttacking; the creature put is _putThisWay, for the reflexive trigger after) */
+        case 'revealTopAttacking': {
+          this._putThisWay = null;
+          const c = this.zones[ctx.controller].library[0];
+          if (!c) break;
+          this._know([c], '*');
+          this.logEvent('reveal', `${me.name} reveals ${c.name}.`);
+          if (!(c.analysis() || {}).isCreature) { this.moveObject(c, 'hand'); this.logEvent('zone', `${me.name} puts ${c.name} into their hand.`); break; }
+          // defending player: whom this creature attacks (or, a planeswalker, its controller)
+          const at = src && src.attacking ? src.attacking : (ctx.triggerData || {}).defenderId;
+          const dp = this.player(at) ? this.player(at) : this.player((this.obj(at) || {}).controller);
+          let def = dp && !dp.hasLost && dp.id !== ctx.controller ? dp.id : null;
+          if (def) {
+            const defs = [def].concat(this.battlefield.filter(x => !x.phasedOut && x.controller === def && (x.analysis() || {}).isPlaneswalker).map(x => x.id));
+            if (defs.length > 1) {
+              const label = (id) => (this.player(id) || this.obj(id) || {}).name || '?';
+              const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'attackWhom', values: defs,
+                options: defs.map((d, i) => ({ i, label: label(d) })), prompt: `${ctx.name ? ctx.name + ': ' : ''}${c.name} enters attacking — ${label(def)} or a planeswalker they control?` }, 'def');
+              if (picked === SUSPEND) return SUSPEND;
+              const idx = Array.isArray(picked) ? picked[0] : picked;
+              def = defs[idx == null ? 0 : idx] || defs[0];
+            }
+          }
+          this.moveObject(c, 'battlefield', { controller: ctx.controller, tapped: true });
+          if (c.zone !== 'battlefield') break;
+          c.tapped = true;
+          if (def && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+            c.attacking = def;
+            if (!this.combat.attackers.includes(c.id)) this.combat.attackers.push(c.id);
+          }
+          this._putThisWay = c.id;
+          this._lastPut = c.id;
+          this.logEvent('rules', `${me.name} puts ${c.name} onto the battlefield tapped${c.attacking ? ' and attacking' : ''}.`);
           break;
         }
         // Wrong Turn: the target player gains control of the target permanent

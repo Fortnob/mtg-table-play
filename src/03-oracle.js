@@ -821,6 +821,11 @@
         e.addCardTypes = c[4].trim().split(' ').map(x => x.charAt(0).toUpperCase() + x.slice(1));
         if (c[5]) (e.addText = e.addText || []).push(c[5][0].toUpperCase() + c[5].slice(1));
       }
+      /* Absorbing Man: "he's a legendary 4/4 Human Villain creature in addition to his other types" — that size,
+         legendary, a creature of those types besides what it copies */
+      else if ((c = ex.match(/^(?:it|he|she)'?s a legendary (\d+)\/(\d+) ((?:[A-Z][a-z]+ )+)creature in addition to (?:its|his|her) other types/))) {
+        e.copyPt = c[1] + '/' + c[2]; e.addLegendary = true; e.addTypes = ['Creature'].concat(c[3].trim().split(' '));
+      }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
       // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1"; Volrath, the Shapestealer: "it's 7/5" — that size
       // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
@@ -852,7 +857,8 @@
       }
       else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
       // (Muddle, the Ever-Changing: "except it has myriad")
-      else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad)(?=,? and |$)/i)))
+      // (Absorbing Man: "he has vigilance")
+      else if ((c = ex.match(/^(?:it|he|she) has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad)(?=,? and |$)/i)))
         (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
       else return false;
       ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
@@ -5602,6 +5608,10 @@
     // (Bill the Pony: "Until end of turn, target creature you control assigns …")
     { re: /^(?:Until end of turn, )?(target creature(?: you control)?) assigns combat damage equal to its toughness rather than its power(?: this turn)?\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown && /^Until end of turn|this turn\.?$/i.test(m[0]) ? { op: 'toughDamageTurn', targets: [t] } : null; } },
+    /* The Kingpin of Crime: "until end of turn, creatures you control with toughness greater than their power assign
+       combat damage equal to their toughness rather than their power." — whichever are so when damage is dealt (yours) */
+    { re: /^(?:Until end of turn, )?creatures you control( with toughness greater than their power)? assign combat damage equal to their toughness rather than their power(?: this turn)?\.?$/i,
+      make: (m) => (/^Until end of turn|this turn\.?$/i.test(m[0]) ? { op: 'toughDamageTurn', yours: true, ifTougher: !!m[1] } : null) },
     // Ojer Pakpatiq, Deepest Epoch: "Whenever you cast an instant spell from your hand, it gains rebound."
     { re: /^(?:It|That spell) gains rebound\.?$/i, make: () => ({ op: 'spellGainsRebound' }) },
     /* Murmuration, Bladewing: "for each spell you've cast this turn, create
@@ -7112,10 +7122,13 @@
       } },
     /* Volrath, the Shapestealer: "Until your next turn, Volrath becomes a copy of target creature with a counter on it,
        except it's 7/5 and it has this ability." (untilNextTurn) */
-    { re: /^[Uu]ntil your next turn, CARDNAME becomes a copy of (target [a-z ]+?)(?:, except (.+?))?\.?$/,
-      make: (m) => {
+    // (Absorbing Man: "becomes a copy of up to one target artifact, non-Aura enchantment, or land" — upTo)
+    { re: /^[Uu]ntil your next turn, CARDNAME becomes a copy of (up to one )?(target [a-z][A-Za-z ,-]*?)(?:, except (.+?))?\.?$/,
+      make: (m0) => {
+        const m = [m0[0], m0[2], m0[3]];
         const spec = targetSpec(m[1]);
         if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
+        if (m0[1]) spec.upTo = true;
         const e = { op: 'becomeCopy', untilNextTurn: true, targets: [spec] };
         if (m[2] && (!copyExceptions(m[2], e) || e.keepOwn)) return null;
         return e;
@@ -8234,8 +8247,9 @@
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Saheeli, the Gifted: "The next spell you cast this turn has affinity for artifacts."
-    { re: /^The next spell you cast this turn has affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
-      make: (m) => ({ op: 'nextSpellKeyword', keyword: 'affinity', affinityFor: m[1].toLowerCase() }) },
+    // (Don & Raph, Hard Science: "the next noncreature spell you cast this turn has affinity for artifacts" — words)
+    { re: /^The next (noncreature |instant or sorcery |artifact |creature )?spell you cast this turn has affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
+      make: (m) => Object.assign({ op: 'nextSpellKeyword', keyword: 'affinity', affinityFor: m[2].toLowerCase() }, m[1] ? { words: m[1].trim().toLowerCase() } : {}) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
     { re: /^The next (instant or sorcery |instant |sorcery )?spell you cast this turn has storm\.?$/i,
       make: (m) => Object.assign({ op: 'nextSpellKeyword', keyword: 'storm' }, m[1] ? { words: m[1].trim().toLowerCase() } : {}) },
@@ -10664,6 +10678,12 @@
     { re: /^choose two target creatures\. For as long as (?:this enchantment|CARDNAME) remains on the battlefield, exchange the text boxes of those creatures\.?$/i,
       make: () => [{ op: 'exchangeText', whileSource: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' },
         { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] }] },
+    /* Hans Eriksson: "reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped
+       and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand. When you
+       put a creature card onto the battlefield this way, it fights Hans Eriksson." (revealTopAttacking, ifPut) */
+    { re: /^[Rr]eveal the top card of your library\. If it'?s a creature card, put it onto the battlefield tapped and attacking defending player or a planeswalker they control\. Otherwise, put that card into your hand\. When you put a creature card onto the battlefield this way, it fights CARDNAME\.?$/,
+      make: () => [{ op: 'revealTopAttacking' }, { op: 'reflexive', ifPut: true, whenText: 'When you put a creature card onto the battlefield this way, it fights CARDNAME.',
+        effects: [{ op: 'fightSelf', vsTriggerObj: true }] }] },
     /* Zara, Renegade Recruiter: "look at defending player's hand. You may put a creature card from it onto the
        battlefield under your control tapped and attacking that player or a planeswalker they control." — the look and
        the pick one question (putFromTheirHand); "Return that creature …" is the one put */
