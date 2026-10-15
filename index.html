@@ -3141,6 +3141,20 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .arena.split .oplate { display: none; }
 .arena.split .opp-strip { justify-content: flex-end; height: 30px; }
 .arena.split .arena-board { top: 40px; }
+/* the strip is a row of places, the plate of the board in view always in the middle one, the others round it in
+   seat order (renderOppStrip says which plate sits where); the button for every board beside it keeps out of the
+   middle, the same room left on either side */
+.opp-strip.on { display: grid; grid-template-columns: repeat(var(--op-cols, 3), minmax(0, 230px));
+  grid-template-rows: minmax(0, 1fr); column-gap: 8px; justify-content: center; }
+.opp-strip .oplate { grid-row: 1; container-type: inline-size; }
+/* a place too narrow for a name to be read (six at the table, a small window): the portrait and seat number say whose it
+   is (the name is in the title, the label and the tip), then the hand's chip goes too */
+@container (max-width: 159px) { .oplate .op-who { display: none; } .oplate .op-hand { margin-left: auto; } }
+@container (max-width: 123px) { .oplate .op-hand { display: none; } }
+.opp-strip.with-split { padding-inline: 104px; }
+.opp-strip .op-split { position: absolute; right: 0; top: 50%; translate: 0 -50%; }
+/* a phone: places as wide as a portrait's tab, scrolled so the one in view is in the middle when they run over */
+:root[data-phone] .opp-strip.on { grid-template-columns: repeat(var(--op-cols, 3), minmax(82px, max-content)); justify-content: safe center; padding-inline: 0; }
 
 /* the middle of the board, not of the window: the hand takes the bottom */
 .arena { --board-top: 6px; }
@@ -21089,7 +21103,8 @@ MTG.setGameSpeed = function (id) {
       make: (m) => ({ op: 'grantFlashbackCost', cost: m[1], targets: [Object.assign(targetSpec('target instant or sorcery card', 'graveyard'), { controller: 'you' })] }) },
     /* Emrakul, the Exigent Doom: "Target land gains "{T}: Add {C}{C}" until this card is cast from exile." — not for a
        card that leaves exile some other way: the land keeps it (the rulings; untilCastFromExile) */
-    { re: /^Target land gains "(\{T\}: Add (?:\{[WUBRGC]\})+\.?)" until this card is cast from exile\.?$/i,
+    // (Spara's Adjudicators and the other Omenpath travellers: "{T}: Add {G}, {W}, or {U}" — one of three)
+    { re: /^Target land gains "(\{T\}: Add (?:(?:\{[WUBRGC]\})+|\{[WUBRGC]\}(?:, \{[WUBRGC]\})*,? or \{[WUBRGC]\})\.?)" until this card is cast from exile\.?$/i,
       make: (m) => ({ op: 'grantAbility', ability: m[1].replace(/\.?$/, '.'), duration: 'untilCastFromExile', targets: [targetSpec('target land')] }) },
     // Emrakul, the Exigent Doom: "You may cast this card for as long as it remains exiled." (selfCastFromExile)
     { re: /^You may cast (?:this card|CARDNAME) for as long as it remains exiled\.?$/i, make: () => ({ op: 'selfCastFromExile' }) },
@@ -41911,6 +41926,10 @@ MTG.setGameSpeed = function (id) {
         return this._seenTop(playerId) !== (top && top.id);
       }
       const mine = this.activePlayer && this.activePlayer.id === playerId;
+      /* Forecast works only in your upkeep: a card in your hand that could forecast now makes that a moment to stop
+         at, as a step you asked to stop at is (a stop you set nowhere else would see it gone by) */
+      if (mine && this.step === 'upkeep' && this.playableNow(playerId).some(x => x.kind === 'cycle' &&
+          this.altUsesFor(playerId, x.objId).some(u => u.forecast))) return true;
       const key = this.step === 'main' ? (this.phase === 'precombat' ? 'main1' : 'main2') : this.step;
       const stops = (cfg.stops || {})[mine ? 'yours' : 'theirs'] || {};
       return !!stops[key];
@@ -45452,7 +45471,15 @@ MTG.setGameSpeed = function (id) {
       /* Cheaper ways in from your hand, each with a string attached:
            evoke sacrifices it as it lands, dash sends it home at the end
            of the turn but lets it attack the moment it arrives. */
-        if (o.zone === 'hand' && arg && (k === 'evoke' || k === 'dash')) {
+        /* (Solitude, Subtlety, Grief, Endurance, Fury: "Evoke—Exile a white card from your hand." — no mana at all, a
+           card of that colour from the hand instead, paid as Force of Will's is; offered with one to exile) */
+        const evx = o.zone === 'hand' && k === 'evoke' && String(arg).match(/^Exile (a|an|one|two) ([a-z ]+?) cards? from your hand\.?$/i);
+        if (evx) {
+          const fh = { n: WORD_NUM(evx[1]), filter: evx[2].trim().toLowerCase() };
+          if (this._discardPool(playerId, fh, o).length >= fh.n) {
+            out.push({ kind: 'cast', via: 'evoke', cost: '', alt: { exileFromHand: fh, label: 'Evoke' }, label: 'Evoke: ' + String(arg).replace(/\.$/, '').replace(/^E/, 'e') });
+          }
+        } else if (o.zone === 'hand' && arg && (k === 'evoke' || k === 'dash')) {
           out.push({ kind: 'cast', via: k, cost: arg, label: ab.keyword + ' ' + arg });
         }
         /* Blitz (CR 702.152): cheap and fast, gone at end of turn, and it
@@ -45761,8 +45788,10 @@ MTG.setGameSpeed = function (id) {
       if (o.zone === 'hand' && a.channel && !(a.channel.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId))) {
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
-        out.push({ kind: 'cycle', channel: true, cost,
-          label: a.channel.exile ? (a.channel.mana ? 'Exile for mana' : 'Exile it ' + (cost || '{0}')) : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
+        // (a Spirit Guide's is a mana ability: `mana`, for the table to offer it as a source while a spell waits for mana)
+        out.push(Object.assign({ kind: 'cycle', channel: true, cost,
+          label: a.channel.exile ? (a.channel.mana ? 'Exile for mana' : 'Exile it ' + (cost || '{0}')) : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') },
+        a.channel.exile && a.channel.mana ? { mana: true } : {}));
       }
       /* Overload (CR 702.96): pay more and every "target" becomes "each". */
       if (o.zone === 'hand' && a.overloadEffects) {
@@ -46452,13 +46481,14 @@ MTG.setGameSpeed = function (id) {
       }
       /* A Spirit Guide is exiled, and its mana arrives at once: a mana
          ability never uses the stack. */
+      if (a.channel.exile && a.channel.mana) {
+        this._exileForMana(playerId, o, null);
+        this.touch();
+        return true;
+      }
       if (a.channel.exile) {
         this.moveObject(o, 'exile');
         this.logEvent('ability', `${this.player(playerId).name} exiles ${o.name} from their hand.`);
-        if (a.channel.mana) {
-          this._runManaAbility(playerId, o, { effects: a.channel.effects }, { controller: playerId, obj: o, name: o.name });
-          return true;
-        }
       } else if (!a.channel.keep) {
         this.moveObject(o, 'graveyard');
         this._afterDiscard(playerId, o);
@@ -51180,7 +51210,8 @@ MTG.setGameSpeed = function (id) {
        and put to them as a question (purpose sacMana): "Sacrifice 3 Treasures to cast Lightning Bolt?"; yes does
        it again with their say-so (sacOk), no leaves it undone. A question that offers to pay a price says what
        paying it would sacrifice (_noteSacMana), and its yes is the say-so. Bots spend them as they always have,
-       and a Treasure tapped by hand is the person's own doing. */
+       and a Treasure tapped by hand is the person's own doing. A Spirit Guide in a person's hand is one more of
+       these, last of all: "Exile Simian Spirit Guide from your hand to cast Lightning Bolt?" (_handManaGuides). */
 
     /** What paying `cost` for this player the way payMana would sacrifices for the mana: [] when the pool and taps
         pay it (or it can't be paid at all). */
@@ -51201,10 +51232,26 @@ MTG.setGameSpeed = function (id) {
       for (const o of objs) {
         // a Treasure is called a Treasure; any other token says it is one
         const noun = o.isToken && o.name !== 'Treasure' ? o.name + ' token' : o.name;
-        groups.set(noun, (groups.get(noun) || 0) + 1);
+        // (a card from your hand, a Spirit Guide, by its name alone)
+        const g = groups.get(noun) || { n: 0, card: o.zone === 'hand' };
+        g.n++;
+        groups.set(noun, g);
       }
-      const parts = Array.from(groups).map(([noun, n]) => (n === 1 ? (/^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun : O.nounCount(n, noun)));
+      const parts = Array.from(groups).map(([noun, g]) => (g.n === 1 ? (g.card ? '' : /^[aeiou]/i.test(noun) ? 'an ' : 'a ') + noun : O.nounCount(g.n, noun)));
       return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0] || '';
+    }
+    /** What paying with these does, said: "Sacrifice 3 Treasures", "Exile Simian Spirit Guide from your hand", or
+        both ("Sacrifice a Treasure and exile …"); `third`: "sacrifices …", "exiles …", for "Paying it …". */
+    _sacPhrase(objs, third) {
+      const sac = objs.filter(o => o.zone !== 'hand'), ex = objs.filter(o => o.zone === 'hand');
+      const parts = [];
+      if (sac.length) parts.push((third ? 'sacrifices ' : 'Sacrifice ') + this._sacWords(sac));
+      if (ex.length) parts.push((third ? 'exiles ' : sac.length ? 'exile ' : 'Exile ') + this._sacWords(ex) + ' from your hand');
+      return parts.join(' and ');
+    }
+    /** The yes of a question about paying with these: "Sacrifice and cast", or "Exile and cast" for Spirit Guides alone. */
+    _sacYes(objs, yes) {
+      return objs.length && objs.every(o => o.zone === 'hand') ? String(yes).replace(/^Sacrifice\b/, 'Exile') : yes;
     }
     /**
      * May the game sacrifice these for mana it is paying for this player? A bot's yes is taken for granted.
@@ -51234,8 +51281,8 @@ MTG.setGameSpeed = function (id) {
     _sacGateWanted(playerId, opts) {
       if (this._sacGate || this.resolving || (opts && opts.fromPool)) return false;
       const p = this.player(playerId);
-      return !!p && !p.isBot && this.battlefield.some(o => o.controller === playerId && !o.tapped && !o.phasedOut &&
-        this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab)));
+      return !!p && !p.isBot && (this.battlefield.some(o => o.controller === playerId && !o.tapped && !o.phasedOut &&
+        this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab))) || this._handManaGuides(playerId, opts).length > 0);
     }
     /** Do `run` (the action `redo` names); if its payment stopped for want of a sacrifice, ask. */
     _sacGated(playerId, redo, run) {
@@ -51281,8 +51328,9 @@ MTG.setGameSpeed = function (id) {
       const o = redo.objId ? this.obj(redo.objId) : null;
       const text = this._sacWords(objs);
       const act = this._sacActionWords(redo, o);
-      const q = { type: 'confirm', playerId, purpose: 'sacMana', prompt: `Sacrifice ${text} to ${act.what}?`,
-        yesLabel: act.yes, noLabel: 'Cancel', sacMana: { ids: objs.map(x => x.id), n: objs.length, text }, redo };
+      // ("Exile Simian Spirit Guide from your hand to cast Lightning Bolt?" — a Spirit Guide in hand: _handManaGuides)
+      const q = { type: 'confirm', playerId, purpose: 'sacMana', prompt: `${this._sacPhrase(objs)} to ${act.what}?`,
+        yesLabel: this._sacYes(objs, act.yes), noLabel: 'Cancel', sacMana: { ids: objs.map(x => x.id), n: objs.length, text }, redo };
       if (o) Object.assign(q, { sourceId: o.id, sourceName: o.name, sourceCard: o.card || null });
       if (o && redo.kind === 'activate') {
         const a = o.analysis();
@@ -51328,7 +51376,8 @@ MTG.setGameSpeed = function (id) {
       const note = this._sacNote(ch.playerId, this._questionMana(ch));
       if (!note) return;
       ch.sacMana = note;
-      ch.prompt = (ch.prompt ? String(ch.prompt).replace(/\s*$/, ' ') : '') + `Paying it sacrifices ${note.text}.`;
+      const objs = note.ids.map(id => this.obj(id)).filter(Boolean);
+      ch.prompt = (ch.prompt ? String(ch.prompt).replace(/\s*$/, ' ') : '') + `Paying it ${this._sacPhrase(objs, true)}.`;
     }
     /** Mid-resolution, before paying a price no question has offered yet (an X just chosen): should it take a
         sacrifice, the person is asked first. SUSPEND while asked; false when they say no. */
@@ -51339,8 +51388,9 @@ MTG.setGameSpeed = function (id) {
       const r = this.resolving;
       const said = r && r.answers ? r.answers[r.index + '#sacOk'] : null;
       if (said && said.pid === playerId && said.n >= note.n) return true;
+      const objs = note.ids.map(id => this.obj(id)).filter(Boolean);
       return this._ask({ type: 'confirm', playerId, purpose: 'sacMana', payMana: cost, sacMana: note,
-        prompt: `Sacrifice ${note.text} to pay ${cost}?`, yesLabel: 'Sacrifice and pay', noLabel: "Don't pay" }, sub);
+        prompt: `${this._sacPhrase(objs)} to pay ${cost}?`, yesLabel: this._sacYes(objs, 'Sacrifice and pay'), noLabel: "Don't pay" }, sub);
     }
 
     /** The untapped permanents auto-tap may draw on. */
@@ -51374,8 +51424,9 @@ MTG.setGameSpeed = function (id) {
       // (a Treasure: only with the person's say-so, and asked for before anything is tapped — _sacConsent)
       const sacs = plan.filter(x => x.sac).map(x => x.obj);
       if (sacs.length && !this._sacConsent(playerId, sacs, opts)) return false;
-      for (const { obj, ability, symbol } of plan) {
-        this._activateManaDirect(playerId, obj, ability, symbol);
+      for (const { obj, ability, symbol, hand } of plan) {
+        if (hand) this._exileForMana(playerId, obj, symbol);
+        else this._activateManaDirect(playerId, obj, ability, symbol);
       }
       if (p.pool.canPay(need, opts)) { this._spendPlan(p, p.pool.pay(need, opts)); return true; }
       return false;
@@ -51715,16 +51766,46 @@ MTG.setGameSpeed = function (id) {
     /** Greedy solver: colored requirements first, generic last. */
     /* Taps first; only when they can't cover it, a source that sacrifices itself for mana (a Treasure, Gold, Lotus
        Petal) as well, the last thing spent: the spell is yours to cast with it, and auto-pass sees that you can. */
+    /* (A person's Spirit Guide in hand is one of those last things too: exiled for its mana, with their say-so —
+       _handManaGuides.) */
     _planAutoTap(playerId, sources, cost, opts) {
-      return this._planAutoTapWith(playerId, sources, cost, opts, false) ||
-        (sources.some(o => this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab))) ? this._planAutoTapWith(playerId, sources, cost, opts, true) : null);
+      const plain = this._planAutoTapWith(playerId, sources, cost, opts, false);
+      if (plain) return plain;
+      const hand = this._handManaGuides(playerId, opts);
+      return hand.length || sources.some(o => this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab)))
+        ? this._planAutoTapWith(playerId, sources, cost, opts, true, hand) : null;
+    }
+    /**
+     * A person's cards in hand that exile themselves for mana ("Exile this card from your hand: Add {R}." — Simian
+     * and Elvish Spirit Guide): what paying for them may draw on once the taps fall short, after any Treasure, and
+     * only with their say-so (the sacMana question names them). Never the card being paid for, and not a bot's,
+     * which uses them as it always has.
+     */
+    _handManaGuides(playerId, opts) {
+      const p = this.player(playerId);
+      const z = this.zones[playerId];
+      if (!p || p.isBot || !z || this._abilityLocked(playerId)) return [];
+      const self = opts ? (opts.forSpell || opts.forAbility || null) : null;
+      return z.hand.filter(o => {
+        if (o === self || o.controller !== playerId) return false;
+        const ch = (o.analysis() || {}).channel;
+        return !!(ch && ch.exile && ch.mana && !ch.cost);
+      });
+    }
+    /** A Spirit Guide used: exiled from the hand, its mana made at once (a mana ability never uses the stack). */
+    _exileForMana(playerId, o, symbol) {
+      const a = o.analysis();
+      this.moveObject(o, 'exile');
+      this.logEvent('ability', `${this.player(playerId).name} exiles ${o.name} from their hand.`);
+      this._runManaAbility(playerId, o, { effects: a.channel.effects }, { controller: playerId, obj: o, name: o.name, manaChoice: symbol });
+      this.emit('sfx', 'tap');
     }
     /** A mana ability whose only cost beyond {T} is sacrificing itself (a Treasure's). */
     _sacOnlyMana(ab) {
       const c = ab && ab.cost;
       return !!(c && c.sacSelf && !c.mana && !c.sacrifice && !c.discard && !c.mill && !c.exile && !c.removeCounters && !(c.other || []).length);
     }
-    _planAutoTapWith(playerId, sources, cost, opts, withSac) {
+    _planAutoTapWith(playerId, sources, cost, opts, withSac, hand) {
       const p = this.player(playerId);
       const syms = MANA.parse(cost);
       const need = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
@@ -51774,12 +51855,20 @@ MTG.setGameSpeed = function (id) {
             flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) + (sacs ? 20 : 0) });
         }
       }
+      // a Spirit Guide in hand: the very last thing spent, after a Treasure (_handManaGuides)
+      for (const o of withSac ? hand || [] : []) {
+        const ab = { effects: o.analysis().channel.effects, cost: {}, text: 'Exile this card from your hand' };
+        const opt = this._manaOptions(ab, o, playerId);
+        if (!opt.any && !opt.produces.size) continue;
+        cand.push({ obj: o, ability: ab, index: -1, produces: opt.produces, any: opt.any, amount: opt.amount, sac: true, hand: true,
+          flexibility: (opt.any ? 9 : opt.produces.size) + 30 });
+      }
       // prefer least flexible sources for colored needs, and the painless over the painful
       cand.sort((a, b) => a.flexibility - b.flexibility || b.amount - a.amount);
 
       const used = new Set();
       const plan = [];
-      const take = (source, symbol) => { used.add(source.obj.id); plan.push({ obj: source.obj, ability: source.ability, symbol, sac: !!source.sac }); };
+      const take = (source, symbol) => { used.add(source.obj.id); plan.push({ obj: source.obj, ability: source.ability, symbol, sac: !!source.sac, hand: !!source.hand }); };
 
       for (const color of MANA.COLORS.concat('C')) {
         while (need[color] > 0) {
@@ -117021,7 +117110,74 @@ Sideboard
       host._hint.innerHTML = '';
       host._split.textContent = MTG.settings.splitOpponents ? 'One board' : 'All boards';
       host._split.style.display = others.length <= 3 ? '' : 'none';
+      host.classList.toggle('with-split', others.length <= 3);
+      this._seatPlates(host, others, kids);
       this.place(host, kids.concat([host._hint, host._split]));
+      this._centreStrip(host);
+    }
+
+    /**
+     * The plate of the board in view sits in the middle of the strip, the
+     * others round it the way the seats run, like turning a ring: the seats
+     * before it to its left, those after it to its right (one more of them
+     * when the count is even, the middle kept by an empty place on the left).
+     * Only where each plate is drawn turns: the plates stay in seat order for
+     * the keyboard and a screen reader. Turning to another board slides them
+     * round together with it; the plate that comes round the back fades in
+     * at the far end.
+     */
+    /** @this {MTG.TableInstance} */
+    _seatPlates(host, others, plates) {
+      const n = others.length;
+      const at = Math.max(0, others.findIndex(p => p.id === this.focusSeat));
+      const after = Math.floor(n / 2);
+      host.style.setProperty('--op-cols', String(2 * after + 1));
+      const key = others.map(p => p.id).join(' ') + '|' + (others[at] && others[at].id);
+      const turning = host._seatKey != null && host._seatKey !== key && !this._focusCut;
+      const passed = host._seatActive !== this.view.activePlayer;
+      host._seatActive = this.view.activePlayer;
+      const was = new Map();
+      if (turning) for (const pl of plates) if (pl.isConnected && pl._col) was.set(pl, pl.getBoundingClientRect().left);
+      for (const [j, pl] of plates.entries()) {
+        let d = (j - at + n) % n;
+        if (d > after) d -= n;
+        const col = after + 1 + d;
+        if (pl._col !== col) { pl._col = col; pl.style.gridColumn = String(col); }
+      }
+      host._seatKey = key;
+      if (!was.size) return;
+      for (const pl of was.keys()) if (pl._slide) { pl._slide.cancel(); pl._slide = null; }
+      const off = this._motionOff();
+      // in step with the board turned to, or longer for the turn passing to it
+      const ms = passed && this.view.activePlayer === this.focusSeat ? 640 : 500;
+      const moved = [...was].map(([pl, x]) => [pl, x - pl.getBoundingClientRect().left]).filter(([, dx]) => Math.abs(dx) > 1);
+      const lead = moved.find(([pl]) => pl === plates[at]);
+      const way = lead ? Math.sign(lead[1]) : 0;
+      const step = lead ? Math.min(Math.abs(lead[1]), plates[at].offsetWidth + 8) : 0;
+      for (const [pl, dx] of moved) {
+        if (!pl.animate) continue;
+        const ease = { duration: ms, easing: 'cubic-bezier(.2, .8, .2, 1)' };
+        // without motion: a fade where it now sits, as the board does
+        if (off) pl._slide = pl.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+        // round the back of the ring: in at the far end rather than across them all
+        else if (way && Math.sign(dx) !== way) pl._slide = pl.animate([{ opacity: 0, transform: `translateX(${way * step}px)` }, { opacity: 1, transform: 'none' }], ease);
+        else pl._slide = pl.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], ease);
+      }
+    }
+
+    /** A strip too wide for the screen (a phone) scrolls: the plate in view is brought to its middle. */
+    /** @this {MTG.TableInstance} */
+    _centreStrip(host) {
+      const pl = this._plates && this._plates.get(this.focusSeat);
+      const key = (host._seatKey || '') + '|' + host.clientWidth;
+      if (host._scrollKey === key) return;
+      const first = host._scrollKey == null;
+      host._scrollKey = key;
+      if (!pl || !pl.isConnected || host.scrollWidth <= host.clientWidth + 1) return;
+      const left = Math.max(0, pl.offsetLeft + pl.offsetWidth / 2 - host.clientWidth / 2);
+      if (Math.abs(host.scrollLeft - left) < 1) return;
+      if (first || this._motionOff() || !host.scrollTo) host.scrollLeft = left;
+      else host.scrollTo({ left, behavior: 'smooth' });
     }
 
     /** Look at the next or previous opponent's board. */
@@ -118284,7 +118440,8 @@ Sideboard
       const blk = this.blockPlan ? new Set(this.blockPlan.declarations.map(d => d.blockerId)) : null;
       // a spell waiting for mana: it is marked, and what could tap to pay for it glows
       // (and a question about Treasures the game would sacrifice for you: those glow — sacMana)
-      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id))
+      // (a Spirit Guide in your hand glows too: clicked, it is exiled for its mana — _handManaGuides)
+      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id).concat(this.handManaGuides().map(o => o.id)))
         : ch && ch.sacMana && Array.isArray(ch.sacMana.ids) ? new Set(ch.sacMana.ids) : null;
       // creatures tapped to convoke: what each pays, on the card
       const conv = this.convoking ? this.convokeSums() : null;
@@ -118424,10 +118581,19 @@ Sideboard
       // touch: hold a card to read it
       let lp = null;
       a.addEventListener('touchstart', (e) => {
+        /* a new touch: the click a long-press held back belonged to the touch before, and a phone that sends none
+           after a long-press (most do not) would otherwise swallow this tap */
+        this._suppressClick = false;
         const cv = e.target.closest('.cv');
         if (!cv) return;
         const t = e.touches[0];
-        lp = { x: t.clientX, y: t.clientY, timer: setTimeout(() => { lp = null; this._suppressClick = true; this.showCard(cv.dataset.id); }, 430) };
+        /* (a card in your hand offers what else it can do under Actions, as a right-click does: a Spirit Guide's
+           Exile for mana, cycling, channel) */
+        lp = { x: t.clientX, y: t.clientY, timer: setTimeout(() => {
+          lp = null; this._suppressClick = true;
+          const loc = this.locate(cv.dataset.id);
+          this.showCard(cv.dataset.id, loc && loc.zone === 'hand' && loc.player === this.meId ? { actions: true } : undefined);
+        }, 430) };
       }, { passive: true });
       const cancel = (e) => {
         if (!lp) return;
@@ -118608,6 +118774,12 @@ Sideboard
       }
       // the spell waiting for mana, clicked again: it goes back to waiting in your hand
       if (this.paying && this.paying.objId === id && loc.zone !== 'battlefield') return this.cancelPay();
+      /* a Spirit Guide in your hand while a spell waits for mana: a mana source like a land, exiled for its mana
+         the moment it is clicked, and the spell goes once the pool covers it (as Arena lets you mid-payment) */
+      if (this.paying && loc.zone === 'hand' && loc.player === this.meId) {
+        const guide = this._handManaUse(id);
+        if (guide) { MTG.sfx('click'); return this._cycleUse(loc.o, this.analysis(loc.o), guide); }
+      }
       if (loc.zone === 'hand' && loc.player === this.meId) return this.playFromHand(loc.o);
       // Sen Triplets: a card in another player's revealed hand that you may cast or play this turn
       if (loc.zone === 'hand' && (live.playable || []).includes(id)) return this.playFromHand(loc.o);
@@ -118705,15 +118877,21 @@ Sideboard
       this.popover(node, o, uses);
     }
 
-    /** @this {MTG.TableInstance} */
-    playFromHand(o) {
+    /**
+     * Play a card from your hand: a click on it, a drag, Enter.
+     * @this {MTG.TableInstance}
+     * @param {any} o
+     * @param {boolean} [plain] just the ordinary cast or land drop, chosen already (the card's menu's "Cast it"),
+     *   with no menu of the other things it can do
+     */
+    playFromHand(o, plain) {
       const a = this.analysis(o);
       if (!a) return;
       if (!this._ready()) return;
       const live = this.live;
       if (!(live.playable || []).includes(o.id)) {
         const alt = (live.uses || {})[o.id] || [];
-        if (alt.length) return this.cardMenu(o.id, null);
+        if (alt.length && !plain) return this.cardMenu(o.id, null);
         // the engine's own reason, where it gave one: a tap on a phone is the only way to ask
         const why = this.whyNot(o.id);
         if (why) return UI.toast(why.text);
@@ -118724,7 +118902,7 @@ Sideboard
       if (a.isLand) {
         // a channel land (Otawara): play it, or channel it
         const chans = ((live.uses || {})[o.id] || []).filter(u => u.kind === 'cycle');
-        if (chans.length && o.zone === 'hand') {
+        if (chans.length && o.zone === 'hand' && !plain) {
           const me = this.me;
           const canLand = me && live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length &&
             me.landsPlayed < (me.maxLands || 1);
@@ -118745,24 +118923,32 @@ Sideboard
       /* Another way to cast it from where it is (spectacle, evoke, surge,
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */
-      if (o.zone === 'hand') {
+      if (o.zone === 'hand' && !plain) {
         const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot', 'foretell'].includes(u.kind));
         if (alts.length) {
           /* the ordinary cast, when it could be made right now: the engine's
              reason covers cost, and its timing is checked here because a card
              with another way in (sneak in combat) is not "unplayable" */
+          /* (the engine's reason itself, not whyNot's: a card is "playable" for another of its uses — a Spirit Guide
+             that can always be exiled for mana — while its ordinary cast can't be paid for) */
           const sorcerySpeed = live.activePlayer === this.meId && live.step === 'main' && !(live.stack || []).length;
-          const normal = !this.whyNot(o.id) && (sorcerySpeed || a.isInstant || a.has('flash'));
-          /** @type {Array<[string, () => void]>} */
+          const normal = !(live.unplayable || {})[o.id] && (sorcerySpeed || a.isInstant || a.has('flash'));
+          /** @type {Array<[string, () => void, boolean?]>} */
           const items = alts.map(u => [u.label, () => (u.kind === 'cycle' ? this._cycleUse(o, a, u)
             : u.kind === 'suspend' ? this._suspendUse(o, u)
             : u.kind === 'plot' ? this.send({ kind: 'plot', objId: o.id })
             : u.kind === 'foretell' ? this.send({ kind: 'foretell', objId: o.id })
             : u.via === 'morph' ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
             : this.castUse(o, a, u))]);
-          if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
-          // (foretelling exiles the card: never done on a bare click, always picked from the menu)
-          if (items.length === 1 && alts[0].kind !== 'foretell') return items[0][1]();
+          const castLabel = `Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim();
+          if (normal) items.unshift([castLabel, () => this.beginCast(o, a)]);
+          /* A card whose other use gives up a card from your hand (a Spirit Guide's Exile for mana, channel, "Exile
+             it {2}", Force of Will's or Solitude's way in) and that can't be cast just now: its cast shown all the
+             same, dimmed, beside that use — the two things the card does, as Arena shows them */
+          const givesUp = (u) => !!(u.channel || (u.alt && u.alt.exileFromHand));
+          if (!normal && !a.isLand && alts.some(givesUp)) items.unshift([castLabel, () => {}, true]);
+          // (foretelling exiles the card, and so do these: never done on a bare click, always picked from the menu)
+          if (items.length === 1 && alts[0].kind !== 'foretell' && !givesUp(alts[0])) return items[0][1]();
           const n = this.els.get(o.id);
           const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
           return UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
@@ -119793,8 +119979,12 @@ Sideboard
       const items = [];
       const live = this.live || this.view;
       if (loc.zone === 'hand' && mine) {
-        if (a && a.isLand) items.push(['Play this land', () => this.playFromHand(o)]);
-        else items.push(['Cast it', () => this.playFromHand(o)]);
+        /* the ordinary play, chosen here (not another menu of the card's uses, which follow); when it can't be made
+           and something else can, it is shown dimmed (whyNot says why on the card) */
+        const others = ((live.uses || {})[o.id] || []).length > 0;
+        const cantCast = others && !!(live.unplayable || {})[o.id];
+        if (a && a.isLand) items.push(['Play this land', () => this.playFromHand(o, true), cantCast]);
+        else items.push([`Cast it${a && a.manaCost ? ' ' + a.manaCost : ''}`, () => this.playFromHand(o, true), cantCast]);
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cycle') items.push([use.label, () => this._cycleUse(o, a, use)]);
           else if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);
@@ -122036,8 +122226,10 @@ Sideboard
         const pool = this.me && this.me.pool ? ['W', 'U', 'B', 'R', 'G', 'C'].map(c => `{${c}}`.repeat(this.me.pool[c] || 0)).join('') : '';
         const cost = p.intent.x ? p.cost.replace(/\{X\}/g, `{${p.intent.x}}`) : p.cost;
         // (a phone shows the title alone, so the title says what to do)
+        // (a Spirit Guide in your hand is offered the same way, beside the lands)
+        const guides = this.handManaGuides().length;
         return set('ask pay', `${escapeHtml(p.name)}: tap lands to pay ${MTG.mana.html(cost)}`,
-          `${press()} a glowing land to tap it for mana. Once your mana pool covers the cost, it ${p.intent.kind === 'cast' ? 'is cast' : 'happens'}.` +
+          `${press()} a glowing land to tap it for mana${guides ? `, or a glowing card in your hand to exile it for mana` : ''}. Once your mana pool covers the cost, it ${p.intent.kind === 'cast' ? 'is cast' : 'happens'}.` +
           (pool ? ` In your pool: ${MTG.mana.html(pool)}.` : ''));
       }
       const ch = live.pendingChoice;
@@ -123737,6 +123929,20 @@ Sideboard
         // a creature that arrived this turn cannot use {T} yet, not even for mana
         return !(a.isCreature && o.summoningSick && !(o.keywords || []).some(k => /^haste$/i.test(String(k))));
       });
+    },
+
+    /** A card in your hand that exiles itself for mana (a Spirit Guide): that use of it, while it can be made now. */
+    _handManaUse(id) {
+      const live = this.live || this.view;
+      if (!live || !(live.playable || []).includes(id)) return null;
+      return ((live.uses || {})[id] || []).find(u => u.kind === 'cycle' && u.channel && u.mana) || null;
+    },
+
+    /** Your cards in hand that could be exiled for mana now (Spirit Guides): what glows beside the lands while a
+        spell waits, never the spell itself. */
+    handManaGuides() {
+      const me = this.me;
+      return ((me && me.hand) || []).filter(o => o && o.id && !(this.paying && this.paying.objId === o.id) && this._handManaUse(o.id));
     },
 
     /** Before a render: a spell whose moment has passed is put back, and one that has gone through is done with. */
