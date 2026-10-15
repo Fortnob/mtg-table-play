@@ -536,7 +536,7 @@
 .ps.now span, .ps:hover span { opacity: 1; }
 .ps.now span { color: var(--gold-hi); }
 .phase-strip { margin-bottom: 8px; }
-.big-btn { position: relative; height: 66px; border-radius: 33px; border: 0; cursor: pointer;
+.big-btn { position: relative; min-height: 66px; border-radius: 33px; border: 0; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 18px;
   font: 800 18px/1.1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: #fff;
   background: linear-gradient(180deg, #4b5568, #2b3240); box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 10px 26px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.25);
@@ -546,8 +546,9 @@
 .big-btn:hover:not(:disabled)::before { translate: 120% 0; }
 .big-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
 .big-btn:active:not(:disabled) { transform: translateY(1px); }
+/* (the whole of it, on as many lines as it takes: the button grows rather than cut it off) */
 .big-btn .bb-sub { font: 500 11px/1.2 var(--font); letter-spacing: .01em; text-transform: none; opacity: .85; max-width: 100%;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  white-space: normal; text-align: center; overflow-wrap: anywhere; }
 .big-btn .bb-sub:empty { display: none; }
 .big-btn.above { margin-bottom: 8px; }
 .big-btn[hidden] { display: none; }
