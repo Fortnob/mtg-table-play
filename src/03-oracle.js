@@ -98,7 +98,8 @@
     const wardM = w.match(/^ward\s*(?:\u2014|-)\s*(.+)$/i);
     if (wardM && wardPrice(wardM[1])) return true;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
-      /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
+      // (Ayumi, the Last Visitor: "Legendary landwalk")
+      /^(?:plains|island|swamp|mountain|forest|nonbasic land|legendary land|desert)walk$/i.test(w);
   }
   // Keywords that change how a card may be cast/played.
   /* The cast keywords the engine actually honours when you go to cast the
@@ -258,8 +259,9 @@
     if (m) return { keyword: 'Protection', arg: m[1], text: c };
     m = c.match(/^Ward\s*[—-]?\s*(.+)$/i);
     if (m) return { keyword: 'Ward', arg: m[1], text: c };
-    m = c.match(/^Landwalk$|^(\w+)walk$/i);
-    if (m) return { keyword: 'Landwalk', arg: m[1], text: c };
+    // (Ayumi, the Last Visitor: "Legendary landwalk"; "Nonbasic landwalk")
+    m = c.match(/^Landwalk$|^(\w+)walk$|^(nonbasic|legendary) landwalk$/i);
+    if (m) return { keyword: 'Landwalk', arg: m[2] ? m[2].toLowerCase() + ' land' : m[1], text: c };
     /* Typecycling: "Mountaincycling {2}", "Basic landcycling {2}" — cycling
        that fetches the land instead of drawing. */
     m = c.match(/^((?:basic land|plains|island|swamp|mountain|forest|land|wizard|slith|dragon|cleric|[a-z]+)cycling)\s+(\{[^}]+\}(?:\{[^}]+\})*|\d+)$/i);
@@ -3791,8 +3793,9 @@
       make: (m) => ({ op: 'blink', targets: /CARDNAME/i.test(m[1]) ? [] : [targetSpec(m[1])], self: /CARDNAME/i.test(m[1]) }) },
 
     // --- drain ---
-    { re: /^Each opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life and you gain (?:that much|\1) life\.?$/i,
-      make: (m) => ({ op: 'drain', n: num(m[1]), who: 'opponents' }) },
+    // (Bob, Reluctant HYDRA Agent: "each opponent loses 2 life and you gain 2 life" — 2, however many opponents: gainFixed)
+    { re: /^Each opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life and you gain (that much|\1) life\.?$/i,
+      make: (m) => Object.assign({ op: 'drain', n: num(m[1]), who: 'opponents' }, /^that much$/i.test(m[2]) ? {} : { gainFixed: true }) },
     { re: /^Target (?:player|opponent) loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life and you gain (?:that much|\1) life\.?$/i,
       make: (m) => ({ op: 'drain', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Each opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\. You gain life equal to the life lost this way\.?$/i,
@@ -6588,6 +6591,11 @@
     { re: /^[Ee]ach ((?:[A-Z][a-z]+ )?creature) you control explores\.?$/,
       make: (m) => ({ op: 'exploreEach', filter: m[1].toLowerCase() }) },
     { re: /^Choose a color\.?$/i, make: () => ({ op: 'chooseColor' }) },
+    /* Darigaaz, the Igniter: "choose a color, then that player reveals their hand and Darigaaz deals damage to the player
+       equal to the number of cards of that color revealed this way." (revealHand who, cardsInHand chosenColor) */
+    { re: /^Choose a color, then that player reveals their hand and (?:CARDNAME|it) deals damage to (?:the|that) player equal to the number of cards of that color revealed this way\.?$/i,
+      make: () => [{ op: 'chooseColor' }, { op: 'revealHand', who: 'triggerPlayer' },
+        { op: 'damage', n: { cardsInHand: 'triggerPlayer', chosenColor: true }, toTriggerPlayer: true }] },
     { re: /^Add one mana of the chosen color\.?$/i, make: () => ({ op: 'addManaChosen', n: 1 }) },
     // the Thriving lands: their own colour, or the one chosen as they entered
     { re: /^Add \{([WUBRG])\} or one mana of the chosen colou?r\.?$/i, make: (m) => ({ op: 'addManaChosen', n: 1, orSymbol: m[1].toUpperCase() }) },
@@ -9398,6 +9406,9 @@
     if (/^the number of (?:nonland |creature |artifact |land )?cards milled this way$/i.test(p)) return 'triggerAmount';
     // Tyvar the Bellicose: "the amount of mana this creature produced" — what the mana ability the trigger is about made
     if (/^the amount of mana (?:this creature|it|CARDNAME) produced$/i.test(p)) return 'triggerAmount';
+    // Volrath the Fallen: "the discarded card's mana value" — the card discarded to pay for it (ofDiscarded)
+    const dc = p.match(/^the discarded card'?s (power|toughness|mana value)$/i);
+    if (dc) return { ofDiscarded: /mana/i.test(dc[1]) ? 'mv' : dc[1].toLowerCase() };
     // Riku of Many Paths: "the number of times you chose a mode for that spell" (triggerSpellModes)
     if (/^the number of times you chose a mode for that spell$/i.test(p)) return { triggerSpellModes: true };
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
@@ -13511,6 +13522,18 @@
         continue;
       }
 
+      /* Bob, Reluctant HYDRA Agent: "return him to his owner's hand. If you do, each opponent loses 2 life and you gain
+         2 life." — only if it was still there, and went there (bounceSelfThen) */
+      const bnSelf = s.match(/^(?:Then )?return (?:him|her|it|CARDNAME|this creature) to (?:his|her|its|their) owner'?s hand\.$/i);
+      const bnDo = bnSelf && next.match(/^If you do,\s*(.+)$/i);
+      if (bnDo) {
+        const then = parseSentenceList(splitSentences(U.titleCase(bnDo[1].charAt(0)) + bnDo[1].slice(1)));
+        if (!then.auto) auto = false;
+        effects.push({ op: 'bounceSelfThen', then: then.effects, text: s + ' ' + next });
+        i++;
+        continue;
+      }
+
       /* Promise of Bunrei, Standstill: "sacrifice this enchantment. If you
          do, create four 1/1 Spirit tokens" — only if it was still there to go */
       const sacSelf = s.match(/^(?:Then )?sacrifice (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.$/i);
@@ -15188,6 +15211,8 @@
     // void (Alpharael, Stonechosen): "a nonland permanent left the battlefield this turn or a spell was warped this turn"
     [/^a nonland permanent left the battlefield this turn or a spell was warped this turn$/i, () => ({ kind: 'void' })],
     [/^you attacked (?:with a creature )?this turn$/i, () => ({ kind: 'raid' })],
+    // Kiora of Salt and Sand: "if you've activated a loyalty ability this turn" (loyaltyActivatedThisTurn)
+    [/^you'?ve activated a loyalty ability this turn$/i, () => ({ kind: 'loyaltyActivatedThisTurn' })],
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
     // paid for on the way down

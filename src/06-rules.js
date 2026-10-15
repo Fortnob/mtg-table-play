@@ -9670,6 +9670,9 @@
       if (ab.kind === 'loyalty') {
         // (how many this turn: Urza, Planeswalker may twice — loyaltyTwice)
         o.activatedLoyaltyThisTurn = (Number(o.activatedLoyaltyThisTurn) || 0) + 1;
+        // (Kiora of Salt and Sand: "if you've activated a loyalty ability this turn" — whoever did, whatever became of it: loyaltyBy)
+        const th = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+        if (!(th.loyaltyBy || (th.loyaltyBy = [])).includes(playerId)) th.loyaltyBy.push(playerId);
         const delta = this._loyaltyDelta(ab, opts, playerId);
         this.addCounters(o, 'loyalty', delta);
       }
@@ -12369,12 +12372,14 @@
       if ((A('skulk') || this._hasFlag(attacker, 'notByGreaterPower')) && this.powerOf(blocker) > this.powerOf(attacker)) return false;
       const walkKinds = (aa.keywords || []).filter(k => k.keyword === 'Landwalk' && k.arg).map(k => String(k.arg).toLowerCase());
       for (const k of (this.characteristics(attacker).keywords || [])) {
-        const w = String(k).match(/^(nonbasic land|[a-z]+)walk$/i);
+        const w = String(k).match(/^(nonbasic land|legendary land|[a-z]+)walk$/i);
         if (w) walkKinds.push(w[1].toLowerCase());
       }
       for (const kind of walkKinds) {
         const walks = this.battlefield.some(l => l.controller === defPid && (l.analysis() || {}).isLand &&
           (kind === 'nonbasic land' || kind === 'nonbasic' ? !((l.analysis() || {}).supertypes || []).includes('Basic')
+            // Ayumi, the Last Visitor: "Legendary landwalk" — a legendary land
+            : kind === 'legendary land' ? ((l.analysis() || {}).supertypes || []).includes('Legendary')
             : ((l.analysis() || {}).subtypes || []).some(st => st.toLowerCase() === kind)));
         if (walks) return false;
       }
@@ -15326,6 +15331,8 @@
         // void: a nonland permanent left the battlefield, or a spell was cast for its warp cost, this turn
         case 'void': return (h.nonlandLeft || 0) > 0 || !!h.warped;
         case 'raid': return !!h.attacked;
+        // Kiora of Salt and Sand: "if you've activated a loyalty ability this turn" (loyaltyBy)
+        case 'loyaltyActivatedThisTurn': return !!me && (h.loyaltyBy || []).includes(me.id);
         case 'spellsCast': return !!me && at(me.spellsCastThisTurn || 0);
         /* "If you control a commander": one of your commanders is on the
            battlefield under your control. */
@@ -19924,6 +19931,11 @@
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
+        // Volrath the Fallen: "the discarded card's mana value" — the card discarded as the cost (ofDiscarded)
+        if (v && typeof v === 'object' && v.ofDiscarded) {
+          const d = (ctx.discarded || [])[0], dc = d && this.obj(d.id);
+          return !d ? 0 : v.ofDiscarded === 'mv' ? (d.mv || 0) : (parseInt(((dc && dc.analysis()) || {})[v.ofDiscarded], 10) || 0);
+        }
         // Food Chain: the creature exiled to pay for it
         // (Ellie and Alan, Paleontologists: a card exiled from the graveyard to pay — costExiled)
         if (v && typeof v === 'object' && v.ofExiledCost && !ctx.exiledCost && (ctx.costExiled || []).length) {
@@ -19969,6 +19981,8 @@
           const who = v.cardsInHand === 'you' ? me
             : v.cardsInHand === 'triggerPlayer' ? triggerPlayer()
             : (firstPlayer() || this.opponentsOf(ctx.controller)[0]);
+          // Darigaaz, the Igniter: "the number of cards of that color revealed this way" (chosenColor)
+          if (who && v.chosenColor) return this.zones[who.id].hand.filter(o => ((o.analysis() || {}).colors || []).includes(ctx.chosenColor)).length * (v.mult || 1);
           return who ? this.zones[who.id].hand.length * (v.mult || 1) : 0;
         }
         if (v && typeof v === 'object' && v.cardsInGraveyard) {
@@ -23906,7 +23920,8 @@
           const who = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller);
           let total = 0;
           for (const p of who) { if (p.hasLost) continue; this.changeLife(p, -amt, 'drain'); total += amt; }
-          if (total) this.changeLife(me, total, 'drain');
+          // (Bob, Reluctant HYDRA Agent: "and you gain 2 life" — the number, not the total — gainFixed)
+          if (e.gainFixed) { if (amt > 0) this.changeLife(me, amt, 'drain'); } else if (total) this.changeLife(me, total, 'drain');
           break;
         }
         /* "Copy target instant or sorcery spell", "Copy target triggered
@@ -29257,6 +29272,7 @@
            names the cards. "Look at target player's hand" (Gitaxian Probe):
            only the one looking sees them, shown to that player alone. */
         case 'revealHand': {
+          // (Isperia the Inscrutable, Darigaaz, the Igniter: "that player reveals their hand" — who 'triggerPlayer')
           const p = (e.who === 'triggerPlayer' ? triggerPlayer() : firstPlayer()) || this.opponentsOf(ctx.controller)[0];
           if (!p) break;
           const hand = this.zones[p.id].hand;
@@ -31495,6 +31511,13 @@
         // Promise of Bunrei: "sacrifice this enchantment. If you do, …"
         case 'sacSelfThen':
           if (src && src.zone === 'battlefield') { this._sacrificeNow(ctx.controller, [src]); this._spliceNext(e.then || []); }
+          break;
+        // Bob, Reluctant HYDRA Agent: "return him to his owner's hand. If you do, …" — only if it got there
+        case 'bounceSelfThen':
+          if (src && src.zone === 'battlefield') {
+            this.moveObject(src, 'hand');
+            if (src.zone === 'hand') { this.logEvent('zone', `${src.name} returns to its owner's hand.`); this._spliceNext(e.then || []); }
+          }
           break;
         // Mazemind Tome: "exile it. If you do, you gain 4 life."
         case 'exileSelfThen':
