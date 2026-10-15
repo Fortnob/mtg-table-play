@@ -436,6 +436,8 @@
       case 'gainControl': return e.until ? 0.9 : 4.0;
       // Emrakul, the World Anew: a whole side of the table
       case 'stealAll': return 5.0;
+      // Rowan Kenrith: their creatures attack into ours next turn
+      case 'attackNextTurn': return 0.8;
       case 'sacrificeSelf': case 'exileSelf': case 'selfToLibrary': return -2.5;
       case 'copyPermanent': case 'etbAsCopy': return 2.0;
       case 'copySpell': case 'copyThatSpell': return 1.4;
@@ -1523,7 +1525,9 @@
     // Ulrich, Uncontested Alpha: "have it fight target …"; Ravager of the Fells: "2 damage to … and 2 damage to …"
     'fightSelf', 'damageSplit',
     // Yosei, the Morning Star: "target player skips their next untap step"
-    'skipUntap']);
+    'skipUntap',
+    // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able."
+    'attackNextTurn']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;

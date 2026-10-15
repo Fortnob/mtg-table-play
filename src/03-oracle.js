@@ -1100,6 +1100,9 @@
     else if ((m = t.match(/^Until your next turn, (whenever [\s\S]+)$/i))) { body = 'W' + m[1].slice(1); nextTurn = true; }
     // Galvanic Iteration: "When you next cast an instant or sorcery spell this turn, copy that spell." — once
     else if ((m = t.match(/^When you next (cast [^,"]+?) this turn, ([\s\S]+)$/i))) { body = 'Whenever you ' + m[1] + ', ' + m[2]; once = true; }
+    /* Dynaheir, Invoker Adept: "When you next activate an ability that isn't a mana ability this turn by spending four or
+       more mana to activate it, copy that ability." — once */
+    else if ((m = t.match(/^When you next (activate an ability that isn'?t a mana ability) this turn( by spending \w+ or more mana to activate it)?, ([\s\S]+)$/i))) { body = 'Whenever you ' + m[1] + (m[2] || '') + ', ' + m[3]; once = true; }
     // Twinferno: "When you cast your next instant or sorcery spell this turn, …"
     else if ((m = t.match(/^When you cast your next ([^,"]+?) this turn, ([\s\S]+)$/i))) { body = 'Whenever you cast ' + (/^[aeiou]/i.test(m[1]) ? 'an ' : 'a ') + m[1] + ', ' + m[2]; once = true; }
     else if ((m = t.match(/^((?:Whenever|At the beginning of) [^,"]+?) this turn, ([\s\S]+)$/))) body = m[1] + ', ' + m[2];
@@ -1108,7 +1111,7 @@
     if (/\bthat (?:player|creature|permanent|card)\b|\bchosen\b/i.test(head)) return null;
     body = body.replace(/\.?$/, '.');
     if (nextTurn) return emblemText(body) ? { op: 'getEmblem', emblemText: body, nextTurn: true, name: 'Until your next turn' } : null;
-    return emblemText(body) ? Object.assign({ op: 'getEmblem', emblemText: body, thisTurn: true, name: once ? 'Next spell this turn' : 'Until end of turn' }, once ? { once: true } : {}) : null;
+    return emblemText(body) ? Object.assign({ op: 'getEmblem', emblemText: body, thisTurn: true, name: once ? (/^Whenever you activate/.test(body) ? 'Next ability this turn' : 'Next spell this turn') : 'Until end of turn' }, once ? { once: true } : {}) : null;
   }
 
   /* "Search your library for up to two basic land cards, put them onto the
@@ -1826,8 +1829,12 @@
     // Counterflux: "Counter target spell you don't control."
     { re: /^Counter target spell you don'?t control\.?$/i, make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'opponent' }] }) },
     // Ashling's Command: "2 damage to each creature target player controls"
-    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature target (player|opponent) controls\.?$/i,
-      make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // (Rowan Kenrith: "deals 3 damage to each tapped creature target player controls")
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each (tapped )?creature target (player|opponent) controls\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), scope: Object.assign({ who: 'target', what: 'creature' }, m[2] ? { tapped: true } : {}), targets: [{ type: 'player', opponent: /opponent/i.test(m[3]) }] }) },
+    // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able." (attackNextTurn)
+    { re: /^During target player'?s next turn, each creature that player controls attacks if able\.?$/i,
+      make: () => ({ op: 'attackNextTurn', targets: [{ type: 'player' }] }) },
     // Skullcap Snail: "target opponent exiles a card from their hand" — their choice
     { re: /^(Target opponent|Each opponent|Target player) exiles (a|one|two) cards? from their hand\.?$/i,
       make: (m) => Object.assign({ op: 'exileFromHandChoice', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
@@ -7226,6 +7233,14 @@
         return pe.auto && pe.effects.length ? { op: 'delayed', event: 'dies', subject: 'lastTarget', watchDeath: true,
           name: 'When that creature dies this turn', effects: pe.effects } : null;
       } },
+    /* Xira, the Golden Sting: "When that creature dies, if it has an egg counter on it, draw a card and create …" — the
+       one just aimed at, watched for as long as it stays (watchDeath forever; srcHadCounter: as it died) */
+    { re: /^When that creature dies, if it has an? ([a-z]+) counter on it, (.+?)\.?$/i,
+      make: (m) => {
+        const pe = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        return pe.auto && pe.effects.length ? { op: 'delayed', event: 'dies', subject: 'lastTarget', watchDeath: true, forever: true,
+          name: 'When that creature dies', effects: [{ op: 'ifCond', cond: { kind: 'srcHadCounter', counter: m[1].toLowerCase() }, then: pe.effects }] } : null;
+      } },
     { re: /^At the beginning of the next end step, sacrifice (it|that (?:creature|token|permanent))\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
@@ -7908,6 +7923,9 @@
     // one sentence of a longer text: "Whenever a creature dies this turn, …"
     // (Najal, the Storm Runner: "If you do, when you next cast an instant or sorcery spell this turn, copy it." — the paid-for half)
     { re: /^(?:Until end of turn|This turn|Until your next turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$|^When you next cast [^,"]+? this turn, .+$|^When you cast your next [^,"]+? this turn, .+$/i,
+      make: (m) => turnTrigger(m[0]) },
+    // Dynaheir, Invoker Adept: "When you next activate an ability that isn't a mana ability this turn by spending four or more mana to activate it, …"
+    { re: /^When you next activate an ability that isn'?t a mana ability this turn(?: by spending \w+ or more mana to activate it)?, .+$/i,
       make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
     { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
@@ -9233,6 +9251,9 @@
     if (wo) spec.withoutKeyword = wo[0].replace(/^without /, '');
     const wc = p.match(/with an? ([+\-0-9/a-z]+) counter on it/);
     if (wc) spec.withCounter = wc[1];
+    // Xira, the Golden Sting: "another target creature without an egg counter on it" (withoutCounter)
+    const woc = p.match(/without an? ([+\-0-9/a-z]+) counter on it/);
+    if (woc) spec.withoutCounter = woc[1];
     // Hidden Hideout, Together Forever: "with a counter on it" — any kind
     if (/with (?:a|one or more) counters? on (?:it|them)$/.test(p)) spec.withAnyCounter = true;
     // Heartless Act: "target creature with no counters on it"
@@ -9249,7 +9270,7 @@
     if (mx) spec.mv = +mx[1];
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
-      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withKeywordAny || spec.withoutKeyword || spec.withCounter || spec.withAnyCounter || spec.noCounters ||
+      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withKeywordAny || spec.withoutKeyword || spec.withCounter || spec.withoutCounter || spec.withAnyCounter || spec.noCounters ||
       spec.maxPtSum != null || spec.maxPowerOrToughness != null || spec.minPowerOrToughness != null;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
@@ -9260,7 +9281,7 @@
       let left = withClause.toLowerCase();
       for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more))?/g,
         /with power (?:\d+|x) or (?:less|greater|more)/g, /with toughness \d+ or (?:less|greater|more)/g,
-        new RegExp('with (?:' + KW + ') or (?:' + KW + ')\\b', 'g'), new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
+        new RegExp('with (?:' + KW + ') or (?:' + KW + ')\\b', 'g'), new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with(?:out)? an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
         /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
       // "target creature with flying an opponent controls"
       const lc = left.match(/\s(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)\s*$/);
@@ -9510,6 +9531,7 @@
       kw(spec.subtypeOrKeyword.keyword) || (a.keywords || []).some(x => String(x).toLowerCase() === spec.subtypeOrKeyword.keyword))) return false;
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
     if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
+    if (spec.withoutCounter && Number((obj.counters || {})[spec.withoutCounter]) > 0) return false;
     if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     // Spear of Heliod: one that has dealt damage to the one choosing, this turn
     if (spec.dealtDamageToYou && !(obj._hurtPlayers && ctx && obj._hurtPlayers.turn === ctx.turn && obj._hurtPlayers.ids.includes(me))) return false;
@@ -14616,6 +14638,9 @@
        Gornog, the Red Reaper: "target creature that player controls" — the one attacked (attackersOfTypeHere) */
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'anyPlayerAttacksPlayer',
       extraOf: (m) => ({ attackerIsYou: true, attackersOfTypeHere: singularType(m[1]) }) },
+    // Landroval, Horizon Witness: "Whenever two or more creatures you control attack a player" — at that one (attackersHereMin)
+    { re: /^Whenever (two|three|four|five) or more creatures you control attack a player,? /i, event: 'anyPlayerAttacksPlayer',
+      extraOf: (m) => ({ attackerIsYou: true, attackersHereMin: num(m[1]) }) },
     // Zurzoth, Chaos Rider: "Whenever one or more Devils you control attack one or more players" (attackersOfType, at a player)
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack one or more players,? /, event: 'youAttack',
       extraOf: (m) => ({ attackersOfType: singularType(m[1]), attackersOfTypeAtPlayer: true }) },
@@ -14710,6 +14735,9 @@
     { re: /^Whenever you foretell a card,? /i, event: 'youForetell' },
     // Verrak, Warped Sengir: "Whenever you activate an ability that isn't a mana ability, if life was paid to activate it," (lifePaidOnly)
     { re: /^Whenever you activate an ability that isn'?t a mana ability, if life was paid to activate it,? /i, event: 'youActivateAbility', extra: { lifePaidOnly: true } },
+    // (Dynaheir, Invoker Adept's turn: "Whenever you activate an ability that isn't a mana ability by spending four or more mana to activate it" — manaSpentMin)
+    { re: /^Whenever you activate an ability that isn'?t a mana ability by spending (\w+) or more mana to activate it,? /i, event: 'youActivateAbility',
+      extraOf: (m) => ({ manaSpentMin: num(m[1]) }) },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — its mana abilities too (youActivateManaAbility)
     { re: /^Whenever you activate an ability of a creature,? /i, event: 'youActivateAbility', also: 'youActivateManaAbility', filt: () => ({ words: 'creature' }) },
@@ -20244,7 +20272,9 @@
       { re: /^If a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME), put it onto the battlefield( with (one|two|three|a) \+1\/\+1 counters? on it)? instead of putting it into your graveyard\.?$/i,
         make: (m) => Object.assign({ op: 'discardToBattlefield' }, m[1] ? { counters: num(m[2]) } : {}), auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
-      { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
+      // (Dynaheir, Invoker Adept: "abilities of other creatures you control" — not its own: others)
+      { re: /^You may activate abilities of (other )?creatures you control as though those creatures had haste\.?$/i,
+        make: (m) => Object.assign({ op: 'activateAsHaste' }, m[1] ? { others: true } : {}), auto: true },
       // Nissa, Worldsoul Speaker: "You may pay eight {E} rather than pay the mana cost for permanent spells you cast."
       { re: /^You may pay (\w+) \{E\} rather than pay the mana cost for (permanent |creature |artifact )?spells you cast\.?$/i,
         make: (m) => (typeof num(m[1]) === 'number' ? Object.assign({ op: 'grantAltCost', mana: '', energy: num(m[1]) }, m[2] ? { words: m[2].trim().toLowerCase() } : {}) : null), auto: true },
@@ -20402,6 +20432,9 @@
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'freerunning', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
+      // Peri Brown: "The first historic spell you cast each turn has convoke." (firstEachTurn)
+      { re: /^The first ([a-z]+ )?spell you cast each turn has (convoke|improvise|delve)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: (m[1] || 'spell').trim().toLowerCase(), firstEachTurn: true }), auto: true },
       // Tezzeret, Master of the Bridge: "Creature and planeswalker spells you cast have affinity for artifacts."
       // (Pearl-Ear, Imperial Advisor: "Enchantment spells you cast have affinity for Auras." — affinityWords)
       { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments|Auras|Equipment)\.?$/i,

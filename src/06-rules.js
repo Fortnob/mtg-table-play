@@ -1247,6 +1247,8 @@
       let n = 0;
       // Gideon, Battle-Forged: "attacks Gideon during its controller's next turn" — this turn is that one (mustAttackPw)
       for (const o of this.battlefield) if (o.mustAttackPw && o.controller === ap.id && this.turn > o.mustAttackPw.after && o.mustAttackPw.turn == null) o.mustAttackPw.turn = this.turn;
+      // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able." (attackNextTurn)
+      if (ap.attackNextTurn && this.turn > ap.attackNextTurn.after && ap.attackNextTurn.turn == null) ap.attackNextTurn.turn = this.turn;
       /* Stasis, "Skip your untap step": nothing untaps, but what has been
          under its controller's control since the turn began can still
          attack (CR 302.6) */
@@ -3520,7 +3522,11 @@
     }
     /** Thousand-Year Elixir: its controller's creatures use their abilities as though they had haste. */
     _hasteForAbilities(o) {
-      return !!o && this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'activateAsHaste'));
+      // (Dynaheir, Invoker Adept: "other creatures you control" — others)
+      return !!o && this.battlefield.some(x => {
+        const e = x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'activateAsHaste');
+        return !!e && !(x === o && e.others);
+      });
     }
     /** Narset, Parter of Veils: may this player draw another card this turn? */
     _drawLimited(p) {
@@ -4444,6 +4450,8 @@
         if (!g || (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter))) continue;
         // Party Thrasher: only spells cast from exile
         if (g.fromZones && !g.fromZones.includes(o.zone)) continue;
+        // Peri Brown: "The first historic spell you cast each turn" — none of that kind cast yet (firstEachTurn)
+        if (g.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, g.filter || 'spell'))) continue;
         if (out === cr) out = Object.assign({}, cr);
         // Tezzeret, Master of the Bridge: affinity for artifacts, unless the card has an affinity of its own
         if (g.keyword === 'affinity') { if (!out.affinity) out.affinity = g.affinityFor; continue; }
@@ -9186,6 +9194,8 @@
       const costExiled = this._costExiledNow;
       this._costExiledNow = null;
       const fromTreasure = this._spentAcc.treasure || 0;
+      // (Dynaheir, Invoker Adept: "by spending four or more mana to activate it" — the mana spent: manaSpent)
+      const manaSpentAct = ['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (Number(this._spentAcc[c]) || 0), 0);
       this._spentAcc = accWas;
       if (!payOk) return false;
       const used = ab.cost && ab.cost.label;
@@ -9270,7 +9280,7 @@
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
         this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
-          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid,
+          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid, manaSpent: manaSpentAct,
           // (Ashnod the Uncaring: "if one or more permanents were sacrificed to activate it" — its cost, not mana for it: sacPaid)
           sacPaid: !!(ab.cost && (ab.cost.sacSelf || (ab.cost.sacrifice && !ab.cost.sacrifice.upTo))) || !!(item.sacrificed && item.sacrificed.length) });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
@@ -11492,6 +11502,9 @@
       const a = o.analysis();
       if (!a) return false;
       if (this._mustAttackPwNow(o)) return true;
+      // Rowan Kenrith: "each creature that player controls attacks if able" — during that player's next turn (attackNextTurn)
+      const ctl = this.player(o.controller);
+      if (ctl && ctl.attackNextTurn && ctl.attackNextTurn.turn === this.turn && this.activePlayer && this.activePlayer.id === o.controller) return true;
       return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack' && !this._mustAttackExcused(o, e))) ||
         // (Alexios, Deimos of Kosmos: one of three standing rules on a line)
         (!!this._staticOp(o, 'mustAttack') && !this._mustAttackExcused(o, this._staticOp(o, 'mustAttack'))) ||
@@ -14036,6 +14049,11 @@
         case 'opponentMonarch': return !!me && this.opponentsOf(me.id).some(q => q.monarch);
         // Righteous Valkyrie: "at least 7 life more than your starting life total"
         case 'lifeAboveStart': return !!me && me.life >= ((this.config && this.config.startingLife) || 20) + (cond.n || 0);
+        // Xira, the Golden Sting: "if it has an egg counter on it" — the creature this is about, as it died (srcHadCounter)
+        case 'srcHadCounter': {
+          const had = src && (src.zone === 'battlefield' ? src.counters : src._diedCounters);
+          return !!had && Number(had[cond.counter]) > 0;
+        }
         // "if it had no counters on it" as it died
         case 'diedNoCounters': return !!src && !Object.values(src._diedCounters || src.counters || {}).some(v => Number(v) > 0);
         // (Acererak the Archlich: "completed Tomb of Annihilation" — that one)
@@ -17141,6 +17159,8 @@
           if (ab.lifePaidOnly && !(data.lifePaid > 0)) continue;
           // Ashnod the Uncaring: "if one or more permanents were sacrificed to activate it" (sacPaidOnly)
           if (ab.sacPaidOnly && !data.sacPaid) continue;
+          // Dynaheir, Invoker Adept: "by spending four or more mana to activate it" (manaSpentMin)
+          if (ab.manaSpentMin && !((data.manaSpent || 0) >= ab.manaSpentMin)) continue;
           if (ab.xSpell && event === 'youActivateAbility') { if (!data.xCost) continue; }
           else if (ab.xSpell) {
             const xo = data.object, xItem = data.stackId ? this.stack.find(st => st.id === data.stackId) : null;
@@ -17217,6 +17237,8 @@
           if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
           /* Firkraag, Cunning Instigator; Meriadoc Brandybuck; Gornog, the Red Reaper: "one or more Dragons you control attack an
              opponent" — among those at that one (attackersOfTypeHere) */
+          // Landroval, Horizon Witness: "two or more creatures you control attack a player" — that many at that one (attackersHereMin)
+          if (ab.attackersHereMin && (data.attackers || []).length < ab.attackersHereMin) continue;
           if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
           // Mila, Crafty Companion: an attack on at least one of this player's planeswalkers (attacksYourPlaneswalkers)
           if (ab.attacksYourPlaneswalkers && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => {
@@ -26582,8 +26604,9 @@
           if (e.watchDeath) {
             const w = objId && this.obj(objId);
             if (!w || w.zone !== 'battlefield') break;
+            // (Xira, the Golden Sting: "When that creature dies" — no end to it: forever)
             this.scheduleDelayed({ event: 'dies', controller: ctx.controller, objId: w.id, watchObj: w.id, watchLeftSeq: w._leftSeq || null,
-              untilTurn: this.turn, name: e.name || 'When that creature dies this turn', effects: e.effects || [] });
+              untilTurn: e.forever ? null : this.turn, name: e.name || 'When that creature dies this turn', effects: e.effects || [] });
             break;
           }
           this.scheduleDelayed({
@@ -28935,6 +28958,14 @@
           });
           break;
 
+        // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able." (attackNextTurn)
+        case 'attackNextTurn': {
+          const pl = firstPlayer();
+          if (!pl) break;
+          pl.attackNextTurn = { after: this.turn };
+          this.logEvent('rules', `During ${pl.name}'s next turn, each creature they control attacks if able.`);
+          break;
+        }
         /* Gideon, Battle-Forged: "Up to one target creature an opponent controls attacks Gideon during its controller's
            next turn if able." (mustAttackPw) */
         case 'mustAttackSelfNext':
