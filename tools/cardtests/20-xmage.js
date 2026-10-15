@@ -67674,4 +67674,117 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(T.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 1, 'no copy of a creature');
   });
+  test('Cards: Throne of Eldraine — four of the chosen colour for monocoloured spells of it; draws paid in that colour', (mk, t) => {
+    t.auto('Throne of Eldraine');
+    const T = mk();
+    const g = T.g;
+    const th = T.bf('A', 'Throne of Eldraine');
+    th.chosenColor = 'G';
+    t.ok(g.tapForMana('A', th.id, 0), 'tapped: ' + g.lastError);
+    // not a blue spell, and not a green-white one
+    T.hand('A', 'Divination');
+    t.no(g.castSpell('A', T.hand('A', 'Divination').id, { auto: true }), 'Divination cannot use it');
+    T.mana('A', 'W');
+    t.no(g.castSpell('A', T.hand('A', 'Watchwolf').id, { auto: true }), 'Watchwolf is not monocoloured');
+    const bears = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield', 'a green spell may');
+    // the draw: {3} only in green
+    const T2 = mk();
+    const th2 = T2.bf('A', 'Throne of Eldraine');
+    th2.chosenColor = 'G';
+    T2.mana('A', 'RRR');
+    t.no(T2.g.activateAbility('A', th2.id, 1, { auto: true }), 'red will not pay');
+    t.eq(T2.zone('A', 'hand').length, 0);
+    T2.player('A').pool.clear();
+    T2.mana('A', 'GGG');
+    T2.activate('A', th2, 1);
+    t.eq(T2.zone('A', 'hand').length, 2, 'drew two');
+  });
+  test('Cards: Coveted Jewel — unblocked attackers: their player draws three, takes it and untaps it; blocked, nothing', (mk, t) => {
+    t.auto('Coveted Jewel');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const jw = T.bf('B', 'Coveted Jewel');
+    jw.tapped = true;
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const bear2 = T.bf('A', 'Grizzly Bears'); bear2.summoningSick = false;
+    const wall = T.bf('B', 'Wall of Stone');
+    // every attacker blocked: nothing
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [bear.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(jw.controller, 'B', 'blocked: still B\'s');
+    t.eq(T.zone('A', 'hand').length, 0);
+    // attacking C, unblocked: not B's Jewel
+    T.nextTurn('A');
+    bear.tapped = false; bear2.tapped = false;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'C' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(jw.controller, 'B', 'attacking another player: still B\'s');
+    // two unblocked at B, one blocked: one trigger
+    T.nextTurn('A');
+    bear.tapped = false; bear2.tapped = false;
+    const bear3 = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: bear2.id, defenderId: 'B' }, { attackerId: bear3.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [bear3.id] }]);
+    const hand0 = T.zone('A', 'hand').length;
+    T.toMain('A', 'endCombat');
+    t.eq(jw.controller, 'A', 'A takes the Jewel');
+    t.no(jw.tapped, 'untapped');
+    t.eq(T.zone('A', 'hand').length, hand0 + 3, 'A draws three, once');
+  });
+  test('Cards: Invasion of Ikoria // Zilortha, Apex of Ikoria — non-Human blocked creatures may deal their damage as though unblocked', (mk, t) => {
+    t.auto('Invasion of Ikoria // Zilortha, Apex of Ikoria');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const z = M.bf('A', 'Invasion of Ikoria // Zilortha, Apex of Ikoria');
+    z.face = 1; z._chr = null; g.bumpBoard();
+    t.ok(g.hasKw(z, 'reach'), 'Zilortha: reach');
+    const bear = M.bf('A', 'Grizzly Bears'), wurm = M.bf('A', 'Craw Wurm'), hum = M.bf('A', 'Elite Vanguard');
+    const giant = M.bf('B', 'Hill Giant'), wall = M.bf('B', 'Wall of Wood'), wall2 = M.bf('B', 'Wall of Stone');
+    let asked = null;
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: wurm.id, defenderId: 'B' }, { attackerId: hum.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => [{ blockerId: giant.id, attackerIds: [bear.id] }, { blockerId: wall.id, attackerIds: [wurm.id] }, { blockerId: wall2.id, attackerIds: [hum.id] }]);
+    M.answer('choose', (ch) => { if (ch.purpose === 'asUnblocked') { asked = ch; return { picks: [bear.id] }; } return null; });
+    M.toMain('A', 'end');
+    t.ok(asked, 'Zilortha: asked');
+    t.eq(asked.items.length, 2, 'Zilortha: the two non-Humans offered');
+    t.no(asked.items.some(x => x.id === hum.id), 'Zilortha: not the Human');
+    t.eq(M.life('B'), 18, 'Zilortha: Grizzly Bears hits B');
+    t.eq(giant.damage || 0, 0, 'Zilortha: and not Hill Giant');
+    t.zone(wall, 'graveyard', 'Zilortha: Craw Wurm not chosen, into the wall');
+  });
+  test('Cards: The Grey Havens — a colour among legendary creature cards in your graveyard', (mk, t) => {
+    t.auto('The Grey Havens');
+    const T = mk();
+    const g = T.g;
+    const gh = T.bf('A', 'The Grey Havens');
+    const ab = gh.analysis().manaAbilities[1];
+    t.eq(g._manaAmong(ab.effects.find(e => e.op === 'addManaAmong'), gh, 'A').length, 0, 'no legend in the graveyard: no colour');
+    T.grave('A', 'Isamaru, Hound of Konda'); T.grave('A', 'Kiki-Jiki, Mirror Breaker');
+    T.grave('A', 'Jace, the Mind Sculptor'); T.grave('A', 'Llanowar Elves');
+    T.grave('B', 'Thalia, Guardian of Thraben');
+    const cols = g._manaAmong(ab.effects.find(e => e.op === 'addManaAmong'), gh, 'A').sort().join('');
+    t.eq(cols, 'RW', 'white or red: not a planeswalker, a non-legend, nor another player\'s graveyard');
+    t.ok(g.tapForMana('A', gh.id, 1, 'R'), 'red: ' + g.lastError);
+    t.eq(T.player('A').pool.R, 1);
+  });
+  test('Cards: Replicating Ring — a night counter each upkeep; the eighth makes eight snow Replicated Rings', (mk, t) => {
+    t.auto('Replicating Ring');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const ring = T.bf('A', 'Replicating Ring', { counters: { night: 6 } });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ring.counters.night, 7, 'seventh counter');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Replicated Ring').length, 0, 'no Rings yet');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ring.counters.night || 0, 0, 'all removed');
+    const made = T.bfOf('A').filter(o => o.name === 'Replicated Ring');
+    t.eq(made.length, 8, 'eight Replicated Rings');
+    t.ok(made.every(o => o.isToken && g._cardFitsWords(o, 'snow artifact')), 'snow artifact tokens');
+    t.ok(g.tapForMana('A', made[0].id, 0, 'B'), 'tapped for black');
+    t.eq(T.player('A').pool.B, 1);
+  });
 };

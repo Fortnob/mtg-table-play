@@ -1662,6 +1662,10 @@
     { re: /^Spend this mana only to cast (?:an? )?(Equipment|artifact) spells? or activate (?:an )?equip abilit(?:y|ies)\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', equipAbility: true }) },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Throne of Eldraine: "Spend this mana only to cast monocolored spells of that color." — the colour chosen as it entered (monoChosenColor)
+    { re: /^Spend this mana only to cast monocolored spells of that color\.?$/i, make: () => ({ op: 'spendOnly', words: 'monocolored spell', monoChosenColor: true }) },
+    // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability." — a rule about paying, kept with the ability
+    { re: /^Spend only mana of the chosen color to activate this ability\.?$/i, make: () => ({ op: 'spendChosenColorOnly' }) },
     // Rosheen Meanderer: "Spend this mana only on costs that contain {X}." — a spell or an ability with {X} to pay (costWithX)
     { re: /^Spend this mana only on costs that contain \{X\}\.?$/i, make: () => ({ op: 'spendOnly', costWithX: true }) },
     // Vhal, Candlekeep Researcher: "This mana can't be spent to cast spells from your hand." — abilities, and spells from elsewhere
@@ -1736,6 +1740,9 @@
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', amount: 1 }) },
     { re: /^Add one mana of any colou?r among legendary permanents you control\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', anyLegend: true, amount: 1 }) },
+    // The Grey Havens: "Add one mana of any color among legendary creature cards in your graveyard." (yourGraveLegends)
+    { re: /^Add one mana of any colou?r among legendary creature cards in your graveyard\.?$/i,
+      make: () => ({ op: 'addManaAmong', from: 'yourGraveLegends', amount: 1 }) },
     // Katilda, Dawnhart Prime: "{T}: Add one mana of any of this creature's colors." (selfColorsMana)
     { re: /^Add one mana of any of (?:this creature|CARDNAME)'?s colou?rs\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'selfColors', amount: 1 }) },
@@ -1933,6 +1940,9 @@
       make: () => ({ op: 'giveControl', to: 'targetController', self: true }) },
     // Jared Carthalion, True Heir: "You can't become the monarch this turn."
     { re: /^You can'?t become the monarch this turn\.?$/i, make: () => ({ op: 'noMonarchThisTurn' }) },
+    // Coveted Jewel: "that player draws three cards and gains control of this artifact. Untap it." — the attacking player
+    { re: /^That player draws (one|two|three|four|a) cards? and gains control of (?:CARDNAME|this artifact)\.?$/i,
+      make: (m) => [{ op: 'draw', n: num(m[1].replace(/^a$/i, 'one')), who: 'triggerPlayer' }, { op: 'giveControl', to: 'triggerPlayer', self: true }] },
     // Karona, False God: "At the beginning of each player's upkeep, that player untaps Karona and gains control of it."
     { re: /^That player untaps CARDNAME and gains control of it\.?$/i,
       make: () => [{ op: 'untap', scope: 'self' }, { op: 'giveControl', to: 'triggerPlayer', self: true }] },
@@ -6033,7 +6043,7 @@
     // (Svella, Ice Shaper: "a colorless snow artifact token named Icy Manalith" — snow too;
     //  Kibo, Uktabi Prince: "Each player creates a colorless artifact token named Banana with …" — each)
     // (Farid, Enterprising Salvager: "create a colorless artifact token named Scrap." — nothing more to it)
-    { re: /^(?:You create|Create|create|(Each player) creates) (a|an|one|two|three|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?)(?: with "([^"]+)"(?: and "([^"]+)")?)?\.?$/,
+    { re: /^(?:You create|Create|create|(Each player) creates) (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?)(?: with "([^"]+)"(?: and "([^"]+)")?)?\.?$/,
       make: (m0) => {
         const m = [m0[0]].concat(m0.slice(2));
         const snow = / colorless snow artifact /.test(m[0]);
@@ -6960,7 +6970,8 @@
     { re: /^Add one mana of the chosen color\.?$/i, make: () => ({ op: 'addManaChosen', n: 1 }) },
     // the Thriving lands: their own colour, or the one chosen as they entered
     { re: /^Add \{([WUBRG])\} or one mana of the chosen colou?r\.?$/i, make: (m) => ({ op: 'addManaChosen', n: 1, orSymbol: m[1].toUpperCase() }) },
-    { re: /^Add (two|three|\d+) mana of the chosen color\.?$/i, make: (m) => ({ op: 'addManaChosen', n: num(m[1]) }) },
+    // (Throne of Eldraine: "Add four mana of the chosen color.")
+    { re: /^Add (two|three|four|\d+) mana of the chosen color\.?$/i, make: (m) => ({ op: 'addManaChosen', n: num(m[1]) }) },
     { re: /^Flip a coin\.?$/i, make: () => ({ op: 'flipCoin' }) },
     // Krark, the Thumbless: "If you lose the flip, return that spell to its owner's hand." — the spell that triggered it
     { re: /^Return that spell to its owner'?s hand\.?$/i, make: () => ({ op: 'bounceThatSpell' }) },
@@ -16394,6 +16405,8 @@
     // Mangara, the Diplomat: "Whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control"
     { re: /^Whenever an opponent attacks with creatures, if (two|three) or more of those creatures are attacking you(?: and\/or planeswalkers you control)?,? /i,
       event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackingYou: num(m[1]) }) },
+    // Coveted Jewel: "Whenever one or more creatures an opponent controls attack you and aren't blocked" — once, as blockers are done
+    { re: /^Whenever one or more creatures an opponent controls attack you and aren'?t blocked,? /i, event: 'attackedUnblocked' },
     // the curses of Commander 2017: "Whenever enchanted player is attacked"
     { re: /^Whenever enchanted player is attacked,? /i, event: 'anyPlayerAttacks', extra: { enchantedAttacked: true } },
     { re: /^Whenever a creature attacks enchanted (?:player|opponent),? /i, event: 'permAttacks', extra: { attacksEnchanted: true } },
@@ -18194,6 +18207,9 @@
         // Crypt Rats: "Spend only black mana on X." — a rule about paying, kept with the ability
         let xOnly = parsed.effects.find(e => e.op === 'xColorOnly');
         if (xOnly) parsed.effects = parsed.effects.filter(e => e.op !== 'xColorOnly');
+        // (Throne of Eldraine: "Spend only mana of the chosen color to activate this ability." — spendChosenColor)
+        const chosenOnly = parsed.effects.some(e => e.op === 'spendChosenColorOnly');
+        if (chosenOnly) parsed.effects = parsed.effects.filter(e => e.op !== 'spendChosenColorOnly');
         // (Atalya, Samite Master: "Spend only white mana on X." in every mode — the ability's, whichever mode is chosen)
         const xModal = !xOnly && parsed.effects.find(e => e && e.op === 'modal' && (e.modes || []).length);
         if (xModal) {
@@ -18248,6 +18264,7 @@
            tapped." An ability that works from the graveyard and nowhere
            else, offered there the way flashback is. */
         if (xOnly) ab.xColor = xOnly.color;
+        if (chosenOnly) ab.spendChosenColor = true;
         // (Kethis, the Hidden Hand: not words in quotation marks — "gains 'You may play this card from your graveyard'")
         if ((cost.exile && cost.exile.fromGraveyard) ||
             /\b(?:this card|CARDNAME)(?: and up to one other target creature card| and target land card)? from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
@@ -22957,6 +22974,9 @@
          asked as combat damage is assigned */
       { re: /^For each creature you control with no abilities, you may have that creature assign its combat damage as though it weren'?t blocked\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', noAbilities: true }, flag: 'asUnblocked' }, auto: true },
+      // Zilortha, Apex of Ikoria: "For each non-Human creature you control, you may have that creature assign …" (asUnblocked)
+      { re: /^For each (non-[A-Z][a-z]+) creature you control, you may have that creature assign its combat damage as though it weren'?t blocked\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + ' creatures you control'); return sc ? { op: 'continuous', layer: 6, scope: sc, flag: 'asUnblocked' } : null; }, auto: true },
       // Wolverine, Claws Out: "You may have Wolverine assign his combat damage as though he weren't blocked." (asUnblocked)
       { re: /^You may have CARDNAME assign (?:his|her) combat damage as though (?:he|she) weren'?t blocked\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true }, flag: 'asUnblocked' }, auto: true },

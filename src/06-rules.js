@@ -2106,12 +2106,14 @@
       const pool = from === 'opponentLands' ? this.battlefield.filter(x => x.controller !== pid)
         : from === 'yourLands' ? this.battlefield.filter(x => x.controller === pid && x !== o)
         : from === 'yourLegends' ? this.battlefield.filter(x => x.controller === pid)
+        // (The Grey Havens: "legendary creature cards in your graveyard" — yourGraveLegends)
+        : from === 'yourGraveLegends' ? ((this.zones[pid] || {}).graveyard || [])
         : [];
       for (const x of pool) {
         const xa = x.analysis();
         if (!xa) continue;
-        if (from === 'yourLegends') {
-          if (!(xa.supertypes || []).includes('Legendary') || !(e.anyLegend || xa.isCreature || xa.isPlaneswalker)) continue;
+        if (from === 'yourLegends' || from === 'yourGraveLegends') {
+          if (!(xa.supertypes || []).includes('Legendary') || !(e.anyLegend || xa.isCreature || (from === 'yourLegends' && xa.isPlaneswalker))) continue;
           for (const c of (xa.colors || [])) out.add(c);
           continue;
         }
@@ -11365,7 +11367,12 @@
       // Agatha's Soul Cauldron: "… to activate abilities of creatures you control" (spendAnyCreatureAbilities)
       if (mana && /[WUBRG]/.test(mana) && o && o.zone === 'battlefield' && (this.characteristics(o) || {}).isCreature && this._anyStaticOf(o.controller, 'spendAnyCreatureAbilities'))
         mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
-      return this._abilityCostMods(o, ab, mana, targets);
+      mana = this._abilityCostMods(o, ab, mana, targets);
+      /* Throne of Eldraine: "Spend only mana of the chosen color to activate this ability." — every generic
+         {N} paid in that colour (spendChosenColor) */
+      if (ab && ab.spendChosenColor && mana && o && /^[WUBRG]$/.test(o.chosenColor || ''))
+        mana = String(mana).replace(/\{(\d+)\}/g, (_, k) => ('{' + o.chosenColor + '}').repeat(+k));
+      return mana;
     }
 
     /** Professor Hojo: do these targets include a creature (or permanent) this player controls? */
@@ -12246,6 +12253,11 @@
       if (spendOnly.words && spendOnly.words !== 'spell' && !this._cardFitsWords(spell, spendOnly.words) &&
         !((spendOnly.orX || (spendOnly.orXCreature && this._cardFitsWords(spell, 'creature'))) && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;   // (Troyan: spendAnyOrX)
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
+      // Throne of Eldraine: "monocolored spells of that color" — the colour chosen as it entered (monoChosenColor)
+      if (spendOnly.monoChosenColor) {
+        const cols = (spell.analysis() || {}).colors || [];
+        if (!(src && src.chosenColor && cols.length === 1 && cols[0] === src.chosenColor)) return false;
+      }
       // Mm'menon, the Right Hand: "only to cast a spell from anywhere other than your hand" — paid for while it is still there
       if (spendOnly.notFromHand && spell.zone === 'hand') return false;
       // Jasmine Boreal of the Seven: "creature spells with no abilities"
@@ -13765,6 +13777,13 @@
         const d = at.attacking;
         this._fire('attacksUnblocked', at.controller, { source: at, object: at, attacker: at,
           player: this._defPid(d) });
+      }
+      /* Coveted Jewel: "Whenever one or more creatures an opponent controls attack you and aren't blocked" — once for
+         each player attacked by an unblocked creature (attackedUnblocked), "that player" the attacking one */
+      for (const q of this.players) {
+        const un = this.combat.attackers.map(id => this.obj(id)).filter(at => at && at.zone === 'battlefield' &&
+          !at.blockedBy.length && at.attacking === q.id && at.controller !== q.id);
+        if (un.length) this._fire('attackedUnblocked', q.id, { player: un[0].controller, playerId: un[0].controller, attackers: un.map(x => x.id) });
       }
       this.checkStateBasedActions();
       this._givePriority(this.activeIndex);
