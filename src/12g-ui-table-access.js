@@ -296,7 +296,8 @@
       // an undo, or a gap longer than the log: just the latest
       const fresh = i < 0 ? log.slice(-1) : log.slice(i + 1);
       this._srSeen = last;
-      const lines = fresh.filter(e => e.type !== 'mana').map(e => spoken(e.text)).filter(Boolean);
+      // (what the table has said itself as it showed it — an opponent's spell held up, a creature dying and why — is not said twice: 12b _beatSaid)
+      const lines = fresh.filter(e => e.type !== 'mana' && !(this._beatSaid && this._beatSaid(e))).map(e => spoken(e.text)).filter(Boolean);
       if (!lines.length) return;
       const said = lines.length > 8 ? [`${lines.length - 8} things happened, then:`].concat(lines.slice(-8)) : lines;
       this.accessSay(said.join(' '));

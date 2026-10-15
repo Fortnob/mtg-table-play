@@ -36,6 +36,9 @@
   // why a player is out, in words (src/06b-events.js)
   const lossWords = (reason, from) => (MTG.events && MTG.events.lossWords ? MTG.events.lossWords(reason, from) : String(reason || ''));
   const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+  /** A beat's words as a screen reader should have them: an arrow is "targeting", a dash a pause. */
+  const spokenLine = (t) => String(t || '').replace(/<[^>]*>/g, '').replace(/\s*\u2014\s*trigger:\s*/g, ', trigger: ')
+    .replace(/\s*\u2192\s*/g, ' targeting ').replace(/\s+\u2014\s+/g, ', ');
   /** The beat's line for a player out of the game: who, and why where it is known. */
   const lostEvent = (who, name, me, reason, from) => {
     const why = lossWords(reason, from);
@@ -604,6 +607,8 @@
       const lastAt = new Map();
       for (const id of (beat.leaving || [])) { const n = this.els.get(id); if (n && n.isConnected) { const r = U.rect(n); if (r.width) lastAt.set(id, r); } }
       beat.lastAt = lastAt;
+      // what this beat will say to a screen reader once it is drawn (D5), before the drawing reads out the log
+      if (prev) this._beatSpeech(beat);
       this.render();
       this._moves = null;
       this._focusCut = false;
@@ -695,6 +700,43 @@
       if (ghost) this.render();
     },
 
+    /**
+     * D5: a screen reader hears the game log line by line (12g:
+     * accessAnnounce), and the beats add what the log does not say: each
+     * thing an opponent puts on the stack as it is held up (_spotOn), and
+     * what left the battlefield with why (this). Each is said once — the
+     * log's line for the same thing is passed over (_saidByBeat) — and in
+     * the order the table shows them. Sets `beat.speech`, said by _report.
+     */
+    _beatSpeech(beat) {
+      const gone = beat.events.filter(e => (e.kind === 'died' || e.kind === 'left') && !e.quiet && e.text);
+      const sum = gone.find(e => e.sum);
+      const lines = sum ? [sum.sum].concat(gone.filter(e => e.kind === 'left').map(e => e.text)) : gone.map(e => e.text);
+      beat.speech = lines.map(l => spokenLine(l) + '.');
+      for (const e of gone) this._saidByBeat(e.name, ['sba', 'destroy', 'sacrifice', 'exile', 'bounce', 'zone'], 1);
+    },
+
+    /** Something a beat has said itself: the next `n` lines of the log of these types naming it are not read out too. */
+    _saidByBeat(name, types, n) {
+      const nm = String(name || '').split(' \u2014 ')[0].trim();
+      if (!nm) return;
+      const now = performance.now();
+      const list = this._srSaid = (this._srSaid || []).filter(x => now - x.at < 20000);
+      list.push({ name: nm, types, n: n || 1, at: now });
+      if (list.length > 40) list.shift();
+    },
+
+    /** Whether a line of the game log is one a beat has said already (and so is not read out again). */
+    _beatSaid(entry) {
+      const list = this._srSaid;
+      if (!list || !list.length || !entry) return false;
+      const text = String(entry.text || '');
+      const i = list.findIndex(x => x.types.includes(entry.type) && text.includes(x.name));
+      if (i < 0) return false;
+      if (--list[i].n <= 0) list.splice(i, 1);
+      return true;
+    },
+
     /** A card's picture, fetched ahead of its moment in the middle of the table (D1). */
     _prefetchArt(card) {
       const url = card ? MTG.scry.imageUrl(card, 'normal', 0) : '';
@@ -719,7 +761,12 @@
 
     _spotOn(sp, ghost) {
       this.spot = Object.assign({}, sp, { ghost: !!ghost });
-      if (this.accessSay && sp.entry && sp.who !== this.meId) this.accessSay(sp.entry.text + (sp.n > 1 ? ` (${sp.n} times)` : '') + '.');
+      // said once, as it is held up; the game log's own line for it is then not read out again (D5)
+      if (this.accessSay && sp.entry && sp.who !== this.meId && !sp.said) {
+        sp.said = true;
+        this.accessSay(spokenLine(sp.entry.text) + (sp.n > 1 ? ` (${sp.n} times)` : '') + '.');
+        this._saidByBeat(sp.entry.name, ['cast', 'copy', 'ability', 'trigger'], sp.n || 1);
+      }
       this._actingPlate(sp.who, true);
     },
     _spotOff() {
@@ -796,6 +843,8 @@
       const out = this._eliminations(next, beat);
       if (out.length) this._eliminatedCallout(out);
       if (line) this.say(line.text, line.kind);
+      // to a screen reader: what left the battlefield, and why, once, after the log's lines for the same view (D5)
+      if (this.accessSay) for (const l of beat.speech || []) this.accessSay(l);
       // what left, and what made it: a line from the thing that did it to where it stood (A3)
       for (const e of beat.events) {
         if ((e.kind !== 'died' && e.kind !== 'left') || !e.source) continue;
@@ -1425,7 +1474,8 @@
       this._sayQ = [];
       const now = performance.now();
       const fresh = q.filter(x => now - x.at < 3000);
-      for (const x of q) if (!fresh.includes(x) || x !== fresh[fresh.length - 1]) { if (this.accessSay) this.accessSay(x.text.replace(/<[^>]*>/g, '')); }
+      // (a line about something leaving was said with its beat already: _beatSpeech)
+      for (const x of q) if (!fresh.includes(x) || x !== fresh[fresh.length - 1]) { if (this.accessSay && x.kind !== 'died' && x.kind !== 'left') this.accessSay(spokenLine(x.text)); }
       const last = fresh[fresh.length - 1];
       if (last) this._showCaption(last.text, last.kind, last.ms);
     },

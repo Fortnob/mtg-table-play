@@ -12,7 +12,7 @@ const { load } = require('./engine');
 const warn = console.warn;
 console.warn = () => {};
 const MTG = load({ modules: ['00-core.js', '01-audio.js', '02-scryfall.js', '02a-carddb.js', '18-scripts.js', '19-cardlib.js',
-  '03-oracle.js', '04-formats.js', '05-decklist.js', '06-rules.js', '10-ui-core.js', '12-ui-table.js', '12g-ui-table-access.js'] });
+  '03-oracle.js', '04-formats.js', '05-decklist.js', '06-rules.js', '10-ui-core.js', '12-ui-table.js', '12b-ui-table-fx.js', '12g-ui-table-access.js'] });
 console.warn = warn;
 const T = MTG.ui.Table.prototype;
 
@@ -64,6 +64,48 @@ const none = { querySelectorAll: () => [], querySelector: () => null, classList:
   t.view.log = t.view.log.concat(burst);
   T.accessAnnounce.call(t);
   check('a burst says how many it skipped', /^4 things happened, then: Thing 4\./.test(said[2] || '') && /Thing 11\.$/.test(said[2] || ''), said[2]);
+}
+
+/* ---- the beats: each thing an opponent does, and what died and why, said once and in order (D5) ---- */
+{
+  const said = [];
+  const t = { view: { log: [] }, meId: 'me', accessSay: (s) => said.push(s), _actingPlate: () => {} };
+  for (const k of ['_saidByBeat', '_beatSaid', '_beatSpeech']) t[k] = T[k];
+  const line = (n, text, type) => ({ t: 2000 + n, text, type: type || 'info' });
+  t.view.log = [line(0, 'Game begins.')];
+  T.accessAnnounce.call(t);
+  // Murder held up in the middle: said as it is shown
+  const murder = { kind: 'spot', who: 'mira', n: 1, entry: { name: 'Murder', text: 'Mira casts Murder \u2192 Serra Angel' } };
+  T._spotOn.call(t, murder, false);
+  t.view.log = t.view.log.concat([line(1, 'Mira casts Murder targeting Serra Angel.', 'cast')]);
+  T.accessAnnounce.call(t);
+  check('a spell held up is said once, as it is shown', said.length === 1 && said[0] === 'Mira casts Murder targeting Serra Angel.', said.join(' / '));
+  // shown again (a re-render): not said again
+  T._spotOn.call(t, murder, false);
+  check('a spell held up is not said again when drawn again', said.length === 1, said.join(' / '));
+  // three of the same trigger: said once with how many, and its three log lines passed over
+  T._spotOn.call(t, { kind: 'spot', who: 'mira', n: 3, entry: { name: 'Forbidden Orchard \u2014 When you tap', text: 'Mira \u2014 trigger: Forbidden Orchard \u2014 When you tap' } }, false);
+  t.view.log = t.view.log.concat([1, 2, 3].map(i => line(1 + i, 'Triggered: Forbidden Orchard \u2014 When you tap', 'trigger')));
+  T.accessAnnounce.call(t);
+  check('the same trigger three times is said once, with how many', said.length === 2 && /Forbidden Orchard.*\(3 times\)\.$/.test(said[1]) && !said[1].includes('\u2014'), said.join(' / '));
+  // it resolves: the log says that; the beat says who died, and why
+  const beat = { events: [
+    { kind: 'died', name: 'Serra Angel', text: 'Serra Angel dies \u2014 destroyed by Murder' },
+    { kind: 'left', name: 'Treasure', text: 'Treasure leaves', quiet: true },
+  ] };
+  T._beatSpeech.call(t, beat);
+  t.view.log = t.view.log.concat([line(10, 'Murder resolves.', 'resolve'), line(11, 'Serra Angel is destroyed.', 'destroy')]);
+  T.accessAnnounce.call(t);
+  for (const l of beat.speech) t.accessSay(l);
+  check('the spell resolving, then what died and why, in that order', said.length === 4 && said[2] === 'Murder resolves.' && said[3] === 'Serra Angel dies, destroyed by Murder.', said.slice(2).join(' / '));
+  // my own spell is not held up: the log says it
+  t.view.log = t.view.log.concat([line(12, 'Zach casts Giant Growth targeting Grizzly Bears.', 'cast')]);
+  T.accessAnnounce.call(t);
+  check('a spell nobody held up is read from the log', said[4] === 'Zach casts Giant Growth targeting Grizzly Bears.', said[4]);
+  // several dying at once: one line for them all
+  const wipe = { events: ['A', 'B', 'C'].map((n, i) => ({ kind: 'died', name: n, text: `${n} dies`, sum: i === 2 ? 'A, B and C die \u2014 Wrath of God' : undefined })) };
+  T._beatSpeech.call(t, wipe);
+  check('a board wiped is one line', wipe.speech.length === 1 && wipe.speech[0] === 'A, B and C die, Wrath of God.', wipe.speech.join(' / '));
 }
 
 /* ---- W: how the game stands ---- */
