@@ -462,6 +462,10 @@
       if ((m = p.match(/^Remove one or more (.+?) counters from (?:CARDNAME|this (?:creature|artifact|permanent))$/i))) {
         cost.removeCounters = { n: 'any', min: 1, kind: m[1] }; continue;
       }
+      // Vish Kal, Blood Arbiter: "Remove all +1/+1 counters from Vish Kal" — however many there are, none too (all)
+      if ((m = p.match(/^Remove all (\S+) counters from (?:CARDNAME|this (?:creature|artifact|permanent))$/i))) {
+        cost.removeCounters = { n: 'all', kind: m[1] }; continue;
+      }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
         // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
         cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
@@ -3816,6 +3820,9 @@
       make: (m) => { const k = amountOf(m[2]); return k == null ? null : [{ op: 'counters', kind: m[1].toLowerCase(), n: k, scope: 'lastGroup' }, { op: 'gainLife', n: k, who: 'you' }]; } },
     { re: /^Put a \+1\/\+1 counter on each of those creatures and draw a card\.?$/i,
       make: () => [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerBatch' }, { op: 'draw', n: 1, who: 'you' }] },
+    // Tamiyo, Upriser Crowned: "tap those creatures and put a stun counter on each of them" — the ones that dealt the damage
+    { re: /^Tap those creatures and put an? ([a-z]+) counter on each of them\.?$/i,
+      make: (m) => [{ op: 'tap', scope: 'triggerBatch' }, { op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'triggerBatch' }] },
     /* Unbreakable Formation: "each of those creatures" */
     { re: /^Put a \+1\/\+1 counter on each of those creatures and they gain ([a-z ,]+?) until end of turn\.?$/i,
       make: (m) => {
@@ -5074,6 +5081,9 @@
       make: (m) => ({ op: 'damage', n: num(m[1]), toSelf: true }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|\d+) damage to its controller\.?$/i,
       make: (m) => Object.assign({ op: 'damage', n: num(m[1]), toSelf: true }, /^It deals/i.test(m[0]) ? { itWord: true } : {}) },
+    // Ian the Reckless: "you may have it deal damage equal to its power to you and any target" (the "may" is the trigger's)
+    { re: /^Have (?:it|CARDNAME) deal damage equal to its power to you and any target\.?$/i,
+      make: () => [{ op: 'damage', n: { ofSelf: 'power' }, targets: [targetSpec('any target')] }, { op: 'damage', n: { ofSelf: 'power' }, toSelf: true }] },
     // Rakdos Charm: every creature hurts the player who controls it
     { re: /^Each creature deals (one|two|three|\d+) damage to its controller\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), eachCreatureToController: true }) },
@@ -7283,6 +7293,8 @@
       make: (m) => ({ op: 'voyageFromExile', counter: m[1].toLowerCase() }) },
     // Vial Smasher the Fierce: "choose an opponent at random" — "that player" afterwards is the one it falls on
     { re: /^Choose an opponent at random\.?$/i, make: () => ({ op: 'chooseOpponent', random: true }) },
+    // Ruhan of the Fomori: "Ruhan attacks that player this combat if able." — the opponent just chosen (mustAttackChosen)
+    { re: /^CARDNAME attacks that player this combat if able\.?$/, make: () => ({ op: 'mustAttackChosen' }) },
     // Zaffai, Thunder Conductor: "Zaffai deals 10 damage to an opponent chosen at random." (toRandomOpponent)
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to an opponent chosen at random\.?$/i,
       make: (m) => ({ op: 'damage', n: +m[1], toRandomOpponent: true }) },
@@ -15390,6 +15402,9 @@
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
     { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
     { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
+    // Tamiyo, Upriser Crowned: "… deal combat damage to you while you're the monarch," — as the damage is dealt (whileCond)
+    { re: /^Whenever one or more creatures deal combat damage to you while you'?re the monarch,/i, event: 'youDealtDamage', aboutObject: true,
+      filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true, whileCond: { kind: 'monarch' } } },
     // Witch-king of Angmar: "Whenever one or more creatures deal combat damage to you" — once for the lot
     { re: /^Whenever one or more creatures deal combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true } },
@@ -21139,6 +21154,9 @@
       // Fighter Class, Arms Scavenger: "Equip abilities you activate cost {1} less to activate."
       { re: /^Equip abilities you activate cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'abilityCostMod', who: 'you', equip: true, amount: -(+m[1]) }), auto: true },
+      // Hulk, Gamma Goliath: "Power-up abilities of other creatures you control cost {3} less to activate." (powerUp)
+      { re: /^Power-up abilities of ((?:other )?creatures you control) cost \{(\d+)\} less to activate\.?$/i,
+        make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'abilityCostMod', scope, powerUp: true, amount: -(+m[2]) } : null; }, auto: true },
       // Eidolon of Obstruction: "Loyalty abilities of planeswalkers your opponents control cost {1} more to activate."
       { re: /^Loyalty abilities of planeswalkers your opponents control cost \{(\d+)\} more to activate\.?$/i,
         make: (m) => ({ op: 'abilityCostMod', scope: { who: 'opponents', what: 'planeswalker' }, loyalty: true, amount: +m[1] }), auto: true },

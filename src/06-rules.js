@@ -9514,6 +9514,8 @@
         // Arcee, Sharpshooter: "Remove one or more" — not none (min)
         if (rc.min && opts.x < rc.min) return this.fail(`${o.name} needs at least ${rc.min} counter${rc.min === 1 ? '' : 's'} removed.`);
       }
+      // Vish Kal, Blood Arbiter: "Remove all +1/+1 counters" — "for each counter removed this way" is that many (all)
+      if (rc && rc.n === 'all') opts = Object.assign({}, opts, { x: Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0 });
       // (Mr. House, President and CEO: "each mana from Treasures spent to activate this ability" — manaFromTreasure)
       const accWas = this._spentAcc;
       this._spentAcc = {};
@@ -10684,6 +10686,8 @@
               if (!e || e.op !== 'abilityCostMod') continue;
               if (e.nonMana && ab.kind === 'mana') continue;
               if (e.equip && !/^Equip\b/i.test(ab.text || '')) continue;
+              // (Hulk, Gamma Goliath: "Power-up abilities of other creatures you control" — powerUp)
+              if (e.powerUp && (ab.cost || {}).label !== 'power-up') continue;
               // (Firion, Wild Rose Warrior's copies: "This Equipment's equip abilities" — selfOnly)
               if (e.selfOnly && src.id !== o.id) continue;
               if (e.cond && !this._condMet(e.cond, { controller: src.controller, obj: src })) continue;
@@ -10898,7 +10902,9 @@
         const have = Number(o.counters[kind]) || 0;
         // "Remove X", "Remove any number of": as many as were asked for, or all of them
         const rn = cost.removeCounters.n;
-        const want = rn === 'X' ? Math.max(0, (opts && opts.x) || 0) : rn === 'any' ? Math.min(have, (opts && opts.x != null) ? opts.x : have) : (rn || 1);
+        const want = rn === 'X' ? Math.max(0, (opts && opts.x) || 0) : rn === 'any' ? Math.min(have, (opts && opts.x != null) ? opts.x : have)
+          // (Vish Kal, Blood Arbiter: "Remove all +1/+1 counters" — every one, none if there are none)
+          : rn === 'all' ? have : (rn || 1);
         if (have < want) return this.fail(`${o.name} does not have ${want} ${kind} counter${want === 1 ? '' : 's'}.`);
         o.counters[kind] = have - want;
         this._lastRemovedCounters = want;
@@ -13067,6 +13073,8 @@
         o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
         o.blockedNoBlocker = null;
       }
+      // Ruhan of the Fomori: "this combat" only (mustAttackCombat)
+      for (const o of this.battlefield) if (o.mustAttackCombat) { o.mustAttackPlayer = null; o.mustAttackCombat = false; }
       /* Mana kept through combat by firebending drains away with it. */
       for (const p of this.players) {
         if (p.poolKeepUntil === 'combat') { p.pool.clear(); p.poolKeepUntil = null; }
@@ -16689,6 +16697,7 @@
         // (Plagon's "this turn" was said of the creature that left)
         o.toughDamageTurn = null;
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null; o.mustAttackPw = null;
+        if (o.mustAttackCombat) { o.mustAttackPlayer = null; o.mustAttackCombat = false; }
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
         // Yarus, Roar of the Old Gods: "Whenever a face-down creature you control dies" — as it left (wasFaceDown)
@@ -21195,6 +21204,8 @@
           if (e.scope === 'attached') { const x = src && src.attachedTo && this.obj(src.attachedTo); if (x) { this._markTapped(x); this.emit('sfx', 'tap'); } break; }
           if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { this._markTapped(x); this.emit('sfx', 'tap'); } }
           else if (e.scope === 'self' && src) { this._markTapped(src); this.emit('sfx', 'tap'); }
+          // Tamiyo, Upriser Crowned: "tap those creatures" — the ones the trigger is about (triggerBatch)
+          else if (e.scope === 'triggerBatch') applyToScope(e, (o) => { this._markTapped(o); this.emit('sfx', 'tap'); });
           else {
             // Sudden Storm: "those creatures" next are the ones just tapped
             const tapped = [];
@@ -29837,6 +29848,14 @@
         }
         /* Gideon, Battle-Forged: "Up to one target creature an opponent controls attacks Gideon during its controller's
            next turn if able." (mustAttackPw) */
+        // Ruhan of the Fomori: "Ruhan attacks that player this combat if able." — gone as combat ends (mustAttackCombat)
+        case 'mustAttackChosen': {
+          const p = ctx.chosenPlayer && this.player(ctx.chosenPlayer);
+          if (!src || src.zone !== 'battlefield' || !p) break;
+          src.mustAttackPlayer = p.id; src.mustAttackCombat = true;
+          this.logEvent('rules', `${src.name} attacks ${p.name} this combat if able.`);
+          break;
+        }
         case 'mustAttackSelfNext':
           if (!src) break;
           applyToScope(e, (o) => { o.mustAttackPw = { id: src.id, after: this.turn }; this.logEvent('rules', `${o.name} attacks ${src.name} during its controller's next turn if able.`); });
