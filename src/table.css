@@ -463,6 +463,7 @@
 .stack-col::before { content: 'The stack'; flex: none; margin-top: auto; font: 600 10px/1 var(--font); letter-spacing: .14em; text-transform: uppercase;
   color: rgba(246,220,140,.75); opacity: 0; transition: opacity .2s; }
 .stack-col.on::before { opacity: 1; }
+.stack-col:not(.on) > .stack-item { visibility: hidden; }
 .stack-item { position: relative; flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: auto;
   animation: stackIn .3s cubic-bezier(.3,.7,.3,1); }
 .stack-item:last-child { margin-bottom: auto; }

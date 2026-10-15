@@ -1673,7 +1673,9 @@
       // something new on top: the column, scrolled down to read what is under it, comes back up to show it
       const topId = items.length ? items[0].id : null;
       if (topId !== this._stackTop) { this._stackTop = topId; if (topId) this.stackCol.scrollTop = 0; }
-      this.stackCol.classList.toggle('on', items.length > 0);
+      /* shown only with something in it to see: a lone item held up in the spotlight is the stack for now, so the
+         column (its label, its glow, the gap kept for that item) waits until the spotlight lets it go */
+      this.stackCol.classList.toggle('on', items.some(s => !(this.spot && this.spot.stackId === s.id)));
       this.stackCol.dataset.n = String(items.length);
     }
 
