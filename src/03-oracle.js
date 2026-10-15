@@ -679,7 +679,8 @@
       else if (ab.kind === 'static') {
         const effs = (ab.effects || []).flatMap(e => (e.op === 'sequence' ? e.list : [e]));
         // (Vnwxt, Verbose Host: "Max speed — If you would draw a card, draw two cards instead" — the engine asks drawDouble's condition too)
-        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble')) { ok = false; ab.auto = false; }
+        // (Far Fortune, End Boss: "Max speed — If a source you control would deal damage …" — a replacement asks it too: _replaceMatches)
+        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble' || e.op === 'replace')) { ok = false; ab.auto = false; }
         ab.effects = effs.map(e => Object.assign({}, e, { cond: both(e.cond) }));
       } else { ok = false; ab.auto = false; }
       out.abilities.push(ab);
@@ -8383,6 +8384,11 @@
     /* Sylvan Awakening: "Until your next turn, all lands you control become
        2/2 Elemental creatures with reach, indestructible, and haste." —
        read as "until end of turn", then made to last */
+    /* Hydro-Man, Fluid Felon: "Until your next turn, he becomes a land and gains "{T}: Add {U}." (He's not a creature
+       during that time.)" — a land only, its creature types gone with the type, and legendary still */
+    { re: /^Until your next turn, CARDNAME becomes a land and gains "\{T\}: Add \{([WUBRGC])\}\.?"\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: 'nextTurn', scope: 'self', eff: { setTypes: ['Land'],
+        grantMana: [{ kind: 'mana', auto: true, granted: true, cost: parseCost('{T}'), text: '{T}: Add {' + m[1].toUpperCase() + '}.', effects: [{ op: 'addMana', symbols: [m[1].toUpperCase()] }] }] } }) },
     { re: /^Until your next turn, (.+? (?:become|becomes) [^.]+?)\.?$/i,
       make: (m) => {
         const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' until end of turn.');
@@ -8742,6 +8748,11 @@
     }
     // Coram, the Undertaker: "the greatest power among creature cards in all graveyards" (greatestPowerInGraveyards)
     if (/^the greatest power among creature cards in all graveyards$/i.test(p)) return done({ greatestPowerInGraveyards: 'creature' });
+    // Skanos Dragonheart: "the greatest power among other Dragons you control and Dragon cards in your graveyard" (alsoGrave)
+    if ((m = p.match(/^the greatest power among (other [A-Z][a-z'-]+s you control) and ([A-Z][a-z'-]+) cards in your graveyard$/))) {
+      const sc = scopeOf(m[1]);
+      return sc ? done({ greatestPower: sc, alsoGrave: m[2].toLowerCase() }) : null;
+    }
     // (Alena, Kessig Trapper: "the greatest power among creatures you control that entered this turn")
     if ((m = p.match(/^the greatest power among ((?:other )?creatures you control(?: that entered this turn)?|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
       const sc = scopeOf(m[1]);
@@ -9666,6 +9677,21 @@
         const one = { op: 'copyPermanent', n: 1, grant: [], of: 'saddledSelf', tapped: true, attacking: true };
         return [one, Object.assign({}, one), { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }];
       } },
+    /* Living Laser: "for each card you've discarded this turn, create a token that's a copy of Living Laser, except the
+       token isn't legendary. The tokens enter tapped and attacking. Exile the tokens at the beginning of the next end
+       step." (discardedThisTurn) */
+    { re: /^for each card you'?ve discarded this turn, create a token that'?s a copy of CARDNAME, except the token isn'?t legendary\. The tokens enter tapped and attacking\. Exile the tokens at the beginning of the next end step\.?$/i,
+      make: () => [{ op: 'copyPermanent', self: true, n: { discardedThisTurn: 'you', mult: 1 }, grant: [], nonLegendary: true, tapped: true, attacking: true },
+        { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Exile them at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }] },
+    /* The Beamtown Bullies: "Target opponent whose turn it is puts target nonlegendary creature card from your graveyard
+       onto the battlefield under their control. It gains haste. Goad it. At the beginning of the next end step, exile
+       it." — only on an opponent's turn, that player (activeOnly); goaded by you (toPlayerTarget) */
+    { re: /^Target opponent whose turn it is puts (target nonlegendary creature card) from your graveyard onto the battlefield under their control\. It gains haste\. Goad it\. At the beginning of the next end step, exile it\.?$/i,
+      make: () => [{ op: 'reanimate', toPlayerTarget: true, targets: [{ type: 'player', opponent: true, activeOnly: true },
+        { type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', nonlegendary: true }] },
+      { op: 'grantKeyword', keywords: ['Haste'], duration: 'permanent', scope: 'lastTarget' },
+      { op: 'goad', scope: 'lastTarget' },
+      { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }] },
     /* Drana, the Last Bloodchief: "defending player chooses a nonlegendary creature card in your graveyard. You return
        that card to the battlefield with an additional +1/+1 counter on it. The creature is a Vampire in addition to its
        other types." — not targeted; the player attacked picks (chooser 'defending') */

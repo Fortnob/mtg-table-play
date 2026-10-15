@@ -12197,6 +12197,8 @@
 
     _replaceMatches(ef, src, ev) {
       if (ef.event !== ev.kind) return false;
+      // Far Fortune, End Boss: "Max speed — If a source you control would deal damage …" — only while that holds (cond)
+      if (ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) return false;
       const who = ef.who || 'you';
       // counters on a player only for what says "or player"
       if (ev.kind === 'counters' && ev.player && !ef.players) return false;
@@ -18354,6 +18356,10 @@
         if (v && typeof v === 'object' && v.greatestPower) {
           let best = 0;
           for (const o of this._scopeList(v.greatestPower, ctx.controller, src)) best = Math.max(best, this.powerOf(o));
+          // Skanos Dragonheart: "and Dragon cards in your graveyard" — the printed power (alsoGrave)
+          if (v.alsoGrave) for (const c of ((this.zones[ctx.controller] || {}).graveyard || [])) {
+            if (this._cardFitsWords(c, v.alsoGrave)) best = Math.max(best, parseInt((c.card || {}).power, 10) || 0);
+          }
           return best;
         }
         if (v && typeof v === 'object' && v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * (v.mult || 1);
@@ -22032,7 +22038,10 @@
             if (x) {
               // Kenrith: "under its owner's control"
               // (Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — so as it enters: enterEff)
-              this.moveObject(x, 'battlefield', Object.assign({ controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
+              // The Beamtown Bullies: "Target opponent … puts … onto the battlefield under their control" (toPlayerTarget)
+              const toP = e.toPlayerTarget ? firstPlayer() : null;
+              if (e.toPlayerTarget && (!toP || toP.hasLost)) continue;
+              this.moveObject(x, 'battlefield', Object.assign({ controller: toP ? toP.id : e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
                 e.enterEff ? { enterEffects: [e.enterEff] } : {}));
               if (e.tapped) x.tapped = true;
               /* Olivia, Crimson Bride; Alesha, Who Smiles at Death: "tapped and attacking" — at whoever the creature that set it off attacks,
@@ -34389,6 +34398,8 @@
       if (spec.type === 'player' || spec.type === 'opponent') {
         return players().filter(t => (!(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId) && t.id !== spec.notPlayer &&
           !(spec.notPlayers || []).includes(t.id) &&
+          // The Beamtown Bullies: "target opponent whose turn it is" (activeOnly)
+          !(spec.activeOnly && !(this.activePlayer && this.activePlayer.id === t.id)) &&
           // Hope of Ghirapur: "who was dealt combat damage by Hope of Ghirapur this turn" — by the source, as it last was (hitBySource)
           !(spec.hitBySource && !(tsrc && tsrc._hitPlayers && tsrc._hitPlayers.turn === this.turn && tsrc._hitPlayers.ids.includes(t.id))));
       }
