@@ -74,6 +74,9 @@
           (pool ? ` In your pool: ${MTG.mana.html(pool)}.` : ''));
       }
       const ch = live.pendingChoice;
+      /* A question an opponent's card asks of you waits until the table has shown that card doing it (A11): the
+         newest view can be a beat or two ahead of the one on screen. Never for long (_choiceHeld). */
+      if (ch && ch.playerId === this.meId && !ch.waiting && this._choiceHeld(ch)) return off();
       if (ch && ch.playerId === this.meId && !ch.waiting) {
         if (ch.type === 'declareAttackers') {
           const defs = ch.defenders || [];
@@ -109,16 +112,18 @@
             (pend ? '' : ` ${press()} your creature, then the attacker it blocks.`));
         }
         if (ch.type === 'discard' || ch.type === 'discardToHandSize')
-          return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : `${press()} a card in your hand.`);
+          return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : `${press()} a card in your hand.`,
+            ch.type === 'discard' ? this._askSource(ch) : null);
         if (ch.type === 'sacrifice')
-          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : `${press()} one of your permanents.`);
+          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : `${press()} one of your permanents.`,
+            this._askSource(ch));
         // a generic question answered on the board alone: what to click, and how the picks stand
         if (this.chooseHere(ch)) {
           const s = this.chooseSpec(ch);
           const board = this.chooseBoardIds(s);
           if (s.kind === 'players' || (s.kind === 'objects' && s.items.length && s.items.every(x => board.has(x.id)))) {
             const b2 = this.chooseBanner(ch);
-            return set(b2.cls, b2.title, b2.sub, b2.extra);
+            return set(b2.cls, b2.title, b2.sub, b2.extra || this._askSource(ch));
           }
         }
         return off();
@@ -138,6 +143,55 @@
           (live.playable || []).length ? 'Respond with an instant or ability, or press <b>Resolve</b>.' : 'Press <b>Resolve</b> to let it happen.');
       }
       off();
+    },
+
+    /**
+     * Whether to keep a question of yours back for now (A11): while the
+     * table is still showing what led up to it, for at most 1.5 s from
+     * when it was asked. The table is drawn again when the time is up.
+     */
+    _choiceHeld(ch) {
+      const key = ch.type + '|' + (ch.prompt || '') + '|' + (ch.resumeKey || '') + '|' + (ch.sourceId || '');
+      const now = performance.now();
+      if (this._heldKey !== key) { this._heldKey = key; this._heldSince = now; }
+      if (this._ready()) return false;
+      const left = this._heldSince + 1500 - now;
+      if (left <= 0) return false;
+      clearTimeout(this._heldTimer);
+      this._heldTimer = setTimeout(() => { if (!this._destroyed && this.view) this.render(); }, left + 20);
+      return true;
+    },
+
+    /**
+     * What is asking, for a question on the board (a sacrifice, a discard):
+     * the card's art and name beside the question, as the questions in a
+     * panel have. From the question itself, else from what was resolving
+     * when it was asked.
+     */
+    _askSource(ch) {
+      let name = ch.sourceName ? String(ch.sourceName).split(' \u2014 ')[0] : '';
+      let card = ch.sourceCard || null;
+      const src = ch.sourceId ? this.objIn(ch.sourceId) : null;
+      if (!card && src && src.card) card = src.card;
+      if (!name && !card) {
+        const back = this._evBack || [];
+        for (let i = back.length - 1; i >= 0 && i > back.length - 60; i--) {
+          const x = back[i];
+          if (x.type === 'priority' || x.type === 'turn') break;
+          if (x.type !== 'resolve') continue;
+          const put = back.find(y => (y.type === 'cast' || y.type === 'trigger' || y.type === 'activate') && y.stackId === x.stackId);
+          name = put && put.type !== 'cast' && put.card ? put.card.name : x.name;
+          card = (put && put.card) || null;
+          break;
+        }
+      }
+      if (!name && card) name = card.name;
+      if (!name) return null;
+      const url = card ? (MTG.scry.imageUrl(card, 'art_crop', 0) || '') : '';
+      return { sig: 'src:' + name, node: el('div', { class: 'ab-src' }, [
+        el('span', { class: 'ab-src-art', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
+        el('span', { class: 'ab-src-name', text: name }),
+      ]) };
     },
 
     /** Whether the top of the stack is yours. */

@@ -1465,3 +1465,8 @@
 /* a phone's caption: the width of the board, in as few lines as it takes, a panel rather than a pill when it wraps */
 :root[data-phone] .table-caption { max-width: calc(100% - 24px); }
 :root[data-phone] .table-caption span { padding: 7px 14px; border-radius: 16px; font-size: 13px; line-height: 1.35; }
+/* what is asking, beside a question on the board (12c: _askSource) */
+.ab-src { display: inline-flex; align-items: center; gap: 7px; margin-top: 6px; padding: 3px 10px 3px 3px; border-radius: 99px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); font: 600 12px/1.25 var(--font); color: #e6ebf3; max-width: 100%; }
+.ab-src-art { flex: none; width: 24px; height: 24px; border-radius: 50%; background: #333 center / cover no-repeat; }
+.ab-src-name { overflow-wrap: anywhere; }
