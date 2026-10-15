@@ -50909,4 +50909,113 @@ module.exports = (test) => {
     t.ok(T.asked.some(q => q.type === 'scry' && q.playerId === 'B'), "B scries");
     t.eq(T.zone('B', 'hand').length, bh + 1, 'B draws only the one');
   });
+  test('Commanders: Mikey & Don, Party Planners — lands and Mutant/Ninja/Turtle spells from the top; a creature cast so gets a counter', (mk, t) => {
+    t.auto('Mikey & Don, Party Planners');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Mikey & Don, Party Planners');
+    const bears = T.top('A', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    t.no(g.playableNow('A').some(x => x.objId === bears.id), 'a Bear: not from the top');
+    g.zones.A.library.shift();
+    const ninja = T.top('A', 'Ninja of the Deep Hours');
+    T.mana('A', 'U3');
+    t.ok(g.playableNow('A').some(x => x.objId === ninja.id), 'a Ninja: from the top');
+    T.cast('A', ninja);
+    t.zone(ninja, 'battlefield', 'cast from the top');
+    t.eq(ninja.counters['+1/+1'], 1, 'with an additional +1/+1 counter');
+    const forest = T.top('A', 'Forest');
+    t.ok(g.playableNow('A').some(x => x.objId === forest.id && x.kind === 'land'), 'a land from the top');
+    T.playLand('A', forest);
+    t.zone(forest, 'battlefield', 'played');
+    const n2 = T.hand('A', 'Ninja of the Deep Hours');
+    T.mana('A', 'U3');
+    T.cast('A', n2);
+    t.no(n2.counters['+1/+1'], 'cast from hand: no counter');
+  });
+  test('Commanders: Zimone, All-Questioning — end step: a land entered and a prime number of lands makes Primo with that many counters', (mk, t) => {
+    t.auto('Zimone, All-Questioning');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    T.bf('A', 'Zimone, All-Questioning');
+    T.bf('A', 'Forest');
+    const primos = () => g.battlefield.filter(o => o.isToken && o.name === 'Primo, the Indivisible');
+    T.playLand('A', T.hand('A', 'Island'));
+    T.nextTurn('B');
+    t.eq(primos().length, 1, 'two lands, one entered: Primo');
+    t.eq(primos()[0].counters['+1/+1'], 2, 'with two counters');
+    t.eq(g.powerOf(primos()[0]), 2, 'a 2/2');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    t.eq(primos().length, 1, 'no land entered: nothing new');
+    T.nextTurn('A');
+    T.bf('A', 'Forest');
+    T.playLand('A', T.hand('A', 'Island'));
+    T.nextTurn('B');
+    t.eq(primos().length, 1, 'four lands: not prime, nothing');
+    T.nextTurn('A');
+    T.playLand('A', T.hand('A', 'Island'));
+    T.nextTurn('B');
+    t.ok(primos().some(o => o.counters['+1/+1'] === 5), 'five lands: a Primo with five counters (the legend rule keeps one)');
+  });
+  test('Commanders: Megatron, Destructive Force — attacks: sacrifice an artifact, its mana value to a creature; excess to its controller and convert', (mk, t) => {
+    t.auto('Megatron, Tyrant // Megatron, Destructive Force');
+    for (const big of [true, false]) {
+      const T = mk({ library: Array(20).fill('Plains') });
+      const g = T.g;
+      const meg = T.bf('A', 'Megatron, Tyrant // Megatron, Destructive Force');
+      meg.face = 1; meg._chr = null; g.bumpBoard();
+      const art = T.bf('A', big ? 'Thran Dynamo' : 'Coldsteel Heart');
+      const foe = T.bf('B', big ? 'Grizzly Bears' : 'Hill Giant');
+      T.answer('declareAttackers', () => [{ attackerId: meg.id, defenderId: 'B' }]);
+      T.answer('sacrifice', { cardIds: [art.id] });
+      T.answer('pickTarget', { targets: [{ kind: 'object', id: foe.id }] });
+      T.toMain('A', 'declareBlockers');
+      T.resolve();
+      t.zone(art, 'graveyard', 'the artifact sacrificed');
+      if (big) {
+        t.zone(foe, 'graveyard', '4 damage: the Bears die');
+        t.eq(T.life('B'), 18, 'the 2 excess to B');
+        t.eq(meg.face || 0, 0, 'converted to Megatron, Tyrant');
+      } else {
+        t.eq(foe.damage, 2, '2 damage to the Giant');
+        t.eq(T.life('B'), 20, 'no excess');
+        t.eq(meg.face, 1, 'not converted');
+      }
+    }
+  });
+  test('Commanders: Megatron, Tyrant — postcombat main: may convert, adding {C} for each life opponents lost', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    const meg = T.bf('A', 'Megatron, Tyrant // Megatron, Destructive Force');
+    T.player('B').life = 17; T.player('B').lifeLostThisTurn = 3;
+    T.answer('confirm', { yes: true });
+    T.toMain('A', 'main');
+    for (let i = 0; i < 20 && !(g.phase && g.phase.id === 'postcombat'); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.resolve();
+    t.eq(meg.face, 1, 'converted');
+    t.eq(T.player('A').pool.total(), 3, 'three {C}');
+  });
+  test('Commanders: Firesong and Sunspeaker — a white instant or sorcery making you gain life: 3 damage; red ones have lifelink', (mk, t) => {
+    t.auto('Firesong and Sunspeaker');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.bf('A', 'Firesong and Sunspeaker');
+    const giant = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Revitalize'));
+    t.eq(T.life('A'), 23, 'Revitalize: 3 life');
+    t.zone(giant, 'graveyard', 'the trigger: 3 damage to the Giant');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('A'), 26, 'a red instant has lifelink');
+    t.eq(T.life('B'), 17, 'and no trigger: it is not white');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.mana('A', 'RW');
+    T.cast('A', T.hand('A', 'Lightning Helix'), { targets: ['B'] });
+    t.eq(T.life('A'), 32, 'Helix: 3 life and 3 more by lifelink');
+    t.eq(T.life('B'), 8, 'Helix 3, and the trigger twice, 3 each');
+  });
 };

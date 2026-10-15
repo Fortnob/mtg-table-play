@@ -7169,6 +7169,7 @@
          spell goes afterwards */
       o._enterFinality = null;
       o._enterTappedCast = null;
+      o._enterPlusCounters = 0;
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
         // Falco Spara, Pactweaver: the counter, removed as the spell is cast (chosen with it)
@@ -7184,6 +7185,8 @@
           this.logEvent('life', `${p.name} pays ${lv.lifeCost} life to cast ${o.name} from their graveyard.`);
           if (lv.finality) o._enterFinality = true;
         }
+        // Mikey & Don, Party Planners: "If you cast a creature spell this way, that creature enters with an additional +1/+1 counter on it."
+        if (lv && lv.plusCounter && o.zone === 'library' && (o.analysis() || {}).isCreature) o._enterPlusCounters = (o._enterPlusCounters || 0) + 1;
         if (lv && lv.srcId) {
           const ls = this.obj(lv.srcId);
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
@@ -7220,7 +7223,7 @@
       if (fromZone === 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
       // Summon: Fenrir: this creature spell carries the counter it was promised
       if (a && a.isCreature && p.nextCreatureCounter && p.nextCreatureCounter.turn === this.turn) {
-        o._enterPlusCounters = p.nextCreatureCounter.n; p.nextCreatureCounter = null;
+        o._enterPlusCounters = (o._enterPlusCounters || 0) + p.nextCreatureCounter.n; p.nextCreatureCounter = null;
       }
       // "the amount of mana spent to cast this creature"
       o.manaSpent = opts.free ? 0 : MANA.cmc(String(cost || '').replace(/\{X\}/g, '')) + (opts.x || 0) * ((String(cost || '').match(/\{X\}/g) || []).length);
@@ -13424,6 +13427,13 @@
         }
         case 'diedCount': return ((this.turnHistory || {}).creaturesDied || 0) >= (cond.n || 0);
         case 'all': return (cond.of || []).every(c => this._condMet(c, ctx));
+        // Zimone, All-Questioning: "you control a prime number of lands"
+        case 'primeLands': {
+          const k = me ? this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && (o.analysis() || {}).isLand).length : 0;
+          if (k < 2) return false;
+          for (let d = 2; d * d <= k; d++) if (k % d === 0) return false;
+          return true;
+        }
         case 'noCreatures': return !this.battlefield.some(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
         case 'anyLostLife': return this.players.some(p => (p.lifeLostThisTurn || 0) >= (cond.n || 0));
         case 'sameNameLands': {
@@ -14910,7 +14920,11 @@
       this.logEvent('life', `${p.name} ${delta > 0 ? 'gains' : 'loses'} ${Math.abs(delta)} life (${p.life}).`);
       this.emit('sfx', delta > 0 ? 'life_gain' : 'life_loss', { player: p.id, size: Math.abs(delta) });
       this.emit('life', { player: p, delta });
-      if (delta > 0) this._fire('youGainLife', p.id, { amount: delta, player: p.id });
+      if (delta > 0) {
+        // (Firesong and Sunspeaker: "a … spell causes you to gain life" — the spell resolving, its own gain or its lifelink: causeSpell)
+        const rs = this.resolving && this.resolving.ctx && this.resolving.ctx.obj;
+        this._fire('youGainLife', p.id, Object.assign({ amount: delta, player: p.id }, rs && rs.zone === 'stack' ? { causeSpell: rs } : {}));
+      }
       // Punishing Fire: everyone else sees it
       if (delta > 0) this._fire('opponentGainsLife', null, { except: p.id, amount: delta, player: p.id });
     }
@@ -16297,6 +16311,8 @@
           if (ab.notFirstSpell && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) < 2) continue;
           // Nita, Forum Conciliator: a spell its controller doesn't own (notOwnedSpell)
           if (ab.notOwnedSpell && !(data.object && data.object.owner !== o.controller)) continue;
+          // Firesong and Sunspeaker: "Whenever a white instant or sorcery spell causes you to gain life" (gainBySpell)
+          if (ab.gainBySpell && !(data.causeSpell && this._cardFitsWords(data.causeSpell, ab.gainBySpell))) continue;
           // Gonti, Night Minister: a spell its caster doesn't own (notOwnedByCaster)
           if (ab.notOwnedByCaster && !(data.object && data.playerId && data.object.owner !== data.playerId)) continue;
           // Fire Lord Azula: only while it is attacking (selfAttacking)

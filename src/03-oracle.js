@@ -2336,6 +2336,13 @@
        and it loses all other card types." — only a Treasure artifact as it enters, its supertypes and abilities kept (enterRider) */
     { re: /^It'?s a Treasure artifact with "\{T\}, Sacrifice this artifact: Add one mana of any color,?" and it loses all other card types\.?$/,
       make: () => ({ op: 'manual', enterRider: { setTypes: ['Artifact'], addSubtypes: ['Treasure'], grantText: '{T}, Sacrifice this artifact: Add one mana of any color.' } }) },
+    /* Zimone, All-Questioning: "create Primo, the Indivisible, a legendary 0/0 green and blue Fractal creature token, then
+       put that many +1/+1 counters on it." — "that many" the prime number of lands you control, counted as it resolves */
+    { re: /^Create (Primo, the Indivisible, a legendary 0\/0 [a-z ]+ Fractal creature token), then put that many \+1\/\+1 counters on it\.?$/i,
+      make: (m) => {
+        const tok = parseEffectSentence('Create ' + m[1] + '.'), c = countOf('land you control');
+        return tok && tok.op === 'createToken' && c ? [tok, { op: 'counters', kind: '+1/+1', n: c, targets: null, scope: 'thatToken' }] : null;
+      } },
     /* Primo, the Unbounded: "create a 0/0 … Fractal creature token. Put a number of +1/+1 counters on it equal to the
        damage dealt." — the token just made (thatToken), all the lot dealt that player */
     { re: /^Put (?:a number of|X) (\+1\/\+1) counters on it(?: equal to|, where X is) the damage dealt\.?$/i,
@@ -5551,6 +5558,10 @@
         }
         return out.length === 1 ? out[0] : { op: 'sequence', list: out };
       } },
+    /* Megatron, Destructive Force: "If excess damage would be dealt to that creature this way, instead that damage is
+       dealt to that creature's controller and you convert Megatron." — the spill, then the convert if there was any */
+    { re: /^If excess damage would be dealt to that creature this way, instead that damage is dealt to that creature'?s controller(?: and you (convert|transform) CARDNAME)?\.?$/i,
+      make: (m) => [{ op: 'excessToController' }].concat(m[1] ? [{ op: 'ifCond', cond: { kind: 'lastExcess' }, then: [{ op: 'transformSelf' }] }] : []) },
     // Flame Spill, Ravenous Tyrannosaurus: what the damage before this had left over goes on to the controller
     { re: /^(?:The )?[Ee]xcess damage is dealt to (?:that creature'?s|that permanent'?s|its) controller instead\.?$/, make: () => ({ op: 'excessToController' }) },
     { re: /^Create a number of (tapped )?(Treasure|Clue|Food|Blood) tokens equal to (.+?)\.?$/i,
@@ -12192,11 +12203,15 @@
         };
         sacrificedIsThat(tp.effects);
         const usesX = JSON.stringify(tp.effects).includes('"X"');
-        if (tp.auto && (!usesX || xv)) {
+        /* Megatron, Destructive Force: "When you do, … to target creature. If excess damage would be dealt to that
+           creature this way, instead …" — the damage's own rider, part of what "when you do" does */
+        const rider = /^If excess damage would be dealt to that creature this way, /i.test(sentences[i + 2] || '') ? parseSentenceList([sentences[i + 2]]) : null;
+        if (tp.auto && (!usesX || xv) && (!rider || rider.auto)) {
           swapX(tp.effects);
+          if (rider) tp.effects.push(...rider.effects);
           // (one question: which to sacrifice, or none — not a yes and then a pick)
-          effects.push({ op: 'sacThen', optional: true, filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects, text: s + ' ' + next });
-          i++;
+          effects.push({ op: 'sacThen', optional: true, filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects, text: s + ' ' + next + (rider ? ' ' + sentences[i + 2] : '') });
+          i += rider ? 2 : 1;
           continue;
         }
       }
@@ -13355,6 +13370,8 @@
     // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
     [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
       (m) => ({ kind: 'enteredThisTurn', n: num(m[1].replace(/^an?$/i, 'one')), what: m[2].toLowerCase().replace(/s$/, '') })],
+    // Zimone, All-Questioning: "a land entered the battlefield under your control this turn and you control a prime number of lands"
+    [/^(.+?) and you control a prime number of lands$/i, (m) => { const c = condOf(m[1]); return c ? { kind: 'all', of: [c, { kind: 'primeLands' }] } : null; }],
     // Ephara, God of the Polis: "you had another creature enter the battlefield under your control last turn"
     [/^you had (?:another|a) creature enter the battlefield under your control last turn$/i, () => ({ kind: 'creatureEnteredLastTurn' })],
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
@@ -14700,6 +14717,9 @@
     // Zidane, Tantalus Thief: "Whenever an opponent gains control of a permanent from you,"
     { re: /^Whenever an opponent gains control of a permanent from you,? /i, event: 'oppGainsControlFromYou' },
     { re: /^When(?:ever)? you gain life(?:,| )/i, event: 'youGainLife' },
+    // Firesong and Sunspeaker: "Whenever a white instant or sorcery spell causes you to gain life" (gainBySpell)
+    { re: /^Whenever an? ((?:white|blue|black|red|green) )?(instant or sorcery|instant|sorcery) spell causes you to gain life,? /i, event: 'youGainLife',
+      extraOf: (m) => ({ gainBySpell: m[2].toLowerCase().split(' or ').map(w => (m[1] || '').toLowerCase() + w).join(' or ') }) },
     // The Watcher in the Water: "Whenever you draw a card during an opponent's turn" (drawOppTurn)
     { re: /^Whenever you draw a card during an opponent'?s turn,? /i, event: 'youDraw', extra: { notYourTurnOnly: true } },
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
@@ -20790,6 +20810,10 @@
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', filter: m[1].toLowerCase() }), auto: true },
       { re: /^(During your turn, )?you may play lands from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'land', duringYourTurn: !!m[1] }), auto: true },
+      /* Mikey & Don, Party Planners: "You may play lands and cast Mutant, Ninja, or Turtle spells from the top of your
+         library. If you cast a creature spell this way, that creature enters with an additional +1/+1 counter on it." (plusCounter) */
+      { re: /^You may play lands and cast ([A-Z][a-z]+(?:, [A-Z][a-z]+)*,? or [A-Z][a-z]+) spells from the top of your library\. If you cast a creature spell this way, that creature enters with an additional \+1\/\+1 counter on it\.?$/,
+        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'any', spellFilter: m[1].replace(/,? or /, ', ').split(', ').join(' or ').toLowerCase(), plusCounter: true }), auto: true },
       // Crystal Skull: "You may play historic lands and cast historic spells"; Traveling Chocobo: "play lands and cast Bird spells"
       { re: /^(During your turn, )?you may play ((?:[a-z]+ )?)lands and cast ((?:[A-Za-z]+ )?)spells from the top of your library\.?$/i,
         make: (m) => (m[2] || m[3]) ? { op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
