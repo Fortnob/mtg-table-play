@@ -610,8 +610,8 @@
       // The Kingpin of Crime: its controller's creatures this turn (player toughDamageTurn)
       const tdp = (this.player(o.controller) || {}).toughDamageTurn;
       if (tdp && tdp.turn === this.turn && (!tdp.ifTougher || this.toughnessOf(o) > this.powerOf(o))) return true;
-      // Doran: "Each creature assigns combat damage equal to its toughness rather than its power"
-      return this.battlefield.some(s => {
+      // Doran: "Each creature assigns combat damage equal to its toughness rather than its power" (The Great Forest, a plane, too)
+      return this._withEmblems(this.battlefield).some(s => {
         const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
         if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
         // Baldin, Century Herdmaster: "During your turn" — its controller's
@@ -1530,7 +1530,7 @@
       // discard to hand size
       const hand = this.zones[ap.id].hand;
       // Anvil of Bogardan: "Players have no maximum hand size" — anyone's, for everyone
-      const allNoMax = this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'noMaxHandSize') || {}).all);
+      const allNoMax = this._withEmblems(this.battlefield).some(o => !o.phasedOut && (this._staticOp(o, 'noMaxHandSize') || {}).all);
       // (The Great Synthesis: "for as long as you control this Saga" — noMaxHandWhileControl)
       const sagaNoMax = this.battlefield.some(o => o.noMaxHandFor === ap.id && o.controller === ap.id);
       if (allNoMax || sagaNoMax || this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand) {
@@ -3821,7 +3821,8 @@
     }
     /** Chromatic Orrery, Mycosynth Lattice: may this player spend mana as though it were any colour? */
     _spendsAnyColor(pid) {
-      return this.battlefield.some(x => {
+      // (a plane's too: Mycosynthwave)
+      return this._withEmblems(this.battlefield).some(x => {
         if (x.phasedOut) return false;
         const e = this._staticOp(x, 'spendAnyColorAll');
         return !!e && (e.who === 'all' || x.controller === pid);
@@ -3862,7 +3863,8 @@
       if (!this._grantGraveMemo || this._grantGraveMemo.key !== this._boardKey) {
         // (empty while it is worked out: the board's own analyses look at graveyards too)
         this._grantGraveMemo = { key: this._boardKey, scav: [] };
-        this._grantGraveMemo.scav = this.battlefield.filter(x => !x.phasedOut && this._staticOp(x, 'grantScavenge')).map(x => x.controller);
+        // (The Cave of Skulls, a plane: its controller's)
+        this._grantGraveMemo.scav = this._withEmblems(this.battlefield).filter(x => !x.phasedOut && this._staticOp(x, 'grantScavenge')).map(x => x.controller);
       }
       if (!this._grantGraveMemo.scav.includes(o.owner)) return base;
       let out = GRAVE_SCAVENGE.get(base);
@@ -5755,7 +5757,8 @@
       const fu = p && p.flashUntil;
       if (fu && (this.turn === fu.setTurn || !this.activePlayer || this.activePlayer.id !== p.id) &&
           (!fu.filter || this._cardFitsWords(o, fu.filter))) return true;
-      for (const src of this.battlefield) {
+      // (Akoum, a plane: "Players may cast enchantment spells as though they had flash")
+      for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
         // (Kianne, Corrupted Memory: one for an even power, one for an odd — each of them)
         for (const e of this._staticOpsAll(src, 'flashGrant')) {
@@ -5997,7 +6000,8 @@
          equal to its mana cost reduced by {2}." — the cost kept with the card once foretold (grantForetell) */
       if (o.zone === 'hand' && !a.isLand && this._foretellWindow(playerId, o) &&
           !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^foretell$/i.test(ab.keyword || ''))) {
-        const gf = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
+        // (Singing Towers of Darillium, a plane, too)
+        const gf = this._withEmblems(this.battlefield).filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
         if (gf) { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, reduce: gf.reduce || 0, label: 'Foretell ' + (fp || '{0}') }); }
       }
       // (embalm and eternalize are not casts: abilities of the card in the graveyard, which make a token copy — the reading's)
@@ -6218,7 +6222,7 @@
       /* Underworld Breach: every nonland card in your graveyard has escape
          (The Master of Keys: "Each enchantment card" — words; its own count of other cards to exile) */
       const breach = o.zone === 'graveyard' && o.owner === playerId && !a.isLand && !out.some(u => u.via === 'escape') &&
-        this.battlefield.find(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantEscape') &&
+        this._withEmblems(this.battlefield).find(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantEscape') &&
           (!this._staticOp(x, 'grantEscape').words || this._cardFitsWords(o, this._staticOp(x, 'grantEscape').words)));
       if (breach) {
         out.push({ kind: 'cast', via: 'escape', cost: a.manaCost || '', after: null, exileGrave: this._staticOp(breach, 'grantEscape').exile || 3,
@@ -6930,7 +6934,8 @@
 
     /** Ascend (CR 702.131): ten permanents and the city's blessing is yours. */
     _checkAscend() {
-      for (const o of this.battlefield) {
+      // (The Golden City of Orazca, a plane: its controller's blessing)
+      for (const o of this._withEmblems(this.battlefield)) {
         const a = o.analysis();
         if (!a || !(a.abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'ascend'))) continue;
         const p = this.player(o.controller);
@@ -12569,7 +12574,7 @@
          as much instead — a replacement, so before anything adds to it, and
          two of them multiply */
       let factor = 1;
-      for (const src of this.battlefield) {
+      for (const src of this._withEmblems(this.battlefield)) {
         const e = this._staticOp(src, 'extraManaOnTap');
         if (!e || !e.times) continue;
         if (e.who === 'you' && playerId !== src.controller) continue;
@@ -12585,7 +12590,8 @@
         }
         if (more.length) this.logEvent('mana', `${o.name} produces ${factor === 2 ? 'twice' : factor + ' times'} as much: ${more.map(x => '{' + x + '}').join('')} more.`);
       }
-      for (const src of this.battlefield) {
+      // (a plane's too: The Fertile Lands of Saulvinia, Eloren Wilds)
+      for (const src of this._withEmblems(this.battlefield)) {
         const e = this._staticOp(src, 'extraManaOnTap');
         if (!e || e.times) continue;
         if (e.scope === 'attached' ? src.attachedTo !== o.id : false) continue;
@@ -13043,7 +13049,8 @@
       }
       /* Silent Arbiter, Crawlspace: "No more than one creature can attack
          (you) each combat" — the first ones declared go, the rest stay home */
-      for (const s0 of this.battlefield) {
+      // (Astral Arena, a plane, too)
+      for (const s0 of this._withEmblems(this.battlefield)) {
         if (s0.phasedOut) continue;
         const lim = this._staticOp(s0, 'attackLimit');
         if (!lim) continue;
@@ -13844,7 +13851,7 @@
         this.logEvent('rules', `${bl.name}: no more than ${bl.n} blocking.`);
       }
       // Silent Arbiter: "No more than one creature can block each combat."
-      for (const s0 of this.battlefield) {
+      for (const s0 of this._withEmblems(this.battlefield)) {
         if (s0.phasedOut) continue;
         const lim = this._staticOp(s0, 'blockLimit');
         if (!lim || declarations.length <= (lim.n || 1)) continue;
@@ -14391,7 +14398,8 @@
       if (this._repCache && this._repEpoch === this._boardKey && this._repTurn === this.turn) return this._repCache;
       this._repTurn = this.turn;
       const list = [];
-      for (const src of this.battlefield) {
+      // (an emblem's or a face-up plane's as well: Selesnya Loft Gardens, Stronghold Furnace)
+      for (const src of this._withEmblems(this.battlefield)) {
         const a = src.analysis();
         if (!a) continue;
         for (const ab of a.abilities) {
@@ -16625,7 +16633,9 @@
         const printed = (x) => MTG.oracle.analyze(x.card, x.face) || {};
         const mine = printed(o);
         const types = (a) => (a.subtypes || []).filter(t => this._isCreatureType(t));
-        const myTypes = types(mine), allTypes = (mine.keywordSet && mine.keywordSet.has('changeling'));
+        // (Velis Vel: "target creature gains all creature types until end of turn" — changeling given by an effect counts)
+        const givenAll = (x) => (x.effects || []).some(e => e && Array.isArray(e.keywords) && e.keywords.some(k => String(k).toLowerCase() === 'changeling'));
+        const myTypes = types(mine), allTypes = (mine.keywordSet && mine.keywordSet.has('changeling')) || givenAll(o);
         let k = 0;
         for (const x of this.battlefield) {
           if (x === o || x.phasedOut) continue;
@@ -16635,7 +16645,8 @@
           // Stoneforge Masterwork: only its controller's
           if (v.mineOnly && x.controller !== o.controller) continue;
           const xt = types(xa);
-          if ((allTypes && xt.length) || (xa.keywordSet && xa.keywordSet.has('changeling') && myTypes.length) || xt.some(t => myTypes.includes(t))) k++;
+          const xAll = (xa.keywordSet && xa.keywordSet.has('changeling')) || givenAll(x);
+          if ((allTypes && (xt.length || xAll)) || (xAll && myTypes.length) || xt.some(t => myTypes.includes(t))) k++;
         }
         return k * (v.mult || 1);
       }
@@ -22434,6 +22445,8 @@
             for (const o of this.battlefield) {
               if (o.controller !== ctx.controller) continue;
               if (!this._matchesCategory(o, e.filter)) continue;
+              // Littjara: "of that type" — the creature type chosen just before (chosenType)
+              if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
               this.addCounters(o, e.kind, cnt);
               got.push(o.id);
             }
@@ -32985,7 +32998,8 @@
                among cards exiled this way" — a land only on your own turn, and
                only with a land play left (CR 305.2, 305.3); not asked otherwise */
             if (ca.isLand) {
-              if (!e.lands || (r && r.marks[slot + 'done' + k]) || c.zone !== 'exile' || !this._landPlayLeft(me)) continue;
+              // (Quicksilver Sea: "reveal the top card of your library. You may play it …" — a land still there, revealed)
+              if (!e.lands || (r && r.marks[slot + 'done' + k]) || (c.zone !== 'exile' && !(e.from === 'revealed' && c.zone === 'library')) || !this._landPlayLeft(me)) continue;
               const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Play ${c.name}?` }, 'fl' + k);
               if (yes === SUSPEND) return SUSPEND;
               if (r) r.marks[slot + 'done' + k] = true;
@@ -37694,12 +37708,21 @@
       if (sc.withManaAbility && !this._hasManaAbility(o, oa, inLayers)) return false;
       if (!inLayers && sc.keyword && !this.hasKw(o, sc.keyword)) return false;
       if (!inLayers && sc.withoutKeyword && this.hasKw(o, sc.withoutKeyword)) return false;
+      /* (The Zephyr Maze: "Creatures with flying get +2/+0", "without flying get -2/-0" — in the layers too, a keyword
+         the permanent was given until end of turn counting: kwInLayers) */
+      const kwInLayers = (k) => {
+        const lk = String(k).toLowerCase();
+        return !!(oa.keywordSet && oa.keywordSet.has(lk)) || (o.effects || []).some(e => e && Array.isArray(e.keywords) && e.keywords.some(x => String(x).toLowerCase() === lk));
+      };
+      if (inLayers && sc.withoutKeyword && kwInLayers(sc.withoutKeyword)) return false;
+      // (Celestine Reef: "Creatures without flying or islandwalk" — withoutKeywords: lacking all of them)
+      if (sc.withoutKeywords && sc.withoutKeywords.some(k => inLayers ? kwInLayers(k) : this.hasKw(o, k))) return false;
       // Henrika, Infernal Seer: "with flying, deathtouch, and/or lifelink" (keywordAny)
       if (!inLayers && sc.keywordAny && !sc.keywordAny.some(k => this.hasKw(o, k))) return false;
       if (inLayers && sc.keywordAny && !sc.keywordAny.some(k => oa.keywordSet && oa.keywordSet.has(k))) return false;
       // Ruxa, Patient Professor: "Creatures you control with no abilities" (noAbilities)
       if (sc.noAbilities && !this._hasNoAbilities(o)) return false;
-      if (inLayers && sc.keyword && !(oa.keywordSet && oa.keywordSet.has(sc.keyword))) return false;
+      if (inLayers && sc.keyword && !kwInLayers(sc.keyword)) return false;
       return true;
     }
 
@@ -40316,7 +40339,8 @@
 
     /** Is any permanent declaring this standing rule right now? */
     _anyStatic(op) {
-      for (const o of this.battlefield) {
+      // (an emblem's or a face-up plane's too)
+      for (const o of this._withEmblems(this.battlefield)) {
         const a = o.analysis();
         if (!a) continue;
         for (const ab of a.abilities) {
@@ -40388,7 +40412,13 @@
         if (cw) { if (!(a.colors || []).includes(cw)) return false; continue; }
         if (want.startsWith('non')) {
           const bare = want.replace(/^non-?/, '');
+          // (The Fourth Sphere: "a nonblack creature" — a colour ruled out; "a nontoken creature", "a non-Vampire creature")
+          const ncw = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[bare];
+          if (ncw) { if ((a.colors || []).includes(ncw)) return false; continue; }
+          if (bare === 'token') { if (o.isToken) return false; continue; }
+          if (bare === 'legendary') { if ((a.supertypes || []).some(t => String(t).toLowerCase() === 'legendary')) return false; continue; }
           if ((a.types || []).some(t => t.toLowerCase() === bare)) return false;
+          if ((a.subtypes || []).some(t => t.toLowerCase() === bare)) return false;
           continue;
         }
         // (the word as printed too: "Plains" is not the plural of anything)
@@ -42038,7 +42068,8 @@
       const top = (this.zones[ownerId] || { library: [] }).library[0];
       if (!top) return false;
       if ((top.knownTo || []).includes('*')) return true;
-      return this.battlefield.some(o => {
+      // (Skybreen, Windriddle Palaces: a plane's too)
+      return this._withEmblems(this.battlefield).some(o => {
         if (o.phasedOut) return false;
         const e = this._staticOp(o, 'peekTop');
         return !!e && this._peekTopFits(e, o, top) && (e.who === 'all' || (e.revealed && o.controller === ownerId));
@@ -42060,7 +42091,7 @@
     _topCardShown(ownerId, viewer) {
       if (viewer !== ownerId && this._oppTops(viewer).some(c => c.owner === ownerId)) return true;
       const top = (this.zones[ownerId] || { library: [] }).library[0];
-      for (const o of this.battlefield) {
+      for (const o of this._withEmblems(this.battlefield)) {
         if (o.phasedOut) continue;
         const e = this._staticOp(o, 'peekTop');
         if (!e || !this._peekTopFits(e, o, top)) continue;

@@ -419,6 +419,16 @@
       if (!this.planechaseOn() || !this.started) return false;
       const st = this.planar || {};
       if (st.walking) return false;
+      /* Aretopolis: "When Aretopolis has ten or more scroll counters on it, planeswalk." — a state trigger of a face-up
+         plane (CR 603.8), put on the stack once while it holds */
+      for (const o of this.facePlanes()) {
+        const stt = this._staticOp(o, 'stateTrigger');
+        if (!stt || !stt.minCounter || (Number(o.counters[stt.minCounter.kind]) || 0) < stt.minCounter.n) continue;
+        if (this.pendingTriggers.concat(this.stack).some(x => x && x.objId === o.id && x.stateTrigger)) continue;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, stateTrigger: true,
+          controller: o.controller, name: `${o.name} — ${stt.label || 'state trigger'}`, auto: true,
+          effects: stt.effects, abilityText: `When ${o.name} has ${stt.label || 'that'}`, triggerData: { event: 'stateTrigger' } });
+      }
       const ph = this.facePlanes().filter(o => isPhenomenonCard(o.card));
       if (!ph.length) return false;
       for (const o of ph) {

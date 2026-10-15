@@ -616,7 +616,8 @@
   // descriptor the rules engine knows how to execute.
   /* Target phrases as they are actually printed: a noun, sometimes a couple
      of adjectives, sometimes who controls it, sometimes one restriction. */
-  const TGT_ADJ = "(?:attacking|blocking|tapped|untapped|nonland|nontoken|nonlegendary|legendary|token|face-down|blocked|unblocked|red|green|blue|white|black|colorless|multicolored|monocolored|artifact|enchantment|creature|land|other)";
+  // (The Cheetah Planet: "target non-Cat creature you control" — a creature type ruled out: targetSpec reads it, or turns it down)
+  const TGT_ADJ = "(?:attacking|blocking|tapped|untapped|nonland|nontoken|nonlegendary|legendary|token|face-down|blocked|unblocked|red|green|blue|white|black|colorless|multicolored|monocolored|artifact|enchantment|creature|land|other|non-[A-Z][a-z'-]+)";
   const TGT_NOUN = "(?:creature|player|opponent|planeswalker|battle|permanent)";
   const TGT_WHO = "(?: (?:you control|an opponent controls|you don't control|your opponents control|a player controls))?";
   // "with mana value X or less": the one capital a "with" clause can carry
@@ -2423,8 +2424,9 @@
     { re: /^Target player searches their library for a basic land card, puts it onto the battlefield tapped, then shuffles\.?$/i,
       make: () => ({ op: 'tutor', who: 'target', n: 1, filter: 'basic land', to: 'battlefield', tapped: true, targets: [{ type: 'player' }] }) },
     // Naya Charm: "Return target card from a graveyard to its owner's hand."
-    { re: /^Return target (card|creature card|artifact card|instant or sorcery card) from a graveyard to its owner'?s hand\.?$/i,
-      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec('target ' + m[1].replace(/ card$/, '')), { zone: 'graveyard' })] }) },
+    // (Strixhaven, a plane: "return up to one target instant or sorcery card from a graveyard" — upTo)
+    { re: /^Return (up to one )?target (card|creature card|artifact card|instant or sorcery card) from a graveyard to its owner'?s hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec('target ' + m[2].replace(/ card$/, '')), { zone: 'graveyard' }, m[1] ? { upTo: true } : {})] }) },
     // Kenrith: "Put target creature card from a graveyard onto the battlefield under its owner's control."
     { re: /^Put target creature card from a graveyard onto the battlefield under its owner'?s control\.?$/i,
       make: () => ({ op: 'reanimate', ownerControl: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
@@ -3009,8 +3011,8 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+(?:don'?t control)?|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
-      // (Gwafa Hazid, Profiteer: "on target creature you don't control")
+    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target (?:non-[A-Z][a-z]+ )?[a-zA-Z ]+(?:don'?t control)?|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
+      // (Gwafa Hazid, Profiteer: "on target creature you don't control"; The Cheetah Planet: "on target non-Cat creature you control")
       /* (a target is never this permanent: "target creature with flying", "… that entered this turn" hold
          "it" and "this" in their words, which made them read as "on this creature" — Cathedral Acolyte) */
       make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /target/.test(m[3]) ? null : 'self' }) },
@@ -3316,6 +3318,10 @@
     // (Blaster, Morale Booster: "That artifact gains haste until end of turn." — the one just aimed at)
     // (Seifer, Balamb Rival: "that attacking creature gains deathtouch until end of turn" — the one the trigger is about)
     // (Aradesh, the Founder: "the creature that attacked gains double strike until end of turn" — the one the trigger is about)
+    /* Velis Vel: "target creature gains all creature types until end of turn" — every creature type, which is what
+       changeling is (CR 702.73a), for the turn */
+    { re: /^(Target creature(?: you control)?) gains all creature types until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'grantKeyword', keywords: ['Changeling'], duration: 'eot', targets: [t] } : null; } },
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|The creature that attacked|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
@@ -3592,6 +3598,9 @@
     { re: /^Sacrifice (a|an|one|two|\d+) (?:other )?(creature|permanent|artifact|enchantment|land|token)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'you', filter: m[2].toLowerCase(),
         other: /other/i.test(m[0]) }) },
+    // The Fourth Sphere: "sacrifice a nonblack creature" — of a colour, or not of one
+    { re: /^Sacrifice (a|an|one|two) ((?:non)?(?:white|blue|black|red|green)) (creature|permanent)s?\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'you', filter: m[2].toLowerCase() + ' ' + m[3].toLowerCase() }) },
     // The Cabbage Merchant, Gluttonous Guest: "sacrifice a Food token", "sacrifice a Blood token"
     { re: /^[Ss]acrifice (a|an|one|two|three|\d+) ([A-Z][a-z]+) tokens?\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', n: /^an?$/.test(m[1]) ? 1 : num(m[1]), who: 'you', filter: m[2].toLowerCase() + ' token' }) },
@@ -5419,11 +5428,22 @@
     /* Incremental Growth, Incremental Blight: "Put a +1/+1 counter on target creature, two +1/+1
        counters on another target creature, and three +1/+1 counters on a third target creature." */
     { re: /^Put an? ([+-]1\/[+-]1) counter on target creature, two \1 counters on another target creature, and three \1 counters on a third target creature\.?$/i,
+      // (Raven's Run's chaos ability: each a target of its own as a trigger aims too — the second and third apart: targetNo)
       make: (m) => ({ op: 'sequence', list: [1, 2, 3].map(k => ({ op: 'counters', kind: m[1], n: k,
-        targets: [Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield' }, k > 1 ? { distinct: true } : {})] })) }) },
+        targets: [Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield' }, k > 1 ? { distinct: true, targetNo: k } : {})] })) }) },
     // Madcap Experiment, Audacious Reshapers: "CARDNAME deals damage to you equal to the number of cards revealed this way." (revealedCountUntil)
     { re: /^(?:CARDNAME|This creature|This artifact) deals damage to you equal to the number of cards revealed this way\.?$/i,
       make: () => ({ op: 'damage', n: { revealedCount: true, mult: 1 }, toSelf: true }) },
+    // Naar Isle: "CARDNAME deals damage to you equal to the number of flame counters on it" — counted as it resolves
+    { re: /^(?:Then )?(?:CARDNAME|This (?:creature|artifact|enchantment)) deals damage to you equal to (the number of [a-z]+ counters on (?:it|CARDNAME))\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, toSelf: true } : null; } },
+    /* Naar Isle, Aretopolis: "put a flame counter on CARDNAME, then …" — the counter, then the rest */
+    { re: /^Put an? ([a-z]+) counter on CARDNAME, then (.+)$/i,
+      make: (m) => {
+        const rest = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        if (!rest || rest.op === 'manual' || hasManualStep(rest)) return null;
+        return [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'self' }].concat(rest.op === 'sequence' ? rest.list : [rest]);
+      } },
     /* Shilgengar, Sire of Famine: "If you sacrificed an Angel this way, create a number of Blood tokens equal to its
        toughness instead." — as it was sacrificed (sacrificedWas, ofSacrificed) */
     { re: /^If you sacrificed an? ([A-Z][a-z]+) this way, create a number of (Blood|Treasure|Food|Clue|Map) tokens equal to its (toughness|power) instead\.?$/,
@@ -5471,6 +5491,8 @@
 
     // --- life ---
     { re: /^Your life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1] }) },
+    // Sanctum of Serra: "you may have your life total become 20"
+    { re: /^You may have your life total become (\d+)\.?$/i, make: (m) => ({ op: 'may', then: [{ op: 'setLife', n: +m[1] }] }) },
     { re: /^Each opponent'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'opponents' }) },
     // Biorhythm, Shaman of Forgotten Ways: "Each player's life total becomes the number of creatures they control."
     { re: /^Each player'?s life total becomes the number of (creatures|lands|permanents|artifacts) they control\.?$/i,
@@ -5706,6 +5728,9 @@
     // Anowon, the Ruin Sage: "each player sacrifices a non-Vampire creature of their choice"
     { re: /^Each player sacrifices (a|one|two|\d+) non-([A-Z][a-z]+) creatures? of their choice\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'each', filter: 'non-' + m[2].toLowerCase() + ' creature' }) },
+    // The Pit: "each player sacrifices a nonartifact creature of their choice" — a kind ruled out (non-type, non-colour)
+    { re: /^Each player sacrifices (a|one|two|\d+) (non(?:artifact|creature|land|enchantment|legendary|token|white|blue|black|red|green)) (creature|permanent|artifact|land)s? of their choice\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'each', filter: m[2].toLowerCase() + ' ' + m[3].toLowerCase() }) },
     // Honden of Infinite Rage: "deals damage to any target equal to the number of Shrines you control"
     { re: /^(?:CARDNAME|This (?:creature|enchantment|artifact)) deals damage to any target equal to (the number of .+? you control)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, targets: [targetSpec('any target')] } : null; } },
@@ -5961,6 +5986,10 @@
         { op: 'damage', n: num(m[3]), toSelf: true }] }) },
 
     /* ===== counters on a whole category ===== */
+    /* Littjara: "choose a creature type. Put a +1/+1 counter on each creature you control of that type." — the type
+       chosen just before (chosenType) */
+    { re: /^Put (a|an|one|two|three) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on each creature you control of that type\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), scope: 'yourMatching', filter: 'creature', chosenType: true }) },
     /* Brokers Ascendancy: "put a +1/+1 counter on each creature you control
        and a loyalty counter on each planeswalker you control" — two kinds,
        on two kinds of permanent */
@@ -10446,6 +10475,12 @@
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
+    // Akoum: "target creature that isn't enchanted" (notEnchanted)
+    const notEnch = /\s+that isn'?t enchanted$/i.test(String(phrase));
+    if (notEnch) phrase = String(phrase).replace(/\s+that isn'?t enchanted$/i, '');
+    // Besieged Viking Village: "target creature you control that attacked this turn" (attackedThisTurn)
+    const attackedNow = /\s+that attacked this turn$/i.test(String(phrase));
+    if (attackedNow) phrase = String(phrase).replace(/\s+that attacked this turn$/i, '');
     // Lulu, Stern Guardian, Flash Foliage: "target creature attacking you" — attacking this player itself (attackingYouSpec)
     // Viper, Cruel Conspirator: "target creature that's attacking alone" — attacking, and no other creature is (attackingAlone)
     const alone = /\s+that'?s attacking alone$/i.test(String(phrase));
@@ -10471,6 +10506,8 @@
     if (ctlGy) spec.mvAtMostCtlGy = true;
     if (hasX) spec.hasXCost = true;
     if (colored) spec.colored = true;
+    if (notEnch) { spec.notEnchanted = true; spec.filter = p + " that isn't enchanted"; }
+    if (attackedNow) { spec.attackedThisTurn = true; spec.filter = p + ' that attacked this turn'; }
     if (enteredNow) spec.enteredThisTurn = true;
     if (greaterPow) spec.greaterPowerThanSource = true;
     if (lesserPow) spec.lesserPowerThanSource = lesserPow;
@@ -10772,6 +10809,10 @@
     if (spec.blocked && !((obj.blockedBy || []).length || (obj.blockedNoBlocker && (!ctx || ctx.turn == null || obj.blockedNoBlocker === ctx.turn)))) return false;
     // (modifiedTarget: what is on it, as the game reads it)
     for (const w of ['modified', 'equipped', 'enchanted']) if (spec[w] && !(ctx && ctx.fits && ctx.fits(obj, w))) return false;
+    // Akoum: "target creature that isn't enchanted" (notEnchanted)
+    if (spec.notEnchanted && ctx && ctx.fits && ctx.fits(obj, 'enchanted')) return false;
+    // Besieged Viking Village: "that attacked this turn" (attackedThisTurn)
+    if (spec.attackedThisTurn && !(ctx && ctx.turn != null && obj.attackedTurn === ctx.turn)) return false;
     // Halvar, God of Battle: "Aura or Equipment attached to a creature you control" (attachedToYourCreature)
     if (spec.attachedToYourCreature) {
       const h = ctx && ctx.hostOf ? ctx.hostOf(obj) : null;
@@ -12682,6 +12723,8 @@
         abilities: [{ kind: 'triggered', event: 'yourCreatureCombatDamage', also: 'creatureCombatDamageWalker', self: false, optional: false, auto: true, condition: null,
           objectIdIs: '$tgt', text: 'Whenever the chosen creature deals combat damage to a player or planeswalker, draw that many cards.',
           effects: [{ op: 'draw', n: 'triggerAmount', who: 'you' }] }] }] },
+    // Bolster N (CR 701.39): The Great Aerie, Abzan Skyguard — on its own
+    { re: /^[Bb]olster (\d+|one|two|three|four|five)\.?$/, make: (m) => [{ op: 'bolster', n: num(m[1]) }] },
     /* Optimus Prime, Autobot Leader: "bolster 2. The chosen creature gains trample until end of turn. When that creature
        deals combat damage to a player this turn, convert Optimus Prime." — the creature bolstered (noteChosen), watched
        for the turn; this permanent converted, unless it has since (watchDamage) */
@@ -13526,6 +13569,10 @@
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
+    /* Quicksilver Sea: "reveal the top card of your library. You may play it without paying its mana cost." — cast it
+       free, or play it as your land for the turn if it is one and you have a land play left (lands, revealed) */
+    { re: /^Reveal the top card of your library\. You may play it without paying its mana cost\.?$/i,
+      make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, lands: true }] },
     /* Jadzi, Oracle of Arcavios: "reveal the top card of your library. If it's a nonland card, you may cast it by paying
        {1} rather than paying its mana cost. If it's a land card, put it onto the battlefield." (altMana, revealedOnly) */
     { re: /^Reveal the top card of your library\. If it'?s a nonland card, you may cast it by paying ((?:\{[0-9WUBRGC]\})+) rather than paying its mana cost\. If it'?s a land card, put it onto the battlefield\.?$/i,
@@ -20751,6 +20798,10 @@
       // (Sonic the Hedgehog: "each creature you control with flash or haste")
       } else if ((m = rest.match(/ with ((?:(?:flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|flash),? )+)(?:and\/or|or) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|flash)$/i))) {
         sc.keywordAny = m[1].split(',').map(x => x.trim().toLowerCase()).filter(Boolean).concat(m[2].toLowerCase());
+        rest = rest.slice(0, m.index);
+      // (Celestine Reef: "Creatures without flying or islandwalk can't attack" — lacking every one of them: withoutKeywords)
+      } else if ((m = rest.match(/ without (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|islandwalk|swampwalk|forestwalk|mountainwalk|plainswalk|shadow|horsemanship) or (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|islandwalk|swampwalk|forestwalk|mountainwalk|plainswalk|shadow|horsemanship)$/i))) {
+        sc.withoutKeywords = [m[1].toLowerCase(), m[2].toLowerCase()];
         rest = rest.slice(0, m.index);
       // (Skrelv's Hive: "creatures you control with toxic")
       // (Telim'Tor: "all attacking creatures with flanking")
