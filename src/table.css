@@ -367,6 +367,12 @@
   font: 700 11px/18px var(--font); min-width: 18px; text-align: center; border-radius: 9px;
   background: #1b1f28; border: 1px solid rgba(255,255,255,.2); color: #fff; }
 .ohand[data-n="0"]::after { display: none; }
+/* a phone: a hand nobody can see is a small fan of three backs and its count, not a row of full backs (D6); one
+   shown face up keeps its own layout (revealed, below) */
+:root[data-phone] .ohand:not(.revealed) { padding-left: 16px; height: 44px; min-width: 24px; }
+:root[data-phone] .ohand:not(.revealed) .cv { --w: 27px; margin-left: -19px; }
+:root[data-phone] .ohand:not(.revealed) .cv:nth-child(n+4) { display: none; }
+:root[data-phone] .ohand:not(.revealed)::after { right: -12px; bottom: -4px; }
 /* a hand shown face up with no room beside the rest of their HUD (a phone, seats side by side): a row of its own under
    it, the cards spread across the row (side by side while they fit, overlapping no further than a strip of each),
    the count after the last card (fitOppHand in src/12-ui-table.js) */
