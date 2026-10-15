@@ -1653,6 +1653,8 @@ Sideboard
   function primaryType(card) {
     const a = MTG.oracle.analyze(card);
     if (!a) return 'Other';
+    // a land is a land first, whatever else it is: an artifact land, Dryad Arbor
+    if (a.types.includes('Land')) return 'Land';
     for (const t of ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Battle', 'Artifact', 'Enchantment', 'Land'])
       if (a.types.includes(t)) return t;
     return 'Other';

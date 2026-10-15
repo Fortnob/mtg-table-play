@@ -107,6 +107,8 @@
   /** A card's place in a column: its main card type, in TYPE_RANK order. */
   function typeRank(card) {
     const tl = String((card.card_faces && card.card_faces[0] && card.card_faces[0].type_line) || card.type_line || '');
+    // a land is a land first, whatever else it is: an artifact land, Dryad Arbor
+    if (/\bLand\b/.test(tl) && TYPE_RANK.includes('Land')) return TYPE_RANK.indexOf('Land');
     const i = TYPE_RANK.findIndex(t => new RegExp('\\b' + t + '\\b').test(tl));
     return i < 0 ? TYPE_RANK.length : i;
   }

@@ -1161,6 +1161,8 @@
     ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
   const stackOf = (c) => {
     const t = String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || '');
+    // a land is a land first, whatever else it is: an artifact land, Dryad Arbor
+    if (/\bLand\b/.test(t)) return 'Land';
     const hit = STACKS.find(([k]) => new RegExp('\\b' + k + '\\b').test(t));
     return hit ? hit[0] : 'Other';
   };
