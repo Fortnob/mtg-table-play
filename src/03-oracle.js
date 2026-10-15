@@ -2341,6 +2341,8 @@
     { re: /^(?:It|This creature|CARDNAME) fights the granting creature\.?$/i, make: () => ({ op: 'fightGranter' }) },
     // The Tenth Doctor: "Time travel three times." (timeTravel)
     { re: /^Time travel(?: (two|three|four|five) times)?\.?$/i, make: (m) => ({ op: 'timeTravel', n: m[1] ? num(m[1]) : 1 }) },
+    // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." — folded into the return (extraCounterIf)
+    { re: /^If an? ([A-Z][a-z]+) enters this way, it enters with an additional \+1\/\+1 counter on it\.?$/, make: (m) => ({ op: 'manual', extraCounterIfRider: m[1].toLowerCase() }) },
     // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — folded into the tokens' creation (goadTokensRider)
     { re: /^The tokens? (?:are|is) goaded for the rest of the game\.?$/i, make: () => ({ op: 'manual', goadTokensRider: true }) },
     /* Aragorn, Company Leader: "put your choice of a counter from among first strike, vigilance, deathtouch, and lifelink
@@ -13038,6 +13040,12 @@
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
+      // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." (extraCounterIf)
+      if (e && e.extraCounterIfRider) {
+        if (prevE && prevE.op === 'reanimate' && !prevE.extraCounterIf) { prevE.extraCounterIf = e.extraCounterIfRider; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
       // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — the tokens just made (goadForever)
       if (e && e.goadTokensRider) {
         if (prevE && prevE.op === 'createToken' && !prevE.goadForever) { prevE.goadForever = true; continue; }
@@ -15061,6 +15069,10 @@
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes untapped during your untap step,? /i, event: 'becomesUntapped', self: true, extra: { duringYourUntap: true } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes untapped(?:,| )/i, event: 'becomesUntapped', self: true },
     { re: /^When(?:ever)? (?:this permanent|this creature|~|CARDNAME) leaves the battlefield(?:,| )/i, event: 'ltb', self: true },
+    /* Aegar, the Freezing Flame: "Whenever a creature or planeswalker an opponent controls is dealt excess damage, if a Giant,
+       Wizard, or spell you controlled dealt damage to it this turn," (excessDamage, hurtByYourKinds) */
+    { re: /^Whenever (an? [a-z ]+? an opponent controls) is dealt excess damage, if a Giant, Wizard, or spell you controlled dealt damage to it this turn,? /i,
+      event: 'excessDamage', filt: (m) => subjectFilter(m[1]), extra: { hurtByYourKinds: ['giant', 'wizard', 'spell'] } },
     // Toralf, God of Fury: "Whenever a creature or planeswalker an opponent controls is dealt excess noncombat damage" (excessNoncombat)
     { re: /^Whenever (an? [a-z ]+? an opponent controls) is dealt excess noncombat damage,? /i, event: 'excessNoncombat',
       filt: (m) => subjectFilter(m[1]) },

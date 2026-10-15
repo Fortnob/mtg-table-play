@@ -15053,15 +15053,7 @@
       // Ghyrson Starn, Kelermorph: a source of yours dealt damage to a permanent (a planeswalker or battle too)
       if (source && source.controller != null) this._fire('yourSourceDealsDamage', source.controller, { object: source, amount, combat: !!isCombat, victimId: o.id });
       // (what was dealt, for combat's lifelink and Zagras, Thief of Heartbeats' "deals combat damage to a planeswalker")
-      if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return amount; }
-      if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return amount; }
-      // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
-      // (Everlasting Torment: all damage as though its source had wither)
-      if ((source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) || this._anyStatic('witherAll')) this.addCounters(o, '-1/-1', amount, source ? { by: source.controller } : undefined);
-      else o.damage += amount;
-      // "target creature that was dealt damage this turn", until the cleanup step
-      o.damagedThisTurn = true;
-      // "a creature dealt damage by this creature this turn": who hit it, and when
+      // "a creature dealt damage by this creature this turn": who hit it, and when (a planeswalker too: Aegar)
       if (source) {
         if (!o._damagedBy || o._damagedBy.turn !== this.turn) o._damagedBy = { turn: this.turn, ids: [] };
         if (!o._damagedBy.ids.includes(source.id)) o._damagedBy.ids.push(source.id);
@@ -15070,9 +15062,21 @@
         // Shelob, Child of Ungoliant: "by a Spider you controlled" — what the source was, and whose, as it dealt it
         const sa = source.analysis() || {};
         // (Grothama, All-Devouring: "the amount of damage dealt to Grothama this turn by sources they controlled" — n)
+        // (Aegar, the Freezing Flame: "a Giant, Wizard, or spell you controlled" — spell)
         (o._damagedBy.kinds = o._damagedBy.kinds || []).push({ pid: source.controller,
-          types: (sa.subtypes || []).map(x => String(x).toLowerCase()), every: this.hasKw(source, 'changeling') || undefined, n: amount });
+          types: (sa.subtypes || []).map(x => String(x).toLowerCase()), every: this.hasKw(source, 'changeling') || undefined, n: amount,
+          spell: source.zone === 'stack' || !!(sa.isInstant || sa.isSorcery) || undefined });
       }
+      // Aegar, the Freezing Flame: "is dealt excess damage" — combat or not, once what dealt it is noted
+      if (excess > 0 && o.zone === 'battlefield' && a && (a.isCreature || a.isPlaneswalker)) this._fire('excessDamage', null, { object: o, objController: o.controller, amount: excess });
+      if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return amount; }
+      if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return amount; }
+      // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
+      // (Everlasting Torment: all damage as though its source had wither)
+      if ((source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) || this._anyStatic('witherAll')) this.addCounters(o, '-1/-1', amount, source ? { by: source.controller } : undefined);
+      else o.damage += amount;
+      // "target creature that was dealt damage this turn", until the cleanup step
+      o.damagedThisTurn = true;
       // "a creature dealt damage this way", for the sentence after
       (this._dealtThisWay = this._dealtThisWay || []).push(o.id);
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
@@ -16861,6 +16865,9 @@
           // Harsh Mentor: only an opponent's activation
           if (ab.activatorIsOpponent && data.playerId === o.controller) continue;
           // "a creature dealt damage by this creature this turn dies"
+          // Aegar, the Freezing Flame: "if a Giant, Wizard, or spell you controlled dealt damage to it this turn" (hurtByYourKinds)
+          if (ab.hurtByYourKinds && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
+            (data.object._damagedBy.kinds || []).some(k => k.pid === o.controller && ab.hurtByYourKinds.some(w => (w === 'spell' ? k.spell : (k.every || k.types.includes(w))))))) continue;
           if (ab.damagedByMe && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
             data.object._damagedBy.ids.includes(o.id))) continue;
           // Shelob, Child of Ungoliant: "dealt damage this turn by a Spider you controlled" (damagedByTypeOfYours)
@@ -22319,8 +22326,11 @@
               // The Beamtown Bullies: "Target opponent … puts … onto the battlefield under their control" (toPlayerTarget)
               const toP = e.toPlayerTarget ? firstPlayer() : null;
               if (e.toPlayerTarget && (!toP || toP.hasLost)) continue;
+              // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." (extraCounterIf)
+              if (e.extraCounterIf && this._hasCreatureType(x, e.extraCounterIf)) x._enterExtraCounter = { kind: '+1/+1', n: 1 };
               this.moveObject(x, 'battlefield', Object.assign({ controller: toP ? toP.id : e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
                 e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+              if (x.zone !== 'battlefield') x._enterExtraCounter = null;
               if (e.tapped) x.tapped = true;
               /* Olivia, Crimson Bride; Alesha, Who Smiles at Death: "tapped and attacking" — at whoever the creature that set it off attacks,
                  during combat; never declared */
