@@ -778,10 +778,12 @@
       }
       /* Brenard, Ginger Sculptor: "it's a 1/1 Food Golem artifact creature in addition to its other types" — that size,
          those subtypes and the artifact type added (addCardTypes) */
-      else if ((c = ex.match(/^it'?s an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )+)((?:artifact |enchantment )+)creature in addition to its other types/))) {
+      // (Leonardo da Vinci: "it's a 0/2 Thopter artifact creature with flying in addition to its other types" — and flying)
+      else if ((c = ex.match(/^it'?s an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )+)((?:artifact |enchantment )+)creature(?: with (flying|haste|trample|vigilance|deathtouch|lifelink|menace|reach))? in addition to its other types/))) {
         e.setPt = c[1] + '/' + c[2];
         e.addSubtypes = (e.addSubtypes || []).concat(c[3].trim().split(' '));
         e.addCardTypes = c[4].trim().split(' ').map(x => x.charAt(0).toUpperCase() + x.slice(1));
+        if (c[5]) (e.addText = e.addText || []).push(c[5][0].toUpperCase() + c[5].slice(1));
       }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
       // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — those types and no others (setTypeLine)
@@ -7197,6 +7199,13 @@
     // Karazikar, the Eye Tyrant: "tap target creature that player controls and goad it"
     { re: /^Tap (target creature(?: an opponent controls| that player controls)?) and goad it\.?$/i,
       make: (m) => [{ op: 'tap', targets: [targetSpec(m[1])] }, { op: 'goad', scope: 'lastTarget' }] },
+    /* Erestor of the Council: "each opponent who voted for a choice you voted for creates a Treasure token. You scry X, where
+       X is the number of opponents who voted for a choice you didn't vote for." — the voting the trigger is about */
+    { re: /^Each opponent who voted for a choice you voted for creates a Treasure token\.?$/i, make: () => ({ op: 'votedSameTreasure' }) },
+    { re: /^You scry X, where X is the number of opponents who voted for a choice you didn'?t vote for\.?$/i,
+      make: () => ({ op: 'scry', n: { votedOther: true, mult: 1 } }) },
+    // Kros, Defense Contractor: "Whenever you put one or more counters on a creature you don't control, tap that creature and goad it." (triggerObject)
+    { re: /^Tap that creature and goad it\.?$/i, make: () => [{ op: 'tap', scope: 'triggerObject' }, { op: 'goad', scope: 'triggerObject' }] },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
@@ -7364,6 +7373,10 @@
     // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
     { re: /^Until end of turn, creatures you control have base power and toughness (X|\d+)\/(X|\d+)( and gain all creature types)?\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2], allTypes: !!m[3] }) },
+    /* Leonardo da Vinci: "Until end of turn, Thopters you control have base power and toughness X/X, where X is the number
+       of cards in your hand." — counted as it resolves, the Thopters there then */
+    { re: /^Until end of turn, ([A-Z][a-z]+) you control have base power and toughness X\/X, where X is (.+?)\.?$/,
+      make: (m) => { const x = amountOf(m[2]); return m[1] === 'Creatures' || !x ? null : { op: 'setBaseAll', p: x, t: x, subtype: U.titleCase(singularType(m[1])) }; } },
     // Allosaurus Shepherd: "Until end of turn, each Elf creature you control has base power and toughness 5/5 and becomes a Dinosaur in addition to its other creature types."
     { re: /^Until end of turn, each ([A-Z][a-z]+) creature you control has base power and toughness (\d+)\/(\d+)(?: and becomes an? ([A-Z][a-z]+) in addition to its other creature types)?\.?$/,
       make: (m) => Object.assign({ op: 'setBaseAll', p: +m[2], t: +m[3], subtype: m[1] }, m[4] ? { addSubtype: m[4] } : {}) },
@@ -9822,6 +9835,21 @@
         if (e.addCardTypes) { e.addTypes = e.addCardTypes; delete e.addCardTypes; }
         if ((e.addText || []).some(x => /\bthe exiled card\b/i.test(x))) e.holdExiled = true;
         return /^you may/i.test(m[1]) ? [{ op: 'may', then: [{ op: 'exileTriggerCard' }, e] }] : [{ op: 'exileTriggerCard' }, e];
+      } },
+    // Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." (castCopiesExiled)
+    { re: /^copy each exiled card you own with an? ([a-z]+) counter on it\. You may cast the copies\.?$/i,
+      make: (m) => [{ op: 'castCopiesExiled', counter: m[1].toLowerCase() }] },
+    /* Leonardo da Vinci: "Draw a card, then discard a card. If the discarded card was an artifact card, exile it from
+       your graveyard. If you do, create a token that's a copy of it, except it's a 0/2 Thopter artifact creature with
+       flying in addition to its other types." — the card discarded, if still there (exileDiscarded) */
+    { re: /^Draw a card, then discard a card\. If the discarded card was an? ([a-z]+) card, exile it from your graveyard\. If you do, create a token that'?s a copy of it, except (.+?)\.?$/,
+      make: (m) => {
+        // (the card exiled just now, nothing targeted: ifExiled)
+        const e = { op: 'copyPermanent', ifExiled: true, nowOnly: true, n: 1, scope: 'lastTarget', grant: [] };
+        if (!copyExceptions(m[2], e) || e.keepOwn || e.keepThis || e.keepName || e.copyPt || e.setTypeLine) return null;
+        if (e.addTypes) { e.addSubtypes = (e.addSubtypes || []).concat(e.addTypes); delete e.addTypes; }
+        if (e.addCardTypes) { e.addTypes = e.addCardTypes.concat(['Creature']); delete e.addCardTypes; }
+        return [{ op: 'drawDiscard', n: 1 }, { op: 'exileDiscarded', filter: m[1].toLowerCase() }, e];
       } },
     /* Liliana, Heretical Healer: "exile Liliana, then return her to the
        battlefield transformed under her owner's control. If you do, create a
@@ -14427,6 +14455,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes monstrous,? /i, event: 'becomesMonstrous', self: true },
     { re: /^When(?:ever)? you scry or surveil,? /i, event: 'youScry', also: 'youSurveil' },
     { re: /^When(?:ever)? you scry,? /i, event: 'youScry' },
+    // Erestor of the Council: "Whenever players finish voting," — any vote, whoever started it (votesFinished)
+    { re: /^Whenever players finish voting,? /i, event: 'votesFinished' },
     { re: /^When(?:ever)? you surveil,? /i, event: 'youSurveil' },
     { re: /^When(?:ever)? an opponent discards a card,? /i, event: 'opponentDiscards' },
     /* battalion, by its words: "Whenever this creature and at least two other creatures attack" */
@@ -16430,7 +16460,8 @@
         // (Orcus, Prince of Undeath: "When Orcus enters, …" — the X paid for it, which the permanent remembers)
         (ab.kind === 'triggered' && ab.event === 'etb' && ab.self && /\{X\}/.test(out.manaCost || ''));
       // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
-      const countedOk = (mm) => ab.kind === 'triggered' && mm.count === 'triggerAmount';
+      // (Zethi, Arcane Blademaster: "where X is the number of times Zethi was kicked" — its own enters trigger: timesKicked)
+      const countedOk = (mm) => ab.kind === 'triggered' && (mm.count === 'triggerAmount' || (ab.event === 'etb' && ab.self && !!(mm.count && mm.count.timesKicked)));
       if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any' && !countedOk(mm)) ||
           (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || '') && !(multi.length && multi.every(countedOk)))) { ab.auto = false; out._keywordManual = true; }
     }
@@ -17319,6 +17350,12 @@
     const p = raw.toLowerCase();
     const direct = SCOPE_WORDS[p];
     if (direct) return Object.assign({}, direct);
+    /* Cid, Timeless Artificer: "Artifact creatures and Heroes you control" — a permanent in either group (either) */
+    const eitherM = raw.match(/^((?:[A-Za-z]+ )+creatures) and ([A-Z][a-z'-]+s|Elves) (you control)$/);
+    if (eitherM) {
+      const a = scopeOf(eitherM[1] + ' ' + eitherM[3]), b = scopeOf(eitherM[2] + ' ' + eitherM[3]);
+      if (a && b && !a.self && !b.self) return { who: a.who, what: 'permanent', either: [a, b] };
+    }
     const sc = { who: 'all' };
     /* "Each creature you control with a counter on it" says what "creatures
        you control with counters on them" says */

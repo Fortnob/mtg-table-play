@@ -15729,6 +15729,8 @@
         bearerId: data.bearerId,
         // Aragorn, Company Leader: the kind of counter put ("those kinds of counters" — countersPut)
         kind: event === 'countersPut' ? data.kind : undefined,
+        // Erestor of the Council: every vote just cast ({ pid, choice }: votesFinished)
+        votes: data.votes,
         // Breena, the Demagogue: the player attacked, as against the one attacking (attacksOneOfYourOpponents)
         attackedPlayer: data.attackedPlayer,
         // Ghyrson Starn, Kelermorph: the permanent a source dealt damage to (toVictim)
@@ -16895,12 +16897,15 @@
         let askSpecs = e.targets;
         /* Elvish Mariner: "up to X target nonland permanents, where X is the number of cards looked at while
            scrying this way" — X counted as the trigger resolves (countedTargets) */
-        const xm = aimed.findIndex(sp => sp && sp.multi && (sp.multi.count === 'X' || sp.multi.count === 'triggerAmount'));
+        // (Zethi, Arcane Blademaster: "up to X target instant cards …, where X is the number of times Zethi was kicked" — timesKicked)
+        const xm = aimed.findIndex(sp => sp && sp.multi && (sp.multi.count === 'X' || sp.multi.count === 'triggerAmount' || (sp.multi.count && sp.multi.count.timesKicked)));
         if (xm >= 0) {
           const one = Object.assign({}, aimed[xm], { distinct: true });
           delete one.multi;
           const cm = aimed[xm].multi.count;
-          const xv = cm === 'X' ? (ctx.x || (src && src.chosenX) || 0) : (Number(td.amount) || 0);
+          const ks = cm && cm.timesKicked && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
+          const xv = cm === 'X' ? (ctx.x || (src && src.chosenX) || 0) : cm && cm.timesKicked ? (ctx.kicked || (ks && ks.kickedTimes) || 0) * (cm.mult || 1)
+            : (Number(td.amount) || 0);
           const k = Math.min(Math.max(0, xv), this._legalTargetsFor(one, ctx.controller, src ? src.id : null).length);
           aimed.splice(xm, 1, ...Array.from({ length: k }, () => one));
           askSpecs = aimed;
@@ -17073,6 +17078,13 @@
         // Dragonhawk, Fate's Tempest: "for each of those cards that are still exiled" — the same cards, not back again since
         if (v && typeof v === 'object' && v.stillExiled) {
           return (v.held || []).filter(([id, st]) => { const c = this.obj(id); return !!c && c.zone === 'exile' && c.exileStamp === st; }).length * (v.mult || 1);
+        }
+        /* Erestor of the Council: "the number of opponents who voted for a choice you didn't vote for" — in the voting the
+           trigger is about (votedOther) */
+        if (v && typeof v === 'object' && v.votedOther) {
+          const votes = (ctx.triggerData || {}).votes || [];
+          const mine = new Set(votes.filter(x => x.pid === ctx.controller).map(x => x.choice));
+          return this.opponentsOf(ctx.controller).filter(p => votes.some(x => x.pid === p.id && !mine.has(x.choice))).length * (v.mult || 1);
         }
         // Shatterskull Smashing: X, or twice X once X is big enough
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
@@ -18119,6 +18131,14 @@
           }
           // Ring of Valkas: "on equipped creature if it's red"
           else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
+          /* Zethi, Arcane Blademaster: "exile up to X target instant cards from your graveyard … Put a kick counter on each
+             of them." — the cards this exiled, in exile (not a permanent, so nothing replaces it) */
+          else if (e.scope === 'eachTarget' && targets.some(t => t.kind === 'object' && (this.obj(t.id) || {}).zone === 'exile')) {
+            for (const t of targets) {
+              const o = t.kind === 'object' && this.obj(t.id);
+              if (o && o.zone === 'exile' && (this._resExiled || []).includes(o.id)) this.addCounters(o, e.kind, cnt, { noReplace: true });
+            }
+          }
           // (thatToken: Wild Hypothesis, "Put X +1/+1 counters on it" — the token just made)
           else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'triggerBatch' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget' || e.scope === 'thatToken') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
@@ -18879,6 +18899,8 @@
           const who = (e.who === 'target' && firstPlayer()) || me;
           // Kenessos, Priest of Thassa: "scry that many cards plus one instead" (a scry replacement)
           const want = e.op === 'scry' && n(e.n) > 0 ? this._replace({ kind: 'scry', n: n(e.n), controller: who.id }).n : n(e.n);
+          // (Erestor of the Council: "scry X" with X 0 is no scry at all)
+          if (e.n && typeof e.n === 'object' && !(want > 0)) break;
           const cards = this._topOfLibrary(who.id, want);
           if (!cards.length) {
             this.logEvent(e.op, `${who.name} has no cards to ${e.op}.`);
@@ -21027,6 +21049,17 @@
           if (!card) break;
           const is = this._matchesCategory(card, e.type);
           if (e.not ? !is : is) this._spliceNext(e.then || []);
+          break;
+        }
+        /* Leonardo da Vinci: "If the discarded card was an artifact card, exile it from your graveyard." — the card just
+           discarded, if it is that kind and still there (exileDiscarded) */
+        case 'exileDiscarded': {
+          const x = this.obj((this._lastDiscarded || [])[0]);
+          if (!x || x.zone !== 'graveyard' || x.owner !== ctx.controller || !this._cardFitsWords(x, e.filter || 'card')) break;
+          this.moveObject(x, 'exile');
+          if (x.zone !== 'exile') break;
+          this._lastExiled = x.id;
+          this.logEvent('exile', `${x.name} is exiled from ${this.player(x.owner).name}'s graveyard.`);
           break;
         }
         // Avatar Roku, Firebender: the mana stays until combat ends, as firebending's does (keepManaCombat)
@@ -27115,7 +27148,8 @@
           // (Jacob Frye: "If you do, copy it" — only a card this very resolution exiled: fromRes)
           const recent = e.fromRes ? (this._resExiled || []) : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
           // God-Eternal Kefnet: the card the trigger is about, the first one drawn this turn — wherever it went since (drawn)
-          let c = e.of === 'drawn' ? this.obj((ctx.triggerData || {}).objectId) : this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
+          // (Zethi, Arcane Blademaster: one of the exiled cards with a kick counter, named — _forcedId)
+          let c = e._forcedId ? this.obj(e._forcedId) : e.of === 'drawn' ? this.obj((ctx.triggerData || {}).objectId) : this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
           if (e.of !== 'drawn' && (!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
             const kept = this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id);
             c = kept[kept.length - 1] || null;
@@ -27157,6 +27191,13 @@
             // Kaervek, the Punisher: "If you do, you lose 2 life."
             if (e.lifeIfCast) this.changeLife(me, -e.lifeIfCast);
           } else { this._removeFromZone(dup); dup.zone = null; }
+          break;
+        }
+        /* Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." —
+           each one, paying for it, as this resolves (castCopiesExiled) */
+        case 'castCopiesExiled': {
+          const own = ((this.zones[ctx.controller] || {}).exile || []).filter(x => !x.faceDown && !x.isCopy && (Number((x.counters || {})[e.counter]) || 0) > 0);
+          if (own.length) this._spliceNext(own.map(x => ({ op: 'castCopy', pay: true, _forcedId: x.id })));
           break;
         }
         /* Fact or Fiction: the top cards revealed, one player splits them
@@ -27689,6 +27730,7 @@
         case 'vote': {
           const order = this._turnOrderFrom(ctx.controller);
           const counts = [0, 0];
+          const cast = [];
           for (const p of order) {
             const got = this._choose({ playerId: p.id, purpose: 'vote', kind: 'options', min: 1, max: 1,
               options: e.choices.map((c, i) => ({ i, label: U.titleCase(c) })),
@@ -27696,6 +27738,7 @@
             if (got === SUSPEND) return SUSPEND;
             const pick = got && got.picks.length ? got.picks[0] : 0;
             counts[pick]++;
+            cast.push({ pid: p.id, choice: e.choices[pick] });
             if (!this._doneHere('voted' + p.id)) this.logEvent('rules', `${p.name} votes for ${e.choices[pick]}.`);
             /* Tivit, Seller of Secrets: "While voting, you may vote an additional time." — another vote, which may be
                for either choice or left out (a bot always takes it, the same way) */
@@ -27711,6 +27754,7 @@
               }
               if (more == null) continue;
               counts[more]++;
+              cast.push({ pid: p.id, choice: e.choices[more] });
               if (!this._doneHere('voted' + p.id + ':' + k)) this.logEvent('rules', `${p.name} votes again, for ${e.choices[more]}.`);
             }
           }
@@ -27727,7 +27771,19 @@
           } else if (counts[0] > counts[1]) run.push(...e.thenA);
           else if (counts[1] > counts[0] || e.tieB) run.push(...e.thenB);
           this.logEvent('rules', `The vote: ${e.choices[0]} ${counts[0]}, ${e.choices[1]} ${counts[1]}.`);
+          this._votesFinished(cast);
           if (run.length) this._spliceNext(run);
+          break;
+        }
+        /* Erestor of the Council: "each opponent who voted for a choice you voted for creates a Treasure token" — in the
+           voting the trigger is about (votedSameTreasure) */
+        case 'votedSameTreasure': {
+          const votes = (ctx.triggerData || {}).votes || [];
+          const mine = new Set(votes.filter(x => x.pid === ctx.controller).map(x => x.choice));
+          for (const p of this.opponentsOf(ctx.controller)) {
+            if (p.hasLost || !votes.some(x => x.pid === p.id && mine.has(x.choice))) continue;
+            this._createNamedToken(p.id, { token: 'Treasure', n: 1 });
+          }
           break;
         }
         /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed" —
@@ -27759,6 +27815,7 @@
             }
           }
           if (!this._doneHere('faTold')) for (const v of votes) this.logEvent('rules', `${(this.player(v.pid) || {}).name} voted for ${words[v.pick]}.`);
+          this._votesFinished(votes.map(v => ({ pid: v.pid, choice: words[v.pick] })));
           const chosen = [];
           for (let k = 0; k < votes.length; k++) {
             if (votes[k].pick !== 0) continue;
@@ -27822,6 +27879,7 @@
           if (!this._doneHere('vpTold')) {
             for (const p of voters) this.logEvent('rules', `${p.name} voted for ${got[p.id].map(id => (this.player(id) || {}).name).join(' and ')}.`);
           }
+          this._votesFinished([].concat(...voters.map(p => got[p.id].map(id => ({ pid: p.id, choice: id })))));
           const after = [];
           if (e.drawPerVote) for (const p of voters) if (tally[p.id]) this._drawCards(p, tally[p.id]);
           const none = voters.filter(p => !tally[p.id] && !p.hasLost).map(p => p.id);
@@ -27834,12 +27892,14 @@
           const pool = this.battlefield.filter(x => !x.phasedOut && this._cardFitsWords(x, e.words) && !(e.notYours && x.controller === ctx.controller));
           if (!pool.length) break;
           const votes = new Map();
+          const cast = [];
           for (const p of this._turnOrderFrom(ctx.controller)) {
             const got = this._choose({ playerId: p.id, purpose: 'voteObject', kind: 'objects', zone: 'battlefield',
               items: this._chooseItems(pool), min: 1, max: 1, prompt: `${src ? src.name + ': ' : ''}vote for a permanent.` }, 'vo' + p.id);
             if (got === SUSPEND) return SUSPEND;
             const id = got && got.picks.length ? got.picks[0] : pool[0].id;
             votes.set(id, (votes.get(id) || 0) + 1);
+            cast.push({ pid: p.id, choice: id });
             const x = this.obj(id);
             if (!this._doneHere('voted' + p.id)) this.logEvent('rules', `${p.name} votes for ${x ? x.name : 'a permanent'}.`);
             // (Tivit, Seller of Secrets: an additional vote)
@@ -27855,8 +27915,10 @@
               }
               if (more == null) continue;
               votes.set(more, (votes.get(more) || 0) + 1);
+              cast.push({ pid: p.id, choice: more });
             }
           }
+          this._votesFinished(cast);
           const top = Math.max(...votes.values());
           for (const [id, k] of votes) {
             if (k !== top) continue;
@@ -30227,6 +30289,8 @@
      * its counters stand in.
      */
     _scopeHit(sc, o, oa, pid, src, inLayers) {
+      // Cid, Timeless Artificer: "Artifact creatures and Heroes you control" — either group (either)
+      if (sc.either) return sc.either.some(s => this._scopeHit(s, o, oa, pid, src, inLayers));
       // Alandra, Sky Dreamer: "Alandra and Drakes you control" — this one as well (orSelf)
       if (sc.orSelf && src && src.id === o.id) return true;
       if (sc.other && src && src.id === o.id) return false;
@@ -30934,6 +30998,11 @@
         if (e) out.push({ optional: !!e.optional });
       }
       return out;
+    }
+    /** Erestor of the Council: "Whenever players finish voting" — every vote cast, { pid, choice }, told once (votesFinished). */
+    _votesFinished(votes) {
+      if (this._doneHere('votesFinished')) return;
+      this._fire('votesFinished', null, { votes: votes.map(v => ({ pid: v.pid, choice: String(v.choice) })) });
     }
     /** Coram, the Undertaker: the greatest printed power among cards of a kind in every graveyard (0 for none, or a "*"). */
     _greatestPowerInGraveyards(words) {
