@@ -62086,4 +62086,142 @@ module.exports = (test) => {
     T.bf('B', 'Ornithopter');
     t.no(g.canBlock(blk, ay), 'Ayesha: three artifacts — unblockable');
   });
+  test('Commanders: Adamaro, First to Desire — as big as the fullest hand among opponents', (mk, t) => {
+    t.auto('Adamaro, First to Desire');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    for (const p of ['A', 'B', 'C']) T.zone(p, 'hand').slice().forEach(c => g.moveObject(c, 'library'));
+    const ad = T.bf('A', 'Adamaro, First to Desire');
+    for (let i = 0; i < 5; i++) T.hand('A', 'Island');
+    T.hand('B', 'Island'); T.hand('B', 'Island');
+    for (let i = 0; i < 3; i++) T.hand('C', 'Island');
+    g.bumpBoard();
+    t.eq(g.powerOf(ad) + '/' + g.toughnessOf(ad), '3/3', "Adamaro: C's three cards, the most — not his controller's five");
+    // B draws two (cards moved, the way the game moves them)
+    for (let i = 0; i < 2; i++) g.moveObject(T.zone('B', 'library')[0], 'hand');
+    t.eq(g.powerOf(ad) + '/' + g.toughnessOf(ad), '4/4', 'Adamaro: B has four now');
+  });
+  test('Commanders: Bilbo, Unexpected Adventurer — combat damage to a player: a nonland permanent card of mana value 3 or less from a graveyard, to its owner', (mk, t) => {
+    t.auto('Bilbo, Unexpected Adventurer');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bb = T.bf('A', 'Bilbo, Unexpected Adventurer');
+    const theirs = T.grave('B', 'Grizzly Bears'), big = T.grave('B', 'Craw Wurm'), bolt = T.grave('B', 'Lightning Bolt'), land = T.grave('A', 'Forest');
+    const mine = T.grave('A', 'Sol Ring');
+    T.toMain('A');
+    let opts = null;
+    T.answer('pickTarget', (ch) => { opts = (ch.options[0] || []).map(x => x.id); return { targets: [{ kind: 'object', id: theirs.id }] }; });
+    T.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.ok(opts && opts.includes(theirs.id) && opts.includes(mine.id) && !opts.includes(big.id) && !opts.includes(bolt.id) && !opts.includes(land.id),
+      'Bilbo: nonland permanent cards with mana value 3 or less, from any graveyard');
+    t.zone(theirs, 'battlefield', 'Bilbo: Grizzly Bears returned');
+    t.eq(theirs.controller, 'B', "Bilbo: under its owner's control");
+    // can't be blocked by power 3 or greater
+    const giant = T.bf('B', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+    t.no(g.canBlock(giant, bb), 'Bilbo: not by a 3-power creature');
+    t.ok(g.canBlock(elf, bb), 'Bilbo: by a 1-power creature');
+  });
+  test('Commanders: Swordsman, Sharp Scoundrel — another Villain enters: an Equipment attached; an equipped creature attacks: it connives', (mk, t) => {
+    t.auto('Swordsman, Sharp Scoundrel');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Swordsman, Sharp Scoundrel');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const sword = T.bf('A', 'Bonesplitter'), other = T.bf('A', 'Short Sword');
+    T.toMain('A');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: sword.id }, { kind: 'object', id: bear.id }] }));
+    T.bf('A', 'Whiplash, Vengeful Engineer', { etb: true });
+    T.settle(); T.resolve();
+    t.eq(sword.attachedTo, bear.id, 'Swordsman: a Villain entered — Bonesplitter attached to the Bears');
+    t.no(other.attachedTo, 'Swordsman: one Equipment only');
+    // a non-Villain: nothing
+    const asked = T.asked.length;
+    T.bf('A', 'Llanowar Elves', { etb: true });
+    T.settle(); T.resolve();
+    t.no(T.asked.slice(asked).some(q => q.type === 'pickTarget'), 'Swordsman: a non-Villain entering — no trigger');
+    // the equipped Bears attack: they connive
+    bear.summoningSick = false;
+    T.hand('A', 'Lightning Bolt');
+    T.answer('discard', (ch) => ({ cardIds: [T.zone('A', 'hand').find(c => c.name === 'Lightning Bolt').id] }));
+    T.answer('choose', (ch) => ({ picks: [T.zone('A', 'hand').find(c => c.name === 'Lightning Bolt').id] }));
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(bear.counters['+1/+1'], 1, 'Swordsman: the Bears connive — a nonland card discarded, a +1/+1 counter on them');
+  });
+  test('Commanders: Batroc the Leaper — multikicker: a counter for each kick, then damage equal to his power to each of up to that many targets', (mk, t) => {
+    t.auto('Batroc the Leaper');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const b1 = T.bf('B', 'Hill Giant'), b2 = T.bf('B', 'Craw Wurm');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: b1.id }, { kind: 'player', id: 'B' }] }; });
+    T.mana('A', '1R4');
+    T.cast('A', T.hand('A', 'Batroc the Leaper'), { kick: 2 });
+    const bt = T.bfOf('A').find(o => o.name === 'Batroc the Leaper');
+    t.eq(bt.counters['+1/+1'], 2, 'Batroc: kicked twice — two +1/+1 counters');
+    t.eq(q && q.count, 2, 'Batroc: up to two targets');
+    t.zone(b1, 'graveyard', 'Batroc: 4 damage to the Hill Giant');
+    t.eq(T.life('B'), 16, 'Batroc: 4 damage to B');
+    t.eq(b2.damage || 0, 0, 'Batroc: not the Craw Wurm');
+    // not kicked: no counters, no targets asked
+    const before = T.asked.filter(x => x.type === 'pickTarget').length;
+    T.mana('A', '1R');
+    T.cast('A', T.hand('A', 'Batroc the Leaper'));
+    t.eq(T.asked.filter(x => x.type === 'pickTarget').length, before, 'Batroc: not kicked — nothing to target');
+  });
+  test('Commanders: Hallar, the Firefletcher — a kicked spell: a +1/+1 counter, then damage equal to its counters to each opponent', (mk, t) => {
+    t.auto('Hallar, the Firefletcher');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    const hl = T.bf('A', 'Hallar, the Firefletcher');
+    T.toMain('A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Burst Lightning'), { targets: [{ kind: 'player', id: 'C' }] });
+    t.no(hl.counters['+1/+1'], 'Hallar: not kicked — nothing');
+    t.eq(T.life('B'), 20, 'Hallar: no damage to B');
+    T.mana('A', 'R4');
+    T.cast('A', T.hand('A', 'Burst Lightning'), { kick: 1, targets: [{ kind: 'player', id: 'C' }] });
+    t.eq(hl.counters['+1/+1'], 1, 'Hallar: kicked — a +1/+1 counter');
+    t.eq(T.life('B'), 19, 'Hallar: 1 damage to B');
+    t.eq(T.life('C'), 20 - 2 - 1 - 4, 'Hallar: 1 damage to C (and the two Bursts)');
+    t.eq(T.life('A'), 20, 'Hallar: not to you');
+  });
+  test('Commanders: Henry Wu, InGen Geneticist — he and other Humans have exploit; exploiting a non-Human: draw, and a Treasure for power 3 or more', (mk, t) => {
+    t.auto('Henry Wu, InGen Geneticist');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const giant = T.bf('A', 'Hill Giant'), elf = T.bf('A', 'Llanowar Elves'), human = T.bf('A', 'Raging Goblin');
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('sacrifice', { cardIds: [giant.id] });
+    const hw = T.bf('A', 'Henry Wu, InGen Geneticist', { etb: true });
+    T.settle(); T.resolve();
+    t.zone(giant, 'graveyard', 'Henry Wu: exploits — the Hill Giant sacrificed');
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'Henry Wu: a non-Human exploited — draw a card');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1, 'Henry Wu: power 3 — a Treasure');
+    // another Human: it has exploit; the Elves (power 1) — a card, no Treasure
+    T.answer('sacrifice', { cardIds: [elf.id] });
+    const h1 = T.zone('A', 'hand').length;
+    T.bf('A', 'Elite Vanguard', { etb: true });
+    T.settle(); T.resolve();
+    t.zone(elf, 'graveyard', 'Henry Wu: Elite Vanguard (a Human) exploits the Elves');
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'Henry Wu: a card drawn');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1, 'Henry Wu: power 1 — no Treasure');
+    // a non-Human entering: no exploit
+    const asked = T.asked.filter(q => q.type === 'sacrifice').length;
+    T.bf('A', 'Grizzly Bears', { etb: true });
+    T.settle(); T.resolve();
+    t.eq(T.asked.filter(q => q.type === 'sacrifice').length, asked, 'Henry Wu: a Bear has no exploit');
+    // exploiting a Human: no draw
+    const vg = T.bfOf('A').find(o => o.name === 'Elite Vanguard');
+    T.answer('sacrifice', { cardIds: [vg.id] });
+    const h2 = T.zone('A', 'hand').length;
+    T.bf('A', 'Elite Vanguard', { etb: true });
+    T.settle(); T.resolve();
+    t.zone(vg, 'graveyard', 'Henry Wu: a Human exploited');
+    t.eq(T.zone('A', 'hand').length, h2, 'Henry Wu: a Human — no card');
+    t.ok(hw.zone === 'battlefield' && human.zone === 'battlefield');
+  });
 };

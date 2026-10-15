@@ -1026,6 +1026,8 @@
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
     // King of the Oathbreakers: "…becomes the target of a spell, it phases out." — the one the trigger is about
     if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'phaseOut' && !e.scope && !(e.targets || []).length && /^it phases out/i.test(e.text || '')) e.scope = 'triggerObject'; });
+    // Swordsman, Sharp Scoundrel: "Whenever an equipped creature you control attacks, it connives." — that creature
+    if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'connive' && e.scope === 'self' && /^it connives/i.test(e.text || '')) e.scope = 'triggerObject'; });
     // Revenge of Ravens: "that creature's controller loses 1 life" — the one the trigger is about
     if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'loseLife' && e.who === 'targetController') e.who = 'triggerObjController'; });
     /* Foot Chopper: "create a 1/1 Ninja token, then attach this Equipment
@@ -1758,7 +1760,8 @@
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
     // (Barret, Avalanche Leader: "… to target Rebel you control" — attachEquipmentAttacking)
-    { re: /^Attach up to one target Equipment you control to (target attacking creature|target [A-Z][a-z]+ you control)\.?$/,
+    // (Swordsman, Sharp Scoundrel: "… to target creature you control")
+    { re: /^Attach up to one target Equipment you control to (target attacking creature|target creature you control|target [A-Z][a-z]+ you control)\.?$/,
       make: (m) => { const host = targetSpec(m[1]); return host && !host.unknown ? { op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'], upTo: true }, host] } : null; } },
     // Brass Squire: "Attach target Equipment you control to target creature you control."
     { re: /^Attach target Equipment you control to target creature you control\.?$/i,
@@ -2308,6 +2311,10 @@
     // Kenrith: "Put target creature card from a graveyard onto the battlefield under its owner's control."
     { re: /^Put target creature card from a graveyard onto the battlefield under its owner'?s control\.?$/i,
       make: () => ({ op: 'reanimate', ownerControl: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
+    // Bilbo, Unexpected Adventurer: "put up to one target nonland permanent card with mana value 3 or less from a graveyard onto the battlefield under its owner's control"
+    { re: /^Put (up to one )?(target [a-z ]+? card with mana value \d+ or less) from a graveyard onto the battlefield under its owner'?s control\.?$/i,
+      make: (m) => { const sp = targetSpec(m[2], 'graveyard');
+        return sp && !sp.unknown ? { op: 'reanimate', ownerControl: true, targets: [Object.assign(sp, { zone: 'graveyard' }, m[1] ? { upTo: true } : {})] } : null; } },
     { re: /^Each opponent gains (one|two|three|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'opponents' }) },
     { re: /^Each player gets (a|one|two|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'each' }) },
     /* Open the Way, Soul Immolation, Winter's Chill: "X can't be greater
@@ -8121,6 +8128,10 @@
     // Jaya's Immolating Inferno: "X damage to each of up to three targets"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each of up to (two|three|four) targets\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: Array.from({ length: num(m[2]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true, distinct: true })) }) },
+    /* Batroc the Leaper: "When Batroc enters, he deals damage equal to his power to each of up to X targets, where X is the
+       number of times he was kicked." — his power as it resolves, as many targets as kicks (timesKicked) */
+    { re: /^(?:CARDNAME|It|He|She) deals damage equal to (?:its|his|her) power to each of up to X targets, where X is the number of times (?:it|he|she|CARDNAME) was kicked\.?$/,
+      make: () => ({ op: 'damage', n: { ofSelf: 'power' }, targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', multi: { count: { timesKicked: true, mult: 1 }, exact: false } }] }) },
     // Vraska's Fall: "…sacrifices a creature or planeswalker of their choice and gets a poison counter."
     { re: /^Each opponent sacrifices an? ([a-z ]+?) of their choice and gets (a|one|two|\d+) poison counters?\.?$/i,
       make: (m) => { const sac = parseEffectSentence('Each opponent sacrifices a ' + m[1] + '.', 1);
@@ -15147,6 +15158,8 @@
     [/^that creature was dealt excess damage this turn$/i, () => ({ kind: 'triggerObjExcess' })],
     // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the creature that died, as it last was (triggerPowerOverSelf)
     [/^it had power greater than CARDNAME'?s power$/i, () => ({ kind: 'triggerPowerOverSelf' })],
+    // Henry Wu, InGen Geneticist: "If the exploited creature had power 3 or greater" — as it last was (triggerPowerLki)
+    [/^the exploited creature had power (\w+) or greater$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'triggerPowerLki', n: num(m[1]) } : null)],
     // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
     [/^that creature had to attack this combat$/i, () => ({ kind: 'triggerObjHadToAttack' })],
     // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
@@ -15874,6 +15887,8 @@
     { re: /^Whenever you cast a creature spell that has an Adventure,? /i, event: 'youCastSpell', extra: { spellFilter: 'creature', hasAdventure: true } },
     // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
     { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
+    // Hallar, the Firefletcher: "Whenever you cast a spell, if that spell was kicked," — kicked it stays (kickedOnly)
+    { re: /^Whenever you cast a spell, if that spell was kicked,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
     // Riku of Many Paths: "Whenever you cast a modal spell" — its modes chosen as it was cast (modalOnly)
     { re: /^Whenever you cast a modal spell,? /i, event: 'youCastSpell', extra: { modalOnly: true } },
     // Orvar, the All-Form: "Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control," (targetsYourOther)
@@ -16376,6 +16391,8 @@
     { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
     // Colonel Autumn: "Whenever a creature you control exploits a creature," — any of yours
     { re: /^Whenever a creature you control exploits a creature,? /i, event: 'exploits' },
+    // Henry Wu, InGen Geneticist: "Whenever a creature you control exploits a non-Human creature," (exploitedNotType)
+    { re: /^Whenever a creature you control exploits a non-([A-Z][a-z]+) creature,? /, event: 'exploits', extraOf: (m) => ({ exploitedNotType: m[1] }) },
     /* an Aura or Equipment watching the creature it is on */
     { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked),? /i,
       event: 'becomesTapped', aboutObject: true,
@@ -18778,8 +18795,9 @@
     /* --- replacement effects the engine applies when the card enters --- */
     /* "If this was kicked, it enters with two +1/+1 counters on it." The
        counters only arrive if the extra cost was paid. */
-    if (/enters with an? ([+\-0-9/a-z]+) counter on it for each time it was kicked/i.test(text)) {
-      out.entersWithCounters = { kind: text.match(/enters with an? ([+\-0-9/a-z]+) counter on it for each time it was kicked/i)[1], n: 'kicked' };
+    // (Batroc the Leaper: "with a +1/+1 counter on him for each time he was kicked")
+    if (/enters with an? ([+\-0-9/a-z]+) counter on (?:it|him|her) for each time (?:it|he|she) was kicked/i.test(text)) {
+      out.entersWithCounters = { kind: text.match(/enters with an? ([+\-0-9/a-z]+) counter on (?:it|him|her) for each time (?:it|he|she) was kicked/i)[1], n: 'kicked' };
     }
     const kickedEtb = text.match(/If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (a|an|one|two|three|four|X|\d+) ([+\-0-9/a-z' ]+?) counters? on (?:it|them)/i);
     if (kickedEtb) out.entersWithCounters = { kind: kickedEtb[2].trim(), n: num(kickedEtb[1]), ifKicked: true };
@@ -20412,6 +20430,9 @@
     // Multani, Maro-Sorcerer: "the total number of cards in all players' hands" (cardsInHand all)
     { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the total number of cards in all players'? hands\.?$/i,
       make: () => { const k = { cardsInHand: 'all', mult: 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
+    // Adamaro, First to Desire: "… equal to the number of cards in the hand of the opponent with the most cards in hand" (oppMost)
+    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of cards in the hand of the opponent with the most cards in hand\.?$/i,
+      make: () => { const k = { cardsInHand: 'oppMost', mult: 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
     // Ms. Marvel, Kamala Khan: 'gains "Ms. Marvel's base power is equal to the number of cards in your hand."' — power only, layer 7b
     { re: /^(?:CARDNAME|This creature)'?s? base power is equal to the number of cards in your hand\.?$/i,
       make: () => ({ op: 'continuous', layer: 7, scope: { self: true }, setPt: { p: { cardsInHand: 'you', mult: 1 } } }) },
@@ -21990,7 +22011,7 @@
         eff: { op: 'noop' }, auto: true },
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) enters(?: the battlefield)? with a number of [+\-0-9/a-z]+ counters on it equal to the amount of mana spent to cast it\.?$/i,
         eff: { op: 'noop' }, auto: true },
-      { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each time it was kicked\.?$/i,
+      { re: /^(?:CARDNAME|This (?:artifact|creature|permanent)) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on (?:it|him|her) for each time (?:it|he|she) was kicked\.?$/i,
         eff: { op: 'noop' }, auto: true },
       { re: /^If (?:CARDNAME|this creature|this spell|it) was kicked, (?:it|CARDNAME) enters(?: the battlefield)? with (?:a|an|one|two|three|four|X|\d+) [+\-0-9/a-z' ]+ counters? on it and with (?:flying|trample|haste|first strike|fear|vigilance|deathtouch|lifelink|menace|reach)\.?$/i,
         eff: { op: 'noop' }, auto: true },
@@ -22205,6 +22226,8 @@
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
       // Colonel Autumn: "Other legendary creatures you control have exploit." (grantExploit)
       { re: /^Other ([a-z ]*?)creatures you control have exploit\.?$/i, make: (m) => ({ op: 'grantExploit', filter: (m[1] + 'creature').trim().toLowerCase() }), auto: true },
+      // Henry Wu, InGen Geneticist: "Henry Wu and other Human creatures you control have exploit." — itself too (andSelf)
+      { re: /^CARDNAME and other ([A-Z][a-z]+ )creatures you control have exploit\.?$/, make: (m) => ({ op: 'grantExploit', filter: (m[1] + 'creature').trim(), andSelf: true }), auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
       // Endrek Sahr: "When you control seven or more Thrulls, sacrifice CARDNAME."
       { re: /^When you control (\w+) or more ([A-Z][a-z]+)s, sacrifice (?:CARDNAME|this creature)\.?$/,

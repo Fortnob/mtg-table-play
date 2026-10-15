@@ -4288,7 +4288,8 @@
       if (v.scope) return this._scopeList(v.scope, pid, src, null, inLayers).length * mult;
       // (Multani, Maro-Sorcerer: "cards in all players' hands" — cardsInHand all)
       if (v.cardsInHand === 'all') return this.players.filter(q => !q.hasLost).reduce((k, q) => k + (((this.zones[q.id] || {}).hand || []).length), 0) * mult;
-      if (v.cardsInHand) return (((this.zones[pid] || {}).hand || []).length) * mult;
+      // (Adamaro, First to Desire: "the hand of the opponent with the most cards in hand" — oppMost)
+      if (v.cardsInHand) return (v.cardsInHand === 'oppMost' ? Math.max(0, ...this.opponentsOf(pid).map(q => ((this.zones[q.id] || {}).hand || []).length)) : (((this.zones[pid] || {}).hand || []).length)) * mult;
       if (v.playersInGame) return this.players.filter(p => !p.hasLost).length * mult;
       if (v.cardsInGraveyard) {
         // "for each creature card in your graveyard": only the cards the words name
@@ -6615,7 +6616,9 @@
          out, each its own chance (grantExploit) */
       const granted = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut &&
         this._staticOp(x, 'grantExploit') && this._cardFitsWords(o, this._staticOp(x, 'grantExploit').filter)).length;
-      const times = ((a.abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'exploit')) ? 1 : 0) + granted;
+      // (Henry Wu, InGen Geneticist: "Henry Wu and other Human creatures …" — itself too: andSelf)
+      const own = (a.abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'exploit')) || !!(this._staticOp(o, 'grantExploit') || {}).andSelf;
+      const times = (own ? 1 : 0) + granted;
       if (!times) return;
       const pool = this.battlefield.filter(x => x.controller === o.controller &&
         (x.analysis() || {}).isCreature && this._canSacrifice(x));
@@ -17926,6 +17929,8 @@
           if (ab.fromHandOnly && !(data.spell && data.spell.fromZone === 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only
           if (ab.noncombatOnly && data.combat) continue;
+          // Henry Wu, InGen Geneticist: "exploits a non-Human creature" — as it last was (exploitedNotType)
+          if (ab.exploitedNotType && !(data.object && !this._hasCreatureType(data.object, ab.exploitedNotType))) continue;
           // Dragonborn Champion: "deals 5 or more damage" — at once
           if (ab.minAmount != null && !((Number(data.amount) || 0) >= ab.minAmount)) continue;
           // The Red Terror: "a red source"
