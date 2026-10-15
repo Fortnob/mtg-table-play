@@ -4491,11 +4491,14 @@
       if (v.sum) return v.sum.reduce((acc, x) => acc + this._countValue(x, pid, src, inLayers), 0) * mult;
       // "for each Aura attached to it"
       if (v.attachedOf) {
-        return ((src && src.attachments) || []).filter(id => {
+        const atts = ((src && src.attachments) || []).filter(id => {
           const at = this.obj(id);
           const line = (at && at.card && String(at.card.type_line || '')) || '';
           return at && [].concat(v.attachedOf).some(w => line.includes(w));
-        }).length * mult;
+        });
+        // Tetsuo, Imperial Champion: "the greatest mana value among Equipment attached to it" (maxMv)
+        if (v.maxMv) return atts.reduce((b, id) => Math.max(b, ((this.obj(id) || {}).card || {}).cmc || 0), 0) * mult;
+        return atts.length * mult;
       }
       return 0;
     }
@@ -17936,6 +17939,9 @@
           // Akiri, Fearless Voyager: one of this player's attackers is equipped (and attacking a player) (attackersFit)
           if (ab.attackersFit && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
             return x && x.controller === o.controller && (!ab.attackPlayerOnly || !!this.player(x.attacking)) && this._cardFitsWords(x, ab.attackersFit); })) continue;
+          // Inniaz, the Gale Force: "three or more creatures you control with flying attack" (attackersKw, attackersKwMin)
+          if (ab.attackersKw && ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id);
+            return x && x.controller === o.controller && this.hasKw(x, ab.attackersKw); }).length < (ab.attackersKwMin || 1)) continue;
           // Jocasta, Automaton Avenger: "attack with your commander" — one of the attackers is a commander this player owns (attackersCommander)
           if (ab.attackersCommander && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
             return x && x.isCommander && x.owner === o.controller && x.controller === o.controller; })) continue;
@@ -22169,6 +22175,32 @@
         case 'passPermanents': {
           const order = this.turnOrder.filter(id => !this.player(id).hasLost);
           if (order.length < 2) break;
+          /* Inniaz, the Gale Force: "each player gains control of a nonland permanent of your choice controlled by the
+             player to their right" — the player to one's right is the one before in turn order, so the permanents go
+             to the left; one each, chosen first, then all at once (oneOfYourChoice) */
+          if (e.oneOfYourChoice) {
+            const stepF = e.fixedDirection === 'right' ? -1 : 1;
+            const moves = [];
+            for (let i = 0; i < order.length; i++) {
+              const taker = this.player(order[i]), giver = this.player(order[(i - stepF + order.length) % order.length]);
+              if (!taker || !giver || taker.id === giver.id) continue;
+              const pool = this.battlefield.filter(x => !x.phasedOut && x.controller === giver.id && this._cardFitsWords(x, e.what || 'nonland permanent'));
+              if (!pool.length) continue;
+              const got = this._choose({ playerId: ctx.controller, purpose: 'gainControlOfYourChoice', kind: 'objects', zone: 'battlefield', forPlayer: taker.id,
+                items: this._chooseItems(pool), min: 1, max: 1,
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(e.what || 'n') ? 'an' : 'a'} ${e.what || 'nonland permanent'} ${giver.id === ctx.controller ? 'you control' : giver.name + ' controls'} for ${taker.id === ctx.controller ? 'you' : taker.name} to gain control of.` }, 'pass' + taker.id);
+              if (got === SUSPEND) return SUSPEND;
+              const x = this.obj(((got && got.picks) || [])[0]);
+              moves.push([x && pool.includes(x) ? x : pool[0], taker.id]);
+            }
+            const tsF = this._stampNew();
+            for (const [x, to] of moves) {
+              x.effects.push({ control: to, until: null, ts: tsF });
+              this.logEvent('control', `${this.player(to).name} gains control of ${x.name}.`);
+            }
+            this._refreshControl();
+            break;
+          }
           const step = ctx.chosenDirection === 'right' ? -1 : 1;
           // the permanents of the next player in that direction go to this one: Q's go to the one before Q
           const takerOf = (q) => { const j = order.indexOf(q); return j < 0 ? null : order[(j - step + order.length) % order.length]; };
@@ -22198,6 +22230,21 @@
         }
         /* Zenos yae Galvus: "Until end of turn, creatures other than Zenos and the chosen creature get -2/-2." — the
            creatures there as it resolves */
+        /* Vhati il-Dal: "Until end of turn, target creature has base power 1 or base toughness 1." — one or the other,
+           the controller's choice as it resolves (basePtEither) */
+        case 'basePtEither': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'basePtEither', kind: 'options', min: 1, max: 1, compact: true, objId: x.id,
+            options: [{ i: 0, label: `Base power ${e.p}` }, { i: 1, label: `Base toughness ${e.t}` }],
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}until end of turn, ${x.name} has base power ${e.p} or base toughness ${e.t}. Which?` }, 'bpt');
+          if (got === SUSPEND) return SUSPEND;
+          const tough = ((got && got.picks) || [0])[0] === 1;
+          x.effects.push({ setPt: tough ? { p: null, t: e.t } : { p: e.p, t: null }, until: 'eot' });
+          this.bumpBoard();
+          this.logEvent('rules', `${x.name} has base ${tough ? 'toughness ' + e.t : 'power ' + e.p} until end of turn.`);
+          break;
+        }
         case 'pumpOthersThanChosen': {
           const keep = ctx.chosenObj || null;
           if (src && !ctx.chosenObj) src.chosenObjId = null;
@@ -22354,6 +22401,29 @@
           this.moveObject(card, 'library', { toBottom: !!e.bottom });
           this.logEvent('zone', `${card.name} goes to the ${e.bottom ? 'bottom' : 'top'} of its owner's library.`);
           this._spliceNext(e.then);
+          break;
+        }
+        /* Sanar, Innovative First-Year: "For each of those colors, you may exile a card of that color from among the
+           revealed cards." — one question a colour, all asked before any card moves (exileRevealedPerColor) */
+        case 'exileRevealedPerColor': {
+          const revealed = (this._revealedUntil || []).map(id => this.obj(id)).filter(c => c && c.zone === 'library');
+          const cols = this._colorsAmongYours(ctx.controller);
+          const CN = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+          const taken = [];
+          for (const col of ['W', 'U', 'B', 'R', 'G'].filter(x => cols.includes(x))) {
+            const pool = revealed.filter(c => !taken.includes(c) && ((c.analysis() || {}).colors || []).includes(col));
+            if (!pool.length) continue;
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+              cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may exile a ${CN[col]} card from among the revealed cards.` }, 'perCol' + col);
+            if (picked === SUSPEND) return SUSPEND;
+            const c = this.obj((picked || [])[0]);
+            if (c && pool.includes(c)) taken.push(c);
+          }
+          this._revealedUntil = null;
+          for (const c of taken) this.moveObject(c, 'exile');
+          if (taken.length) this.logEvent('zone', `${me.name} exiles ${taken.map(c => c.name).join(', ')}.`);
+          this._lastExiledList = taken.filter(c => c.zone === 'exile').map(c => c.id);
           break;
         }
         // Neera, Wild Mage: "Then put all revealed cards not cast this way on the bottom of your library in a random order."
@@ -22883,7 +22953,8 @@
             : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean) : [me];
           const want = Math.max(1, n(e.n == null ? 1 : e.n) || 0);
           // Old Stickfingers cast for X = 0: until no creature card is revealed — none
-          if (e.n === 'X' && !(n(e.n) > 0)) break;
+          // (Sanar, Innovative First-Year: "until you reveal X nonland cards" with no colours — zeroNone)
+          if ((e.n === 'X' || e.zeroNone) && !(n(e.n) > 0)) break;
           if (e.group) this._lastGroup = [];
           for (const p of who) {
             const lib = this.zones[p.id].library;
@@ -34000,7 +34071,7 @@
             prompt: 'Cast a spell from your hand without paying its mana cost?' }, 'free');
           if (picked === SUSPEND) return SUSPEND;
           const c = this.obj((picked || [])[0]);
-          if (!c || c.zone !== 'hand') break;
+          if (!c || c.zone !== 'hand' || !pool.includes(c)) break;
           /* It is cast now, on top of this spell; anything it points at is
              chosen as it resolves. */
           this._castingNested = true;

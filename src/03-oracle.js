@@ -2332,8 +2332,9 @@
     // Blessed Wind: "Target player's life total becomes 20."
     { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
     /* Wrathful Raptors: "it deals that much damage to any target that isn't a
-       Dinosaur" — the creature that was dealt damage, passing it on */
-    { re: /^(?:It|That creature) deals that much damage to any (other )?target(?: that isn'?t an? ([A-Z][a-z]+))?\.?$/,
+       Dinosaur" — the creature that was dealt damage, passing it on
+       (Black Panther, Most Dangerous: "he deals that much damage to any other target") */
+    { re: /^(?:It|That creature|CARDNAME) deals that much damage to any (other )?target(?: that isn'?t an? ([A-Z][a-z]+))?\.?$/,
       make: (m) => ({ op: 'damage', n: 'triggerAmount', fromTrigger: true,
         targets: [Object.assign(targetSpec('any target'), m[2] ? { notSubtype: m[2].toLowerCase() } : {}, m[1] ? { another: true } : {})] }) },
     // Laquatus's Champion: "that player gains 2 life"
@@ -3923,6 +3924,10 @@
     { re: /^Choose left or right\.?$/i, make: () => ({ op: 'chooseDirection' }) },
     { re: /^Each player gains control of all nonland permanents other than CARDNAME controlled by the next player in the chosen direction\.?$/i,
       make: () => ({ op: 'passPermanents', what: 'nonland permanent', exceptSelf: true }) },
+    /* Inniaz, the Gale Force: "each player gains control of a nonland permanent of your choice controlled by the player to
+       their right." — one each, all at once (oneOfYourChoice) */
+    { re: /^Each player gains control of an? (nonland permanent|creature|artifact|permanent) of your choice controlled by the player to their (right|left)\.?$/i,
+      make: (m) => ({ op: 'passPermanents', what: m[1].toLowerCase(), oneOfYourChoice: true, fixedDirection: m[2].toLowerCase() === 'right' ? 'left' : 'right' }) },
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
     // Neyali, Suns' Vanguard: "During any turn you attacked with a token, you may play that card." — while it stays exiled
@@ -4335,6 +4340,10 @@
        types and has base power and base toughness each equal to its mana value." — for good */
     { re: /^(Target [a-zA-Z -]+?) becomes a creature in addition to its other types and has base power and base toughness each equal to its mana value( until end of turn)?\.?$/,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'becomes', duration: m[2] ? 'eot' : 'permanent', eff: { addTypes: ['Creature'], setPtMv: true }, targets: [t] } : null; } },
+    /* Vhati il-Dal: "Until end of turn, target creature has base power 1 or base toughness 1." — which, chosen as it
+       resolves (basePtEither) */
+    { re: /^Until end of turn, (target creature) has base power (\d+) or base toughness (\d+)\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'basePtEither', p: +m[2], t: +m[3], targets: [t] } : null; } },
     // Mistform Wall: "This creature becomes the creature type of your choice until end of turn."
     { re: /^(?:This creature|CARDNAME|This permanent) becomes the creature type of your choice( in addition to its other types)? until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeChosenType', add: !!m[1] }) },
@@ -9479,6 +9488,8 @@
     if (/^the greatest mana value among those cards$/i.test(p)) return done({ batchMaxMv: true, mult: 1 });
     // Ulamog, the Defiler: "the greatest mana value among cards in exile" — everyone's exile (greatestMvExile)
     if (/^the greatest mana value among cards in exile$/i.test(p)) return done({ greatestMvExile: true, mult: 1 });
+    // Tetsuo, Imperial Champion: "the greatest mana value among Equipment attached to it" (attachedOf, maxMv)
+    if ((m = p.match(/^the greatest mana value among (Aura|Equipment)s? attached to (?:it|this creature|CARDNAME)$/))) return done({ attachedOf: m[1], maxMv: true, mult: 1 });
     // One with the Machine: "the greatest mana value among artifacts you control"
     if ((m = p.match(/^the greatest mana value among ([a-z ]+? you control)$/i))) {
       const sc = scopeOf(m[1]);
@@ -12105,6 +12116,13 @@
        (lastGroup), goaded by you for good, then one to each opponent (giveGroupToOpponents) */
     { re: /^They'?re goaded for the rest of the game\. For each of those permanents, choose a different opponent\. Each opponent gains control of the permanent for which they were chosen\.?$/i,
       make: () => [{ op: 'goad', scope: 'lastGroup', forever: true }, { op: 'giveGroupToOpponents' }] },
+    /* Sanar, Innovative First-Year: "reveal cards from the top of your library until you reveal X nonland cards, where X
+       is the number of colors among permanents you control. For each of those colors, you may exile a card of that color
+       from among the revealed cards. Then shuffle. You may cast the exiled cards this turn." — revealed where they lie
+       (dest stay; none for X = 0), one card a colour (exileRevealedPerColor) */
+    { re: /^[Rr]eveal cards from the top of your library until you reveal X nonland cards, where X is the number of colou?rs among permanents you control\. For each of those colou?rs, you may exile a card of that colou?r from among the revealed cards\. Then shuffle\. You may cast the exiled cards this turn\.?$/,
+      make: () => [{ op: 'revealUntil', n: { colorsAmongYours: true, mult: 1 }, filter: 'nonland', dest: 'stay', zeroNone: true },
+        { op: 'exileRevealedPerColor' }, { op: 'shuffle' }, { op: 'mayPlayExiled', castOnly: true, duration: 'eot' }] },
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the
        bottom of your library in a random order." Dig until one fits (or
@@ -16447,6 +16465,9 @@
     // Harbin, Vanguard Aviator: "Whenever you attack with five or more Soldiers" (attackersOfTypeMin)
     { re: /^Whenever you attack with (two|three|four|five|six|seven) or more ([A-Z][a-z]+),? /, event: 'youAttack',
       extraOf: (m) => ({ attackersOfType: singularType(m[2]), attackersOfTypeMin: num(m[1]) }) },
+    // Inniaz, the Gale Force: "Whenever three or more creatures you control with flying attack" (attackersKw, attackersKwMin)
+    { re: /^Whenever (two|three|four|five|six|seven) or more creatures you control with (flying|haste|trample|vigilance|menace|deathtouch|lifelink) attack,? /, event: 'youAttack',
+      extraOf: (m) => ({ attackersKw: m[2], attackersKwMin: num(m[1]) }) },
     // The Chief Warg: "Whenever you attack while you control a creature with power 4 or greater" (attackWhile)
     { re: /^Whenever you attack while (you control [^,]+), /i, event: 'youAttack', extraOf: (m) => { const c = condOf(m[1]); return c ? { whileCond: c } : { unreadWhile: true }; } },
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)

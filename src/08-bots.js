@@ -1567,6 +1567,24 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Vhati il-Dal: base power 1 or base toughness 1 — on a foe's creature whichever takes more off it (toughness when
+       even, so it dies more easily); on our own, whichever takes less */
+    basePtEither(s) {
+      const g = this.game;
+      const x = s.objId ? g.obj(s.objId) : null;
+      if (!x) return null;
+      const dp = g.powerOf(x) - 1, dt = g.toughnessOf(x) - 1;
+      const foe = x.controller !== this.pid;
+      return { picks: [foe ? (dt >= dp ? 1 : 0) : (dt < dp ? 1 : 0)] };
+    },
+    /* Inniaz, the Gale Force: a permanent for a player to gain control of — the best one when it comes to us, the
+       least one when it is ours going away, else the least of another's going to a third player */
+    gainControlOfYourChoice(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.permanentValue(b) - this.permanentValue(a));
+      if (!os.length) return null;
+      return { picks: [(s.forPlayer === this.pid ? os[0] : os[os.length - 1]).id] };
+    },
     /* Valki, God of Lies; Lazav, Wearer of Faces: the strongest creature card to become a copy of — for Lazav's "you
        may", only one stronger than what it is now */
     becomeCopyOf(s) {
