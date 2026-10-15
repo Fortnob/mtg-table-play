@@ -954,7 +954,11 @@
         : face != null && faces && faces[face] ? faces[face].mana_cost
         : o.card.mana_cost || (faces && faces[o.face || 0] && faces[o.face || 0].mana_cost)) || '';
       const hasX = /\{X\}/.test(steps.cost);
-      const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
+      // a modal spell: its modes, once the extra costs say whether it is kicked or entwined, before X and the targets
+      // (the offer is the face that is up: another half, the engine asks about itself)
+      const modal = via === 'fuse' || (face != null && face !== (o.face || 0)) ? null : (live.castModes || {})[o.id] || null;
+      const afterModes = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
+      const afterExtras = () => (modal ? this.askModes(steps, modal, afterModes) : afterModes());
       const afterX = () => (pays.length ? this.askAltPay(steps, pays, afterPay) : afterPay());
       // an additional cost left unpaid in the extras (Hulk's Thunderclap): nothing of it to pick
       const PICKS_OF = { evidence: 'evidence', forage: 'forage', reveal: 'revealHand', exileOwn: 'exileOwn', exileHand: 'exileHand', counterFrom: 'removeCounterFrom', blight: 'blight', behold: 'behold' };
@@ -1283,6 +1287,69 @@
     },
 
     /**
+     * A modal spell's modes, chosen as it is cast and before its targets (CR 601.2b): as many as it says (more
+     * when kicked, if it says so), a mode with nothing it could target shown but not offered. Entwined, it has
+     * them all; when only one choice could be made it is made, and nothing is asked.
+     */
+    askModes(steps, offer, next) {
+      const st = steps.picked;
+      if (st.entwine) { steps.modes = offer.options.map(m => m.i); return next(); }
+      const kicked = Math.max((st.kickPaid || []).length, st.kick || 0, st.payAdditional ? 1 : 0) > 0;
+      const n = Object.assign({}, offer, kicked && offer.kicked ? offer.kicked : {});
+      const usable = offer.options.filter(m => m.ok);
+      const C = MTG.choice;
+      // what the question is, in the shape every other question has (docs/choices.md)
+      const s = offer.pawprint
+        ? C.normalize({ kind: 'options', purpose: 'castModes', repeat: true, min: 1, max: offer.pawprint,
+          options: usable.map(m => ({ i: m.i, label: m.label, weight: m.weight || 1, cost: '{P}'.repeat(m.weight || 1) })),
+          constraints: [{ kind: 'sum', key: 'weight', max: offer.pawprint, label: 'paw prints' }] })
+        : C.fromLegacy({ type: 'mode', purpose: 'castModes', count: n.repeatable ? n.count : Math.min(n.count, usable.length),
+          min: n.min, max: n.repeatable ? n.max : Math.min(n.max, usable.length), repeatable: !!n.repeatable,
+          options: usable.map(m => ({ i: m.i, label: m.label })) });
+      // the only answer there is: no question (a modal spell with one mode it could choose)
+      const only = !offer.pawprint && (n.repeatable ? (usable.length === 1 && n.min === n.max ? new Array(n.max).fill(usable[0].i) : null)
+        : usable.length === n.min ? usable.map(m => m.i) : null);
+      if (only) { steps.modes = only; return next(); }
+      const sel = { picks: [] };
+      const done = () => { this.asking = null; steps.modes = sel.picks.map(k => s.options[k].i).sort((x, y) => x - y); next(); };
+      const key = 'modes:' + steps.o.id;
+      const say = (k) => ['none', 'one', 'two', 'three', 'four', 'five'][k] || String(k);
+      const what = offer.pawprint ? `Choose up to ${offer.pawprint} {P} worth of modes. A mode may be chosen more than once.`
+        : `Choose ${s.min === s.max ? say(s.min) : s.min === 0 ? 'up to ' + say(s.max) : s.max >= offer.options.length ? say(s.min) + ' or more' : say(s.min) + ' to ' + say(s.max)}` +
+          `${n.repeatable ? '. You may choose the same mode more than once' : ''}.`;
+      this.asking = { base: key, get key() { return key + ':' + sel.picks.join(','); }, build: () => {
+        const one = this.chooseOneClick(s);
+        const body = this.chooseBody(s, sel, {
+          onPick: (k) => {
+            if (one) { sel.picks = [k]; return done(); }
+            const at = sel.picks.lastIndexOf(k);
+            if (s.repeat) { if (C.canAdd(s, sel.picks, k)) sel.picks.push(k); else if (at >= 0) sel.picks.splice(at, 1); }
+            else if (at >= 0) sel.picks.splice(at, 1);
+            else if (C.canAdd(s, sel.picks, k)) sel.picks.push(k);
+            else return UI.error(sel.picks.length >= s.max ? `Choose no more than ${s.max}.` : (C.check(s, { picks: sel.picks.concat([k]) }).reason || 'That will not fit.'));
+            MTG.sfx('click');
+            this.render();
+          },
+          onLess: (k) => { const at = sel.picks.lastIndexOf(k); if (at >= 0) sel.picks.splice(at, 1); this.render(); },
+        });
+        // a mode with nothing it could target: shown, and why it can't be chosen (CR 700.2a)
+        const rows = body.matches('.mode-list') ? body : (body.querySelector('.mode-list') || body);
+        for (const m of offer.options.filter(x => !x.ok)) {
+          rows.appendChild(el('button', { type: 'button', class: 'mode-opt off', disabled: true }, [
+            el('span', { class: 'mode-dot', text: '' }),
+            el('span', { class: 'mode-text', html: `${richText(m.label)} <i class="cant">nothing it could target</i>` }),
+          ]));
+        }
+        const pr = C.progress(s, sel.picks);
+        const buttons = [{ label: 'Cancel', fn: () => { this.asking = null; this.render(); } }];
+        if (!one) buttons.push({ label: 'Continue', cls: 'primary', disabled: !pr.ok, fn: () => (pr.ok ? done() : UI.error(pr.reason || 'Not yet.')) });
+        return this.panel(`Cast ${escapeHtml(steps.o.card.name)}`,
+          richText(what) + (one ? '' : `<br><span class="choose-status${pr.ok ? '' : ' short'}">${richText(pr.text)}</span>`), body, buttons, { card: steps.o.card });
+      } };
+      this.render();
+    },
+
+    /**
      * X. The most it could be is what you have untapped, so that is offered
      * as the default; arrows and the keyboard move it.
      */
@@ -1322,6 +1389,9 @@
          has a target more (the engine reads the same) */
       const sel = { kicked: Math.max((picked.kickPaid || []).length, picked.kick || 0, picked.payAdditional ? 1 : 0),
         gift: !!picked.gift, inMain: live.activePlayer === this.meId && live.step === 'main' };
+      // a modal spell's targets are its chosen modes' (spree's: the modes paid for)
+      const modes = steps.modes || (picked.spree && picked.spree.length ? picked.spree.slice() : null);
+      if (modes) sel.modes = modes;
       // fused, both halves' targets are asked for, the left half's first
       const parts = via === 'fuse' ? [MTG.oracle.analyze(o.card, 0), MTG.oracle.analyze(o.card, 1)].filter(Boolean) : [a];
       for (const part of parts) {
@@ -1331,8 +1401,17 @@
            cast, so only what matches it lights up */
         const xNow = steps.x || 0;
         // cleave: the words in brackets taken out, so the targets are the wider ones the engine checks
-        const read = via === 'cleave' && part.cleaveEffects && MTG.rules.effectSpecs
+        let read = via === 'cleave' && part.cleaveEffects && MTG.rules.effectSpecs
           ? MTG.rules.effectSpecs(part.cleaveEffects) : MTG.rules.spellTargetSpecs(part, sel);
+        /* a modal spell: each chosen mode's targets asked for on their own, saying which mode they are for
+           (the same list, in the same order: modeTargetPlan) */
+        const top = modes && via !== 'cleave' ? MTG.rules.castModal(MTG.rules.cardSpellEffects(part)) : null;
+        if (top) {
+          const mp = MTG.rules.modeTargetPlan(MTG.rules.applyModes(MTG.rules.cardSpellEffects(part), modes), sel);
+          const sorted = modes.slice().sort((x, y) => x - y);
+          if (mp.plan) read = mp.plan.units.map(u => Object.assign({}, u.spec, { castWhy: 'mode',
+            castText: String(((top.modal.modes || [])[sorted[u.at[0].eff._mi]] || {}).label || '') }));
+        }
         specs.push(...read.map(s => {
           if (!s || !['mv', 'maxMv', 'minMv'].some(k => s[k] === 'X')) return s;
           const c = Object.assign({}, s);
@@ -1347,6 +1426,8 @@
         kickPaid: picked.kickPaid && picked.kickPaid.length ? picked.kickPaid.slice() : undefined,
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
+      // the modes chosen, so the engine does not ask again (entwined, it has them all)
+      if (steps.modes && !picked.entwine) extra.modes = steps.modes.slice();
       // (asked with the extra costs: always said one way or the other, so the engine does not ask again)
       if (offered.some(x => x.kind === 'optional')) extra.payAdditional = !!picked.payAdditional;
       if (offered.some(x => x.kind === 'gift')) extra.gift = picked.gift ? true : null;

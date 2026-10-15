@@ -326,7 +326,7 @@
           const who = v.players.find(p => p.id === s.controller);
           const tg = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
           return `${!who ? 'their' : who.id === this.meId ? 'your' : possessive(who.name)} ${s.name || (s.card ? s.card.name : 'ability')}` +
-            (tg.length ? ' targeting ' + tg.join(' and ') : '');
+            ((s.modes || []).length ? ', chosen: ' + s.modes.join('; ') + ',' : '') + (tg.length ? ' targeting ' + tg.join(' and ') : '');
         }).join('; ') + '.');
       }
       const banner = this.banner && this.banner.classList.contains('on') ? this.banner.textContent.trim() : '';
@@ -372,6 +372,8 @@
         if (s) {
           const tg = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
           bits.push(`on the stack, ${s.controller === this.meId ? 'yours' : 'cast by ' + (names.get(s.controller) || 'them')}` +
+            // (a modal spell: the modes chosen as it was cast)
+            ((s.modes || []).length ? ', chosen: ' + s.modes.join('; ') : '') +
             (tg.length ? ', targeting ' + tg.join(' and ') : '') + (s === top ? ', resolves next' : ''));
         }
         if (n.closest('.hslot.from-exile')) bits.push('in exile, playable');

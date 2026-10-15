@@ -1422,6 +1422,9 @@
         const w = this.wrapFor(key, 'stack-item' + (i === 0 ? ' top' : '') + (s.countered ? ' countered' : '') +
           (s.controller === this.meId ? ' mine' : ' theirs') + (s.kind === 'ability' ? ' ability' : ' spell'));
         w.dataset.stack = s.id;
+        // (the modes chosen as it was cast, under the pointer when it is not the top, whose caption says them)
+        const said = (s.modes || []).length ? 'Chosen: ' + s.modes.join('; ') : '';
+        if (w.title !== said) w.title = said;
         w.classList.toggle('targetable', !!(this.targeting && this.isTargetableStack(s)));
         const who = v.players.find(p => p.id === s.controller);
         // a spell is its own card; an ability is a chip that names where it came from
@@ -1448,7 +1451,7 @@
       const targets = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
       return el('div', { class: 'stack-cap' }, [
         el('span', { class: 'who', text: who ? (who.id === this.meId ? 'You' : who.name) : '' }),
-        // (a trigger's modes, chosen as it went on the stack)
+        // (a spell's or a trigger's modes, chosen as it went on the stack: whole, never cut short)
         (s.modes || []).length ? el('span', { class: 'tg', text: s.modes.join('; ') }) : null,
         targets.length ? el('span', { class: 'tg', text: '→ ' + targets.join(', ') }) : null,
         top ? el('span', { class: 'next', text: s.countered ? 'countered' : 'resolves next' }) : null,
