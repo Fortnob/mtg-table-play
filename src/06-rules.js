@@ -4711,7 +4711,6 @@
           (o.zone === 'exile' && o.adventureBy === playerId && (o.face || 0) === 0) ||
           // Hildibrand Manderville: from the graveyard as an Adventure, and only that (graveAdventure)
           (o.zone === 'graveyard' && (o.face || 0) === 1 && this._graveAdventureOpen(o, playerId));
-        if (o.grantedFlashback && o.zone === 'graveyard') return { ok: true, cost: this.castCost(o, opts, playerId) };
         /* A card with flashback is cast for its flashback cost, not for
            the cost printed in its corner — so casting it from the
            graveyard has to say which way in it is using. */
@@ -24410,7 +24409,9 @@
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
-            if (o) { o.grantedFlashback = true; this.logEvent('rules', `${o.name} gains flashback.`); }
+            /* Snapcaster Mage: "gains flashback until end of turn. The flashback cost is equal to its mana cost." — this
+               turn only, and exiled once cast that way (flashbackGrant, as The Fugitive Doctor's) */
+            if (o && o.zone === 'graveyard') { o.flashbackGrant = { turn: this.turn, cost: (o.card && o.card.mana_cost) || '{0}' }; this.logEvent('rules', `${o.name} gains flashback until end of turn.`); }
           }
           break;
         }
