@@ -66987,4 +66987,159 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [sol] });
     t.eq(T.bfOf('A').filter(o => o.name === 'Fungus Dinosaur').length, 1, 'Skullspore Nexus: a token dying makes nothing');
   });
+
+  test('Cards: Renewed Solidarity — at your end step, a copy of each token of the chosen type that entered this turn', (mk, t) => {
+    t.auto('Renewed Solidarity');
+    const T = mk();
+    const rs = T.bf('A', 'Renewed Solidarity');
+    rs.chosenType = 'Soldier';
+    T.g.bumpBoard();
+    T.mana('A', 'WW1'); T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const old = T.bfOf('A').filter(o => o.name === 'Soldier');
+    T.nextTurn('B');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Soldier').length, 4, 'Renewed Solidarity: two Soldiers copied');
+    t.eq(T.g.powerOf(old[0]), 2, 'Renewed Solidarity: Soldiers get +1/+0');
+    T.nextTurn('A');
+    T.toMain('A');
+    T.mana('A', 'RR'); T.cast('A', T.hand('A', "Krenko's Command"));
+    T.nextTurn('B');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Soldier').length, 4, 'Renewed Solidarity: last turn\'s Soldiers not copied again');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Goblin').length, 2, 'Renewed Solidarity: Goblins are not the chosen type');
+  });
+
+  test('Cards: The Eternal Wanderer — one attacker at it; +1 back at the owner\'s end step; −4 you choose one creature each player keeps', (mk, t) => {
+    t.auto('The Eternal Wanderer');
+    // no more than one creature can attack it
+    const attack = (both) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      const pw = T.bf('A', 'The Eternal Wanderer');
+      T.toMain('B');
+      const xs = [T.bf('B', 'Grizzly Bears'), T.bf('B', 'Hill Giant')];
+      for (const x of xs) x.summoningSick = false;
+      T.answer('declareAttackers', () => [{ attackerId: xs[0].id, defenderId: pw.id }, { attackerId: xs[1].id, defenderId: both ? pw.id : 'A' }]);
+      try { T.toMain('B', 'endCombat'); return [pw.counters.loyalty, T.life('A')]; } catch (e) { return String(e.message); }
+    };
+    t.ok(/no more than 1 creature can attack The Eternal Wanderer/.test(String(attack(true))), 'Wanderer: two attackers at it refused');
+    t.eq(JSON.stringify(attack(false)), '[3,17]', 'Wanderer: one at it and one at A is fine');
+    // +1: exiled, back at its owner's next end step
+    let T = mk({ library: Array(20).fill('Island') });
+    let w = T.bf('A', 'The Eternal Wanderer');
+    const giant = T.bf('B', 'Hill Giant');
+    T.activate('A', w, 0, { targets: [giant] });
+    t.zone(giant, 'exile', 'Wanderer +1: exiled');
+    t.eq(w.counters.loyalty, 6);
+    T.nextTurn('B');
+    t.zone(giant, 'exile', "Wanderer +1: not back at A's end step");
+    T.nextTurn('A');
+    t.zone(giant, 'battlefield', "Wanderer +1: back at B's end step");
+    t.eq(giant.controller, 'B', "Wanderer +1: under its owner's control");
+    // 0: a Samurai with double strike
+    T = mk({ library: Array(20).fill('Island') });
+    w = T.bf('A', 'The Eternal Wanderer');
+    T.activate('A', w, 1);
+    const sam = T.bfOf('A').find(o => o.name === 'Samurai');
+    t.ok(sam && T.g.hasKw(sam, 'double strike'), 'Wanderer 0: a Samurai with double strike');
+    // −4: A chooses a creature for each player
+    T = mk({ library: Array(20).fill('Island') });
+    w = T.bf('A', 'The Eternal Wanderer');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const hg = T.bf('A', 'Hill Giant');
+    const wurm = T.bf('B', 'Craw Wurm');
+    const elf = T.bf('B', 'Llanowar Elves');
+    const who = [];
+    T.answer('choose', (ch) => { who.push(ch.playerId); return { picks: [bears.id] }; });
+    T.answer('choose', (ch) => { who.push(ch.playerId); return { picks: [elf.id] }; });
+    T.activate('A', w, 2);
+    t.eq(who.join(), 'A,A', 'Wanderer −4: A chooses for both players');
+    t.zone(bears, 'battlefield'); t.zone(hg, 'graveyard', 'Wanderer −4: the rest of A\'s sacrificed');
+    t.zone(elf, 'battlefield'); t.zone(wurm, 'graveyard', 'Wanderer −4: B keeps the Elves A chose');
+    // a bot keeps its own best and leaves the other player their least
+    T = mk({ library: Array(20).fill('Island') });
+    w = T.bf('A', 'The Eternal Wanderer');
+    const b2 = T.bf('A', 'Grizzly Bears'); const h2 = T.bf('A', 'Hill Giant');
+    const w2 = T.bf('B', 'Craw Wurm'); const e2 = T.bf('B', 'Llanowar Elves');
+    const M = require('../harness').engine();
+    for (let i = 0; i < 2; i++) T.answer('choose', (ch, g) => M.bots.answerChoose(g, 'A', M.choice.normalize(ch)));
+    T.activate('A', w, 2);
+    t.zone(h2, 'battlefield', 'Wanderer −4 bot: keeps its Hill Giant'); t.zone(b2, 'graveyard');
+    t.zone(e2, 'battlefield', "Wanderer −4 bot: B's Elves kept"); t.zone(w2, 'graveyard');
+  });
+
+  test('Cards: The Aetherspark — attached, it can\'t be attacked; equipped creature\'s combat damage in your turn adds loyalty', (mk, t) => {
+    t.auto('The Aetherspark');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const sp = T.bf('A', 'The Aetherspark');
+    const bears = T.bf('A', 'Grizzly Bears');
+    t.ok(g._legalDefenders('B').some(d => d.id === sp.id), 'Aetherspark: unattached, it can be attacked');
+    T.activate('A', sp, 0, { targets: [bears] });
+    t.eq(sp.attachedTo, bears.id, 'Aetherspark +1: attached to the Bears');
+    t.eq(bears.counters['+1/+1'], 1, 'Aetherspark +1: a +1/+1 counter');
+    t.eq(sp.counters.loyalty, 5);
+    t.no(g._legalDefenders('B').some(d => d.id === sp.id), 'Aetherspark: attached, it can\'t be attacked');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 17, 'Aetherspark: the Bears hit for 3');
+    t.eq(sp.counters.loyalty, 8, 'Aetherspark: three loyalty counters');
+    // not in another player's turn
+    T.toMain('B');
+    const ogre = T.bf('B', 'Hill Giant');
+    ogre.summoningSick = false;
+    bears.tapped = false;
+    T.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bears.id, attackerIds: [ogre.id] }]);
+    T.toMain('B', 'endCombat');
+    t.zone(ogre, 'graveyard', 'Aetherspark: the Bears blocked and dealt damage');
+    t.eq(sp.counters.loyalty, 8, "Aetherspark: blocking in B's turn adds nothing");
+  });
+
+  test('Cards: Monster Manual // Zoological Study — mill five, a creature card milled back to hand; then the Book from exile', (mk, t) => {
+    t.auto('Monster Manual');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const mm = T.hand('A', 'Monster Manual');
+    const giant = T.top('A', 'Hill Giant');
+    T.top('A', 'Swamp');
+    const bears = T.top('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = (ch.cards || []).map(x => x.id); return { cardIds: [giant.id] }; });
+    T.mana('A', 'G2');
+    T.cast('A', mm, { face: 1 });
+    t.eq(g.zones.A.graveyard.length, 4, 'Zoological Study: five milled, one taken back');
+    t.zone(giant, 'hand', 'Zoological Study: the Hill Giant to hand');
+    t.zone(bears, 'graveyard');
+    t.eq((offered || []).sort().join(), [bears.id, giant.id].sort().join(), 'Zoological Study: only the creature cards milled');
+    t.zone(mm, 'exile', 'Zoological Study: on an adventure');
+    T.mana('A', 'G3');
+    T.cast('A', mm);
+    t.zone(mm, 'battlefield', 'Monster Manual: cast from exile');
+    T.mana('A', 'G1');
+    T.activate('A', mm, 0);
+    t.zone(giant, 'battlefield', 'Monster Manual: a creature card from hand onto the battlefield');
+  });
+
+  test('Cards: Quartzwood Crasher — tramplers hitting a player make one X/X Dinosaur Beast of the damage they dealt', (mk, t) => {
+    t.auto('Quartzwood Crasher');
+    const T = mk({ library: Array(20).fill('Island'), life: 40 });
+    const qc = T.bf('A', 'Quartzwood Crasher');
+    const dm = T.bf('A', 'Colossal Dreadmaw');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [qc, dm, bears].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 26, 'Quartzwood Crasher: 6 + 6 + 2');
+    const toks = T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 1, 'Quartzwood Crasher: one token for the lot');
+    t.eq(T.g.powerOf(toks[0]) + '/' + T.g.toughnessOf(toks[0]), '12/12', 'Quartzwood Crasher: the tramplers\' 12, not the Bears\' 2');
+    t.ok(T.g.hasKw(toks[0], 'trample'), 'Quartzwood Crasher: with trample');
+    // no trampler connects: nothing
+    const U = mk({ library: Array(20).fill('Island') });
+    U.bf('A', 'Quartzwood Crasher');
+    const b2 = U.bf('A', 'Grizzly Bears');
+    U.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    U.toMain('A', 'endCombat');
+    t.eq(U.life('B'), 18);
+    t.no(U.bfOf('A').some(o => o.isToken), 'Quartzwood Crasher: the Bears alone make nothing');
+  });
 };

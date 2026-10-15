@@ -12581,6 +12581,9 @@
         // a battle: anyone but its protector, its controller too (CR 310.10, 508.1b)
         if (a.isBattle) { if (this._defPid(o.id) !== attackerPid) out.push({ kind: 'object', id: o.id, name: o.name }); continue; }
         if (o.controller === attackerPid) continue;
+        // The Aetherspark: "As long as The Aetherspark is attached to a creature, The Aetherspark can't be attacked" (whileAttached)
+        const noAtk = a.isPlaneswalker && this._staticOp(o, 'cantBeAttacked');
+        if (noAtk && (!noAtk.whileAttached || (o.attachedTo && (this.characteristics(this.obj(o.attachedTo)) || {}).isCreature))) continue;
         if (a.isPlaneswalker) out.push({ kind: 'object', id: o.id, name: o.name });
       }
       /* Pramikon, Sky Rampart: "Each player may attack only the nearest opponent in the chosen direction and
@@ -12720,7 +12723,9 @@
         if (lim.whileTapped && !s0.tapped) continue;
         /* Tomik, Orzhov Lawmage: "Planeswalkers you control have 'No more than
            one creature can attack this planeswalker each combat.'" — counted for each one (eachPlaneswalker) */
-        const groups = lim.eachPlaneswalker
+        // (The Eternal Wanderer: "can attack The Eternal Wanderer" — itself only: selfOnly)
+        const groups = lim.selfOnly ? [{ hits: (d) => d.defenderId === s0.id, what: s0.name }]
+          : lim.eachPlaneswalker
           ? this.battlefield.filter(pw => pw.controller === s0.controller && !pw.phasedOut && (pw.analysis() || {}).isPlaneswalker)
             .map(pw => ({ hits: (d) => d.defenderId === pw.id, what: pw.name }))
           : [{ hits: (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller,
@@ -18535,7 +18540,7 @@
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           // Primo, the Unbounded: "equal to the damage dealt" — what the whole lot dealt that player
-          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt|for each 1 damage dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
+          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt|for each 1 damage dealt|the amount of damage those creatures dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
           if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
           // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — each player the lot hit (batchPlayers)
@@ -28392,7 +28397,10 @@
         case 'nextSpellKeyword': me.nextSpellKeyword = Object.assign({ turn: this.turn, keyword: e.keyword, words: e.words || null }, e.affinityFor ? { affinityFor: e.affinityFor } : {}); break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
         case 'copyTokensEnteredThisTurn': {
-          const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn);
+          // (Renewed Solidarity: "of the chosen type" — its source's chosen creature type: chosenType)
+          const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn &&
+            (!e.chosenType || (src && src.chosenType && this._hasCreatureType(x, src.chosenType))));
+          if (e.chosenType && !(src && src.chosenType)) break;
           for (const tk of toks) this._runEffect({ op: 'copyPermanent', n: 1, _forced: tk }, ctx);
           break;
         }
@@ -28590,7 +28598,8 @@
               let picks;
               if (pool.length <= want && !e.upTo) picks = pool;
               else {
-                const got = this._choose({ playerId: chooser, purpose: 'keep', kind: 'objects', items: this._chooseItems(byValue(pool)),
+                // (The Eternal Wanderer: a creature chosen for each player — a bot keeps its own best, another's least: perPlayer)
+                const got = this._choose({ playerId: chooser, purpose: e.perPlayer ? 'keepCreatures' : 'keep', kind: 'objects', items: this._chooseItems(byValue(pool)),
                   min: e.upTo ? 0 : Math.min(want, pool.length), max: Math.min(want, pool.length),
                   prompt: `Choose ${want === 1 ? (/^[aeiou]/i.test(t) ? 'an ' : 'a ') + t : (e.upTo ? 'up to ' : '') + want + ' ' + t + 's'}${p ? ' ' + p.name + ' keeps' : ' to keep'}; the rest ${e.destroy ? 'are destroyed' : 'are sacrificed'}.` }, 'keep' + gi + ':' + ai);
                 if (got === SUSPEND) return SUSPEND;
@@ -29145,6 +29154,9 @@
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
           // Faramir, Prince of Ithilien: "that player's next end step" — the opponent chosen (forPlayer chosen)
           if (e.forPlayer === 'chosen' && !ctx.chosenPlayer) break;
+          // The Eternal Wanderer: "at the beginning of that player's next end step" — the owner of the card exiled (forPlayer owner)
+          const ownerP = e.forPlayer === 'owner' ? (this.obj(objId) || {}).owner : null;
+          if (e.forPlayer === 'owner' && ownerP == null) break;
           /* Kelsien, the Plague: "When that creature dies this turn" — this one, should it die before the turn is
              out and not having left in between (watchDeath: watchObj, watchLeftSeq, untilTurn) */
           /* Optimus Prime, Autobot Leader: "When that creature deals combat damage to a player this turn, convert
@@ -29168,7 +29180,7 @@
           this.scheduleDelayed({
             event: e.event || 'eachEndStep',
             controller: ctx.controller,
-            forPlayer: e.forPlayer === 'you' ? ctx.controller : e.forPlayer === 'chosen' ? ctx.chosenPlayer : null,
+            forPlayer: e.forPlayer === 'you' ? ctx.controller : e.forPlayer === 'chosen' ? ctx.chosenPlayer : e.forPlayer === 'owner' ? ownerP : null,
             notBefore: e.nextTurn ? this.turn : null,
             sameTurnOk: !e.nextTurn,
             // (Obzedat, Ghost Council: only while it is the same card in exile — whileExiled)

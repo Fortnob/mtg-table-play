@@ -2135,7 +2135,9 @@
       const g = this.game;
       const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
       const mine = pool.filter(o => o.controller === this.pid);
-      const from = mine.length ? mine : pool;
+      // (The Eternal Wanderer: another player's creatures only — the one worth least, if one must be kept)
+      if (!mine.length) return { picks: pool.sort((a, b) => this.permanentValue(a) - this.permanentValue(b)).slice(0, s.min || 0).map(o => o.id) };
+      const from = mine;
       const best = from.sort((a, b) => this.permanentValue(b) - this.permanentValue(a)).slice(0, s.max || 1);
       return { picks: best.length >= (s.min || 0) ? best.map(o => o.id) : pool.slice(0, s.min).map(o => o.id) };
     },

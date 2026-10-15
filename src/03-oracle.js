@@ -3411,6 +3411,9 @@
        your hand unless that player pays 3 life." — one opponent at a time (millEachOpponentUnless) */
     { re: /^For each opponent, you mill a card, then return that card from your graveyard to your hand unless that player pays (\d+) life\.?$/i,
       make: (m) => ({ op: 'millEachOpponentUnless', life: +m[1] }) },
+    // Zoological Study: "Mill five cards, then return a creature card milled this way to your hand." (takeFromMilled)
+    { re: /^Mill (two|three|four|five|six|seven|eight|nine|ten|\d+) cards, then (?:return|put) an? ([a-z]+) card milled this way (?:in)?to your hand\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'takeFromMilled', n: 1, filter: m[2].toLowerCase(), optional: false }] }) },
     /* "You may put a creature card from among the milled cards into your
        hand": one of what the mill just put in the graveyard */
     { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way|those cards) (?:into|to) your hand\.?$/i,
@@ -8027,8 +8030,9 @@
         effects: [{ op: 'ifCond', cond: { kind: 'selfOnBattlefield' }, boundSelf: true, then: [{ op: 'returnThat', yours: true }] }] }) },
     /* (Daretti's emblem: "return that card to the battlefield at the
        beginning of the next end step" — with nobody named, under your control) */
-    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
-      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
+    // (The Eternal Wanderer: "at the beginning of that player's next end step" — its owner's end step: forPlayer owner)
+    { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of (the|that player'?s) next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', ...(/player/i.test(m[6]) ? { forPlayer: 'owner' } : {}),
         name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[4] ? { counter: m[5].toLowerCase() } : {}, m[2] ? { tapped: true } : {},
           !m[3] || /your control/i.test(m[3]) ? { yours: true } : {})] }) },
     /* Luminous Broodmoth: "Whenever a creature … dies, return it to the
@@ -8725,6 +8729,9 @@
     // Ocelot Pride: "Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it."
     { re: /^Then if you have the city'?s blessing, for each token you control that entered this turn, create a token that'?s a copy of it\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'cityBlessing' }, then: [{ op: 'copyTokensEnteredThisTurn' }] }) },
+    // Renewed Solidarity: "for each token you control of the chosen type that entered this turn, create a token that's a copy of it" (chosenType)
+    { re: /^For each token you control of the chosen type that entered this turn, create a token that'?s a copy of it\.?$/i,
+      make: () => ({ op: 'copyTokensEnteredThisTurn', chosenType: true }) },
     // Callidus Assassin: "destroy up to one other target creature with the same name as this creature"
     { re: /^Destroy up to one other target creature with the same name as (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, another: true, sameNameAsSource: true }] }) },
@@ -9876,6 +9883,8 @@
     if (/^the total power of those creatures$/i.test(p)) return { batchTotalPower: true };
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
+    // Quartzwood Crasher: "the amount of damage those creatures dealt to that player" — the lot's, added up as it gathers
+    if (/^the amount of damage those creatures dealt to that player$/i.test(p)) return 'triggerAmount';
     /* Odric, Blood-Cursed: "the number of abilities from among flying, first strike, …, and vigilance found among creatures
        you control" — each counted once (kwAmongYours) */
     const kwa = p.match(/^the number of abilities from among ((?:[a-z ]+, )+and [a-z ]+) found among creatures you control$/i);
@@ -11875,6 +11884,10 @@
        way." */
     { re: /^Search your library for a card, exile it face down, then shuffle\. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell'?s mana value is (\d+) or less\. Put the exiled card into your hand if it wasn'?t cast this way\.$/i,
       make: (m) => [{ op: 'beseech', maxMv: +m[1] }] },
+    /* The Eternal Wanderer: "For each player, choose a creature that player controls. Each player sacrifices all creatures
+       they control not chosen this way." — you choose for everybody (chooser you, perPlayer) */
+    { re: /^For each player, choose a creature that player controls\. Each player sacrifices all creatures they control not chosen this way\.?$/i,
+      make: () => [{ op: 'keepRest', who: 'each', chooser: 'you', perPlayer: true, n: 1, filter: 'creature', rest: 'creature' }] },
     /* Conduit of Worlds: "Choose target nonland permanent card in your
        graveyard. If you haven't cast a spell this turn, you may cast that
        card. If you do, you can't cast additional spells this turn." */
@@ -17000,12 +17013,14 @@
     // Henry Wu, InGen Geneticist: "Whenever a creature you control exploits a non-Human creature," (exploitedNotType)
     { re: /^Whenever a creature you control exploits a non-([A-Z][a-z]+) creature,? /, event: 'exploits', extraOf: (m) => ({ exploitedNotType: m[1] }) },
     /* an Aura or Equipment watching the creature it is on */
-    { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked),? /i,
+    // (The Aetherspark: "Whenever equipped creature deals combat damage during your turn" — yourTurnOnly)
+    { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked)( during your turn)?,? /i,
       event: 'becomesTapped', aboutObject: true,
       extraOf: (m) => {
         const w = m[1].toLowerCase();
-        return { event: w === 'becomes tapped' ? 'becomesTapped' : w === 'is dealt damage' ? 'isDealtDamage'
-          : w === 'becomes blocked' ? 'becomesBlocked' : 'dealsDamage', ofEnchanted: true, combatOnly: w === 'deals combat damage' || undefined };
+        return Object.assign({ event: w === 'becomes tapped' ? 'becomesTapped' : w === 'is dealt damage' ? 'isDealtDamage'
+          : w === 'becomes blocked' ? 'becomesBlocked' : 'dealsDamage', ofEnchanted: true, combatOnly: w === 'deals combat damage' || undefined },
+        m[2] ? { yourTurnOnly: true } : {});
       } },
     { re: /^When(?:ever)? a creature dealt damage by (?:this creature|~|CARDNAME) this turn dies,? /i, event: 'permDies',
       filt: () => ({ words: 'creature' }), extra: { damagedByMe: true } },
@@ -17874,6 +17889,15 @@
         const rest = gateStation ? gateStation[2] : gateSpeed[1];
         if (gateStation) out.stationLevels = (out.stationLevels || []).concat(+gateStation[1]);
         if (gateGranted(out, rest, cond, typeLine, card)) autoLines++;
+        continue;
+      }
+      /* The Aetherspark: "As long as The Aetherspark is attached to a creature, The Aetherspark can't be attacked and has
+         "Whenever equipped creature deals combat damage …"" — no defender while attached (cantBeAttacked whileAttached),
+         and the quoted ability read as its own, working only while attached (selfAttachedToCreature) */
+      const gateAttached = line.match(/^As long as CARDNAME is attached to a creature, CARDNAME can'?t be attacked and has "([^"]+)"\.?$/);
+      if (gateAttached) {
+        out.abilities.push({ kind: 'static', text: line, auto: true, effects: [{ op: 'cantBeAttacked', whileAttached: true }] });
+        if (gateGranted(out, gateAttached[1], { kind: 'selfAttachedToCreature' }, typeLine, card)) autoLines++;
         continue;
       }
       /* Companion (CR 702.139): the deck's rule is checked as the deck is built
@@ -23363,6 +23387,9 @@
       // Tomik, Orzhov Lawmage: "Planeswalkers you control have "No more than one creature can attack this planeswalker each combat."" (eachPlaneswalker)
       { re: /^Planeswalkers you control have "No more than (one|two|three) creatures? can attack this planeswalker each combat\.?"\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), eachPlaneswalker: true }), auto: true },
+      // The Eternal Wanderer: "No more than one creature can attack The Eternal Wanderer each combat." (selfOnly)
+      { re: /^No more than (one|two|three) creatures? can attack CARDNAME each combat\.?$/i,
+        make: (m) => ({ op: 'attackLimit', n: num(m[1]), selfOnly: true }), auto: true },
       // The Necrobloom: "Land cards in your graveyard have dredge 2." (grantDredge)
       { re: /^Land cards in your graveyard have dredge (\d+)\.?$/i, make: (m) => ({ op: 'grantDredge', filter: 'land', n: +m[1] }), auto: true },
       // Lavinia, Azorius Renegade: "Each opponent can't cast noncreature spells with mana value greater than the number of lands that player controls." (mvLandCap)
