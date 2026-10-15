@@ -146,6 +146,10 @@ declare namespace MTG {
     triggered?: boolean;
     /** a triggered ability's modes, chosen as it was put on the stack (left out when it has none) */
     modes?: string[];
+    /** one of three or more of the same trigger put on the stack together: the batch's id (its first one's) */
+    batch?: Id;
+    /** said of a batch's trigger that is optional ("you may"): it can be declined */
+    optional?: true;
     /** the face a spell was cast as; null for an ability or a face-down spell */
     face?: number | null;
     /** a spell whose words a text-changing effect changed: what it says now */
@@ -271,7 +275,9 @@ declare namespace MTG {
     holding: boolean;
     fullControl: boolean;
     fullControlSticky: boolean;
-    yielding: 'turn' | 'response' | null;
+    yielding: 'turn' | 'response' | 'batch' | null;
+    /** what you answered once for the rest of the turn or of a batch of triggers (yours alone; the 'auto' intent takes one back) */
+    autoAnswers?: AutoAnswerView[];
     /** objects with something to do right now (only for the player with priority) */
     playable: Id[];
     /** split cards in hand, adventurers, modal double-faced cards with a spell on the back: which faces (0 left/front, 1 right/back) can be cast now */
@@ -340,6 +346,8 @@ declare namespace MTG {
     stackId?: Id | null;
     /** true when this is somebody else's question (see WaitingChoice) */
     waiting?: boolean;
+    /** a question that can be answered for the rest of the turn or of a batch of triggers (the answer's `remember`) */
+    auto?: AutoOffer | null;
     /* Read generically by the table before it knows the type; each
        question that has them narrows them. */
     count?: number;
@@ -347,6 +355,24 @@ declare namespace MTG {
     options?: unknown[];
   }
   interface Defender { kind: 'player' | 'object'; id: Id; name: string }
+  type AutoKind = 'may' | 'pay' | 'mode' | 'targets';
+  /** What a question says can be answered once for all: an optional trigger's "you may", a price that keeps
+      being asked, the modes or targets of the next copies of a trigger. */
+  interface AutoOffer {
+    kind: AutoKind;
+    /** the card asking */
+    label: string;
+    /** the ability and the question, as a remembered answer knows them */
+    key: string;
+    /** may be answered for the rest of this turn */
+    turn?: true;
+    /** the batch it is one of, and how many more of it would take the same answer */
+    batchId?: Id;
+    rest?: number;
+    /** targets: what each target could be for every copy */
+    same?: Target[][];
+  }
+  interface AutoAnswerView { id: string; kind: AutoKind; text: string; batch?: Id }
 
   interface DeclareAttackersChoice extends ChoiceBase { type: 'declareAttackers'; candidates: Id[]; defenders: Defender[] }
   interface DeclareBlockersChoice extends ChoiceBase { type: 'declareBlockers'; attackers: Id[]; candidates: Id[]; /** Odric, Master Tactician: whose creatures these are, when someone else chooses how they block */ blockingPlayer?: Id }
@@ -354,7 +380,8 @@ declare namespace MTG {
   interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean; /** Doomfall: the chosen permanent is exiled, not sacrificed */ exileInstead?: boolean }
   interface ScryChoice extends ChoiceBase { type: 'scry' | 'surveil'; count: number; cards: ChoiceCard[] }
   interface ArrangeChoice extends ChoiceBase { type: 'arrange'; count?: number; cards: ChoiceCard[]; look?: boolean }
-  interface OrderTriggersChoice extends ChoiceBase { type: 'orderTriggers'; cards: Array<{ id: Id; name?: string; card?: Card | null }> }
+  /** `ids`: the same trigger more than once, put in as one, side by side (their order can't matter) */
+  interface OrderTriggersChoice extends ChoiceBase { type: 'orderTriggers'; cards: Array<{ id: Id; name?: string; card?: Card | null; ids?: Id[] }> }
   interface PickCardChoice extends ChoiceBase {
     type: 'pickCard'; count: number; cards: ChoiceCard[]; optional?: boolean; candidates?: Id[];
     fromLibrary?: boolean; worst?: boolean; totalPower?: number;
@@ -451,6 +478,8 @@ declare namespace MTG {
     top?: Id[];
     bottom?: Id[];
     targets?: Target[];
+    /** this answer goes for the rest of the turn ('turn') or of the batch ('batch'), as the question's `auto` offered */
+    remember?: 'turn' | 'batch';
   }
 
   /* ---------------- intents ---------------- */
@@ -464,7 +493,9 @@ declare namespace MTG {
     | { kind: 'undo' }
     | { kind: 'autoPass'; cfg: Record<string, any> | null }
     | { kind: 'fullControl'; on: boolean; sticky?: boolean }
-    | { kind: 'yield'; mode: 'turn' | 'response' | null }
+    | { kind: 'yield'; mode: 'turn' | 'response' | 'batch' | null }
+    /** remembered answers: take one back (by id, or 'all'), or decline the rest of a batch of your optional triggers */
+    | { kind: 'auto'; act: 'clear' | 'decline'; id?: string; batch?: Id }
     | { kind: 'mulligan' }
     | { kind: 'keep'; bottom?: Id[] }
     | { kind: 'playLand'; objId: Id; face?: number }

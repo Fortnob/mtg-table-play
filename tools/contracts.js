@@ -143,6 +143,8 @@ const StackItemView = obj({
   triggered: opt(bool), face: opt(maybe(int)), textNow: opt(maybe(str)),
   /* a triggered ability's modes, chosen as it went on the stack */
   modes: opt(arr(str)),
+  /* one of three or more of the same trigger put on the stack together, and whether it is optional */
+  batch: opt(id), optional: opt(lit(true)),
 });
 const ManaPool = obj({ W: num, U: num, B: num, R: num, G: num, C: num });
 const PlayerView = obj({
@@ -181,6 +183,10 @@ const common = {
   type: str, playerId: id, prompt: opt(str), purpose: opt(maybe(str)), resumeKey: opt(maybe(str)),
   sourceName: opt(maybe(str)), sourceId: opt(maybe(id)), sourceCard: opt(maybe(Card)), sourceText: opt(maybe(str)),
   objId: opt(maybe(id)), stackId: opt(maybe(id)),
+  /* a question that can be answered once for the rest of the turn ('turn') or of a batch of triggers ('rest' more):
+     the answer's `remember` */
+  auto: opt(maybe(obj({ kind: lit('may', 'pay', 'mode', 'targets'), label: str, key: str, turn: opt(lit(true)), batchId: opt(id),
+    rest: opt(nat), same: opt(arr(arr(Target))) }, { closed: true }))),
 };
 const choice = (fields) => obj(Object.assign({}, common, fields));
 /* a player, or a planeswalker or battle ('object') */
@@ -192,8 +198,9 @@ const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weigh
 const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
 const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'unionAtLeast', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
   with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str) });
+const Remember = opt(lit('turn', 'batch'));
 const ChooseAnswer = obj({ picks: opt(arr(either('an id or an option index', S.id, S.int))), number: opt(num),
-  order: opt(arr(either('an id or an option index', S.id, S.int))) }, { closed: true });
+  order: opt(arr(either('an id or an option index', S.id, S.int))), remember: Remember }, { closed: true });
 const CHOICES = {
   declareAttackers: choice({ candidates: arr(id), defenders: arr(Defender, { min: 1 }) }),
   declareBlockers: choice({ attackers: arr(id, { min: 1 }), candidates: arr(id), blockingPlayer: opt(id) }),
@@ -203,7 +210,7 @@ const CHOICES = {
   scry: choice({ count: nat, cards: arr(ChoiceCard) }),
   surveil: choice({ count: nat, cards: arr(ChoiceCard) }),
   arrange: choice({ count: opt(nat), cards: arr(ChoiceCard), look: opt(bool) }),
-  orderTriggers: choice({ cards: arr(obj({ id, name: opt(str) }), { min: 2 }) }),
+  orderTriggers: choice({ cards: arr(obj({ id, name: opt(str), ids: opt(arr(id, { min: 2 })) }), { min: 2 }) }),
   pickCard: choice({ count: nat, cards: arr(ChoiceCard), optional: opt(bool), candidates: opt(arr(id)), fromLibrary: opt(bool) }),
   pickTarget: choice({ specs: arr(S.plainObj, { min: 1 }), options: arr(arr(Target)), count: nat }),
   mode: choice({ count: int, options: arr(obj({ i: int, label: str }), { min: 1 }), repeatable: opt(bool) }),
@@ -241,7 +248,9 @@ const View = obj({
   activePlayer: maybe(id), priorityPlayer: maybe(id), turnOrder: arr(id),
   over: bool, winners: maybe(arr(id)), mulliganPhase: bool,
   canUndo: bool, undoLabel: maybe(str), holding: bool,
-  fullControl: bool, fullControlSticky: bool, yielding: maybe(lit('turn', 'response')),
+  fullControl: bool, fullControlSticky: bool, yielding: maybe(lit('turn', 'response', 'batch')),
+  /* what you answered once for the rest of the turn or of a batch of triggers */
+  autoAnswers: opt(arr(obj({ id: str, kind: lit('may', 'pay', 'mode', 'targets'), text: str, batch: opt(id) }, { closed: true }))),
   playable: arr(id), uses: rec(arr(AltUse)), extras: rec(arr(ExtraCost)), costPicks: opt(rec(arr(CostPick))),
   /* split cards in hand: the halves castable now */
   splitFaces: opt(rec(arr(nat))),
@@ -256,13 +265,13 @@ const View = obj({
 /* ---- answers to questions (the data of a 'choice' intent) ---- */
 const ids = arr(id);
 const ANSWERS = {
-  confirm: obj({ yes: opt(bool) }, { closed: true }),
-  payOrDont: obj({ pay: opt(bool) }, { closed: true }),
+  confirm: obj({ yes: opt(bool), remember: Remember }, { closed: true }),
+  payOrDont: obj({ pay: opt(bool), remember: Remember }, { closed: true }),
   payOrCounter: obj({ pay: opt(bool) }, { closed: true }),
   riot: obj({ haste: opt(bool) }, { closed: true }),
   byHand: obj({ done: opt(bool) }, { closed: true }),
   vote: obj({ choice: opt(str) }, { closed: true }),
-  mode: obj({ modes: opt(arr(int)) }, { closed: true }),
+  mode: obj({ modes: opt(arr(int)), remember: Remember }, { closed: true }),
   pickCard: obj({ cardIds: opt(ids), cardId: opt(id) }, { closed: true }),
   discard: obj({ cardIds: opt(ids) }, { closed: true }),
   discardToHandSize: obj({ cardIds: opt(ids) }, { closed: true }),
@@ -271,7 +280,7 @@ const ANSWERS = {
   surveil: obj({ top: opt(ids), bottom: opt(ids) }, { closed: true }),
   arrange: obj({ top: opt(ids) }, { closed: true }),
   orderTriggers: obj({ top: opt(ids), cardIds: opt(ids) }, { closed: true }),
-  pickTarget: obj({ targets: opt(arr(Target)) }, { closed: true }),
+  pickTarget: obj({ targets: opt(arr(Target)), remember: Remember }, { closed: true }),
   choose: ChooseAnswer,
 };
 
@@ -285,7 +294,9 @@ const INTENTS = {
   hold: closed({ on: bool }),
   autoPass: closed({ cfg: maybe(S.plainObj) }),
   fullControl: closed({ on: bool, sticky: opt(bool) }),
-  yield: closed({ mode: maybe(lit('turn', 'response')) }),
+  yield: closed({ mode: maybe(lit('turn', 'response', 'batch')) }),
+  /* remembered answers: take one back ('clear', by id or 'all'), or decline the rest of a batch of optional triggers */
+  auto: closed({ act: lit('clear', 'decline'), id: opt(str), batch: opt(id) }),
   keep: closed({ bottom: opt(ids) }),
   playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
   // the companion's {3} into hand (CR 702.139)
@@ -703,6 +714,7 @@ const CALLS = {
   setAutoPass: (pid, cfg) => ({ kind: 'autoPass', cfg }),
   setFullControl: (pid, on, sticky) => ({ kind: 'fullControl', on: !!on, sticky: !!sticky }),
   setYield: (pid, mode) => ({ kind: 'yield', mode: mode || null }),
+  autoAnswer: (pid, act, arg) => (act === 'decline' ? { kind: 'auto', act, batch: arg } : { kind: 'auto', act, id: arg }),
   mulligan: () => ({ kind: 'mulligan' }),
   keepHand: (pid, bottom) => ({ kind: 'keep', bottom: bottom || [] }),
   playLand: (pid, objId) => ({ kind: 'playLand', objId }),

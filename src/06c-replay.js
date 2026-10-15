@@ -32,7 +32,7 @@
 
   /** Everything that changes a game from outside it. */
   const MUTATORS = [
-    'start', 'mulligan', 'keepHand', 'setAutoPass', 'setFullControl', 'setYield', 'setHoldPriority',
+    'start', 'mulligan', 'keepHand', 'setAutoPass', 'setFullControl', 'setYield', 'autoAnswer', 'setHoldPriority',
     'passPriority', 'playLand', 'encoreCard', 'plotCard', 'suspendCard', 'transmuteCard', 'turnFaceUp', 'companionToHand',
     'cycleCard', 'castSpell', 'activateAbility', 'tapForMana', 'payMana', 'declareAttackers',
     'declareBlockers', 'changeLife', 'addPoison', 'addCounters', 'moveObject', 'drawCards',

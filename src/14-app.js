@@ -4853,6 +4853,8 @@
         case 'autoPass': g.setAutoPass(actorId, intent.cfg); break;
         case 'fullControl': g.setFullControl(actorId, !!intent.on, !!intent.sticky); break;
         case 'yield': g.setYield(actorId, intent.mode || null); break;
+        // remembered answers: take one back, or decline the rest of a batch of your optional triggers
+        case 'auto': g.autoAnswer(actorId, intent.act === 'decline' ? 'decline' : 'clear', String((intent.act === 'decline' ? intent.batch : intent.id) || '')); break;
         case 'mulligan': g.mulligan(actorId); break;
         case 'keep': g.keepHand(actorId, intent.bottom || []); break;
         case 'playLand': g.playLand(actorId, intent.objId, intent.face === 1 ? 1 : 0); break;

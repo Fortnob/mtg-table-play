@@ -241,3 +241,60 @@ surveil, arranging, ordering triggers, paying) keep their own screens.
 | `textFrom`, `textTo` | options (`word`, `kind`; `present` on the words its text uses) | a text-changing effect resolving (CR 612): the color word, basic land type or creature type replaced, then what it becomes (Sleight of Mind, Mind Bend, Artificial Evolution). `targetId` is what is changed |
 | `exchangeText` | objects (battlefield), one or none | Deadpool, Trading Card entering: the creature to exchange text boxes with |
 | `confirm`, `vote`, `mode`, `pickCard` | options or objects | the older shapes, through `fromLegacy` |
+
+## Answering once for all of them
+
+Some questions come round again and again: an optional trigger's "you may",
+the "pay {1} or not" a Rhystic Study puts to you, the target of the next of
+four copies of the same trigger. A person can answer those once.
+
+**Batches.** Three or more of a player's triggers that are the same (the same
+ability of the same source, or the same words) put on the stack together are
+a batch: each carries `batch`, the id of the first of them
+(`_batchTriggers`). Bots never get one. A batch only changes what is asked;
+each copy is still its own trigger.
+
+**The offer.** An engine question that could be answered for all says so with
+`remember` when it is asked (`'may'`, `'pay'`, `'mode'`, `'targets'`); `_ask`
+turns that into the question's `auto`:
+
+```js
+auto: { kind: 'targets', label: 'Satyr Grovedancer', key: '…',   // the ability and the question
+        turn: true,                    // may be answered for the rest of this turn
+        batchId: 'tr12', rest: 3,      // or for the 3 more copies of this batch
+        same: [[{ kind: 'object', id: 'o7' }]] }   // targets: what each could be for every copy
+```
+
+| `kind` | Asked by | Offered |
+|--------|----------|---------|
+| `may` | a triggered ability's "you may" | `turn` ("Yes / No to all this turn"); `rest` for an optional trigger's own "you may" ("Decline the rest") |
+| `pay` | "unless … pays", "you may pay {N}" (mana, life or energy alone), ward on a trigger | `turn` ("Always pay when I can" / "Never pay") |
+| `mode` | a trigger's modes as it goes on the stack | `rest` ("Same mode for all") |
+| `targets` | a trigger's targets as it goes on the stack | `rest` and `same` ("Same target for all"), only when some target is legal for every copy |
+
+**The answer.** The answer's data carries `remember: 'turn'` or `'batch'`
+beside the usual fields. `resolveChoice` keeps it on the player as plain data
+(`player.autoAnswers`, `_rememberAnswer`), so it survives undo, saves and the
+network. A target answer is kept only if it is one of `same`.
+
+**Using it.** When the same question comes again, `_ask` answers it from
+`autoAnswers` (`_autoAnswerFor`) instead of asking, but only with an answer that
+is legal now: the modes are among those offered, each target is among that
+copy's legal targets, a price is payable now ("always pay" with nothing to pay
+with is a no). An answer that no longer fits is asked as usual. The log says
+each time what was answered and why.
+
+**The rest.** `{ kind: 'auto', act: 'decline', batch }` declines the rest of a
+batch of optional triggers from the stack (refused for a trigger that has to
+happen); `{ kind: 'auto', act: 'clear', id }` (or `id: 'all'`) takes an answer
+back (`Game#autoAnswer`). `{ kind: 'yield', mode: 'batch' }` is "Resolve the
+rest": the player passes while their own copies of the batch are on top, and
+stops as soon as anything else is (an opponent responds) or they are asked
+anything. The view gives each player their own `autoAnswers` (`id`, `kind`,
+`text`) and each stack item its `batch` (and `optional`). Answers for a turn go
+when it ends; a batch's go when its last copy has resolved.
+
+Several triggers that are the same ability of the same source, with the same
+targets, modes and trigger event, can't be told apart, so their order is not
+asked (`_orderAsk`); mixed with others, each such set is one entry of the
+`orderTriggers` question (`ids`) and they go on the stack side by side.

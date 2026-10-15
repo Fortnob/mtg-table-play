@@ -977,6 +977,8 @@
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
       for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; p.descendedThisTurn = 0; p.lifeAtTurnStart = p.life; }
+      // what was answered for the rest of last turn is asked again (_rememberAnswer)
+      this._pruneAutoAnswers();
       for (const o of this.battlefield) o._afflicted = false;
       this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
@@ -2063,13 +2065,20 @@
      * Yielding: hand priority back until something worth seeing happens.
      *   'response' — until somebody else puts something on the stack
      *   'turn'     — for the rest of this turn, whatever happens
-     * The same two keys Arena gives you, and the same two meanings.
+     *   'batch'    — "Resolve the rest": your own copies of the trigger on top of the stack (a batch,
+     *                _batchTriggers) resolve one after another, until somebody else adds to the stack,
+     *                something else of yours goes on top, or one of them asks you something
+     * The first two are the keys Arena gives you, with the same meanings.
      */
     setYield(playerId, mode) {
       const p = this.player(playerId);
       if (!p) return;
+      const top = this.stack[this.stack.length - 1];
+      if (mode === 'batch' && !(top && top.batch && top.controller === playerId)) return this.fail('There is no batch of your triggers on top of the stack.');
       p.yieldUntil = mode || null;
       p.yieldFrom = mode ? { turn: this.turn, stack: this.stack.length } : null;
+      p.yieldBatch = mode === 'batch' ? top.batch : null;
+      if (mode === 'batch') this.logEvent('rules', `${p.name} lets the rest of ${this._batchLabel(top)} resolve.`);
       this.touch();
       this._maybeAutoPass();
     }
@@ -2098,8 +2107,14 @@
         if (p.yieldFrom && p.yieldFrom.turn !== this.turn) { p.yieldUntil = null; return false; }
         return true;
       }
-      // 'response': somebody else adding to the stack is what you were waiting for
       const top = this.stack[this.stack.length - 1];
+      // 'batch': only while one of the batch is on top — anything else there, or nothing, and it is over
+      if (p.yieldUntil === 'batch') {
+        if (top && top.batch && top.batch === p.yieldBatch && top.controller === p.id) return true;
+        p.yieldUntil = null; p.yieldFrom = null; p.yieldBatch = null;
+        return false;
+      }
+      // 'response': somebody else adding to the stack is what you were waiting for
       if (top && top.controller !== p.id) { p.yieldUntil = null; p.yieldFrom = null; return false; }
       return true;
     }
@@ -2326,6 +2341,8 @@
       if (item.finalChapter && item.obj) this._fire('finalChapterResolved', item.controller, { object: item.obj, objController: item.controller });
       // Time Stop, Sundial of the Infinite: the turn ends as this finishes resolving
       if (this._endTheTurn === this.turn) { this._endTheTurnNow(item); return; }
+      // the last of a batch gone: what was answered for its rest is done with
+      if (item.batch) this._pruneAutoAnswers();
       // spells that are not permanents go to the graveyard
       if (item.kind === 'spell' && item.obj) {
         const a = item.obj.analysis();
@@ -2917,7 +2934,7 @@
       // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
       const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj'))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
-        ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }, once ? { onceMark: once } : {})]
+        ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
@@ -16533,6 +16550,7 @@
         // (one with modes or targets to choose is told once it has them: _aimTrigger)
         if (this.resolving || !this._aimNeeded(t)) this.emit('stack:add', t);
       }
+      this._batchTriggers(order);
       /* Several of your own triggers at once is a decision the rules give
          you (CR 603.3b). The table orders them for you, as Arena does,
          unless you have asked to do it yourself — or have full control on,
@@ -16559,12 +16577,107 @@
       /* Each goes on the stack with its modes and targets chosen (CR 603.3c–d), in the order they went
          on, each by its controller; the order of your own is asked once they all have them. Something
          still resolving can't stop to ask: those choose as they resolve, as before. */
-      if (this.resolving) { for (const q of asks) this.queueChoice(q); return; }
+      if (this.resolving) { for (const q of asks) { const q2 = this._orderAsk(q); if (q2) this.queueChoice(q2); } return; }
       this._aimQueue = (this._aimQueue || []).concat(order.map(t => t.id));
       this._aimOrders = (this._aimOrders || []).concat(asks);
       const was = this.__aimInline;
       this.__aimInline = true;
       try { this._aimNext(); } finally { this.__aimInline = was; }
+    }
+
+    /**
+     * Three or more of a player's triggers that are the same — the same ability of the same source, or
+     * the same words — put on the stack together are a batch (item.batch, the id of the first of them).
+     * The rules treat each on its own; a batch only lets its controller say once what they would
+     * otherwise say each time (_autoOffer): the same target for all, decline the rest, resolve the rest.
+     * Not for a bot, which has nothing to click.
+     */
+    _batchTriggers(list) {
+      const groups = new Map();
+      for (const t of list) {
+        const p = this.player(t.controller);
+        if (!p || p.isBot || t.kind !== 'ability' || t.batch) continue;
+        let k;
+        try { k = t.controller + '|' + (t.abilityText || t.name || '') + '|' + JSON.stringify(t.effects || []); } catch (e) { continue; }
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(t);
+      }
+      for (const g of groups.values()) {
+        if (g.length < 3) continue;
+        for (const t of g) t.batch = g[0].id;
+      }
+    }
+    /** What a batch of triggers is called: its card's name. */
+    _batchLabel(item) {
+      const src = item && (item.obj || (item.objId && this.obj(item.objId)));
+      return (src && src.name) || String((item && item.name) || 'Triggered ability').split(' \u2014 ')[0];
+    }
+    /** The batch's own triggers on the stack (what is resolving is not among them). */
+    _batchMembers(batch) {
+      return batch ? this.stack.filter(s => s.batch === batch) : [];
+    }
+    /**
+     * Triggers that are the same ability of the same source, with the same targets and modes, set off by
+     * the same thing (Panharmonicon's second Wall of Omens trigger), are interchangeable: the order they go
+     * on the stack in can't matter, so it is not asked (CR 603.3b gives a choice there is nothing to choose
+     * between). Mixed with others, the order is still asked, with each set of the same ones put in as one
+     * (`ids`, all of them, side by side).
+     */
+    _trigIdentity(t) {
+      try { return JSON.stringify([t.objId || (t.obj && t.obj.id) || null, t.abilityIndex, t.abilityText || t.name || '', t.targets || [], t.modes || [], t.triggerData || null, t.x || null]); }
+      catch (e) { return t.id; }
+    }
+    _orderAsk(q) {
+      const items = (q.cards || []).map(c => this.stack.find(s => s.id === c.id)).filter(Boolean);
+      if (items.length < 2) return null;
+      const groups = new Map();
+      for (const it of items) {
+        const k = this._trigIdentity(it);
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(it);
+      }
+      if (groups.size < 2) {
+        this.logEvent('trigger', `${(this.player(q.playerId) || {}).name}'s ${items.length} triggers are the same, so their order can't matter.`);
+        return null;
+      }
+      const cards = [...groups.values()].map(g => Object.assign({ id: g[0].id, name: g[0].name + (g.length > 1 ? ` (\u00d7${g.length})` : ''),
+        card: (g[0].obj && g[0].obj.card) || null }, g.length > 1 ? { ids: g.map(x => x.id) } : {}));
+      return Object.assign({}, q, { cards, count: cards.length });
+    }
+
+    /**
+     * "Same target for all": for each target the first of a batch asks for, what it could be for every copy
+     * of the batch still to go on the stack — each copy's own legal targets, as its own source and what set it
+     * off make them, worked out the way _aimTrigger will ask them. Null when the copies don't ask alike, a
+     * copy has a mode still to choose (unless the same mode is going to all of them), or no target would do
+     * for all.
+     */
+    _aimSame(item, asked, modes) {
+      const others = this._batchMembers(item.batch).filter(x => x.id !== item.id && this._aimNeeded(x) && (this._aimQueue || []).includes(x.id));
+      if (!others.length || asked.some(sl => sl.multi)) return null;
+      const p = this.player(item.controller);
+      const sameMode = ((p && p.autoAnswers) || []).some(x => x.scope === 'batch' && x.batch === item.batch && x.kind === 'mode' && x.turn === this.turn);
+      const same = asked.map(sl => sl.options.map(t => ({ kind: t.kind, id: t.id })));
+      for (const b of others) {
+        const effects = JSON.parse(JSON.stringify(b.effects || []));
+        const top = aimModal(effects);
+        if (top) {
+          if (!modes || !sameMode || top.modal.distinctPlayers) return null;
+          top.list.splice(top.at, 1, ...[].concat(...modes.map(i => JSON.parse(JSON.stringify(((top.modal.modes || [])[i] || {}).effects || [])))));
+        }
+        const plan = triggerAimPlan(effects);
+        if (!plan.ok) return null;
+        const units = plan.units.filter(u => u.kind === 'spec');
+        if (units.some(u => !u.spec || u.spec.multi || u.spec.distinctModePlayer)) return null;
+        const src = b.obj || (b.objId && this.obj(b.objId)) || null;
+        const lists = units.map(u => {
+          const sp = this._aimSpecs([u.spec], Object.assign({}, b, { _modePlayers: [] }))[0];
+          return this._legalTargetsFor(sp, b.controller, src ? src.id : null).filter(t => !(t.kind === 'stack' && t.id === b.id));
+        }).filter(l => l.length);
+        if (lists.length !== same.length) return null;
+        same.forEach((l, k) => { same[k] = l.filter(t => lists[k].some(x => x.kind === t.kind && x.id === t.id)); });
+      }
+      return same.every(l => l.length) ? same : null;
     }
 
     /** Does this trigger, on the stack, have modes or targets to choose? */
@@ -16589,8 +16702,8 @@
       const asks = this._aimOrders || [];
       this._aimQueue = null; this._aimOrders = null;
       for (const q of asks) {
-        const cards = (q.cards || []).filter(c => this.stack.some(s => s.id === c.id));
-        if (cards.length >= 2) this.queueChoice(Object.assign({}, q, { cards, count: cards.length }));
+        const q2 = this._orderAsk(q);
+        if (q2) this.queueChoice(q2);
       }
       /* chosen after an answer, not as priority was being given: priority carries on from here, state-based
          actions first (CR 117.5) */
@@ -16640,7 +16753,7 @@
         let picks = null;
         if (m.pawprint) {
           const budget = Math.max(1, n(m.pawprint) || 1);
-          const got = this._choose({ playerId: pid, purpose: 'pawprint', kind: 'options', repeat: true, min: 1, max: budget, stackId: item.id,
+          const got = this._choose({ playerId: pid, purpose: 'pawprint', kind: 'options', repeat: true, min: 1, max: budget, stackId: item.id, remember: 'mode',
             options: modes.map((x, i) => ({ i, label: label(i), weight: x.weight || 1, cost: '{P}'.repeat(x.weight || 1) })),
             constraints: [{ kind: 'sum', key: 'weight', max: budget, label: 'paw prints' }],
             prompt: `${name}: choose up to ${budget} {P} worth of modes. A mode may be chosen more than once.` }, 'modes');
@@ -16671,7 +16784,7 @@
             } else {
               picks = usable.slice(0, want);
               if (m.optional || usable.length > want) {
-                const got = this._choose({ playerId: pid, purpose: 'modes', kind: 'options', min: want, max: want, optional: !!m.optional, stackId: item.id,
+                const got = this._choose({ playerId: pid, purpose: 'modes', kind: 'options', min: want, max: want, optional: !!m.optional, stackId: item.id, remember: 'mode',
                   options: usable.map(i => ({ i, label: label(i) })),
                   prompt: `${name}: ${m.optional ? 'you may choose' : 'choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${m.optional ? ', or none' : ''}.${m.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
                 if (got === SUSPEND) return SUSPEND;
@@ -16680,7 +16793,7 @@
             }
           } else if (usedModes && usable.length <= least) picks = usable.slice();
           else {
-            const got = this._ask({ type: 'mode', playerId: pid, count: want, stackId: item.id,
+            const got = this._ask({ type: 'mode', playerId: pid, count: want, stackId: item.id, remember: 'mode',
               min: least !== want ? least : undefined, max: most !== want ? most : undefined, repeatable: !!m.repeatable,
               options: usable.map(i => ({ i, label: label(i) })),
               prompt: m.prompt || `${name}: choose ${m.upToX ? 'up to ' : ''}${want === 1 ? 'one' : want}.` }, 'modes');
@@ -16767,8 +16880,11 @@
         // The Lord of Pain: "another target player" with one player to choose is no choice (onlyOnePlayer)
         const forced = asked.length === 1 && !asked[0].multi && !!(plan.units[asked[0].ui].spec || {}).notTriggerPlayer && asked[0].options.length === 1;
         const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
+        // the first of a batch: what each target could be for every copy still to go on the stack (_aimSame)
+        const sameTargets = !forced && gi === 0 && !groups[gi].solo && item.batch ? this._aimSame(item, asked, chosenModes) : null;
         const said = forced ? [asked[0].options[0]] : this._ask({
           type: 'pickTarget', playerId: pid, purpose: 'triggerTargets', stackId: item.id,
+          remember: 'targets', ...(sameTargets ? { sameTargets } : {}),
           specs: asked.map(sl => sl.spec), options: asked.map(sl => sl.options), count: asked.length, sourceId: srcId,
           // what each target is for, which a bot weighs it by
           aimedBy: asked.map(sl => bare(plan.units[sl.ui].at[0].eff)),
@@ -17040,6 +17156,17 @@
       if (asked && asked.hasLost) return null;
       const key = r.index + (sub ? ':' + sub : '');
       if (Object.prototype.hasOwnProperty.call(r.answers, key)) return r.answers[key];
+      /* a question its player has already answered for the turn, or for the rest of a batch: that answer, if
+         it is still a legal one (_autoAnswerFor); otherwise asked, saying what could be answered once for all */
+      let auto = null;
+      if (choice && choice.remember) {
+        auto = this._autoOffer(choice, r, sub);
+        const said = auto ? this._autoAnswerFor(choice, auto) : undefined;
+        if (said !== undefined) { r.answers[key] = said; return said; }
+        choice = Object.assign({}, choice);
+        for (const k of ['remember', 'rememberBatch', 'sameTargets', 'payCost']) delete choice[k];
+        if (auto) choice.auto = this._autoShown(auto);
+      }
       /* Whoever is asked should be able to see what is asking: the card the
          effect belongs to travels with the question, unless it says otherwise. */
       const src = r.ctx && r.ctx.obj;
@@ -17049,6 +17176,176 @@
         sourceText: (r.ctx && r.ctx.abilityText) || null };
       this.queueChoice(Object.assign(about, choice));
       return SUSPEND;
+    }
+
+    /* ---------- remembered answers ----------
+       A question the same ability asks again and again — an optional trigger's "you may", the "pay or
+       not" a Rhystic Study puts to you, the mode or targets of the next of four copies of a trigger — can
+       be answered once for all of them: for that ability of that source until the turn ends ('turn'), or
+       for the rest of a batch of triggers ('batch', _batchTriggers). Only a person says so (the answer's
+       `remember`); what they said is plain data on the player (autoAnswers), so it survives an undo, a
+       save and the network, and they can see it and take it back (autoAnswer). Each later question still
+       goes by the rules: the answer is used only if it is legal then — a target still a legal one, a price
+       still payable — and the log says what was answered for them. */
+
+    /** The ability a question comes from, as remembered answers know it: the source, and which of its abilities. */
+    _abilityKey(ctx) {
+      const id = (ctx && (ctx.objId || (ctx.obj && ctx.obj.id))) || '-';
+      return id + '#' + (ctx && ctx.abilityIndex != null && ctx.abilityIndex >= 0 ? ctx.abilityIndex : 't:' + ((ctx && (ctx.abilityText || ctx.name)) || ''));
+    }
+
+    /**
+     * What a question that could be answered once for all is (choice.remember: 'may', 'pay', 'mode',
+     * 'targets'), or null: `key` the ability and the question, `batchId` the batch it is in, `turn` whether
+     * it may be answered for the turn, `rest` how many more of the batch would take the answer, `same` (for
+     * targets) what each target could be for every one of them.
+     */
+    _autoOffer(choice, r, sub) {
+      const kind = choice.remember;
+      const ctx = r.ctx || {};
+      const p = this.player(choice.playerId);
+      if (!p || p.isBot || ctx.kind !== 'ability') return null;
+      const a = { kind, label: this._batchLabel(ctx), key: this._abilityKey(ctx) + '|' + kind + '|' + r.index + ':' + (sub || '') };
+      if (ctx.batch) a.batchId = ctx.batch;
+      const others = ctx.batch ? this._batchMembers(ctx.batch).filter(x => x.id !== ctx.id) : [];
+      if (kind === 'may') {
+        a.turn = !!ctx.triggered;
+        // "decline the rest": an optional trigger's own "you may", not one inside a trigger that has to happen
+        if (!choice.rememberBatch) delete a.batchId;
+        else if (others.length) a.rest = others.length;
+      } else if (kind === 'pay') {
+        a.turn = true;
+        if (choice.payCost) a.cost = choice.payCost;
+        delete a.batchId;
+      } else if (kind === 'mode' || kind === 'targets') {
+        // the copies still to go on the stack with theirs
+        const waiting = others.filter(x => this._aimNeeded(x) && (this._aimQueue || []).includes(x.id));
+        if (waiting.length && (kind === 'mode' || choice.sameTargets)) a.rest = waiting.length;
+        if (kind === 'targets' && choice.sameTargets) a.same = choice.sameTargets;
+      } else return null;
+      return a.turn || a.rest || a.batchId ? a : null;
+    }
+    /** What the table is told of it. */
+    _autoShown(a) {
+      const out = { kind: a.kind, label: a.label, key: a.key };
+      if (a.turn) out.turn = true;
+      if (a.rest && a.batchId) { out.batchId = a.batchId; out.rest = a.rest; }
+      if (a.same && out.rest) out.same = a.same;
+      return a.turn || out.rest ? out : null;
+    }
+    /** Can the price a "pay" question names be paid now? */
+    _autoCanPay(choice, a) {
+      const p = this.player(choice.playerId);
+      const cost = a.cost || choice.cost;
+      if (typeof cost === 'string' && cost) return /^(?:\{E\})+$/.test(cost) ? (p.energy || 0) >= (cost.match(/\{E\}/g) || []).length : this.couldPay(p.id, cost);
+      if (cost && cost.life != null) return p.life > cost.life;
+      if (cost && cost.energy != null) return (p.energy || 0) >= cost.energy;
+      const w = choice.ward;
+      if (w) return (!w.mana || this.couldPay(p.id, w.mana)) && (!w.life || p.life >= w.life);
+      return true;
+    }
+    /** The answer a player gave for all of these, if it is a legal answer to this one (undefined if not). */
+    _autoAnswerFor(choice, a) {
+      const p = this.player(choice.playerId);
+      const rules = ((p && p.autoAnswers) || []).filter(x => x.turn === this.turn);
+      const rule = (a.batchId && rules.find(x => x.scope === 'batch' && x.batch === a.batchId && x.kind === a.kind)) ||
+        (a.turn && rules.find(x => x.scope === 'turn' && x.key === a.key && x.kind === a.kind));
+      if (!rule) return undefined;
+      let v = rule.answer, said;
+      const same = (x, y) => !!x && !!y && x.kind === y.kind && x.id === y.id;
+      switch (choice.type) {
+        case 'confirm': case 'payOrDont':
+          v = !!v;
+          if (a.kind === 'pay' && v && !this._autoCanPay(choice, a)) { v = false; said = "can't pay, so doesn't"; }
+          said = said || (a.kind === 'pay' ? (v ? 'pays' : "doesn't pay") : v ? 'yes' : 'no');
+          break;
+        case 'mode': {
+          const ok = new Set((choice.options || []).map((o, k) => (o.i != null ? o.i : k)));
+          const cnt = Math.max(1, choice.count || 1);
+          const lo = choice.min != null ? choice.min : cnt, hi = choice.max != null ? choice.max : cnt;
+          if (!Array.isArray(v) || v.length < lo || v.length > hi || !v.every(i => ok.has(i)) || (!choice.repeatable && new Set(v).size !== v.length)) return undefined;
+          v = v.slice();
+          said = v.map(i => ((choice.options || []).find(o => o.i === i) || {}).label || 'mode ' + (i + 1)).join('; ');
+          break;
+        }
+        case 'choose': {
+          const C = MTG.choice;
+          const s = C.normalize(choice);
+          const got = C.check(s, v, this._chooseHooks(p.id));
+          if (!got.ok) return undefined;
+          v = { picks: got.picks, number: got.number, order: got.order };
+          said = s.kind === 'options' ? got.picks.map(k => ((s.options || [])[k] || {}).label).filter(Boolean).join('; ') : 'the same';
+          break;
+        }
+        case 'pickTarget': {
+          const opts = choice.options || [];
+          if (!Array.isArray(v) || v.length !== opts.length || !v.every((t, k) => (opts[k] || []).some(x => same(x, t)))) return undefined;
+          v = v.map(t => ({ kind: t.kind, id: t.id }));
+          said = v.map(t => this.describeTarget(t)).join(', ');
+          break;
+        }
+        default: return undefined;
+      }
+      this.logEvent('rules', `${p.name}: ${a.label} \u2014 ${said} (${rule.text}).`);
+      return v;
+    }
+    /** Remember an answer a person gave to a question that offered it (`how`: 'turn' or 'batch'). */
+    _rememberAnswer(pid, ch, value, how) {
+      const a = ch && ch.auto;
+      const p = this.player(pid);
+      if (!a || !p || p.isBot) return;
+      if (how === 'turn' ? !a.turn : how === 'batch' ? !(a.rest > 0 && a.batchId) : true) return;
+      if (a.kind === 'targets') {
+        // only an answer legal for every one of them (what the question said each could be)
+        const sm = a.same || [];
+        if (!Array.isArray(value) || value.length !== sm.length || !value.every((t, k) => (sm[k] || []).some(x => x.kind === t.kind && x.id === t.id))) return;
+      }
+      const what = a.kind === 'may' ? (how === 'batch' ? (value ? 'yes to the rest' : 'decline the rest') : (value ? 'yes' : 'no') + ' this turn')
+        : a.kind === 'pay' ? (value ? 'always pay this turn' : 'never pay this turn')
+        : a.kind === 'mode' ? 'same mode for the rest' : 'same target for the rest';
+      const rule = { id: a.kind + ':' + (how === 'batch' ? a.batchId : a.key), kind: a.kind, scope: how, turn: this.turn,
+        answer: JSON.parse(JSON.stringify(value)), text: `${a.label}: ${what}` };
+      if (how === 'batch') rule.batch = a.batchId; else rule.key = a.key;
+      p.autoAnswers = (p.autoAnswers || []).filter(x => x.id !== rule.id).concat([rule]);
+      this.logEvent('rules', `${p.name} chooses ${rule.text}.`);
+    }
+    /**
+     * A player's remembered answers, from the table: 'clear' one (by id, or 'all'), or 'decline' the rest
+     * of a batch of their optional triggers on the stack — each one's "you may" answered no as it resolves.
+     * A trigger that has to happen can't be declined.
+     */
+    autoAnswer(playerId, act, arg) {
+      const p = this.player(playerId);
+      if (!p) return false;
+      if (act === 'clear') {
+        const had = (p.autoAnswers || []).length;
+        p.autoAnswers = arg === 'all' ? [] : (p.autoAnswers || []).filter(x => x.id !== arg);
+        if (p.autoAnswers.length !== had) this.logEvent('rules', `${p.name} will be asked again.`);
+        this.touch();
+        return true;
+      }
+      if (act === 'decline') {
+        const list = this._batchMembers(arg).filter(x => x.controller === playerId);
+        if (!list.length) return this.fail('Those triggers are no longer on the stack.');
+        if (!list.every(x => x.optional)) return this.fail("Those triggers aren't optional: they can't be declined.");
+        const rule = { id: 'may:' + arg, kind: 'may', scope: 'batch', batch: arg, turn: this.turn, answer: false,
+          text: `${this._batchLabel(list[0])}: decline the rest` };
+        p.autoAnswers = (p.autoAnswers || []).filter(x => x.id !== rule.id).concat([rule]);
+        this.logEvent('rules', `${p.name} declines the rest of ${this._batchLabel(list[0])} (${list.length}).`);
+        this.touch();
+        return true;
+      }
+      return this.fail('Unknown request.');
+    }
+    /** Remembered answers that can't apply again: another turn's, a batch's that has all resolved. */
+    _pruneAutoAnswers() {
+      const live = new Set(this.stack.map(x => x.batch).filter(Boolean));
+      if (this.resolving && this.resolving.ctx && this.resolving.ctx.batch) live.add(this.resolving.ctx.batch);
+      for (const p of this.players) {
+        if (!p.autoAnswers || !p.autoAnswers.length) continue;
+        const keep = p.autoAnswers.filter(x => x.turn === this.turn && (x.scope !== 'batch' || live.has(x.batch)));
+        if (keep.length !== p.autoAnswers.length) p.autoAnswers = keep;
+      }
     }
 
     /* ---------- the generic question (docs/choices.md) ----------
@@ -20774,7 +21071,7 @@
               this.logEvent('ward', `${what} is countered by ${wardName} — ${payer.name} can't pay ${price}.`);
               break;
             }
-            const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'wardPrice', objId: src.id, stackId: item.id,
+            const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'wardPrice', objId: src.id, stackId: item.id, remember: 'pay',
               ward: { mana: e.mana || null, life: e.lifePower ? Math.max(0, this.powerOf(src)) : (e.life || 0), poison: e.poison || 0,
                 evidence: e.evidence || 0, waterbend: e.waterbend || null },
               prompt: `${wardName} — ${price}. Pay it, or ${what} is countered?`,
@@ -21976,6 +22273,8 @@
           // Slicer, Hired Muscle: lending itself to the player whose upkeep it is (lendSelf, for the bots)
           const lend = (e.then || []).some(x => x && x.op === 'giveControl' && x.self);
           const yes = this._ask({ type: 'confirm', playerId: who.id, ...(lend ? { purpose: 'lendSelf' } : {}),
+            // (the same answer for the rest of the turn, or — an optional trigger's own "you may" — for the rest of a batch)
+            remember: 'may', rememberBatch: !!e.optionalTrigger,
             // (Sweep Away: "Top of its library" / "Return it to hand")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             // (Ral, Obzedat: "Exile CARDNAME …?" — by its name)
@@ -22058,7 +22357,11 @@
           }
           if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.removeAmong || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
+          // ("you may pay {1}": always, or never, for the rest of the turn — a price that is mana, life or energy alone)
+          const plainPay = Object.keys(pay).every(k => k === 'mana' || k === 'life' || k === 'energy' || pay[k] == null) && (pay.mana || pay.life != null || pay.energy);
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            ...(plainPay ? { remember: 'pay', payCost: pay.mana && pay.life == null && !pay.energy ? pay.mana
+              : !pay.mana && pay.life != null && !pay.energy ? { life: pay.life } : !pay.mana && pay.life == null && pay.energy ? { energy: pay.energy } : undefined } : {}),
             // (Koskun Falls: "Tap one" / "Sacrifice it")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} ${/\bX\b/.test(e.text || 'X') ? `(X is ${lifeX}.)` : `(${lifeX} life.)`}` : `${ctx.name || 'Effect'}: ${whole(e.text || 'pay the cost', 90)}`) }, 'q');
@@ -22420,7 +22723,7 @@
             if (!k) break;
             if ((payer.energy || 0) < k) { this._spliceNext(e.then); break; }
             const costE = '{E}'.repeat(k);
-            const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost: costE, prompt: e.prompt || `Pay ${costE} to keep ${it.name}?` });
+            const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost: costE, remember: 'pay', prompt: e.prompt || `Pay ${costE} to keep ${it.name}?` });
             if (paidE === SUSPEND) return SUSPEND;
             if (paidE) { payer.energy -= k; this.logEvent('rules', `${payer.name} pays ${costE}.`); } else this._spliceNext(e.then);
             break;
@@ -22435,7 +22738,7 @@
           if (typeof cost === 'string' && /^(?:\{E\})+$/.test(cost)) {
             const k = (cost.match(/\{E\}/g) || []).length;
             if ((payer.energy || 0) < k) { this._spliceNext(e.then); break; }
-            const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost, prompt: e.prompt || `Pay ${cost}?` });
+            const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost, remember: 'pay', prompt: e.prompt || `Pay ${cost}?` });
             if (paidE === SUSPEND) return SUSPEND;
             if (paidE) { payer.energy -= k; this.logEvent('rules', `${payer.name} pays ${cost}.`); } else this._spliceNext(e.then);
             break;
@@ -22448,7 +22751,7 @@
             this._spliceNext(e.then);
             break;
           }
-          const paid = this._ask({ type: 'payOrDont', playerId: payer.id, cost,
+          const paid = this._ask({ type: 'payOrDont', playerId: payer.id, cost, remember: 'pay',
             prompt: e.prompt || `Pay ${typeof cost === 'string' ? cost : cost.life + ' life'}?` });
           if (paid === SUSPEND) return SUSPEND;
           let ok = false;
@@ -32597,6 +32900,9 @@
       }
       this.choiceQueue = this.choiceQueue || [];
       this.choiceQueue.push(ch);
+      // "Resolve the rest" stops at anything its player has to decide (setYield)
+      const asked = ch && this.player(ch.playerId);
+      if (asked && asked.yieldUntil === 'batch') { asked.yieldUntil = null; asked.yieldFrom = null; asked.yieldBatch = null; }
       if (!this.pendingChoice) this._nextChoice();
     }
     /* A question that shows a player cards from somebody else's hand (Thoughtseize's pick, Gitaxian Probe's look)
@@ -32636,6 +32942,14 @@
     resolveChoice(playerId, data) {
       const ch = this.pendingChoice;
       if (!ch || ch.playerId !== playerId) return this.fail('No choice pending for you.');
+      /* "Yes to all this turn", "Same target for all": the answer, and that it is the answer to the rest of
+         them too ('turn' or 'batch', as the question offered: _rememberAnswer) */
+      let remember = null;
+      if (data && typeof data === 'object' && data.remember != null) {
+        remember = data.remember === 'turn' || data.remember === 'batch' ? data.remember : null;
+        data = Object.assign({}, data);
+        delete data.remember;
+      }
       /* The older shapes that are simple enough to be generic questions
          (MTG.choice.fromLegacy) take a generic answer too: the picks are
          turned back into what each has always been given. */
@@ -33085,10 +33399,12 @@
         case 'orderTriggers': {
           const want = (data && (data.top || data.cardIds)) || [];
           if (!want.length) break;
-          const ids = new Set((ch.cards || []).map(c => c.id));
-          const picked = want.filter(id => ids.has(id));
+          // (the same triggers, put in as one: all of them, side by side — _orderAsk)
+          const members = new Map((ch.cards || []).map(c => [c.id, Array.isArray(c.ids) && c.ids.length ? c.ids : [c.id]]));
+          const ids = new Set([].concat(...members.values()));
+          const picked = [...new Set(want.filter(id => members.has(id)))];
           const rest = (ch.cards || []).map(c => c.id).filter(id => !picked.includes(id));
-          const wanted = picked.concat(rest);
+          const wanted = [].concat(...picked.concat(rest).map(id => members.get(id)));
           /* The stack keeps its shape: only the slots those triggers are
              sitting in are rearranged, so anything else on the stack stays
              exactly where it was. */
@@ -33122,6 +33438,7 @@
         default: break;
       }
       const resumeKey = ch.resumeKey;
+      if (remember && ch.auto) this._rememberAnswer(playerId, ch, this._answerFor(ch, data), remember);
       this.pendingChoice = null;
       // if an effect was waiting on this, give it the answer and start it again
       if (resumeKey != null && this.resolving) {
@@ -34707,6 +35024,10 @@
         fullControl: !!((this.config.autoPass || {})[playerId] || {}).fullControl,
         fullControlSticky: !!((this.config.autoPass || {})[playerId] || {}).fullControlSticky,
         yielding: (this.player(playerId) || {}).yieldUntil || null,
+        /* what you said once for the rest of the turn or of a batch of triggers, for the table to show and take
+           back (autoAnswer) — yours alone */
+        autoAnswers: ((this.player(playerId) || {}).autoAnswers || []).filter(x => x.turn === this.turn)
+          .map(x => Object.assign({ id: x.id, kind: x.kind, text: x.text }, x.batch ? { batch: x.batch } : {})),
         playable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).map(x => x.objId) : [],
         /* Split cards in hand: which halves can be cast now (0 left, 1 right),
@@ -34793,6 +35114,8 @@
           triggered: !!s.triggered,
           // a triggered ability's modes, chosen as it was put on the stack (_aimTrigger)
           modes: s.modes && s.modes.length ? s.modes.slice() : undefined,
+          // one of three or more of the same trigger put on the stack together (_batchTriggers), and whether it is a "you may"
+          batch: s.batch || undefined, optional: s.batch && s.optional ? true : undefined,
           face: s.obj && !secret(s.obj) ? (s.obj.face || 0) : null,
           // a spell whose words a text-changing effect changed (layer 3): what it says now
           textNow: s.kind === 'spell' && s.obj && !secret(s.obj) ? this._textNowView(s.obj) : undefined,
