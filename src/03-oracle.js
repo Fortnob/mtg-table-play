@@ -1771,6 +1771,8 @@
     { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
       make: () => [{ op: 'giveControl', to: 'triggerPlayer', self: true }, { op: 'untap', scope: 'self' },
         { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
+    // Jared Carthalion, True Heir: "You can't become the monarch this turn."
+    { re: /^You can'?t become the monarch this turn\.?$/i, make: () => ({ op: 'noMonarchThisTurn' }) },
     // Karona, False God: "At the beginning of each player's upkeep, that player untaps Karona and gains control of it."
     { re: /^That player untaps CARDNAME and gains control of it\.?$/i,
       make: () => [{ op: 'untap', scope: 'self' }, { op: 'giveControl', to: 'triggerPlayer', self: true }] },
@@ -3117,7 +3119,8 @@
     // Mahadi: "Create a Treasure token for each creature that died this turn."
     { re: /^Create (?:a|an|one) (tapped )?(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Gold|Shard) token for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? Object.assign({ op: 'createNamedToken', n: c, token: m[2] }, m[1] ? { tapped: true } : {}) : null; } },
-    { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Mutagen) tokens?\.?$/i,
+    // (Aerid Konstrari: "create a Heartwood token")
+    { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Mutagen|Heartwood) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
 
     // --- sentences that need no action from the engine ---
@@ -3797,6 +3800,10 @@
     /* Night of the Sweets' Revenge and kin */
     { re: /^Creatures you control get \+X\/\+X until end of turn, where X is the number of ([A-Za-z ]+?) you control\.?$/i,
       make: (m) => { const c = countOf(m[1] + ' you control'); return c ? { op: 'pump', p: c, t: c, duration: 'eot', scope: 'yourCreatures' } : null; } },
+    /* General Tazri: "Ally creatures you control get +X/+X until end of turn, where X is the number of colors among those
+       creatures." — counted as it resolves (colorsAmongScope) */
+    { re: /^([A-Z][a-z]+ creatures you control) get \+X\/\+X until end of turn, where X is the number of colou?rs among those creatures\.?$/,
+      make: (m) => { const sc = scopeOf(m[1]); if (!sc || sc.self) return null; const c = { colorsAmongScope: sc, mult: 1 }; return { op: 'pump', p: c, t: c, duration: 'eot', scope: sc }; } },
     /* Aerith Gainsborough, Halana and Alena */
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on each ([a-z ]+?), where X is the number of (\+1\/\+1|[a-z]+) counters on (?:CARDNAME|this creature|it)\.?$/i,
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: { countersOnSelf: m[3].toLowerCase() }, scope: sc } : null; } },
@@ -5121,6 +5128,14 @@
     /* ===== blink, in the longer phrasings ===== */
     { re: /^Exile (up to one )?((?:other |another )?target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blink', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
+    /* Gandalf, Shadow's Foe: "exile up to three target lands you control, then return them to the battlefield tapped under
+       their owner's control" — all out, then all back together (blink tapped) */
+    { re: /^Exile up to (two|three|four|five) target ([a-z]+)s( you control)?, then return them to the battlefield( tapped)? under their owner'?s'? control\.?$/i,
+      make: (m) => {
+        const spec = targetSpec('target ' + m[2] + (m[3] || ''));
+        if (!spec || spec.unknown) return null;
+        return Object.assign({ op: 'blink', targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, spec, { upTo: true })) }, m[4] ? { tapped: true } : {});
+      } },
     // Aethergeode Miner: "Exile this creature, then return it to the battlefield under its owner's control."
     { re: /^Exile (?:this creature|this permanent|this artifact|CARDNAME), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
       make: () => ({ op: 'blink', self: true }) },
@@ -9761,6 +9776,12 @@
        — the opponent chosen (or the one there is), the goad held by that control effect (giveSelfGoaded) */
     { re: /^You may have an opponent gain control of (?:it|CARDNAME|this creature)\. If you do, it'?s goaded for as long as they control it\.?$/i,
       make: () => [{ op: 'giveSelfGoaded' }] },
+    /* Lagrella, the Magpie: "exile any number of other target creatures controlled by different players until Lagrella
+       leaves the battlefield. When an exiled card enters under your control this way, put two +1/+1 counters on it." — one
+       for each player at most (eight at a table), and a trigger for each that comes back to you (returnCounters) */
+    { re: /^Exile any number of other target creatures controlled by different players until CARDNAME leaves the battlefield\. When an exiled card enters under your control this way, put (two|three) \+1\/\+1 counters on it\.?$/i,
+      make: (m) => [{ op: 'exileUntilLeaves', returnCounters: { kind: '+1/+1', n: num(m[1]) },
+        targets: [1, 2, 3, 4, 5, 6, 7, 8].map(() => Object.assign(targetSpec('target creature'), { another: true, upTo: true, distinct: true, differentControllers: true })) }] },
     // Rex, Cyber-Hound: "Choose target creature card in a graveyard. Exile it with a brain counter on it."
     { re: /^Choose (target [a-z ]+? card) in a graveyard\. Exile it with an? ([a-z]+) counter on it\.(?: Activate only as a sorcery\.)?$/i,
       make: (m) => {

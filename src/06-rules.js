@@ -15672,7 +15672,7 @@
       o._leftExileWith = from === 'exile' && toZone !== 'exile' ? (o.exiledWithId || null) : null;
       // (Hildibrand Manderville: out of the graveyard, the leave to cast it from there is over — graveAdventure)
       if (from === 'graveyard' && toZone !== 'graveyard') o.graveAdvBy = null;
-      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; }
+      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
       if (o._exileFromStack) {
@@ -17401,7 +17401,14 @@
           if (!opts.length && !(sp && sp.upTo)) return gone('has no legal target');
           slots.push({ ui, spec: sp, options: opts });
         }
-        const asked = slots.filter(sl => sl.options.length);
+        let asked = slots.filter(sl => sl.options.length);
+        /* Lagrella, the Magpie: "any number of other target creatures controlled by different players" — no more of them
+           than there are players controlling one (differentControllers) */
+        const dcs = asked.filter(sl => sl.spec && sl.spec.differentControllers && sl.spec.upTo);
+        if (dcs.length > 1) {
+          const ctls = new Set(dcs.flatMap(sl => sl.options.map(x => (this.obj(x.id) || {}).controller).filter(Boolean)));
+          if (dcs.length > ctls.size) { const drop = new Set(dcs.slice(Math.max(1, ctls.size))); asked = asked.filter(sl => !drop.has(sl)); }
+        }
         if (!asked.length) continue;
         // The Lord of Pain: "another target player" with one player to choose is no choice (onlyOnePlayer)
         const forced = asked.length === 1 && !asked[0].multi && !!(plan.units[asked[0].ui].spec || {}).notTriggerPlayer && asked[0].options.length === 1;
@@ -22387,14 +22394,17 @@
             if (who === SUSPEND) return SUSPEND;
             to = this.player(who && who.picks && who.picks[0]) || opps[0];
           }
-          for (const x of list) {
-            if (x.zone !== 'battlefield') continue;
-            const owner = to ? to.id : (x.owner || x.controller);
-            this.moveObject(x, 'exile');
-            this._lastExiled = x.id;
+          /* Gandalf, Shadow's Foe: "exile up to three target lands you control, then return them to the battlefield
+             tapped" — all of them out, then all back together (tapped) */
+          const out = list.filter(x => x.zone === 'battlefield');
+          for (const x of out) { this.moveObject(x, 'exile'); this._lastExiled = x.id; }
+          for (const x of out) {
             const back = this.obj(x.id) || x;
-            this.moveObject(back, 'battlefield', { controller: owner });
-            this.logEvent('blink', to ? `${x.name} flickers out and returns under ${to.name}'s control.` : `${x.name} flickers out and returns.`);
+            if (back.zone !== 'exile') continue;
+            const owner = to ? to.id : (back.owner || back.controller);
+            this.moveObject(back, 'battlefield', Object.assign({ controller: owner }, e.tapped ? { tapped: true } : {}));
+            if (e.tapped && back.zone === 'battlefield') back.tapped = true;
+            this.logEvent('blink', to ? `${x.name} flickers out and returns under ${to.name}'s control.` : `${x.name} flickers out and returns${e.tapped ? ' tapped' : ''}.`);
           }
           this.emit('sfx', 'blink');
           break;
@@ -22761,6 +22771,10 @@
           }
           break;
         }
+        // Jared Carthalion, True Heir: "You can't become the monarch this turn."
+        case 'noMonarchThisTurn':
+          me.noMonarchTurn = this.turn;
+          break;
         case 'keepMana':
           /* Klauth, Unrivaled Ancient: "Spend this mana only to cast spells. Until end of turn, you don't lose this
              mana as steps and phases end." — that mana, set aside, is kept; the rest of the pool empties as usual */
@@ -26807,6 +26821,8 @@
             if (!o) continue;
             this.moveObject(o, 'exile');
             o.exiledBy = src ? src.id : null;
+            // Lagrella, the Magpie: "When an exiled card enters under your control this way, put two +1/+1 counters on it."
+            if (e.returnCounters && o.zone === 'exile') o.exiledReturnCounters = Object.assign({ pid: ctx.controller, from: src ? src.name : '' }, e.returnCounters);
             this._lastExiled = o.id;
           }
           break;
@@ -33618,6 +33634,8 @@
         Mutagen: { type: 'Token Artifact — Mutagen', text: '{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature. Activate only as a sorcery.' },
         // Hansk, Slayer Zealot: "Walker tokens. (They're 2/2 black Zombie creatures.)"
         Walker: { type: 'Token Creature — Zombie', text: '', colors: ['B'], power: 2, toughness: 2 },
+        // Aerid Konstrari: "a red and green artifact with "{T}: Add {R} or {G}.""
+        Heartwood: { type: 'Token Artifact — Heartwood', text: '{T}: Add {R} or {G}.', colors: ['R', 'G'] },
       };
       /* Academy Manufactor: a Clue, Food or Treasure becomes one of each */
       if (['Clue', 'Food', 'Treasure'].includes(e.token) && !e._trio) {
@@ -34722,8 +34740,18 @@
         if (o.isToken && !((this.zones[o.owner] || {}).exile || []).includes(o)) continue;
         // Valki, God of Lies: a card exiled from a hand goes back to that hand (CR 610.3c, exiledReturn)
         if (o.exiledReturn === 'hand') { o.exiledReturn = null; this.moveObject(o, 'hand'); this.logEvent('zone', `${o.name} returns from exile to ${this.player(o.owner).name}'s hand.`); continue; }
+        const rc = o.exiledReturnCounters;
+        o.exiledReturnCounters = null;
         this.moveObject(o, 'battlefield', { controller: o.owner });
         this.logEvent('zone', `${o.name} returns from exile.`);
+        /* Lagrella, the Magpie: "When an exiled card enters under your control this way, put two +1/+1 counters on it."
+           — a trigger of its own, for the one that came back to you */
+        if (rc && o.zone === 'battlefield' && o.controller === rc.pid) {
+          const text = `When an exiled card enters under your control this way, put ${rc.n === 2 ? 'two' : rc.n} ${rc.kind} counters on it.`;
+          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: rc.pid,
+            name: `${rc.from || o.name} \u2014 ${rc.kind} counters`, auto: true, abilityText: text,
+            effects: [{ op: 'counters', kind: rc.kind, n: rc.n, scope: 'self', text }], triggerData: { event: 'returned', objectId: o.id } });
+        }
       }
     }
 
@@ -36099,6 +36127,8 @@
       const p = this.player(playerId);
       if (!p || p.hasLost) return false;
       if (p.monarch) return false;
+      // Jared Carthalion, True Heir: "You can't become the monarch this turn." (noMonarchTurn)
+      if (p.noMonarchTurn === this.turn) { this.logEvent('monarch', `${p.name} can't become the monarch this turn.`); return false; }
       for (const x of this.players) x.monarch = false;
       p.monarch = true;
       this.logEvent('monarch', `${p.name} becomes the monarch${how ? ' (' + how + ')' : ''}.`);
