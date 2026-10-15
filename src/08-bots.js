@@ -1935,8 +1935,14 @@
       const g = this.game;
       const worth = (opt) => ((opt && opt.ids) || []).map(id => g.obj(id)).filter(Boolean)
         .reduce((t, o) => t + Math.max(0.5, o.zone === 'battlefield' ? this.permanentValue(o) : rateCard(o.card, { prior: 0 })), 0);
-      const v = (s.options || []).map(worth);
+      const opts = s.options || [];
+      const v = opts.map(worth);
       if (v.length < 2) return null;
+      /* Atris, Oracle of Half-Truths: a face-down pile is only a count — each card in it taken to be worth what
+         the face-up ones are on average */
+      const seen = opts.filter(o => !o.faceDown).reduce((n, o) => n + ((o.ids || []).length), 0);
+      const avg = seen ? opts.reduce((t, o, i) => t + (o.faceDown ? 0 : v[i]), 0) / seen : 1;
+      opts.forEach((o, i) => { if (o && o.faceDown) v[i] = (o.count || 0) * avg; });
       // the pile worth more, unless it is the pile that goes (Liliana's piles)
       const more = (s.forPlayer === this.pid) !== !!s.harmful;
       return { picks: [(v[1] > v[0]) === more ? 1 : 0] };

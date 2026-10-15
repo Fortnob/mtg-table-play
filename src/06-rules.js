@@ -118,6 +118,11 @@
     }
     get name() {
       if (this.faceDown) return 'Face-down card';
+      // Princess Yue: "She's a land named Moon." — a name it was given as it entered (setName)
+      if (this.zone === 'battlefield' && this.effects && this.effects.length) {
+        const nm = this.effects.find(e => e && e.setName);
+        if (nm) return nm.setName;
+      }
       const f = this.card.card_faces && this.card.card_faces[this.face];
       return (f && f.name) || this.card.name;
     }
@@ -6797,7 +6802,8 @@
           prompt: `Splice onto ${o.name}? Each card you choose is revealed and its splice cost paid.` };
       }
       if (kind === 'conspire') {
-        if (!(a && a.keywordSet && a.keywordSet.has('conspire'))) return null;
+        // (Wort, the Raidmother: a spell given conspire by a standing rule — spellKeyword)
+        if (!(a && a.keywordSet && a.keywordSet.has('conspire')) && !(o.controller === playerId && this._spellKeywordFrom(o, 'conspire'))) return null;
         const colours = (o.card && o.card.colors) || [];
         const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && !x.tapped &&
           (this.characteristics(x) || {}).isCreature && ((this.characteristics(x) || {}).colors || x.card.colors || []).some(c => colours.includes(c)));
@@ -8620,7 +8626,8 @@
           : (raw && typeof raw === 'object' && raw.returnedMv) ? (o._returnedMv || 0)
           : (raw && typeof raw === 'object' && raw.per) ? this.countPermanents(o.controller, { per: raw.per })
           // Diregraf Colossus: "for each Zombie card in your graveyard"
-          : (raw && typeof raw === 'object' && raw.count) ? this._countValue(raw.count, o.controller, o)
+          // (Ulasht, the Hate Seed: "… for each other red creature you control and … for each other green creature" — count2)
+          : (raw && typeof raw === 'object' && raw.count) ? this._countValue(raw.count, o.controller, o) + (raw.count2 ? this._countValue(raw.count2, o.controller, o) : 0)
           : (parseInt(raw, 10) || 0);
         // Kavu Titan: "and with trample"
         if (a.entersWithCounters.withKeywords) { o.effects.push({ keywords: a.entersWithCounters.withKeywords.slice(), until: null }); o._chr = null; }
@@ -10752,6 +10759,11 @@
       if (!spell) return false;
       // "Spend this mana only to activate abilities."
       if (spendOnly.noSpells) return false;
+      // Rosheen Meanderer: "Spend this mana only on costs that contain {X}." — a spell with {X} in its mana cost (costWithX)
+      if (spendOnly.costWithX) {
+        const c = spell.card || {};
+        return /\{X\}/.test(c.mana_cost || '') || (c.card_faces || []).some(f => f && /\{X\}/.test(f.mana_cost || ''));
+      }
       // The Ringhart Crest: "or a legendary creature spell" — either will do (orWords)
       if (spendOnly.orWords && this._cardFitsWords(spell, spendOnly.orWords)) return true;
       // (Helga, Skittish Seer: "or creature spells with {X} in their mana costs" — spendBigOrX)
@@ -10770,6 +10782,8 @@
     _spendForAbility(spendOnly, abilityOf, ab, src) {
       if (!spendOnly || !abilityOf) return false;
       if (spendOnly.open && !spendOnly.words) return true;
+      // (Rosheen Meanderer: an ability whose cost has {X} in it — costWithX)
+      if (spendOnly.costWithX) return !!(ab && ab.cost && /\{X\}/.test(ab.cost.mana || ''));
       /* "…or activate abilities of creatures": an ability of the right
          kind of permanent may borrow it as well. */
       if (spendOnly.abilitiesOf && this._cardFitsWords(abilityOf, spendOnly.abilitiesOf) &&
@@ -12358,7 +12372,9 @@
         if (src.controller !== o.controller || src.phasedOut) continue;
         const e = this._staticOp(src, 'spellKeyword');
         // (Shadow the Hedgehog: "if mana from an artifact was spent to cast it" — manaFromArtifact)
-        if (e && e.keyword === k && this._cardFitsWords(o, e.words) && (!e.ifArtifactMana || o.manaFromArtifact > 0)) return true;
+        // (Wort, the Raidmother: "Each red or green instant or sorcery spell you cast has conspire" — colors)
+        if (e && e.keyword === k && this._cardFitsWords(o, e.words) && (!e.ifArtifactMana || o.manaFromArtifact > 0) &&
+          (!e.colors || ((this.characteristics(o) || {}).colors || (o.card && o.card.colors) || []).some(c => e.colors.includes(c)))) return true;
       }
       return false;
     }
@@ -15696,6 +15712,7 @@
         o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard || meldTo || (o.face || 0) !== 0 ? was : null;
         const lc = this.characteristics(o);
         o._leftAsCreature = !!(lc && lc.isCreature);
+        o._leftAsLand = !!(was && was.isLand);   // (Princess Yue: "if she was a nonland creature")
         // Rhys, the Evermore: "gains persist until end of turn" — a keyword it was given still counts as it dies
         o._leftKw = lc ? ['persist', 'undying'].filter(k => lc.keywords.has(k)) : [];
         // its power as it last existed, for "equal to its power" after it has gone
@@ -15848,7 +15865,8 @@
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.ts = null;
         o.chosenExiled = null;           // Koh, the Face Stealer: "the last chosen card" was chosen by the old object
-        o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
+        o._usedModes = null;             // Zuko, Conflicted: "choose one that hasn't been chosen" — by this object, not the old one
+        o.encoded = null;               // cipher: a new object remembers nothing encoded on the old one
         o.leaveExile = false; o.unearthedTurn = null;
         if (vanishes) this.emit('object:gone', o);
       }
@@ -22337,14 +22355,24 @@
         case 'blink': {
           const list = e.self ? [src].filter(Boolean)
             : targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+          // Zuko, Conflicted: "return him to the battlefield under an opponent's control" — the opponent chosen first (toOpponent)
+          let to = null;
+          if (e.toOpponent && list.some(x => x.zone === 'battlefield')) {
+            const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+            if (!opps.length) break;
+            const who = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players', items: this._choosePlayers(opps), min: 1, max: 1,
+              prompt: `Choose an opponent. ${list[0].name} returns to the battlefield under their control.` }, 'blinkOpp');
+            if (who === SUSPEND) return SUSPEND;
+            to = this.player(who && who.picks && who.picks[0]) || opps[0];
+          }
           for (const x of list) {
             if (x.zone !== 'battlefield') continue;
-            const owner = x.owner || x.controller;
+            const owner = to ? to.id : (x.owner || x.controller);
             this.moveObject(x, 'exile');
             this._lastExiled = x.id;
             const back = this.obj(x.id) || x;
             this.moveObject(back, 'battlefield', { controller: owner });
-            this.logEvent('blink', `${x.name} flickers out and returns.`);
+            this.logEvent('blink', to ? `${x.name} flickers out and returns under ${to.name}'s control.` : `${x.name} flickers out and returns.`);
           }
           this.emit('sfx', 'blink');
           break;
@@ -22946,7 +22974,10 @@
              and discard a card" with no card in hand is a no. */
           const able = (!pay.mana || this.couldPay(ctx.controller, pay.mana, this.manaSources(ctx.controller))) &&
             (pay.life == null || me.life > pay.life || this.config.rulesEnforcement !== 'full') &&
-            (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
+            // (Leatherhead, Swamp Stalker: "remove a counter from her" — any kind: kind '*')
+            (!pay.removeCounter || (src && src.zone === 'battlefield' && (pay.removeCounter.kind === '*'
+              ? Object.values(src.counters || {}).reduce((t, v) => t + Math.max(0, Number(v) || 0), 0)
+              : (Number(src.counters[pay.removeCounter.kind]) || 0)) >= (pay.removeCounter.n || 1))) &&
             (!pay.removeEach || this._counterCostPool(ctx.controller, pay.removeEach, null).length >= pay.removeEach.n) &&
             (!pay.removeAmong || this._counterCostPool(ctx.controller, pay.removeAmong, null).reduce((t, o) => t + (Number(o.counters[pay.removeAmong.kind]) || 0), 0) >= pay.removeAmong.n) &&
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
@@ -23189,11 +23220,23 @@
           }
           /* Two prices at once: the simple halves are paid here, once. */
           if (pay.removeCounter || (pay.mana && (pay.life != null || pay.discard))) {
+            // (Leatherhead, Swamp Stalker: "remove a counter from her" — which kind, when she has more than one)
+            let rcKind = pay.removeCounter && pay.removeCounter.kind;
+            if (rcKind === '*' && src) {
+              const ks = Object.keys(src.counters || {}).filter(x => Number(src.counters[x]) > 0);
+              rcKind = ks[0];
+              if (ks.length > 1) {
+                const got = this._choose({ playerId: ctx.controller, purpose: 'counterKind', kind: 'options', min: 1, max: 1,
+                  options: ks.map((x, i) => ({ i, label: x })), prompt: `Remove which counter from ${src.name}?` }, 'mprk');
+                if (got === SUSPEND) return SUSPEND;
+                rcKind = ks[(got && got.picks && got.picks[0]) || 0] || ks[0];
+              }
+            }
             if (!this._doneHere('paid')) {
               if (pay.mana && !this.payMana(ctx.controller, pay.mana, { auto: true })) { this._spliceNext(e.otherwise); break; }
               if (pay.life != null) this.changeLife(me, -pay.life, 'cost');
-              if (pay.removeCounter && src) {
-                const k = pay.removeCounter.kind;
+              if (pay.removeCounter && src && rcKind) {
+                const k = rcKind;
                 src.counters[k] = (Number(src.counters[k]) || 0) - (pay.removeCounter.n || 1);
                 if (src.counters[k] <= 0) delete src.counters[k];
                 src._chr = null; this.bumpBoard();
@@ -26546,6 +26589,8 @@
           const who = e.which === 'fixed' ? this.obj(e.fixedId)
             : e.which === 'lastCopy' ? (this._lastCopy && this._lastCopy.zone === 'battlefield' ? this._lastCopy : null) : src;
           if (!who) break;
+          // Donatello, Mutant Mechanic: "If it isn't a creature, it becomes …" (ifNotCreature)
+          if (e.ifNotCreature && (this.characteristics(who) || {}).isCreature) break;
           const [p, t] = String(e.pt || '1/1').split('/');
           // Testament of Faith: "becomes an X/X Wall creature" — the X paid
           const ptOf = (v) => (v === 'X' ? (n('X') || 0) : parseInt(v, 10) || 0);
@@ -28112,6 +28157,8 @@
           if (e.ifWasCreature && !x._leftAsCreature) break;
           // Fang, Roku's Companion: "if he wasn't a Spirit" — as he left (ifWasNot)
           if (e.ifWasNot && ((x._lastSubtypes || []).includes(e.ifWasNot) || x._lastChangeling)) break;
+          // Princess Yue: "if she was a nonland creature" — as she left (ifWasNonland)
+          if (e.ifWasNonland && x._leftAsLand) break;
           // "return it to the battlefield transformed": the back face arrives
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
           // (Tom, Bert, and William: "They're an artifact." — what it is as it enters: enterEff)
@@ -29223,29 +29270,43 @@
           const slot = 'piles' + (r ? r.index : 0);
           const lib = this.zones[ctx.controller].library;
           let ids = r && r.marks[slot];
+          const opp = this.opponentsOf(ctx.controller).find(p => !p.hasLost) || me;
+          // Atris, Oracle of Half-Truths: "target opponent looks at the top three cards …" — they split them (separator 'target')
+          const sep = e.separator === 'target' ? (firstPlayer() || opp).id : e.separator === 'opponent' ? opp.id : ctx.controller;
           if (!ids) {
             const k = e.n && typeof e.n === 'object' && e.n.of === 'X' ? (n('X') || 0) + (e.n.plus || 0) : n(e.n);
             ids = lib.slice(0, Math.max(0, k || 0)).map(o => o.id);
             if (r) r.marks[slot] = ids;
-            if (ids.length) { this._know(ids.map(id => this.obj(id)), '*'); this.logEvent('reveal', `${me.name} reveals ${ids.map(id => this.obj(id).name).join(', ')}.`); }
+            if (ids.length && e.faceDown) {
+              this._know(ids.map(id => this.obj(id)), sep);
+              this.logEvent('rules', `${this.player(sep).name} looks at the top ${O.nounCount(ids.length, 'card')} of ${me.name}'s library.`);
+            } else if (ids.length) { this._know(ids.map(id => this.obj(id)), '*'); this.logEvent('reveal', `${me.name} reveals ${ids.map(id => this.obj(id).name).join(', ')}.`); }
           }
           const cards = ids.map(id => this.obj(id)).filter(c => c && c.zone === 'library');
           if (!cards.length) break;
-          const opp = this.opponentsOf(ctx.controller).find(p => !p.hasLost) || me;
-          const sep = e.separator === 'opponent' ? opp.id : ctx.controller;
           const chooser = e.chooser === 'opponent' ? opp.id : ctx.controller;
-          const split = cards.length < 2 ? { picks: cards.map(c => c.id) } : this._choose({ playerId: sep, purpose: 'pileSplit', kind: 'objects',
-            zone: 'library', panel: true, reveal: true, items: this._chooseItems(cards), min: 0, max: cards.length, optional: true,
-            forPlayer: ctx.controller, confirmLabel: 'These are one pile',
-            prompt: `Separate ${me.name}'s revealed cards into two piles: pick the cards for the first pile, and the rest are the second.` }, 'pileSplit');
+          // (Atris: "into a face-down pile and a face-up pile" — the cards picked are the face-down pile)
+          const split = cards.length < 2 && !e.faceDown ? { picks: cards.map(c => c.id) } : this._choose({ playerId: sep, purpose: 'pileSplit', kind: 'objects',
+            zone: 'library', panel: true, reveal: !e.faceDown, items: this._chooseItems(cards), min: 0, max: cards.length, optional: true,
+            forPlayer: ctx.controller, confirmLabel: e.faceDown ? 'These are face down' : 'These are one pile',
+            prompt: e.faceDown ? `Separate the top ${O.nounCount(cards.length, 'card')} of ${me.name}'s library into a face-down pile and a face-up pile: pick the cards for the face-down pile, and the rest are face up.`
+              : `Separate ${me.name}'s revealed cards into two piles: pick the cards for the first pile, and the rest are the second.` }, 'pileSplit');
           if (split === SUSPEND) return SUSPEND;
           const one = cards.filter(c => split && (split.picks || []).includes(c.id));
           const two = cards.filter(c => !one.includes(c));
           const words = (l) => (l.length ? l.map(c => c.name).join(', ') : 'nothing');
+          if (e.faceDown && two.length && !(r && r.marks[slot + 'up'])) {
+            if (r) r.marks[slot + 'up'] = true;
+            this._know(two, '*');
+            this.logEvent('reveal', `${this.player(sep).name} puts ${words(two)} in the face-up pile${one.length ? ` and ${O.nounCount(one.length, 'card')} face down` : ''}.`);
+          }
+          // (Atris: the face-down pile is only its count to the player choosing)
           const pick = this._choose({ playerId: chooser, purpose: 'pileChoice', kind: 'options', min: 1, max: 1, compact: true,
             forPlayer: ctx.controller,
-            options: [{ label: `Pile 1: ${words(one)}`, ids: one.map(c => c.id), cards: one.map(c => c.card || null) },
-              { label: `Pile 2: ${words(two)}`, ids: two.map(c => c.id), cards: two.map(c => c.card || null) }],
+            options: e.faceDown ? [{ label: `Face-down pile: ${one.length ? O.nounCount(one.length, 'card') : 'nothing'}`, faceDown: true, count: one.length },
+              { label: `Face-up pile: ${words(two)}`, ids: two.map(c => c.id), cards: two.map(c => c.card || null) }]
+              : [{ label: `Pile 1: ${words(one)}`, ids: one.map(c => c.id), cards: one.map(c => c.card || null) },
+                { label: `Pile 2: ${words(two)}`, ids: two.map(c => c.id), cards: two.map(c => c.card || null) }],
             prompt: `Which pile goes into ${me.name}'s hand?` }, 'pileChoice');
           if (pick === SUSPEND) return SUSPEND;
           const chosen = pick && pick.picks && pick.picks[0] === 1 ? two : one;

@@ -1530,6 +1530,8 @@
     { re: /^Spend this mana only to cast an? (Equipment|artifact) spell or activate an equip ability\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', equipAbility: true }) },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Rosheen Meanderer: "Spend this mana only on costs that contain {X}." — a spell or an ability with {X} to pay (costWithX)
+    { re: /^Spend this mana only on costs that contain \{X\}\.?$/i, make: () => ({ op: 'spendOnly', costWithX: true }) },
     // Mm'menon, the Right Hand: "Spend this mana only to cast a spell from anywhere other than your hand." (notFromHand)
     { re: /^Spend this mana only to cast (?:a spell|spells) from anywhere other than your hand\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notFromHand: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
@@ -2382,6 +2384,13 @@
        Spirit in addition to his other types." — not when he went as a Spirit (ifWasNot); a Spirit as he enters (enterRider) */
     { re: /^If (?:he|she|it) (?:wasn'?t|was not) an? ([A-Z][a-z]+), return (?:this card|CARDNAME|it|him|her) to the battlefield under your control\.?$/,
       make: (m) => ({ op: 'returnSelfFromGrave', tapped: false, ifWasNot: m[1] }) },
+    /* Princess Yue: "if she was a nonland creature, return this card to the battlefield tapped under your control.
+       She's a land named Moon." — not when she went as a land (ifWasNonland); only a land, and named Moon, as she
+       enters (enterRider, setName) */
+    { re: /^If (?:he|she|it) was a nonland creature, return (?:this card|CARDNAME) to the battlefield( tapped)? under your control\.?$/i,
+      make: (m) => ({ op: 'returnSelfFromGrave', tapped: !!m[1], ifWasCreature: true, ifWasNonland: true }) },
+    { re: /^(?:He|She|It)'?s a land named ([A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { setTypes: ['Land'], setName: m[1] } }) },
     { re: /^(?:He|She)'?s an? ([A-Z][a-z]+) in addition to (?:his|her) other types\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]] } }) },
     { re: /^(?:They'?re|It'?s) an? (artifact|enchantment|land)\.?$/i,
@@ -5105,6 +5114,9 @@
     // Aethergeode Miner: "Exile this creature, then return it to the battlefield under its owner's control."
     { re: /^Exile (?:this creature|this permanent|this artifact|CARDNAME), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
       make: () => ({ op: 'blink', self: true }) },
+    // Zuko, Conflicted: "Exile Zuko, then return him to the battlefield under an opponent's control." (toOpponent)
+    { re: /^Exile (?:this creature|CARDNAME), then return (?:it|him|her|them) to the battlefield under an opponent'?s control\.?$/i,
+      make: () => ({ op: 'blink', self: true, toOpponent: true }) },
     { re: /^Exile (another target [a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: 'exile', targets: [targetSpec(m[1].replace(/^another /i, ''))] }) },
     { re: /^Destroy (another target [a-z0-9 '-]+?)\.?$/i,
@@ -6555,9 +6567,10 @@
         prompt: `You may put ${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k.toLowerCase()} card onto the battlefield.` })) },
     // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
     // (Winota, Joiner of Forces: "a Human creature card … tapped and attacking" — where the attacker is, for "It gains …")
-    { re: /^You may put an? ([-a-zA-Z ]*?)card from among them onto the battlefield( tapped)?( and attacking)?\.?$/i,
-      make: (m) => (m[3] && !m[2] ? null : Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
-        to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }, m[3] ? { attacking: true } : {})) },
+    // (Jet, Rebel Leader: "a creature card with mana value 3 or less from among them … tapped and attacking" — maxMv)
+    { re: /^You may put an? ([-a-zA-Z ]*?)card (?:with mana value (\d+) or less )?from among them onto the battlefield( tapped)?( and attacking)?\.?$/i,
+      make: (m) => (m[4] && !m[3] ? null : Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep' }, m[4] ? { attacking: true } : {}, m[2] ? { maxMv: +m[2] } : {})) },
     // Ghastly Remains, Zodiac Dragon: a card that goes back to its owner's hand by its own words
     { re: /^Return (?:it|this card) to your hand\.?$/i, make: () => ({ op: 'returnItToHand' }) },
     // Grafted Exoskeleton: the permanent it was attached to, if you still control it
@@ -7950,6 +7963,10 @@
     { re: /^If the token isn'?t a creature, it becomes an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature in addition to its other types\.?$/,
       make: (m) => ({ op: 'ifCopyIs', what: 'creature', not: true,
         then: [{ op: 'animate', which: 'lastCopy', pt: m[1] + '/' + m[2], subtypes: m[3], duration: 'permanent' }] }) },
+    /* Donatello, Mutant Mechanic: "If it isn't a creature, it becomes a 0/0 Robot creature in addition to its other
+       types." — the target, for good, unless it already is one (ifNotCreature) */
+    { re: /^If it isn'?t a creature, it becomes an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature in addition to its other types\.?$/,
+      make: (m) => ({ op: 'animate', which: 'targets', pt: m[1] + '/' + m[2], subtypes: m[3], duration: 'permanent', ifNotCreature: true }) },
     // Yenna, Redtooth Regent: "If the token is an Aura, untap Yenna, then scry 2." — the copy just made (ifCopyIs)
     { re: /^If the token is an? (Aura|Equipment|creature|artifact|enchantment|land), (.+)$/,
       make: (m) => { const inner = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
@@ -11033,6 +11050,14 @@
         }
         return out;
       } },
+    /* Atris, Oracle of Half-Truths: "target opponent looks at the top three cards of your library and separates them
+       into a face-down pile and a face-up pile. Put one pile into your hand and the other into your graveyard." */
+    { re: /^target opponent looks at the top (\w+) cards of your library and separates them into a face-down pile and a face-up pile\. Put one pile into your hand and the other into your graveyard\.$/i,
+      make: (m) => {
+        const k = num(m[1]);
+        return typeof k === 'number' ? [{ op: 'piles', n: k, separator: 'target', chooser: 'you', other: 'graveyard', faceDown: true,
+          targets: [{ type: 'player', opponent: true }] }] : null;
+      } },
     /* The Great Work: "Until end of turn, you may cast instant and sorcery spells from any graveyard. If a spell
        cast this way would be put into a graveyard, exile it instead." — anyone's, cast as from a hand and paid for,
        and what is then left of the chapter after it (castFromGraveyardsTurn) */
@@ -11672,10 +11697,12 @@
     }
     /* Monument to Endurance: "choose one that hasn't been chosen (this turn)" —
        each mode once, for good or until the turn ends */
-    const nc = cleaned.match(/^Choose one that hasn'?t been chosen( this turn)?(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
+    // (Zuko, Conflicted: "choose one that hasn't been chosen and you lose 2 life \u2014" \u2014 the life lost as it resolves)
+    const nc = cleaned.match(/^Choose one that hasn'?t been chosen( this turn)?( and you lose (\d+) life)?(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
     if (nc) {
-      const inner = parseModal('Choose one \u2014 ' + nc[2]);
+      const inner = parseModal('Choose one \u2014 ' + nc[4]);
       if (inner) inner.effects[0].notChosen = nc[1] ? 'turn' : 'ever';
+      if (inner && nc[2]) inner.effects.unshift({ op: 'loseLife', n: +nc[3], who: 'you' });
       return inner;
     }
     /* Bumi, King of Three Trials: "choose up to X, where X is the number of Lesson cards in your graveyard \u2014" \u2014
@@ -11812,6 +11839,8 @@
       } },
     { re: /^remove (a|an|one|two|three|\d+) ([+\-0-9/a-z]+) counters? from (?:it|this creature|CARDNAME|this artifact|this enchantment|this permanent)$/i,
       make: (m) => ({ removeCounter: { n: num(m[1]), kind: m[2].toLowerCase() } }) },
+    // Leatherhead, Swamp Stalker: "you may remove a counter from her" — of any kind (kind '*')
+    { re: /^remove a counter from (?:it|him|her|this creature|CARDNAME)$/i, make: () => ({ removeCounter: { n: 1, kind: '*' } }) },
     // Dyadrine, Synthesis Amalgam: "remove a +1/+1 counter from each of two creatures you control" (removeEach)
     { re: /^remove an? ([+\-0-9/a-z]+) counter from each of (two|three) creatures you control$/i,
       make: (m) => ({ removeEach: { n: num(m[2]), kind: m[1].toLowerCase(), filter: 'creature' } }) },
@@ -13121,6 +13150,12 @@
       if (e && e.extraCounterIfRider) {
         if (prevE && prevE.op === 'reanimate' && !prevE.extraCounterIf) { prevE.extraCounterIf = e.extraCounterIfRider; continue; }
         out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // Princess Yue: "She's a land named Moon. She gains "{T}: Add {C}."" — the card returned has it as it enters
+      if (e && e.op === 'grantAbility' && e.scope === 'self' && e.duration === 'permanent' && e.ability && prevE &&
+          prevE.op === 'returnSelfFromGrave' && prevE.enterEff && !prevE.enterEff.grantText && grantableText(e.ability)) {
+        prevE.enterEff.grantText = e.ability;
         continue;
       }
       // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — the tokens just made (goadForever)
@@ -15444,6 +15479,13 @@
      each event with its own subject (orTwoSubjects). "When" and "Whenever"
      are the same here: whichever the event reads with. */
   function orTwoSubjects(line) {
+    /* Ultron the Annihilator: "Whenever another artifact is put into your graveyard from the battlefield or an artifact
+       card is put into your graveyard from anywhere other than the battlefield, …" — tokens too, then the cards */
+    const gy = line.match(/^(Whenever )((?:a|another) [a-z]+ is put into your graveyard from the battlefield) or (an? [a-z]+ card is put into your graveyard from anywhere other than the battlefield), ([^"]*)$/);
+    if (gy) {
+      const out = [gy[1] + gy[2] + ', ' + gy[4], gy[1] + gy[3] + ', ' + gy[4]];
+      return out.every(l => triggerRest(l) === gy[4].trim()) ? out : null;
+    }
     // (Faldorn, Dread Wolf Herald: "you cast a spell from exile or a land you control enters from exile" — enteredFromExile)
     const two = line.match(/^(When(?:ever)? )((?:an opponent|a player|you) [^,"]+?) or ((?:a|another) (?:creature|land) [^,"]+), ([^"]*)$/);
     if (!two || triggerRest(line) === two[4].trim()) return null;
@@ -17413,6 +17455,13 @@
     // Diregraf Colossus: "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
     // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two +1/+1 counters on it for each …" — etbEachMore)
     // (Ral, Leyline Prodigy: "an additional loyalty counter on him for each instant and sorcery spell you've cast this turn")
+    /* Ulasht, the Hate Seed: "enters with a +1/+1 counter on it for each other red creature you control and a +1/+1
+       counter on it for each other green creature you control" — both counted, a red and green one twice (count2) */
+    const etbTwo = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each ([^.]+?) and an? \1 counter on it for each ([^.]+?)\./i);
+    if (etbTwo && !out.entersWithCounters) {
+      const c1 = countOf(etbTwo[2]), c2 = countOf(etbTwo[3]);
+      if (c1 && c2 && plainCount(c1) && plainCount(c2)) out.entersWithCounters = { kind: etbTwo[1], n: { count: c1, count2: c2 } };
+    }
     const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (an?|an additional|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
     if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[3])) {
       const c = countOf(etbEach[3]);
@@ -20089,6 +20138,10 @@
          as though it were mana of any color to cast those spells." — the Tibalt that made it (playExiledWithLink) */
       { re: /^You may play cards exiled with (.+?), and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
         eff: { op: 'playExiledWithLink', anyMana: true }, auto: true },
+      // Wort, the Raidmother: "Each red or green instant or sorcery spell you cast has conspire." (colors: either will do)
+      { re: /^Each (white|blue|black|red|green) or (white|blue|black|red|green) instant or sorcery spell you cast has conspire\.?$/i,
+        make: (m) => ({ op: 'spellKeyword', keyword: 'conspire', words: 'instant or sorcery',
+          colors: [m[1], m[2]].map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[w.toLowerCase()]) }), auto: true },
       // Shadow the Hedgehog: "Each spell you cast has split second if mana from an artifact was spent to cast it." (ifArtifactMana)
       { re: /^Each spell you cast has split second if mana from an artifact was spent to cast it\.?$/i,
         eff: { op: 'spellKeyword', keyword: 'split second', words: 'spell', ifArtifactMana: true }, auto: true },
@@ -20188,6 +20241,9 @@
       // Prime Speaker Zegana: the counters are read where it enters (entersWithCounters)
       { re: /^(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
+      // (Ulasht, the Hate Seed: "… for each other red creature you control and a +1/+1 counter on it for each …" — count2)
+      { re: /^(?:CARDNAME|This creature) enters with an? ([+\-0-9/a-z]+) counter on it for each ([^.]+?) and an? \1 counter on it for each ([^.]+?)\.?$/i,
+        make: (m) => { const a = countOf(m[2]), b = countOf(m[3]); return a && b && plainCount(a) && plainCount(b) ? { op: 'noop' } : null; }, auto: true },
       // (Ulamog, the Defiler: "enters with a number of +1/+1 counters on it equal to …" — etbEqualTo)
       { re: /^(?:CARDNAME|This creature) enters with a number of \+1\/\+1 counters on it equal to (?!the amount of mana spent)(.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
@@ -21053,6 +21109,10 @@
             { op: 'continuous', layer: 7, scope, cond, setPt: { p: +m[2], t: +m[3] } },
             { op: 'continuous', layer: 6, scope, cond, grant: kws, grantText: m[6] }] };
         }, auto: true },
+      /* Tesak, Judith's Hellhound: "Other Dogs you control have unleash." — handed over as its words, so a Dog
+         entering under it is asked about the counter, and can't block while it has one */
+      { re: /^(.+? you control) have unleash\.?$/i,
+        make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'continuous', layer: 6, scope, grantText: 'Unleash' } : null; }, auto: true },
       // March of the World Ooze: "Creatures you control have base power and toughness 6/6 and are Oozes in addition to their other types."
       // Aragorn, Hornburg Hero: "Attacking creatures you control have first strike and renown 1." — renown as its own line
       { re: /^(Attacking creatures you control) have ([a-z ,]+?) and renown (\d+)\.?$/i,
