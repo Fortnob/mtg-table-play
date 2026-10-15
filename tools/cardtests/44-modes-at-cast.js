@@ -428,4 +428,18 @@ module.exports = (test) => {
     T2.settle();
     t.eq(JSON.stringify(top(g2).chosenModes), '[1,3]');
   });
+
+  test('Modes at cast: Kozilek\'s Command for X = 0 with no creature to be had is refused, not asked for an impossible target', (mk, t) => {
+    const T = mk();
+    const g = T.g;
+    T.bf('B', 'Grizzly Bears');                          // mana value 2: not "X or less" for X = 0
+    const kc = T.hand('A', "Kozilek's Command");
+    T.mana('A', 'U1');
+    T.answer('mode', (ch) => ({ picks: [ch.options.findIndex(o => /creature with mana value X or less/i.test(o.label))].concat([ch.options.findIndex(o => /target player/i.test(o.label))]).filter(i => i >= 0) }));
+    g.castSpell('A', kc.id, { x: 0, auto: true });
+    T.settle();
+    const bad = T.asked.find(ch => ch.purpose === 'castTargets' && (ch.options || []).some(l => Array.isArray(l) && !l.length));
+    t.no(bad, 'no target question with nothing legal to choose');
+    t.ok(kc.zone === 'hand' || kc.zone === 'stack' || kc.zone === 'graveyard', 'the game goes on');
+  });
 };

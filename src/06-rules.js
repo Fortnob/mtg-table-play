@@ -3614,6 +3614,9 @@
       this._castingSpell = null;
       const must = (sp) => sp && !sp.upTo && !(sp.multi && !(sp.multi.min > 0));
       if (md.engineChose ? !options.some(l => l.length) : !specs.some((sp, i) => must(sp) && options[i].length)) return false;
+      /* Kozilek's Command for X = 0: "target creature with mana value X or less" with none to be had — a target the
+         spell must have and can't is no question to ask; the modes can't be cast as they are */
+      if (specs.some((sp, i) => must(sp) && !options[i].length)) return false;
       const keep = JSON.parse(JSON.stringify(Object.assign({}, opts, { modes: md.picks, _modesAsked: true, _targetsAsked: true })));
       const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
       this.queueChoice(Object.assign({ type: 'pickTarget', playerId, purpose: 'castTargets', objId: o.id, castOpts: keep,
