@@ -2957,7 +2957,8 @@
        control", "target legendary creature"), with keywords the table
        knows */
     // (Urdnan, Dromoka Warrior: "target attacking creature with a +1/+1 counter on it gains first strike …")
-    { re: /^((?:Another )?[Tt]arget [a-z ]+?(?: with an? [+\-0-9/a-z]+ counter on it)?) gains ([a-z ,]+) until end of turn\.?$/i,
+    // (The Master, Mesmerist: "target creature an opponent controls with power less than or equal to The Master's power gains skulk …")
+    { re: /^((?:Another )?[Tt]arget [a-z ]+?(?: with an? [+\-0-9/a-z]+ counter on it| with power less than (?:or equal to )?CARDNAME'?s power)?) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => {
         // Alseid of Life's Bounty: "protection from the color of your choice" is one keyword, chosen as it resolves
         const kws = /^protection from (?:colou?rless or from )?the colou?r of your choice$/i.test(m[2]) ? [U.titleCase(m[2])] : keywordList(m[2]);
@@ -4141,9 +4142,10 @@
       make: (m) => { const inner = parseEffectSentence(U.titleCase(m[2].charAt(0)) + m[2].slice(1), 1);
         return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'returnedType', type: m[1], other: true }, then: [inner] } : null; } },
     // Generous Plunderer: "target opponent creates a tapped Treasure token"
-    { re: /^(Target opponent|Each opponent) creates? an? (tapped )?(Treasure|Food|Clue|Blood|Map) token\.?$/i,
-      make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'target', targets: [{ type: 'player', opponent: true }] }
-        : { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'opponents' }) },
+    // (Hansk, Slayer Zealot: "target opponent creates three Walker tokens")
+    { re: /^(Target opponent|Each opponent) creates? (an?|one|two|three|four|five) (tapped )?(Treasure|Food|Clue|Blood|Map|Walker) tokens?\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: num(m[2]), token: m[4], tapped: !!m[3], who: 'target', targets: [{ type: 'player', opponent: true }] }
+        : { op: 'createNamedToken', n: num(m[2]), token: m[4], tapped: !!m[3], who: 'opponents' }) },
     // Viv Vision: "draw a card if her power is 4 or greater"; Inga Rune-Eyes: "draw three cards if three or more creatures died this turn" (drawIfLate)
     { re: /^[Dd]raw (a|one|two|three|four) cards? if (.+?)\.?$/,
       make: (m) => {
@@ -4912,7 +4914,8 @@
     /* Planar Despair, Mutilate: "All creatures get -1/-1 until end of turn
        for each basic land type among lands you control" — counted once, as
        it resolves */
-    { re: /^(All creatures|Creatures you control|Other creatures you control|Creatures your opponents control) get ([+-])(\d+)\/([+-])(\d+) until end of turn for each ([^.]+?)\.?$/i,
+    // (Captain Vargus Wrath: "Pirates you control get +1/+1 until end of turn for each time you've cast a commander …")
+    { re: /^(All creatures|Creatures you control|Other creatures you control|Creatures your opponents control|[A-Z][a-z]+s you control) get ([+-])(\d+)\/([+-])(\d+) until end of turn for each ([^.]+?)\.?$/i,
       make: (m) => {
         const c = countOf(m[6].replace(/ on the battlefield$/i, ''));
         if (!c) return null;
@@ -5064,7 +5067,8 @@
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1].replace(/^an$/i, 'a')), filter: (m[2] || '').trim().replace(/,? or |, /g, ' or ').toLowerCase() || 'any',
         to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : /in a random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }) },
     // (Farsight Ritual: "… the rest on the bottom of your library in a random order" — random, not in the order they were)
-    { re: /^Put (one|two|three) of them into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
+    // (Ellyn Harbreeze, Busybody: "Put one of those cards into your hand …")
+    { re: /^Put (one|two|three) of (?:them|those cards) into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: 'any', to: 'hand', rest: /in a random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }) },
     // (Nymris, Oona's Trickster: "Put one of those cards into your hand and the other into your graveyard.")
     { re: /^Put one of (?:them|those cards) into your hand and the other (on the bottom of your library|into your graveyard)\.?$/i,
@@ -7446,7 +7450,8 @@
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     // Kitt Kanto, Mayhem Diva: "Goad that creature." — the one just targeted
-    { re: /^Goad that creature\.?$/i, make: () => ({ op: 'goad', scope: 'lastTarget' }) },
+    // (The Master, Mesmerist; Oceanus Dragon: "Goad it." — after a sentence that targeted it)
+    { re: /^Goad (?:that creature|it)\.?$/i, make: () => ({ op: 'goad', scope: 'lastTarget' }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // (Kefnet's Monument: "target creature an opponent controls")
@@ -8988,8 +8993,10 @@
     if (greaterPow) phrase = String(phrase).replace(/\s+with greater power$/i, '');
     // Auron, Venerated Guardian: "target creature defending player controls with power less than CARDNAME's power" (lesserPowerThanSource)
     // (Mirko, Obsessive Theorist: "target creature card with power less than Mirko's" — no "power" after it)
-    const lesserPow = /\s+with power less than (?:CARDNAME|this creature)'s(?: power)?$/i.test(String(phrase));
-    if (lesserPow) phrase = String(phrase).replace(/\s+with power less than (?:CARDNAME|this creature)'s(?: power)?$/i, '');
+    // (The Master, Mesmerist: "with power less than or equal to The Master's power" — orEqual)
+    const lesserPowM = String(phrase).match(/\s+with power less than (or equal to )?(?:CARDNAME|this creature)'s(?: power)?$/i);
+    const lesserPow = lesserPowM ? (lesserPowM[1] ? 'orEqual' : true) : false;
+    if (lesserPow) phrase = String(phrase).slice(0, lesserPowM.index);
     /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
        Tinder Wall, Wall of Corpses: "target creature it's (this creature is) blocking" */
     const blockingSelf = /\s+blocking (?:it|this creature|CARDNAME)$/i.test(String(phrase));
@@ -9027,7 +9034,7 @@
     if (colored) spec.colored = true;
     if (enteredNow) spec.enteredThisTurn = true;
     if (greaterPow) spec.greaterPowerThanSource = true;
-    if (lesserPow) spec.lesserPowerThanSource = true;
+    if (lesserPow) spec.lesserPowerThanSource = lesserPow;
     if (noAbil) spec.noAbilities = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
@@ -11923,6 +11930,13 @@
       const inner = parseCostMod(xPow[1] + ' cost {1} less to cast');
       return inner && inner.amount === -1 && !inner.symbols && !inner.per && !inner.cond ? Object.assign(inner, { per: { srcPower: true } }) : null;
     }
+    // Samut, the Driving Force: "Noncreature spells you cast cost {X} less to cast, where X is your speed." — {1} less for each
+    const xCount = s.match(/^(.+?) cost \{X\} less to cast, where X is (.+)$/);
+    if (xCount && !/CARDNAME/.test(xCount[2])) {
+      const per = countOf(xCount[2]) || amountOf(xCount[2]);
+      const inner = per && parseCostMod(xCount[1] + ' cost {1} less to cast');
+      return inner && inner.amount === -1 && !inner.symbols && !inner.per && !inner.cond ? Object.assign(inner, { per }) : null;
+    }
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
     if (each) {
@@ -14800,6 +14814,9 @@
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
+    // The Master, Mesmerist: "Whenever a creature with skulk deals combat damage to one of your opponents," — anyone's
+    { re: /^Whenever a creature with (skulk|flying|menace|trample|deathtouch|lifelink|haste) deals combat damage to one of your opponents, /i,
+      event: 'permCombatDamage', aboutObject: true, filt: (m) => ({ words: 'creature', keyword: m[1].toLowerCase() }), extra: { hitYourOpponent: true } },
     // The Beast, Deathless Prince: "Whenever a creature deals combat damage to its owner," — anyone's creature (hitItsOwner)
     { re: /^Whenever a creature deals combat damage to its owner,? /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitItsOwner: true } },

@@ -33436,6 +33436,8 @@
         Shard: { type: 'Token Enchantment — Shard', text: '{2}, Sacrifice this enchantment: Scry 1, then draw a card.' },
         Lander: { type: 'Token Artifact — Lander', text: '{2}, {T}, Sacrifice this artifact: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' },
         Mutagen: { type: 'Token Artifact — Mutagen', text: '{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature. Activate only as a sorcery.' },
+        // Hansk, Slayer Zealot: "Walker tokens. (They're 2/2 black Zombie creatures.)"
+        Walker: { type: 'Token Creature — Zombie', text: '', colors: ['B'], power: 2, toughness: 2 },
       };
       /* Academy Manufactor: a Clue, Food or Treasure becomes one of each */
       if (['Clue', 'Food', 'Treasure'].includes(e.token) && !e._trio) {
@@ -34917,7 +34919,8 @@
         const sL = sourceId && this.obj(sourceId);
         const pL = !sL ? 0 : sL.zone === 'battlefield' ? this.powerOf(sL) : (sL._lastPower || 0);
         return this._legalTargetsFor(Object.assign({}, spec, { lesserPowerThanSource: false }), controllerId, sourceId)
-          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && this.powerOf(x) < pL; });
+          // (The Master, Mesmerist: "less than or equal to" — orEqual)
+          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && (this.powerOf(x) < pL || (spec.lesserPowerThanSource === 'orEqual' && this.powerOf(x) === pL)); });
       }
       /* Taskmaster, Mercenary Mimic: "target creature on the battlefield or creature card in a graveyard" — either
          (orGraveyardCard) */
