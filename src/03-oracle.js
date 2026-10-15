@@ -8645,8 +8645,9 @@
        one picked or none (exiledWith, pickOne) */
     { re: /^(?:You may )?cast a card exiled with CARDNAME without paying its mana cost\.?$/i,
       make: () => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true }) },
-    { re: /^Until end of turn, you may play a card exiled with CARDNAME without paying its mana cost\.?$/i,
-      make: () => ({ op: 'mayPlayExiled', exiledWith: true, oneOf: true, free: true, duration: 'eot' }) },
+    // (Raphael, Most Attitude: "until end of turn, you may play a card exiled with Raphael" — paying for it)
+    { re: /^Until end of turn, you may play a card exiled with CARDNAME( without paying its mana cost)?\.?$/i,
+      make: (m) => Object.assign({ op: 'mayPlayExiled', exiledWith: true, oneOf: true, duration: 'eot' }, m[1] ? { free: true } : {}) },
     { re: /^Exile the bottom card of each opponent'?s library( face down)?\.?$/i,
       make: (m) => ({ op: 'exileBottomEach', who: 'opponents', faceDown: !!m[1] }) },
     // Fire Lord Ozai: "Exile the top card of each opponent's library." (exileBottomEach top)
@@ -12766,6 +12767,8 @@
   const COST_PHRASES = [
     // Timothar, Baron of Bats: "you may pay {1} and exile it. If you do, …" — the card that died, in the price (exileTriggerCard)
     { re: /^pay ((?:\{[0-9WUBRGC]\})+) and exile it$/i, make: (m) => ({ mana: m[1], exileTriggerCard: true }) },
+    // Isu the Abominable: "you may pay {G}, {W}, or {U}. If you do, …" — one of them (manaOneOf)
+    { re: /^pay ((?:\{[0-9WUBRGC]\}, )+)or (\{[0-9WUBRGC]\})$/i, make: (m) => ({ manaOneOf: m[1].split(/, /).filter(Boolean).concat([m[2]]).map(x => x.toUpperCase()) }) },
     // (Kinzu of the Bleak Coven: "you may pay 2 life and exile it. If you do, …")
     { re: /^pay (\d+) life and exile it$/i, make: (m) => ({ life: +m[1], exileTriggerCard: true }) },
     { re: /^discard (a|one|two|three|\d+) ([a-z ]*?)cards?$/i,
@@ -21059,6 +21062,12 @@
         eff: { op: 'chooseOnEnter', what: 'parity' }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number between (\d+) and (\d+)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'number', min: +m[1], max: +m[2] }), auto: true },
+      // Haktos the Unscarred: "As Haktos enters, choose 2, 3, or 4 at random." — nobody chooses (random)
+      { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose ((?:\d+, )+)or (\d+) at random\.?$/i,
+        make: (m) => ({ op: 'chooseOnEnter', what: 'number', random: true, values: m[1].split(/, /).filter(Boolean).map(Number).concat([+m[2]]) }), auto: true },
+      // Haktos the Unscarred: "Haktos has protection from each mana value other than the chosen number." (protMvOtherThanChosen)
+      { re: /^(?:CARDNAME|This creature) has protection from each mana value other than the chosen number\.?$/i,
+        eff: { op: 'protMvOtherThanChosen' }, auto: true },
       /* Squall, Gunblade Duelist: "As Squall enters, choose a number." — any, offered from 0 to 20; the likeliest a power
          or toughness of its controller's creatures (ptHint) */
       { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number\.?$/i,
@@ -21447,6 +21456,9 @@
       { re: /^Each (white|blue|black|red|green) or (white|blue|black|red|green) instant or sorcery spell you cast has conspire\.?$/i,
         make: (m) => ({ op: 'spellKeyword', keyword: 'conspire', words: 'instant or sorcery',
           colors: [m[1], m[2]].map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[w.toLowerCase()]) }), auto: true },
+      // Rassilon, the War President: "Each noncreature spell you cast from exile has conspire." (fromExile)
+      { re: /^Each noncreature spell you cast from exile has conspire\.?$/i,
+        eff: { op: 'spellKeyword', keyword: 'conspire', words: 'noncreature', fromExile: true }, auto: true },
       // Shadow the Hedgehog: "Each spell you cast has split second if mana from an artifact was spent to cast it." (ifArtifactMana)
       { re: /^Each spell you cast has split second if mana from an artifact was spent to cast it\.?$/i,
         eff: { op: 'spellKeyword', keyword: 'split second', words: 'spell', ifArtifactMana: true }, auto: true },

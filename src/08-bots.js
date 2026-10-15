@@ -1708,6 +1708,11 @@
       if (i < 0) i = opts.findIndex(o => o && o.kind !== '+1/+1');
       return { picks: [i < 0 ? 0 : i] };
     },
+    /* Isu the Abominable: "you may pay {G}, {W}, or {U}" — paid, with the first of them we can (mayPayOneOf) */
+    mayPayOneOf(s) {
+      const i = (s.options || []).findIndex(o => o && o.mana);
+      return { picks: [i < 0 ? (s.options || []).length - 1 : i] };
+    },
     /* Wan Shi Tong, All-Knowing: our own permanent second from the top, to draw again soon; nobody else's is asked of us */
     secondOrBottom(s) {
       const i = (s.options || []).findIndex(o => o && o.where === 'second');

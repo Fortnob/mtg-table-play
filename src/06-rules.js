@@ -9423,6 +9423,15 @@
         }
         return;
       }
+      // Haktos the Unscarred: "choose 2, 3, or 4 at random" — nobody is asked (random)
+      if (rule.what === 'number' && rule.random) {
+        const vs = rule.values || [];
+        if (!vs.length) return;
+        o.chosenNumber = vs[this.rng.int(vs.length)];
+        this.bumpBoard();
+        this.logEvent('rules', `${o.name}: ${o.chosenNumber} is chosen at random.`);
+        return;
+      }
       if (!values.length) return;
       o[field] = values[0];
       this.bumpBoard();
@@ -12607,6 +12616,11 @@
       if (o.zone === 'battlefield' && c && c.isCreature) {
         for (const t of this._protCardTypes(o.controller)) if (this._cardTypesOf(source).includes(t)) return true;
       }
+      // Haktos the Unscarred: "protection from each mana value other than the chosen number" (protMvOtherThanChosen)
+      if (o.zone === 'battlefield' && o.chosenNumber != null && this._staticOp(o, 'protMvOtherThanChosen')) {
+        const mvH = source.zone === 'stack' && source._castMv != null ? source._castMv : source.faceDown ? 0 : ((source.card && source.card.cmc) || 0);
+        if (mvH !== o.chosenNumber) return true;
+      }
       /* Rebbec, Architect of Ascension: "Artifacts you control have protection from each mana value among artifacts you
          control" — a source whose mana value one of them has (a spell's with its X) */
       if (o.zone === 'battlefield' && this._cardTypesOf(o).includes('Artifact') && this._anyStaticOf(o.controller, 'protMvAmongArtifacts')) {
@@ -13234,6 +13248,8 @@
         const e = this._staticOp(src, 'spellKeyword');
         // (Shadow the Hedgehog: "if mana from an artifact was spent to cast it" — manaFromArtifact)
         // (Wort, the Raidmother: "Each red or green instant or sorcery spell you cast has conspire" — colors)
+        // (Rassilon, the War President: "cast from exile" — still there as it is cast, or on the stack from there: fromExile)
+        if (e && e.fromExile && !(o.zone === 'exile' || (o.zone === 'stack' && (this.stack.find(st => st.objId === o.id) || {}).fromZone === 'exile'))) continue;
         if (e && e.keyword === k && this._cardFitsWords(o, e.words) && (!e.ifArtifactMana || o.manaFromArtifact > 0) &&
           (!e.colors || ((this.characteristics(o) || {}).colors || (o.card && o.card.colors) || []).some(c => e.colors.includes(c)))) return true;
       }
@@ -24390,6 +24406,24 @@
           /* "You may pay {E}{E}{E}": energy, not mana (Guide of Souls) */
           const eN = (String(pay.mana || '').match(/\{E\}/gi) || []).length;
           if (eN) pay = Object.assign({}, pay, { energy: eN, mana: String(pay.mana).replace(/\{E\}/gi, '') || null });
+          /* Isu the Abominable: "you may pay {G}, {W}, or {U}. If you do, …" — one question: which of those that can
+             be paid, or none (manaOneOf) */
+          if (pay.manaOneOf) {
+            const can = pay.manaOneOf.filter(c => this.canPayNow(ctx.controller, c));
+            if (!can.length) {
+              this.logEvent('rules', `${(src && src.name) || ctx.name || 'Effect'}: ${me.name} cannot pay ${pay.manaOneOf.join(', ')}.`);
+              this._spliceNext(e.otherwise);
+              break;
+            }
+            const opts = can.map(c => ({ label: 'Pay ' + c, mana: c })).concat([{ label: "Don't pay", mana: null }]);
+            const got = this._choose({ playerId: ctx.controller, purpose: 'mayPayOneOf', kind: 'options', options: opts, min: 1, max: 1,
+              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay the cost').replace(/^./, c => c.toUpperCase()), 110)}` }, 'q1');
+            if (got === SUSPEND) return SUSPEND;
+            const pick = opts[(got && got.picks && got.picks[0]) != null ? got.picks[0] : opts.length - 1] || opts[opts.length - 1];
+            if (!pick.mana || !this.payMana(ctx.controller, pick.mana, { auto: true })) { this._spliceNext(e.otherwise); break; }
+            this._spliceNext(e.then);
+            break;
+          }
           /* Gix, Yawgmoth Praetor: "its controller may pay 1 life. If they do,
              they draw a card." — asked of the creature's controller, who pays;
              not asked when they can't */
