@@ -12351,7 +12351,8 @@
     }
     /** Is a cost change for a while (costModUntil) still on: this turn, or until its player's next turn? */
     _costModUntilLive(p, c) {
-      return c.until === 'yourNextTurn' ? this._beforeNextTurnOf(p.id, c.taken) : c.turn === this.turn;
+      // (Will Kenrith: another player's spells, until the next turn of the one who did it — untilOf)
+      return c.until === 'yourNextTurn' ? this._beforeNextTurnOf(c.untilOf || p.id, c.taken) : c.turn === this.turn;
     }
 
     _replaceMatches(ef, src, ev) {
@@ -19045,8 +19046,9 @@
           break;
         }
         // Verdant Outrider: "can't be blocked by creatures with power 2 or less this turn"
+        // (Tadeas, Juniper Ascendant: "it can't be blocked by creatures with greater power this combat" — notByGreaterPower)
         case 'evasionEot':
-          applyToScope(e, (o) => { o.effects.push({ tempEvasion: { minBlockerPower: e.minBlockerPower }, until: 'eot' }); });
+          applyToScope(e, (o) => { o.effects.push(e.notByGreaterPower ? { flag: 'notByGreaterPower', until: 'eot' } : { tempEvasion: { minBlockerPower: e.minBlockerPower }, until: 'eot' }); });
           break;
         /* Skullcap Snail: "target opponent exiles a card from their hand" —
            the player whose hand it is picks */
@@ -29050,10 +29052,15 @@
           me.flashUntil = { setTurn: this.turn, filter: e.filter || null };
           break;
         // Ral, Leyline Prodigy: "Until your next turn, instant and sorcery spells you cast cost {1} less to cast."
-        case 'costModUntil':
-          me.costModsUntil = (me.costModsUntil || []).filter(c => this._costModUntilLive(me, c))
-            .concat([{ words: e.words || 'spell', amount: Number(e.amount) || 0, turn: this.turn, until: e.until || 'eot', taken: me.turnsTaken || 0 }]);
+        // (Will Kenrith: "… spells that player casts cost {2} less" — the player targeted, until your next turn)
+        case 'costModUntil': {
+          const pl = e.who === 'target' ? firstPlayer() : me;
+          if (!pl) break;
+          pl.costModsUntil = (pl.costModsUntil || []).filter(c => this._costModUntilLive(pl, c))
+            .concat([Object.assign({ words: e.words || 'spell', amount: Number(e.amount) || 0, turn: this.turn, until: e.until || 'eot', taken: me.turnsTaken || 0 },
+              pl !== me ? { untilOf: me.id } : {})]);
           break;
+        }
         // Flare of Fortitude: "until end of turn, your life total can't change"
         case 'lifeLockTurn':
           me.lifeLocked = { setTurn: this.turn, until: me.id, eot: this.turn };
@@ -31891,7 +31898,10 @@
            creature that's still a land". One effect, each part in its own
            layer, on each permanent named as it resolves (CR 611.2c). */
         case 'becomes': {
-          const until = e.duration === 'permanent' || e.duration === 'nextTurn' ? null : 'eot';
+          // (The Wondrous Wasp: "for as long as The Wondrous Wasp remains on the battlefield" — whileHere; gone already, nothing)
+          const whileHere = e.duration === 'whileHere';
+          if (whileHere && !(src && src.zone === 'battlefield')) break;
+          const until = e.duration === 'permanent' || e.duration === 'nextTurn' || whileHere ? null : 'eot';
           let eff = e.eff || {};
           // Destiny Spinner: "an X/X …, where X is the number of enchantments you control" — counted as it resolves
           if (e.ptX) { const k = Math.max(0, n(e.ptX)); eff = Object.assign({}, eff, { setPt: { p: k, t: k } }); }
@@ -31907,7 +31917,7 @@
             const handed = one.loseAll && one.grantText ? { grantText: one.grantText, until } : null;
             if (handed) delete one.grantText;
             // (Sylvan Awakening: until the controller's next turn)
-            o.effects.push(Object.assign(one, { until }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
+            o.effects.push(Object.assign(one, { until }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}, whileHere ? { whileFrom: src.id } : {}));
             if (handed) o.effects.push(Object.assign(handed, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
             o._chr = null;
           });

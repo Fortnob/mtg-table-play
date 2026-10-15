@@ -1812,6 +1812,10 @@
     { re: /^(This creature|CARDNAME|Target creature|It|That creature) can'?t be blocked by creatures with power (\d+) or less this turn\.?$/i,
       make: (m) => Object.assign({ op: 'evasionEot', minBlockerPower: +m[2] + 1 },
         /^target/i.test(m[1]) ? { targets: [targetSpec('target creature')] } : /^(?:it|that creature)$/i.test(m[1]) ? { scope: 'lastTarget' } : { scope: 'self' }) },
+    /* Tadeas, Juniper Ascendant: "Whenever a creature you control with reach attacks, untap it and it can't be blocked
+       by creatures with greater power this combat." — the attacker the trigger is about (combat ends with the turn's) */
+    { re: /^untap it and it can'?t be blocked by creatures with greater power this combat\.?$/i,
+      make: () => [{ op: 'untap', scope: 'triggerObject' }, { op: 'evasionEot', notByGreaterPower: true, scope: 'triggerObject' }] },
     // Roalesk, Apex Hybrid: "proliferate, then proliferate again"
     { re: /^Proliferate, then proliferate again\.?$/i, make: () => [{ op: 'proliferate' }, { op: 'proliferate' }] },
     // Lay Down Arms: "Exile target creature with mana value less than or equal to the number of Plains you control."
@@ -3457,6 +3461,9 @@
     // Abigale, Eloquent First-Year: "up to one other target creature loses all abilities." — for good
     { re: /^((?:up to one )?(?:other |another )?target creature) loses all abilities\.?$/i,
       make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { loseAll: true }, targets: [targetSpec(m[1])] }) },
+    // The Wondrous Wasp: "It loses all abilities for as long as The Wondrous Wasp remains on the battlefield." (whileHere)
+    { re: /^(?:It|That creature) loses all abilities for as long as (?:CARDNAME|this creature) remains on the battlefield\.?$/i,
+      make: () => ({ op: 'becomes', duration: 'whileHere', eff: { loseAll: true }, scope: 'lastTarget' }) },
     /* Loki, Lord of Misrule: "Each creature you control other than the chosen creature becomes a copy of that creature
        until end of turn, except it isn't legendary." — the one "Choose target creature you control" chose (yours) */
     { re: /^Each creature you control other than the chosen creature becomes a copy of that creature until end of turn, except it isn'?t legendary\.?$/i,
@@ -4535,6 +4542,13 @@
     // Gríma, Saruman's Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order." (exileUntil)
     { re: /^Then (?:that player puts|put) the exiled cards that weren'?t cast this way on the bottom of (?:their|that|your) library in a random order\.?$/i,
       make: () => ({ op: 'restToBottom', random: true }) },
+    /* Ryan Sinclair: "You may cast the exiled card without paying its mana cost if it's a spell with mana value less than
+       or equal to Ryan's power. Put the exiled cards not cast this way on the bottom of your library in a random order."
+       — the card the exiling stopped at (castFree thatCard, maxMv) */
+    { re: /^You may cast the exiled card without paying its mana cost if it'?s a spell with mana value less than or equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k == null ? null : { op: 'castFree', from: 'thatCard', upTo: 1, maxMv: k }; } },
+    { re: /^Put the exiled cards not cast this way on the bottom of your library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true }) },
     // Codie, Vociferous Codex: "Put each other card exiled this way on the bottom of your library in a random order." — not the one it stopped at (exceptHit)
     { re: /^Put each other card exiled this way on the bottom of your library in a random order\.?$/i,
       make: () => ({ op: 'restToBottom', random: true, exceptHit: true }) },
@@ -5565,6 +5579,10 @@
     { re: /^(Until your next turn|Until end of turn|This turn), (instant and sorcery |creature |noncreature |artifact |enchantment )?spells you cast cost \{(\d+)\} (less|more) to cast\.?$/i,
       make: (m) => ({ op: 'costModUntil', words: m[2] ? m[2].trim().toLowerCase().replace(' and ', ' or ') : 'spell',
         amount: /less/i.test(m[4]) ? -m[3] : +m[3], until: /next turn/i.test(m[1]) ? 'yourNextTurn' : 'eot' }) },
+    /* Will Kenrith: "Until your next turn, instant, sorcery, and planeswalker spells that player casts cost {2} less to
+       cast." — the player the sentence before targeted, until your next turn (who 'target') */
+    { re: /^Until your next turn, instant, sorcery, and planeswalker spells that player casts cost \{(\d+)\} less to cast\.?$/i,
+      make: (m) => ({ op: 'costModUntil', who: 'target', words: 'instant or sorcery or planeswalker', amount: -m[1], until: 'yourNextTurn' }) },
     /* Isochron Scepter, Elite Arcanist, Panoptic Mirror: "(you may) exile an
        instant card with mana value 2 or less from your hand" — kept with
        this permanent, for "the exiled card" later */
@@ -7892,6 +7910,12 @@
         if (!then.auto) return null;
         return { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: (m[1] || 'card').toLowerCase() }, then: then.effects };
       } },
+    // Daredevil, Man Without Fear: "If that card is a Hero card, Daredevil gets +2/+1 until end of turn." — the card just exiled
+    { re: /^If that card is an? ([A-Z][a-z]+) card, (CARDNAME gets [+-]\d+\/[+-]\d+ until end of turn)\.?$/,
+      make: (m) => {
+        const then = parseEffects(m[2] + '.');
+        return then.auto ? { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: m[1].toLowerCase() }, then: then.effects } : null;
+      } },
     /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could target.
        Each copy targets a different one of those creatures." */
     // (Agrus Kos, Eternal Soldier: "copy that ability for each other creature you control that ability could target")
@@ -8405,6 +8429,11 @@
     { re: /^Until your next turn, CARDNAME becomes a land and gains "\{T\}: Add \{([WUBRGC])\}\.?"\.?$/i,
       make: (m) => ({ op: 'becomes', duration: 'nextTurn', scope: 'self', eff: { setTypes: ['Land'],
         grantMana: [{ kind: 'mana', auto: true, granted: true, cost: parseCost('{T}'), text: '{T}: Add {' + m[1].toUpperCase() + '}.', effects: [{ op: 'addMana', symbols: [m[1].toUpperCase()] }] }] } }) },
+    /* Will Kenrith: "Until your next turn, up to two target creatures each have base power and toughness 0/3 and lose
+       all abilities." */
+    { re: /^Until your next turn, up to (one|two|three) target creatures each (have base power and toughness \d+\/\d+ and lose all abilities)\.?$/i,
+      make: (m) => { const eff = becomesEff(m[2]);
+        return eff ? { op: 'becomes', duration: 'nextTurn', eff, targets: Array.from({ length: num(m[1]) }, () => Object.assign(targetSpec('target creature'), { upTo: true })) } : null; } },
     { re: /^Until your next turn, (.+? (?:become|becomes) [^.]+?)\.?$/i,
       make: (m) => {
         const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' until end of turn.');
