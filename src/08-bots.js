@@ -3153,6 +3153,7 @@
         if (!(move && move.hold) && this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
         if (!(move && move.hold) && this.useCompanion(main1)) return true;
+        if (!(move && move.hold) && this.foretellSpare(main1)) return true;
         return false;
       }
       // combat on either side of the table
@@ -3197,6 +3198,37 @@
       if (main1 && mana < 3 + mv && this.game.zones[this.pid].hand.length > 1) return false;
       if (!g.companionToHand(this.pid, comp.id, { auto: true })) return false;
       this._did('companion', comp, 'puts its companion into its hand');
+      return true;
+    }
+
+    /**
+     * Foretell (CR 702.143): mana left over at the end of the turn's spells goes into a card to cast later —
+     * one whose foretell cost the bot's lands will pay for next turn, the biggest first. With the price {0}
+     * (Ranar the Ever-Watchful's first each turn), in either main phase; otherwise only in the second, after
+     * everything it meant to cast.
+     */
+    foretellSpare(main1) {
+      const g = this.game;
+      if (!g.foretellCard) return false;
+      const mana = this.availableMana(true);
+      const lands = g.battlefield.filter(x => x.controller === this.pid && !x.phasedOut && (x.analysis() || {}).isLand).length;
+      let best = null;
+      for (const o of this.hand()) {
+        const use = (g.altUsesFor(this.pid, o.id) || []).find(u => u.kind === 'foretell');
+        if (!use) continue;
+        const price = MTG.mana.cmc(use.cost || '');
+        if (price > mana || (main1 && price > 0)) continue;
+        if (!g.canPayNow(this.pid, use.cost || '', {})) continue;
+        const a = o.analysis() || {};
+        const later = use.foretellCost != null ? use.foretellCost : g._addGeneric(a.manaCost || '', -(use.reduce || 0));
+        const mv = MTG.mana.cmc(String(later).replace(/\{X\}/g, ''));
+        if (mv > lands + 1) continue;
+        const v = ((o.card && o.card.cmc) || 0) + (price === 0 ? 1 : 0);
+        if (!best || v > best.v) best = { o, v };
+      }
+      if (!best || !g.foretellCard(this.pid, best.o.id, { auto: true })) return false;
+      // (face down: which card it was is nobody else's business)
+      this._did('foretell', null, 'foretells a card');
       return true;
     }
 

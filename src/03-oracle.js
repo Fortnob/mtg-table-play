@@ -13851,6 +13851,8 @@
     [/^the (?:\{[^}]+\})+ cost was paid$/i, () => ({ kind: 'altPaid' })],
     // Delayed Blast Fireball: "If this spell was cast from exile"
     [/^this spell was cast from exile$/i, () => ({ kind: 'castFromExile' })],
+    // Poison the Cup, Starnheim Unleashed: "If this spell was foretold"
+    [/^this spell was foretold$/i, () => ({ kind: 'castForetold' })],
     // Karlov Manor: "if evidence was collected" — the optional cost was paid
     [/^evidence was collected$/i, () => ({ kind: 'kicked', n: 1 })],
     // Osseous Exhale: "If a Dragon was beheld" — the optional behold was paid
@@ -14899,6 +14901,11 @@
     /* The War Doctor: "whenever one or more other cards are put into exile from anywhere" — anybody's, one trigger
        for the lot (cardExiledAny); "Whenever one or more other permanents phase out" (permPhasesOut) */
     { re: /^Whenever one or more other cards are put into exile from anywhere,? /i, event: 'cardExiledAny', extra: { batch: true, notSelf: true } },
+    /* Ranar the Ever-Watchful: "Whenever one or more cards are put into exile from your hand or a spell or ability you
+       control exiles one or more permanents from the battlefield," — foretelling included; one trigger for the lot
+       (cardExiledHandBf, handOrYourExile) */
+    { re: /^Whenever one or more cards are put into exile from your hand or a spell or ability you control exiles one or more permanents from the battlefield,? /i,
+      event: 'cardExiledHandBf', extra: { batch: true, handOrYourExile: true } },
     { re: /^Whenever one or more other permanents phase out,? /i, event: 'permPhasesOut', extra: { batch: true, notSelf: true } },
     // Kishla Skimmer, Along the Crooked Way: "Whenever a (creature) card leaves your graveyard (during your turn)," (leftGraveyard)
     { re: /^Whenever (one or more|a|an) ((?:artifact|creature|land|instant|sorcery|enchantment|permanent|nonland) )?cards? leaves? your graveyard( during your turn)?,? /i,
@@ -17520,7 +17527,7 @@
        the spell is cast, once the kick, the gift or the phase that decides it is settled
        (targetSlots); one inside anything else (Withdraw's "unless … pays"), in an "if" that hangs
        on some other choice made as the spell is cast, or beside "X targets", is left to the table */
-    const castOnly = /^(?:kickedWith|boughtBack|castFrom\w*|surgePaid|altPaid|bargained|manaSpent\w*|entwined|spree\w*)$/;
+    const castOnly = /^(?:kickedWith|boughtBack|castFrom\w*|castForetold|surgePaid|altPaid|bargained|manaSpent\w*|entwined|spree\w*)$/;
     const condOk = (c) => !!c && (c.kind === 'not' ? condOk(c.cond) : !castOnly.test(c.kind || ''));
     for (const ab of out.abilities) {
       if (!ab.auto || !ab.effects) continue;
@@ -19636,6 +19643,11 @@
          foretell cost is equal to its mana cost reduced by {2}." (grantForetell) */
       { re: /^Each nonland card in your hand without foretell has foretell\. Its foretell cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
         make: (m) => ({ op: 'grantForetell', reduce: +m[1] }), auto: true },
+      /* Ranar the Ever-Watchful: "The first card you foretell each turn costs {0} to foretell."; Cosmos Charger:
+         "Foretelling cards from your hand costs {1} less and can be done on any player's turn." (foretellCost) */
+      { re: /^The first card you foretell each turn costs \{0\} to foretell\.?$/i, make: () => ({ op: 'foretellCost', firstFree: true }), auto: true },
+      { re: /^Foretelling cards from your hand costs \{(\d+)\} less( and can be done on any player'?s turn)?\.?$/i,
+        make: (m) => Object.assign({ op: 'foretellCost', amount: -(+m[1]) }, m[2] ? { anyTurn: true } : {}), auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },

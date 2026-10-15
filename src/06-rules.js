@@ -5314,7 +5314,7 @@
       if (o.zone === 'hand' && !a.isLand && this._foretellWindow(playerId, o) &&
           !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^foretell$/i.test(ab.keyword || ''))) {
         const gf = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
-        if (gf) out.push({ kind: 'foretell', cost: '{2}', reduce: gf.reduce || 0, label: 'Foretell {2}' });
+        if (gf) { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, reduce: gf.reduce || 0, label: 'Foretell ' + (fp || '{0}') }); }
       }
       // (embalm and eternalize are not casts: abilities of the card in the graveyard, which make a token copy — the reading's)
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
@@ -5369,7 +5369,7 @@
         /* Foretell (CR 702.143): during your turn, pay {2} and exile it face down; cast it on a later turn for its
            foretell cost */
         if (o.zone === 'hand' && arg && k === 'foretell' && this._foretellWindow(playerId, o)) {
-          out.push({ kind: 'foretell', cost: '{2}', foretellCost: arg, label: 'Foretell {2}' });
+          { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, foretellCost: arg, label: 'Foretell ' + (fp || '{0}') }); }
         }
         /* Awaken N—{cost} (CR 702.113): cast for that cost, and the spell
            also puts N +1/+1 counters on a land you control, which becomes a
@@ -5770,8 +5770,24 @@
       return out;
     }
     /** Foretell (CR 702.143a): "During your turn" — a card of this player's own hand, any time they have priority on their turn. */
+    // (Cosmos Charger: "and can be done on any player's turn" — foretellCost anyTurn)
     _foretellWindow(playerId, o) {
-      return !!(o && o.zone === 'hand' && o.owner === playerId && this.activePlayer && this.activePlayer.id === playerId);
+      return !!(o && o.zone === 'hand' && o.owner === playerId && this.activePlayer &&
+        (this.activePlayer.id === playerId || this._foretellMods(playerId).some(e => e.anyTurn)));
+    }
+    _foretellMods(playerId) {
+      const out = [];
+      for (const x of this.battlefield) if (x.controller === playerId && !x.phasedOut) out.push(...this._staticOpsAll(x, 'foretellCost'));
+      return out;
+    }
+    /** What foretelling a card costs this player now: {2}; the first each turn {0} under Ranar the Ever-Watchful
+        (firstFree); {1} less under Cosmos Charger (foretellCost). */
+    _foretellPrice(playerId) {
+      const mods = this._foretellMods(playerId);
+      const p = this.player(playerId);
+      const first = !(p && p.foretoldTurn && p.foretoldTurn.turn === this.turn && p.foretoldTurn.n > 0);
+      if (first && mods.some(e => e.firstFree)) return '';
+      return mods.reduce((c, e) => (e.amount ? this._addGeneric(c, e.amount) : c), '{2}');
     }
     /**
      * Foretell (CR 702.143a): a special action — pay {2} and exile the card from your hand face down. From a later
@@ -5788,6 +5804,8 @@
       if (o.zone !== 'exile') return true;
       o.faceDownExile = true; o.lookableBy = playerId;
       o.foretold = { turn: this.turn, cost: use.foretellCost != null ? use.foretellCost : null, reduce: use.reduce || 0 };
+      // (Ranar the Ever-Watchful: "the first card you foretell each turn" — counted)
+      { const fp = this.player(playerId); fp.foretoldTurn = { turn: this.turn, n: (fp.foretoldTurn && fp.foretoldTurn.turn === this.turn ? fp.foretoldTurn.n : 0) + 1 }; }
       this.logEvent('rules', `${this.player(playerId).name} foretells a card.`);
       // Dream Devourer: "Whenever you foretell a card"
       this._fire('youForetell', playerId, { object: o, playerId });
@@ -13642,6 +13660,8 @@
         case 'surgePaid': return !!(ctx && ((ctx.obj && ctx.obj._surged) || ctx.via === 'surge'));
         case 'altPaid': return !!(ctx && /^alt/.test(String(ctx.via || '')));
         case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
+        // Poison the Cup: "If this spell was foretold" — cast from exile for its foretell cost
+        case 'castForetold': return !!(ctx && ctx.via === 'foretell');
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
         // Faramir, Prince of Ithilien: "if they didn't attack you that turn" — that player, this turn (playerAttackedYou)
@@ -15888,6 +15908,12 @@
       if (toZone === 'exile' && (from === 'library' || from === 'graveyard')) this._fire('youExileFromLibGy', o.owner, { object: o, playerId: o.owner });
       // The War Doctor: "one or more other cards are put into exile from anywhere" — cards, not tokens or copies
       if (toZone === 'exile' && from !== 'exile' && !o.isToken && !o.isCopy) this._fire('cardExiledAny', null, { object: o, objController: o.owner, fromZone: from });
+      /* Ranar the Ever-Watchful: a card exiled from a hand (foretold, say), or a permanent — a token too — exiled from the
+         battlefield by a spell or ability, and whose that was (cardExiledHandBf) */
+      if (toZone === 'exile' && (from === 'hand' || from === 'battlefield')) {
+        const by = from === 'battlefield' && this.resolving && this.resolving.ctx ? this.resolving.ctx.controller : null;
+        this._fire('cardExiledHandBf', null, { object: o, objController: from === 'hand' ? o.owner : lastCtrl, fromZone: from, exiledBy: by || null });
+      }
       // "if you descended this turn": a permanent card went to your graveyard
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
@@ -16492,6 +16518,8 @@
             const counts = (x, k) => this._cardFitsWords(x, k) && !(ab.firstOfKindsNotSelfName && x.name === o.name);
             if (!sp || !ab.firstOfKinds.some(k => counts(sp, k) && !mineK.some(x => x !== sp && counts(x, k)))) continue;
           }
+          // Ranar the Ever-Watchful: from your hand, or from the battlefield by a spell or ability of yours (handOrYourExile)
+          if (ab.handOrYourExile && !(data.fromZone === 'hand' ? data.objController === o.controller : data.exiledBy === o.controller)) continue;
           // Sidisi: "put into your graveyard from your library"
           if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
           if (ab.notFromBattlefield && data.fromZone === 'battlefield') continue;
