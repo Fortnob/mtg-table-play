@@ -4890,7 +4890,9 @@
          creature, a leash goes on theirs. */
       if (a.isAura && a.auraSpec) {
         const text = (a.oracleText || '').toLowerCase();
-        const hostile = /can't attack|can't block|doesn't untap|enchanted creature gets -|loses all abilities|enchanted permanent doesn't/.test(text);
+        // (a Curse goes on an opponent: Fraying Sanity; Paradox Haze, no Curse, on ourselves)
+        const hostile = /can't attack|can't block|doesn't untap|enchanted creature gets -|loses all abilities|enchanted permanent doesn't/.test(text) ||
+          (a.subtypes || []).includes('Curse');
         const spec = Object.assign({}, a.auraSpec);
         if (!spec.controller) spec.controller = hostile ? 'opponent' : 'you';
         return this.chooseTargetsForEffects(
@@ -5163,7 +5165,7 @@
       const list = g.battlefield.filter(o => {
         if (o.controller === this.pid) return false;
         const a = o.analysis();
-        return a && (this._isCreature(o) || a.isPlaneswalker) && !g.hasKw(o, 'hexproof') && !g.hasKw(o, 'shroud');
+        return a && (this._isCreature(o) || a.isPlaneswalker) && !g._hexproofBars(o) && !g.hasKw(o, 'shroud');
       });
       if (!list.length) return null;
       list.sort((a, b) => this.threatValue(b) - this.threatValue(a));

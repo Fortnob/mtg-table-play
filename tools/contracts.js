@@ -121,6 +121,8 @@ const ObjectView = obj({
   lethalByPower: opt(lit(true)),
   // Autumn Willow: shroud, but this viewer may target it this turn
   shroudOpen: opt(lit(true)),
+  // Nowhere to Run: hexproof, but targetable as though it didn't have it
+  hexproofOpen: opt(lit(true)),
   // Alchemy: perpetual changes added up, and a card's intensity
   perpetual: opt(maybe(obj({ pt: arr(num), keywords: arr(str), costDelta: num, text: arr(str), basePt: opt(arr(num)),
     lose: opt(arr(str)), spendAny: opt(bool), types: opt(arr(str)) }))),

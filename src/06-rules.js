@@ -1225,6 +1225,8 @@
       switch (step) {
         case 'untap': this._untapStep(); return;                // no priority
         case 'upkeep':
+          // (Paradox Haze: "first upkeep each turn" — how many have begun this turn: firstUpkeepOnly)
+          this._upkeepsBegun = { turn: this.turn, n: (this._upkeepsBegun && this._upkeepsBegun.turn === this.turn ? this._upkeepsBegun.n : 0) + 1 };
           this._expireAtUpkeep(false);
           this._cumulativeUpkeep();
           this._tickSuspended(this.activePlayer.id);
@@ -4130,7 +4132,7 @@
           if (sp && sp.maxPowerOfObj) { const w = this.obj(sp.maxPowerOfObj); if (this.powerOf(o) > (w && w.zone === 'battlefield' ? this.powerOf(w) : (w ? w._lastPower || 0 : 0))) return false; }
         }
         if (o.zone === 'battlefield') {
-          if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
+          if (this._hexproofBars(o) && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj, item.kind !== 'spell')) return false;
           if (item.obj && this._untargetableHit(o, item.obj, item.controller)) return false;
           if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
@@ -8833,9 +8835,22 @@
       return v;
     }
 
+    /** Does this permanent's hexproof keep other players' spells and abilities off it? Not a creature of an opponent of
+        Nowhere to Run's controller: "as though they didn't have hexproof" (oppCreaturesExposed). */
+    _hexproofBars(o) {
+      return this.hasKw(o, 'hexproof') && !this._exposedCreature(o);
+    }
+    /** Nowhere to Run: a creature an opponent of its controller controls — targetable through hexproof, its ward silent. */
+    _exposedCreature(o) {
+      if (!o || o.zone !== 'battlefield' || !(this.characteristics(o) || {}).isCreature) return false;
+      return this.battlefield.some(x => !x.phasedOut && x.controller !== o.controller && this._staticOp(x, 'oppCreaturesExposed') &&
+        this.opponentsOf(x.controller).some(q => q.id === o.controller));
+    }
     /** Every ward price a permanent has: printed, or handed to it ("has ward {2}"). */
     _wardCosts(o) {
       const out = [];
+      // (Nowhere to Run: "Ward abilities of those creatures don't trigger." — oppCreaturesExposed)
+      if (this._exposedCreature(o)) return out;
       const a = o.analysis();
       for (const k of ((a && a.keywords) || [])) if (k.keyword === 'Ward' && k.arg) out.push(k.arg);
       const c = this.characteristics(o);
@@ -18316,6 +18331,11 @@
         o._toGraveDiscarded = null;
         // Garna, the Bloodflame: "cards in your graveyard that were put there from anywhere this turn" (toGraveThisTurn)
         o._toGraveTurn = toZone === 'graveyard' ? this.turn : null;
+        // Fraying Sanity: "the number of cards put into their graveyard from anywhere this turn" — a card, its owner's (toGraveCount)
+        if (toZone === 'graveyard' && !o.isToken) {
+          const ow = this.player(o.owner);
+          if (ow) ow.toGraveCount = { turn: this.turn, n: (ow.toGraveCount && ow.toGraveCount.turn === this.turn ? ow.toGraveCount.n : 0) + 1 };
+        }
         // Storrev, Devkarin Lich: "that wasn't put there this combat" — which combat of which turn (_toGraveCombat)
         o._toGraveCombat = toZone === 'graveyard' && this.phase && this.phase.id === 'combat' ? this.turn + ':' + (this.combatsThisTurn || 1) : null;
         // The Master, Transcendent: "that was milled this turn" — marked as it is milled (_noteMilled), a new object forgets
@@ -19574,6 +19594,8 @@
           // "the upkeep of enchanted creature's controller", "enchanted player's upkeep"
           if (ab.enchantedController) { const host = o.attachedTo && this.obj(o.attachedTo); if (!host || data.playerId !== host.controller) continue; }
           if (ab.enchantedPlayer && (data.playerId != null ? data.playerId : data.drawer != null ? data.drawer : data.player) !== o.attachedTo) continue;
+          // Paradox Haze: "first upkeep each turn" (firstUpkeepOnly)
+          if (ab.firstUpkeepOnly && !(this._upkeepsBegun && this._upkeepsBegun.turn === this.turn && this._upkeepsBegun.n === 1)) continue;
           // "Whenever a creature attacks enchanted player"
           if (ab.attacksEnchanted && (!o.attachedTo || data.player !== o.attachedTo || !this.player(data.defenderId))) continue;
           // battalion: this and at least so many others attacking
@@ -21422,6 +21444,11 @@
         // Fists of Flame: "for each card you've drawn this turn"
         if (v && typeof v === 'object' && v.drawnThisTurn === 'opponents') return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && v.lookedToGraveyard) return (this._lookedToGraveyard || 0) * (v.mult || 1);
+        // Fraying Sanity: "the number of cards put into their graveyard from anywhere this turn" (cardsToGraveTurn)
+        if (v && typeof v === 'object' && v.cardsToGraveTurn) {
+          const q = this.player(v.cardsToGraveTurn === 'enchantedPlayer' ? src && src.attachedTo : ctx.controller);
+          return (q && q.toGraveCount && q.toGraveCount.turn === this.turn ? q.toGraveCount.n : 0) * (v.mult || 1);
+        }
         // Struggle for Project Purity: "for each card drawn this way" — by the draw just made (drawnThisWay)
         if (v && typeof v === 'object' && v.drawnThisWay) return (this._drawnThisWay || 0) * (v.mult || 1);
         // (Search for Blex: "for each card you put into your hand this way")
@@ -23518,6 +23545,8 @@
             : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             // Geth, Lord of the Vault: "Then that player mills X cards." — the owner of the card it took
             : e.who === 'targetOwner' ? [(() => { const x = firstObj(); return x ? this.player(x.owner) : null; })()]
+            // Fraying Sanity: "enchanted player mills" — the player the Curse is on
+            : e.who === 'enchantedPlayer' ? [this.player(src && src.attachedTo)]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           // "…from among the milled cards": what this mill put there
           this._lastMilled = [];
@@ -31397,7 +31426,9 @@
         /* The Ninth Doctor: "you get an additional upkeep step after this step" — triggered in the untap step, it
            resolves in the upkeep, and that upkeep comes again (extraUpkeepStep) */
         case 'extraUpkeepStep': {
-          if (!this.phase || this.step !== 'upkeep' || !this.activePlayer || this.activePlayer.id !== ctx.controller) break;
+          // (Paradox Haze: "that player gets" — the player the trigger is about: who triggerPlayer)
+          const upk = e.who === 'triggerPlayer' ? (triggerPlayer() || {}).id : ctx.controller;
+          if (!this.phase || this.step !== 'upkeep' || !this.activePlayer || this.activePlayer.id !== upk) break;
           (this._extraSteps = this._extraSteps || []).push({ turn: this.turn, step: 'upkeep' });
           this.logEvent('rules', 'There is an additional upkeep step after this one.');
           break;
@@ -41202,7 +41233,7 @@
           const a = o.analysis();
           if (!a || o.phasedOut) continue;
           if (!MTG.oracle.matchesSpec(Object.assign({}, spec, { type: 'permanent' }), o, a, controllerId, this._specCtx())) continue;
-          if (o.controller !== controllerId && (this.hasKw(o, 'hexproof') || this._shroudFor(o, controllerId))) continue;
+          if (o.controller !== controllerId && (this._hexproofBars(o) || this._shroudFor(o, controllerId))) continue;
           out2.push({ kind: 'object', id: o.id, name: o.name });
         }
         return out2;
@@ -41226,7 +41257,7 @@
         // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
         if (spec.artifactOrMaxMv != null && !a.isArtifact && ((o.card && o.card.cmc) || 0) > spec.artifactOrMaxMv) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
-            (this.hasKw(o, 'hexproof') || this._shroudFor(o, controllerId))) continue;
+            (this._hexproofBars(o) || this._shroudFor(o, controllerId))) continue;
         // shroud: not even its own controller's (CR 702.18a)
         if (zone === 'battlefield' && this._shroudFor(o, controllerId)) continue;
         // protection: not by a spell or ability from a source with that quality (CR 702.16b)
@@ -42568,6 +42599,8 @@
         keywords: blank(o) ? [] : this._viewKeywords(o),
         // Autumn Willow: shroud, though this player may target it this turn (shroudExceptFor)
         shroudOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'shroud') && !this._shroudFor(o, playerId) ? true : undefined,
+        // Nowhere to Run: hexproof, but targetable "as though they didn't have hexproof" (oppCreaturesExposed)
+        hexproofOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'hexproof') && !this._hexproofBars(o) ? true : undefined,
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
         /* Kibo's Banana, Birds of Paradise, Arcane Signet: what tapping it by hand lets its controller choose (the

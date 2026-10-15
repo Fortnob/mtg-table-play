@@ -121,6 +121,8 @@ declare namespace MTG {
     keywords: string[];
     /** Autumn Willow: it has shroud, but the viewer may target it this turn */
     shroudOpen?: true;
+    /** Nowhere to Run: it has hexproof, but may be targeted as though it didn't */
+    hexproofOpen?: true;
     /** Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
     manaExtra?: Array<{ i: number; label: string }> | null;
     /** Kibo's Banana, Birds of Paradise: for its controller, each mana ability (by the index the mana intent

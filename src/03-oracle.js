@@ -2128,6 +2128,9 @@
       make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    // Vorpal Sword: "Until end of turn, this Equipment gains "Whenever equipped creature …"" (a creature's own: below, with its name made "this creature")
+    { re: /^Until end of turn, this (?:Equipment|artifact|enchantment|permanent) gains "([^"]+)"\.?$/,
+      make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'eot', scope: 'self' } : null) },
     /* Human Torch: "until end of turn, whenever he deals combat damage to an opponent, he deals that much damage to each
        other opponent" — a line it has for the turn (grantAbility, eot) */
     { re: /^Until end of turn, whenever (?:he|she|it|CARDNAME) (deals combat damage to (?:a player|an opponent)), (?:he|she|it|CARDNAME) (deals that much damage to each other opponent)\.?$/i,
@@ -6583,6 +6586,10 @@
       make: (m) => ({ op: 'mill', who: 'triggerPlayer', n: num(m[1]) }) },
     { re: /^(?:They|That player) mills? that many cards\.?$/i,
       make: () => ({ op: 'mill', who: 'triggerPlayer', n: 'triggerAmount' }) },
+    /* Fraying Sanity: "enchanted player mills X cards, where X is the number of cards put into their graveyard from anywhere
+       this turn" — counted as they went, though they left it since (cardsToGraveTurn) */
+    { re: /^Enchanted player mills X cards, where X is the number of cards put into their graveyard from anywhere this turn\.?$/i,
+      make: () => ({ op: 'mill', who: 'enchantedPlayer', n: { cardsToGraveTurn: 'enchantedPlayer' } }) },
     { re: /^You may have (?:that player|them) lose (one|two|three|\d+) life\.?$/i,
       make: (m) => ({ op: 'may', then: [{ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }] }) },
     // Blood Money: "For each nontoken creature destroyed this way, you create a tapped Treasure token."
@@ -6811,6 +6818,8 @@
       make: () => ({ op: 'extraEndStep', ifFirst: true }) },
     // The Ninth Doctor: "you get an additional upkeep step after this step" — the upkeep it resolves in, again (extraUpkeepStep)
     { re: /^You get an additional upkeep step after this step\.?$/i, make: () => ({ op: 'extraUpkeepStep' }) },
+    // (Paradox Haze: "that player gets an additional upkeep step after this step" — the enchanted player, whose upkeep it is)
+    { re: /^That player gets an additional upkeep step after this step\.?$/i, make: () => ({ op: 'extraUpkeepStep', who: 'triggerPlayer' }) },
     // Obeka, Splitter of Seconds: "you get that many additional upkeep steps after this phase" (extraUpkeeps)
     { re: /^You get that many additional upkeep steps after this phase\.?$/i, make: () => ({ op: 'extraUpkeeps', n: 'triggerAmount' }) },
     { re: /^After this (?:main )?phase, there are (two|three) additional combat phases( followed by an additional main phase)?\.?$/i,
@@ -17870,6 +17879,8 @@
     { re: /^At the beginning of the upkeep of enchanted (?:creature|permanent|artifact|land|planeswalker)'s controller,? /i,
       event: 'eachUpkeep', extra: { enchantedController: true } },
     { re: /^At the beginning of enchanted (?:player|opponent)'s upkeep,? /i, event: 'eachUpkeep', extra: { enchantedPlayer: true } },
+    // Paradox Haze: "At the beginning of enchanted player's first upkeep each turn" — not an additional one (firstUpkeepOnly)
+    { re: /^At the beginning of enchanted (?:player|opponent)'s first upkeep each turn,? /i, event: 'eachUpkeep', extra: { enchantedPlayer: true, firstUpkeepOnly: true } },
     // the Curses: what the enchanted player does, and what is done to them
     { re: /^At the beginning of enchanted (?:player|opponent)'s draw step,? /i, event: 'eachDrawStep', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of enchanted (?:player|opponent)'s end step,? /i, event: 'eachEndStep', extra: { enchantedPlayer: true } },
@@ -23197,6 +23208,10 @@
       { re: /^You may activate the loyalty abilities of (?:CARDNAME|this planeswalker) twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice' }, auto: true },
       // Oath of Teferi: "You may activate the loyalty abilities of planeswalkers you control twice each turn rather than only once." (loyaltyTwice, yours)
       { re: /^You may activate the loyalty abilities of planeswalkers you control twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice', yours: true }, auto: true },
+      /* Nowhere to Run: "Creatures your opponents control can be the targets of spells and abilities as though they didn't have
+         hexproof. Ward abilities of those creatures don't trigger." — by anyone's (oppCreaturesExposed) */
+      { re: /^Creatures your opponents control can be the targets of spells and abilities as though they didn'?t have hexproof\. Ward abilities of those creatures don'?t trigger\.?$/i,
+        eff: { op: 'oppCreaturesExposed' }, auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },
       // Lord Magnus: "Creatures with plainswalk can be blocked as though they didn't have plainswalk." — anyone's (walkBlockable)
       { re: /^Creatures with ([a-z]+)walk can be blocked as though they didn'?t have \1walk\.?$/i, make: (m) => ({ op: 'walkBlockable', kind: m[1].toLowerCase() }), auto: true },

@@ -3221,7 +3221,8 @@
       const kw = (o.keywords || []).map(k => String(k).toLowerCase());
       // (Autumn Willow: "as though it didn't have shroud" for you — shroudOpen)
       if (kw.includes('shroud') && !o.shroudOpen) return false;
-      if (o.controller !== this.meId && kw.includes('hexproof')) return false;
+      // (Nowhere to Run: "as though they didn't have hexproof" — hexproofOpen)
+      if (o.controller !== this.meId && kw.includes('hexproof') && !o.hexproofOpen) return false;
       const t = this.targeting;
       const src = t && t.source ? this.objIn(t.source) : null;
       const cols = (src && src.card && (src.card.colors || [])) || [];

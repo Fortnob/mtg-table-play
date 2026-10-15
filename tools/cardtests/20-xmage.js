@@ -70552,4 +70552,95 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.eq(T.bfOf('A').filter(o => o.name === 'Raging Goblin').length, 1, 'no copy of a creature');
   });
+  test('Cards: Vorpal Sword — +2/+0 and deathtouch; activated, the player it hits loses the game this turn only', (mk, t) => {
+    t.auto('Vorpal Sword');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Swamp') });
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const sw = T.bf('A', 'Vorpal Sword');
+    T.mana('A', 'BB');
+    T.activate('A', sw, 1, { targets: [bear] });
+    t.eq(sw.attachedTo, bear.id, 'equipped');
+    t.eq(g.powerOf(bear), 4); t.ok(g.hasKw(bear, 'deathtouch'), 'deathtouch');
+    // not activated: B only takes damage
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 16); t.no(g.player('B').hasLost, 'B still in');
+    // activated: C loses the game
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A');
+    T.mana('A', '5BBB');
+    T.activate('A', sw, 0);
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'C' }]);
+    T.toMain('A', 'endCombat');
+    t.ok(g.player('C').hasLost, 'C loses the game');
+    // the next turn it is gone
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.no(g.player('B').hasLost, 'until end of turn only');
+  });
+  test("Cards: Nowhere to Run — opponents' hexproof creatures targetable, their ward silent; not yours, not without it", (mk, t) => {
+    t.auto('Nowhere to Run');
+    const T = mk();
+    const g = T.g;
+    const scout = T.bf('B', 'Gladecover Scout');
+    const fly = T.bf('B', 'Waterfall Aerialist');
+    const mine = T.bf('A', 'Gladecover Scout');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const spec = bolt.analysis().abilities.find(a => a.kind === 'spell').effects[0].targets[0];
+    const ids = () => g._legalTargetsFor(spec, 'A', bolt.id).map(x => x.id);
+    t.no(ids().includes(scout.id), 'hexproof before');
+    // B's own Nowhere to Run does nothing for A
+    const theirs = T.bf('B', 'Nowhere to Run');
+    t.no(ids().includes(scout.id), "B's Nowhere to Run: B's creatures keep hexproof");
+    t.ok(g._legalTargetsFor(spec, 'B', bolt.id).some(x => x.id === mine.id), "B's: A's hexproof creature open to B");
+    g.moveObject(theirs, 'graveyard');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: scout.id }] }));
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Nowhere to Run'));
+    t.zone(scout, 'graveyard', 'the Scout shrinks through hexproof');
+    t.ok(ids().includes(mine.id), 'its own controller could always');
+    // ward does not trigger: one red for the Bolt is enough
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: [fly] });
+    t.zone(fly, 'graveyard', 'no ward to pay');
+    // without it, ward counters
+    const T2 = mk();
+    const fly2 = T2.bf('B', 'Waterfall Aerialist');
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: [fly2] });
+    t.zone(fly2, 'battlefield', 'ward counters the Bolt');
+  });
+  test('Cards: Paradox Haze — the enchanted player has a second upkeep, once a turn', (mk, t) => {
+    t.auto('Paradox Haze');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Phyrexian Arena');
+    T.bf('B', 'Phyrexian Arena');
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Paradox Haze'), { targets: ['A'] });
+    T.nextTurn('B');
+    t.eq(T.life('B'), 19, "B's one upkeep");
+    T.nextTurn('A');
+    t.eq(T.life('A'), 18, "A's two upkeeps: Phyrexian Arena twice");
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.life('A'), 16, 'again next turn, two');
+  });
+  test('Cards: Fraying Sanity — at each end step the enchanted player mills as many as went to their graveyard this turn', (mk, t) => {
+    t.auto('Fraying Sanity');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Fraying Sanity'), { targets: ['B'] });
+    t.eq(T.zone('B', 'graveyard').length, 0);
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Thought Scour'), { targets: ['B'] });
+    t.eq(T.zone('B', 'graveyard').length, 2);
+    // one leaves the graveyard: still counted
+    T.g.moveObject(T.zone('B', 'graveyard')[0], 'exile');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, 3, 'two more milled at the end step');
+    // B's turn: nothing went there, nothing milled
+    T.nextTurn('B'); T.toMain('B', 'end'); T.resolve();
+    t.eq(T.zone('B', 'graveyard').length, 3, 'nothing this turn');
+    t.eq(T.zone('A', 'graveyard').filter(o => o.name !== 'Thought Scour').length, 0, 'A is not enchanted');
+  });
 };
