@@ -358,6 +358,22 @@
   font: 700 11px/18px var(--font); min-width: 18px; text-align: center; border-radius: 9px;
   background: #1b1f28; border: 1px solid rgba(255,255,255,.2); color: #fff; }
 .ohand[data-n="0"]::after { display: none; }
+/* a hidden card somebody knows: an eye, and on a card big enough to read it, what kind of knowing */
+.cv-seen { position: absolute; right: 6%; top: -9px; z-index: 3; pointer-events: auto; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: .3em; font: 700 max(9px, calc(var(--w, 90px) * .1))/1.5 var(--font);
+  padding: 0 .55em; border-radius: 99px; color: #10222e; background: linear-gradient(180deg, #c6ecff, #82c9ec);
+  box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.cv-seen.all { color: #2b1a00; background: linear-gradient(180deg, #ffe39a, #f0b93c); }
+.cv-seen .eye, .pile-tag .eye { display: inline-flex; font-size: 1.15em; }
+/* in an opponent's hand the card is small: the eye alone */
+.ohand .cv-seen { top: -7px; right: auto; left: 50%; translate: -50% 0; padding: 0 3px; font-size: 10px; }
+.ohand .cv-seen span { display: none; }
+.ohand.partly .cv:has(.cv-seen) { --w: 50px; z-index: 1; }
+.pile.library.known { cursor: zoom-in; }
+.pile-tag { position: absolute; left: 50%; top: -8px; translate: -50% 0; z-index: 2; display: inline-flex; align-items: center; gap: 2px;
+  font: 700 9px/14px var(--font); padding: 0 4px; border-radius: 7px; white-space: nowrap; pointer-events: none;
+  color: #10222e; background: linear-gradient(180deg, #c6ecff, #82c9ec); box-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.pile-tag.all { color: #2b1a00; background: linear-gradient(180deg, #ffe39a, #f0b93c); }
 
 /* piles: library, graveyard, exile */
 .piles { display: flex; gap: 8px; align-items: flex-end; }

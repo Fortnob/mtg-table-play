@@ -46,6 +46,12 @@
    * full list for the tooltip.
    * @param {any} p
    */
+  /** A small eye: a hidden card somebody knows. */
+  function eyeIcon() {
+    const n = el('i', { class: 'eye', 'aria-hidden': 'true' });
+    n.innerHTML = '<svg viewBox="0 0 24 24" width="1em" height="1em"><path fill="currentColor" d="M12 5C6.5 5 2.7 9.2 1.5 12c1.2 2.8 5 7 10.5 7s9.3-4.2 10.5-7C21.3 9.2 17.5 5 12 5zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4zm0-6.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg>';
+    return n;
+  }
   function perpetualWords(p) {
     const sign = (n) => (n >= 0 ? '+' + n : String(n));
     const short = [], long = [];
@@ -582,7 +588,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0, o.textNow || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0, o.textNow || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -599,6 +605,12 @@
       if (o.intensity != null) n.appendChild(el('div', { class: 'cv-mark cv-intensity', text: '◆ ' + o.intensity, title: `Intensity ${o.intensity}` }));
       // layer 3: a text-changing effect has changed its words (Mind Bend; Deadpool, Trading Card)
       if (o.textNow != null) n.appendChild(el('div', { class: 'cv-mark cv-textnow', text: '✎', title: 'Its text now: ' + o.textNow }));
+      /* a card in a hand that others know (revealed, or looked at): an opponent's shown face up to you, your own that
+         somebody has seen — marked with an eye, and who knows it on hover (seenBy) */
+      if (o.zone === 'hand') {
+        const sl = this.seenLabel(o);
+        if (sl) n.appendChild(el('div', { class: 'cv-mark cv-seen' + (sl.all ? ' all' : ''), title: sl.long, 'aria-label': sl.long }, [eyeIcon(), el('span', { text: sl.short })]));
+      }
       if (o.zone !== 'battlefield') return;
       const a = this.analysis(o);
       if (o.power != null && o.toughness != null) {
@@ -1113,12 +1125,15 @@
       }
       // their hand: the backs, one per card, so a card leaving it is seen to
       // leave; face up when it is revealed to you (Telepathy, Seer's Vision)
+      // (and a card in it you know — revealed, or seen when you looked — face up, marked, for as long as it stays there)
       const shown = (p.hand || []).some(o => !o.hidden && o.card);
+      const all = shown && (p.hand || []).every(o => !o.hidden && o.card);
       const backs = (p.hand || []).map(o => this.cardEl(!o.hidden && o.card ? o : Object.assign({ hidden: true }, o)));
       this.place(hud._hand, backs);
       hud._hand.dataset.n = String(p.handSize);
       hud._hand.classList.toggle('revealed', shown);
-      hud._hand.title = shown ? 'Their hand, revealed' : 'Cards in hand';
+      hud._hand.classList.toggle('partly', shown && !all);
+      hud._hand.title = all ? 'Their hand, revealed' : shown ? 'Their hand: the cards you know are face up' : 'Cards in hand';
       this.renderPiles(hud._piles, p, false);
       this.renderCommand(hud._cmd, p, false);
       this.paintFlags(hud._flags, p);
@@ -1257,7 +1272,7 @@
     renderPiles(host, p, mine) {
       const gy = p.graveyard || [], ex = p.exile || [];
       const sleeve = MTG.app && MTG.app.sleeveFor ? MTG.app.sleeveFor(p.id) : null;
-      const sig = [p.librarySize, gy.length, gy.length ? gy[gy.length - 1].id : '', ex.length, ex.length ? ex[ex.length - 1].id : '', p.topCard ? p.topCard.id : '', sleeve ? sleeve.id : ''].join('|');
+      const sig = [p.librarySize, gy.length, gy.length ? gy[gy.length - 1].id : '', ex.length, ex.length ? ex[ex.length - 1].id : '', p.topCard ? p.topCard.id : '', p.topCard ? JSON.stringify(p.topCard.seenBy || '') : '', sleeve ? sleeve.id : ''].join('|');
       if (host._sig === sig) return;
       host._sig = sig;
       host.innerHTML = '';
@@ -1273,6 +1288,8 @@
             const live = this.live || this.view;
             const tc = top && ((live.playable || []).includes(top.id) || ((live.uses || {})[top.id] || []).length) ? top : null;
             if (tc) this.cardMenu(tc.id, e);
+            // a top card you know, to read at full size
+            else if (top && top.card) this.showCard(top.id);
           },
         }, [
           el('div', { class: 'pile-card' + (top ? '' : ' back') }),
@@ -1285,6 +1302,15 @@
         if (top && top.card) {
           const url = MTG.scry.imageUrl(top.card, 'small', top.face || 0);
           if (url) face.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+          /* the top of a library shown face up: revealed to everybody, or to you alone (you may look at it, you looked) —
+             said on the pile, and the card is there to read */
+          if (zone === 'library') {
+            const sl = this.seenLabel(top) || { all: false, short: 'Only you', long: 'Only you can see this card' };
+            node.classList.add('known');
+            node.appendChild(el('span', { class: 'pile-tag' + (sl.all ? ' all' : '') }, [eyeIcon(), el('span', { text: sl.short })]));
+            node.title = `${label}: ${n}. On top: ${top.card.name}. ${sl.long}.`;
+            node.setAttribute('aria-label', `${p.name} library, ${n} card${n === 1 ? '' : 's'}. On top: ${top.card.name}. ${sl.long}.`);
+          }
         }
         if (n > 1) node.style.setProperty('--depth', String(Math.min(4, Math.ceil(n / 8))));
         return node;
@@ -3067,11 +3093,39 @@
       this._hoverNode = node;
     }
 
+    /**
+     * Who knows a card in a hand or on top of a library, in words: { short, long, all } or null when there is nothing
+     * to say (your own hand card nobody else has seen). `seenBy` is 'all' for a revealed card, else the players who
+     * looked; a card of somebody else's you can see is one you know.
+     */
+    seenLabel(o) {
+      if (!o || o.hidden || !o.card) return null;
+      const me = this.meId;
+      const by = o.seenBy;
+      const nameOf = (id) => (id === me ? 'you' : ((this.view.players || []).find(p => p.id === id) || {}).name || 'a player');
+      const list = (ids) => ids.length < 3 ? ids.join(' and ') : ids.slice(0, -1).join(', ') + ' and ' + ids[ids.length - 1];
+      const lib = o.zone === 'library';
+      const where = lib ? 'on top of the library' : 'in this hand';
+      if (by === 'all') return { all: true, short: 'Revealed', long: `Revealed: everybody knows this card is ${where}` };
+      const others = (Array.isArray(by) ? by : []).filter(id => id !== o.owner || lib);
+      if (o.owner === me) {
+        if (lib) {
+          const rest = others.filter(id => id !== me);
+          return { all: false, short: rest.length ? 'Seen' : 'Only you', long: rest.length ? `Known to ${list(['you'].concat(rest.map(nameOf)))}` : 'Only you can see this card' };
+        }
+        return others.length ? { all: false, short: 'Seen', long: `Seen by ${list(others.map(nameOf))}: they know this card is in your hand` } : null;
+      }
+      const rest = others.filter(id => id !== me);
+      return { all: false, short: 'Seen', long: `You ${lib ? 'know' : 'saw'} this card${rest.length ? ` (so ${rest.length === 1 ? 'does' : 'do'} ${list(rest.map(nameOf))})` : ''}: it is still ${where}` };
+    }
+
     cardNotes(o) {
       const out = [];
       /* layer 3 (CR 612): words a text-changing effect has changed (Mind Bend;
          Deadpool, Trading Card) are what the card says now, not what is printed */
       if (o.textNow != null) out.push(['textnow', o.textNow]);
+      // who knows a card in a hand or on top of a library
+      if (o.zone === 'hand' || o.zone === 'library') { const sl = this.seenLabel(o); if (sl) out.push(['info', sl.long]); }
       if (o.zone !== 'battlefield' && !this.view.battlefield.some(x => x.id === o.id)) return out;
       const a = this.analysis(o);
       if (o.power != null && a && (String(o.power) !== String(a.power) || String(o.toughness) !== String(a.toughness)))
