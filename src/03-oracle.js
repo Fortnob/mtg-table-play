@@ -1957,6 +1957,9 @@
     { re: /^(This creature|CARDNAME|Target creature|It|That creature) can'?t be blocked by creatures with power (\d+) or less this turn\.?$/i,
       make: (m) => Object.assign({ op: 'evasionEot', minBlockerPower: +m[2] + 1 },
         /^target/i.test(m[1]) ? { targets: [targetSpec('target creature')] } : /^(?:it|that creature)$/i.test(m[1]) ? { scope: 'lastTarget' } : { scope: 'self' }) },
+    // Doorman: "Until end of turn, target creature can't be blocked by creatures with power 2 or less and/or Walls." (notBySubtype)
+    { re: /^Until end of turn, target creature can'?t be blocked by creatures with power (\d+) or less and\/or ([A-Z][a-z]+)s\.?$/,
+      make: (m) => ({ op: 'evasionEot', minBlockerPower: +m[1] + 1, notBySubtype: m[2].toLowerCase(), targets: [targetSpec('target creature')] }) },
     /* Tadeas, Juniper Ascendant: "Whenever a creature you control with reach attacks, untap it and it can't be blocked
        by creatures with greater power this combat." — the attacker the trigger is about (combat ends with the turn's) */
     { re: /^untap it and it can'?t be blocked by creatures with greater power this combat\.?$/i,
@@ -6218,10 +6221,12 @@
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
-    /* Daughter of Autumn: "The next 1 damage that would be dealt to target white creature this turn is dealt to Daughter of
-       Autumn instead." — the target shielded, itself taking it (toSelf) */
-    { re: /^The next (\w+) damage that would be dealt to (target [a-z ]*?creature) this turn is dealt to (?:this creature|CARDNAME) instead\.?$/i,
-      make: (m) => { const t = targetSpec(m[2]); return typeof num(m[1]) === 'number' && t && !t.unknown ? { op: 'redirectNextDamage', n: num(m[1]), toSelf: true, targets: [t] } : null; } },
+    /* Hazduhr the Abbot: "The next X damage that would be dealt this turn to target white creature you control is dealt
+       to Hazduhr instead." — the target shielded, this creature takes it (toSelf)
+       (Daughter of Autumn: "… to target white creature this turn …") */
+    { re: /^The next (X|\w+) damage that would be dealt (?:this turn )?to (target [a-z ]+?)(?: this turn)? is dealt to (?:CARDNAME|this creature) instead\.?$/i,
+      make: (m) => { const k = m[1] === 'X' ? 'X' : num(m[1]); const sp = targetSpec(m[2]);
+        return (typeof k === 'number' || k === 'X') && sp && !sp.unknown && sp.type === 'creature' ? { op: 'redirectNextDamage', n: k, toSelf: true, targets: [sp] } : null; } },
     /* Razia, Boros Archangel: "The next 3 damage that would be dealt to target creature you control this turn is dealt to
        another target creature instead." — the first target shielded, the second takes it (ofFirstTarget) */
     { re: /^The next (\w+) damage that would be dealt to target creature you control this turn is dealt to another target creature instead\.?$/i,
@@ -8467,6 +8472,9 @@
         : { op: 'skipUntap', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Wan Shi Tong, All-Knowing: "target nonland permanent's owner puts it into their library second from the top or on the bottom." (secondOrBottom)
     { re: /^(target [a-z ]+?)'s owner puts it into their library second from the top or on the bottom\.?$/i,
+      make: (m) => { const a = tgt(m[1]); return a ? { op: 'toLibrary', where: 'secondOrBottom', targets: [a] } : null; } },
+    // Happy Hogan, Bodyguard: "the owner of target creature an opponent controls puts it into their library second from the top or on the bottom."
+    { re: /^the owner of (target [a-z ]+?) puts it into their library second from the top or on the bottom\.?$/i,
       make: (m) => { const a = tgt(m[1]); return a ? { op: 'toLibrary', where: 'secondOrBottom', targets: [a] } : null; } },
     // Chronostutter: "Put target creature into its owner's library second from the top."
     // (Teferi, Hero of Dominaria: "third from the top"; Commit: "target spell or nonland permanent", off the stack)
@@ -22974,6 +22982,9 @@
         eff: { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { notedMv: true }, t: null, keepToughness: true } }, auto: true },
       // Aggressive Mining: "You can't play lands."
       { re: /^You can'?t play lands\.?$/i, eff: { op: 'cantPlayLands' }, auto: true },
+      // Zuo Ci, the Mocking Sage: "Zuo Ci can't be blocked by creatures with horsemanship."
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with (horsemanship|flying|defender|shadow)\.?$/i,
+        make: (m) => { const spec = targetSpec('target creature with ' + m[1].toLowerCase()); if (!spec || spec.unknown || !spec.withKeyword) return null; delete spec.filter; return { op: 'evasion', notBy: spec }; }, auto: true },
       // Cynical Loner: "This creature can't be blocked by Glimmers."
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by ([A-Z][a-z]+s)\.?$/,
         make: (m) => { const spec = targetSpec('target ' + U.titleCase(singularType(m[1]))); if (!spec || spec.unknown || !(spec.subtypes || []).length) return null; delete spec.filter; return { op: 'evasion', notBy: spec }; }, auto: true },

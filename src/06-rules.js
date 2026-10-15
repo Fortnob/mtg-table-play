@@ -12711,6 +12711,8 @@
       if (ev && ev.onlyBy && !ev.onlyBy.some(k => this.hasKw(blocker, k))) return false;
       // Verdant Outrider: for the turn, nothing with power 2 or less blocks it
       if ((attacker.effects || []).some(ef => ef && ef.tempEvasion && ef.tempEvasion.minBlockerPower != null && this.powerOf(blocker) < ef.tempEvasion.minBlockerPower)) return false;
+      // Doorman: "and/or Walls" — nor a Wall of any power
+      if ((attacker.effects || []).some(ef => ef && ef.tempEvasion && ef.tempEvasion.notBySubtype && this._hasCreatureType(blocker, ef.tempEvasion.notBySubtype))) return false;
       // Dream Prowler: unblockable while it attacks alone
       if (ev && ev.attackingAlone && (this.combat.attackers || []).length === 1 && this.combat.attackers[0] === attacker.id) return false;
       // Realm of Koh's Spirit: "can't block non-Spirit creatures"
@@ -21035,7 +21037,9 @@
         // Verdant Outrider: "can't be blocked by creatures with power 2 or less this turn"
         // (Tadeas, Juniper Ascendant: "it can't be blocked by creatures with greater power this combat" — notByGreaterPower)
         case 'evasionEot':
-          applyToScope(e, (o) => { o.effects.push(e.notByGreaterPower ? { flag: 'notByGreaterPower', until: 'eot' } : { tempEvasion: { minBlockerPower: e.minBlockerPower }, until: 'eot' }); });
+          // (Doorman: "… and/or Walls" — notBySubtype)
+          applyToScope(e, (o) => { o.effects.push(e.notByGreaterPower ? { flag: 'notByGreaterPower', until: 'eot' }
+            : { tempEvasion: Object.assign({ minBlockerPower: e.minBlockerPower }, e.notBySubtype ? { notBySubtype: e.notBySubtype } : {}), until: 'eot' }); });
           break;
         /* Skullcap Snail: "target opponent exiles a card from their hand" —
            the player whose hand it is picks */
@@ -32478,15 +32482,16 @@
             this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${from.name} this turn goes to ${to2.name} instead.`);
             break;
           }
-          const to = firstObj();
-          if (!src || src.zone !== 'battlefield' || !to) break;
-          // Daughter of Autumn: "… to target white creature this turn is dealt to Daughter of Autumn instead" (toSelf)
+          // Hazduhr the Abbot, Daughter of Autumn: "… to target white creature … is dealt to CARDNAME instead" — the target shielded (toSelf)
           if (e.toSelf) {
-            if (to === src || to.zone !== 'battlefield') break;
-            (to.redirectNext = to.redirectNext || []).push({ n: n(e.n) || 1, to: src.id, turn: this.turn });
-            this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${to.name} this turn goes to ${src.name} instead.`);
+            const sh = firstObj(), k = n(e.n) || 0;
+            if (!src || src.zone !== 'battlefield' || !sh || sh === src || k <= 0) break;
+            (sh.redirectNext = sh.redirectNext || []).push({ n: k, to: src.id, turn: this.turn });
+            this.logEvent('rules', `The next ${k} damage to ${sh.name} this turn goes to ${src.name} instead.`);
             break;
           }
+          const to = firstObj();
+          if (!src || src.zone !== 'battlefield' || !to) break;
           (src.redirectNext = src.redirectNext || []).push({ n: n(e.n) || 1, to: to.id, turn: this.turn });
           this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${src.name} this turn goes to ${to.name} instead.`);
           break;

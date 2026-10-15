@@ -65592,4 +65592,82 @@ module.exports = (test) => {
     t.zone(stone, 'hand'); t.zone(anthem, 'hand'); t.zone(isl, 'hand');
     t.ok(picks.length && picks[0].playerId === 'B' && picks[0].cards.length === 2, 'Linessa: B chooses which creature');
   });
+  test('Commanders: Doorman — {T}: a creature can\'t be blocked by creatures with power 2 or less and/or Walls this turn', (mk, t) => {
+    t.auto('Doorman');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const dm = T.bf('A', 'Doorman');
+    const giant = T.bf('A', 'Hill Giant');
+    const bear = T.bf('B', 'Grizzly Bears'), wall = T.bf('B', 'Wall of Swords'), big = T.bf('B', 'Hill Giant');
+    T.toMain('A');
+    T.activate('A', dm, 0, { targets: [giant.id] });
+    T.resolve();
+    t.ok(dm.tapped, 'Doorman: tapped');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(g.canBlock(bear, giant), 'Doorman: not by power 2 or less');
+    t.no(g.canBlock(wall, giant), 'Doorman: not by a Wall, whatever its power');
+    t.ok(g.canBlock(big, giant), 'Doorman: a power 3 non-Wall can');
+    // next turn: over
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(g.canBlock(bear, giant) && g.canBlock(wall, giant), 'Doorman: only until end of turn');
+  });
+  test('Commanders: Happy Hogan, Bodyguard — enters: the owner puts an opponent\'s creature second from the top or on the bottom', (mk, t) => {
+    t.auto('Happy Hogan, Bodyguard');
+    const T = mk({ library: Array(30).fill('Island') });
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Grizzly Bears');
+    let tq = null, q = null;
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+    T.answer('choose', (ch) => { q = ch; return { picks: [0] }; });
+    T.bf('A', 'Happy Hogan, Bodyguard', { etb: true });
+    T.resolve();
+    t.ok(tq && JSON.stringify(tq).includes(bear.id) && !JSON.stringify(tq).includes(mine.id), "Happy Hogan: only an opponent's creature");
+    t.ok(q && q.playerId === 'B', 'Happy Hogan: the owner chooses');
+    t.eq(T.zone('B', 'library')[1], giant, 'Happy Hogan: second from the top');
+    // on the bottom
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.answer('choose', { picks: [1] });
+    T.bf('A', 'Happy Hogan, Bodyguard', { etb: true });
+    T.resolve();
+    t.eq(T.zone('B', 'library').slice(-1)[0], bear, 'Happy Hogan: on the bottom');
+  });
+  test('Commanders: Zuo Ci, the Mocking Sage — can\'t be blocked by creatures with horsemanship', (mk, t) => {
+    t.auto('Zuo Ci, the Mocking Sage');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const zc = T.bf('A', 'Zuo Ci, the Mocking Sage');
+    const wei = T.bf('B', 'Wei Strike Force'), bear = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: zc.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(g.canBlock(wei, zc), 'Zuo Ci: not by a horseman');
+    t.ok(g.canBlock(bear, zc), 'Zuo Ci: others can');
+    t.ok(g.hasKw(zc, 'hexproof'), 'Zuo Ci: hexproof');
+  });
+  test('Commanders: Hazduhr the Abbot — {X}, {T}: the next X damage to a white creature you control is dealt to Hazduhr', (mk, t) => {
+    t.auto('Hazduhr the Abbot');
+    const T = mk({ library: Array(30).fill('Island') });
+    const hz = T.bf('A', 'Hazduhr the Abbot');
+    const angel = T.bf('A', 'Serra Angel'), bear = T.bf('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: angel.id }] }; });
+    T.toMain('A');
+    t.no(T.g.activateAbility('A', hz.id, 0, { auto: true, x: 0, targets: [{ kind: 'object', id: bear.id }] }), 'Hazduhr: not a nonwhite creature');
+    T.mana('A', '2');
+    T.activate('A', hz, 0, { x: 2, targets: [angel.id] });
+    T.resolve();
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [angel.id] });
+    T.resolve();
+    t.eq(hz.damage, 2, 'Hazduhr: two of it to Hazduhr');
+    t.eq(angel.damage, 1, 'Hazduhr: the rest to the Angel');
+    // used up: the next damage stays where it is
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [angel.id] });
+    T.resolve();
+    t.eq(hz.damage, 2, 'Hazduhr: the shield is spent');
+    t.zone(angel, 'graveyard', 'Hazduhr: all of it to the Angel');
+  });
 };
