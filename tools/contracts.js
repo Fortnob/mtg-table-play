@@ -305,7 +305,7 @@ const ANSWERS = {
 };
 
 /* ---- intents: what the table (or a guest) sends ---- */
-const Declaration = obj({ attackerId: id, defenderId: id, band: opt(str) }, { closed: true });
+const Declaration = obj({ attackerId: id, defenderId: id, band: opt(str), enlist: opt(maybe(id)) }, { closed: true });
 const Block = obj({ blockerId: id, attackerIds: arr(id, { min: 1 }) }, { closed: true });
 const closed = (f) => obj(Object.assign({ kind: str }, f), { closed: true });
 const onObj = closed({ objId: id });

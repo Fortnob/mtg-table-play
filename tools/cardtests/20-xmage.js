@@ -66088,4 +66088,96 @@ module.exports = (test) => {
     t.no(g.pendingChoice);
     t.zone(bolt, 'hand', 'Tomorrow: the bot keeps the spell');
   });
+
+  test('Enlist: chosen as attackers are declared — who can be tapped, a declaration that names it, a bot', (mk, t) => {
+    const M = require('../harness').engine();
+    let T = mk();
+    let g = T.g;
+    const ys = T.bf('A', 'Yavimaya Steelcrusher');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const sick = T.bf('A', 'Hill Giant', { sick: true });
+    const other = T.bf('A', 'Llanowar Elves');
+    let q = null;
+    T.answer('declareAttackers', () => [{ attackerId: ys.id, defenderId: 'B' }, { attackerId: other.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => { q = ch; t.eq(g.stack.length, 0, 'Enlist: asked before anything of the attack'); return { picks: [bear.id] }; });
+    T.toMain('A', 'declareBlockers');
+    t.ok(q && q.purpose === 'enlist', 'Enlist: asked as attackers are declared');
+    t.eq(q.items.map(x => x.id).join(), bear.id, 'Enlist: not a summoning-sick creature, not an attacker');
+    t.ok(bear.tapped && !sick.tapped, 'Enlist: the Bears were tapped');
+    t.eq(g.powerOf(ys), 4, 'Enlist: +2/+0');
+    // a declaration that says it: nothing asked; one that can't be, refused
+    T = mk();
+    g = T.g;
+    const ys2 = T.bf('A', 'Yavimaya Steelcrusher');
+    const bear2 = T.bf('A', 'Grizzly Bears');
+    const sick2 = T.bf('A', 'Hill Giant', { sick: true });
+    for (let i = 0; i < 20 && !(g.pendingChoice && g.pendingChoice.type === 'declareAttackers'); i++) g.passPriority(g.priorityPlayer.id, true);
+    t.eq(g.pendingChoice && g.pendingChoice.type, 'declareAttackers');
+    t.no(g.declareAttackers('A', [{ attackerId: ys2.id, defenderId: 'B', enlist: sick2.id }]), 'Enlist: not a creature that came this turn');
+    t.no(g.declareAttackers('A', [{ attackerId: bear2.id, defenderId: 'B', enlist: ys2.id }]), 'Enlist: not for an attacker without enlist');
+    t.ok(g.declareAttackers('A', [{ attackerId: ys2.id, defenderId: 'B', enlist: null }]), 'Enlist: none, said');
+    t.no(g.pendingChoice && g.pendingChoice.purpose === 'enlist', 'Enlist: nothing asked');
+    t.no(bear2.tapped);
+    // a bot enlists the strongest creature it leaves home
+    T = mk();
+    g = T.g;
+    const ys3 = T.bf('A', 'Yavimaya Steelcrusher');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const giant = T.bf('A', 'Hill Giant');
+    T.player('A').isBot = true;
+    const bot = new M.bots.BotPlayer(g, 'A', 8);
+    const plan = bot._withEnlist([{ attackerId: ys3.id, defenderId: 'B' }]);
+    t.eq(plan[0].enlist, giant.id, 'Enlist: the bot taps the Giant');
+    t.eq(bot._withEnlist([{ attackerId: elf.id, defenderId: 'B' }])[0].enlist, undefined, 'Enlist: nothing for an attacker without it');
+  });
+
+  test('Commanders: Aradesh, the Founder — an attacker that enlisted gains double strike, and draws at power 4', (mk, t) => {
+    t.auto('Aradesh, the Founder');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Aradesh, the Founder');
+    const ys = T.bf('A', 'Yavimaya Steelcrusher', { counters: { '+1/+1': 2 } });
+    const bear = T.bf('A', 'Grizzly Bears');
+    const hand = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ys.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => ({ picks: ch.purpose === 'enlist' ? [bear.id] : [] }));
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(g.hasKw(ys, 'double strike'), 'Aradesh: double strike');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'Aradesh: power 4 or greater, a card');
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20 - 12, 'Aradesh: 6 twice');
+  });
+
+  test('Commanders: Aradesh, the Founder — no enlist, no trigger; its own enlist', (mk, t) => {
+    let T = mk();
+    let g = T.g;
+    T.bf('A', 'Aradesh, the Founder');
+    const ys = T.bf('A', 'Yavimaya Steelcrusher', { counters: { '+1/+1': 2 } });
+    const bear = T.bf('A', 'Grizzly Bears');
+    const hand = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ys.id, defenderId: 'B' }]);
+    T.answer('choose', () => ({ picks: [] }));
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.no(g.hasKw(ys, 'double strike'), 'Aradesh: no enlist, no double strike');
+    t.eq(T.zone('A', 'hand').length, hand, 'Aradesh: no card');
+    t.no(bear.tapped);
+    t.no(g.log.some(l => /Aradesh/.test(l.text) && /trigger/i.test(l.text)), 'Aradesh: it did not trigger');
+    // Aradesh enlists for itself: 1 + 2, double strike, no card at power 3
+    T = mk();
+    g = T.g;
+    const ar = T.bf('A', 'Aradesh, the Founder');
+    const bear2 = T.bf('A', 'Grizzly Bears');
+    const hand2 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ar.id, defenderId: 'B' }]);
+    T.answer('choose', () => ({ picks: [bear2.id] }));
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(g.hasKw(ar, 'double strike'), 'Aradesh: its own enlist counts');
+    t.eq(g.powerOf(ar), 3);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20 - 6, 'Aradesh: 3 twice');
+    t.ok(T.zone('A', 'hand').length <= hand2 + 1);
+  });
 };

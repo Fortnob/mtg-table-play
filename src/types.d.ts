@@ -436,7 +436,7 @@ declare namespace MTG {
   interface SacManaNote { ids: Id[]; n: number; text: string }
   /** What a 'sacMana' question does again once you say yes: a cast, an activation, an attack or another action
       paid for by the game, as it was asked for. */
-  interface SacManaRedo { kind: string; objId?: Id; index?: number; declarations?: Array<{ attackerId: Id; defenderId: Id; band?: string }>; opts: Record<string, any> }
+  interface SacManaRedo { kind: string; objId?: Id; index?: number; declarations?: AttackDeclaration[]; opts: Record<string, any> }
   interface ConfirmChoice extends ChoiceBase {
     type: 'confirm'; life?: number; yesLabel?: string; noLabel?: string;
     /** the mana a "pay it?" question offers to pay */
@@ -537,7 +537,8 @@ declare namespace MTG {
 
   /* ---------------- intents ---------------- */
 
-  interface AttackDeclaration { attackerId: Id; defenderId: Id; /** banding: attackers given the same label attack as one band */ band?: string }
+  interface AttackDeclaration { attackerId: Id; defenderId: Id; /** banding: attackers given the same label attack as one band */ band?: string;
+    /** enlist (CR 702.154): the creature tapped for this attacker's enlist, null for none; left out, the engine asks */ enlist?: Id | null }
   interface BlockDeclaration { blockerId: Id; attackerIds: Id[] }
 
   type Intent =

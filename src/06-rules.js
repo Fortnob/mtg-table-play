@@ -12461,6 +12461,14 @@
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
     }
 
+    /** Enlist (CR 702.154a): what could be tapped for an attacker's enlist — an untapped creature of its controller's
+        that isn't attacking and has haste or has been theirs since the turn began, none tapped for another (`used`). */
+    enlistCandidates(playerId, declarations, used) {
+      const atk = new Set((declarations || []).map(d => d.attackerId));
+      return this.battlefield.filter(o => o.controller === playerId && !o.tapped && !o.phasedOut && !atk.has(o.id) && !(used && used.has(o.id)) &&
+        !!(this.characteristics(o) || {}).isCreature && (!o.summoningSick || this.hasKw(o, 'haste')));
+    }
+
     declareAttackers(playerId, declarations, opts) {
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareAttackers' || ch.playerId !== playerId) return this.fail('Not declaring attackers.');
@@ -12559,7 +12567,8 @@
         return k;
       };
       const taxed = declarations.filter(d => taxFor(d) > 0 || lifeTax.get(d) > 0);
-      if (taxed.length && this.config.rulesEnforcement === 'full') {
+      // (paid already, when the declaration comes back from an enlist question: attackCostsPaid)
+      if (taxed.length && this.config.rulesEnforcement === 'full' && !(opts && opts.attackCostsPaid)) {
         let generic = 0, syms = '', life = 0;
         for (const d of taxed) { const k = taxFor(d); const s = symTax.get(d) || ''; syms += s; generic += k - (s.match(/\{/g) || []).length; life += lifeTax.get(d) || 0; }
         const bill = (generic > 0 || !syms ? '{' + generic + '}' : '') + syms;
@@ -12636,12 +12645,58 @@
           bands.delete(k);
         }
       }
+      /* Enlist (CR 702.154): an optional cost paid as attackers are declared — for each attacker with enlist, a
+         creature that isn't attacking may be tapped (enlistCandidates). A declaration may name it (`enlist`: its id,
+         or null for none); for an attacker whose declaration doesn't, its player is asked, one attacker at a time,
+         before anything of the attack happens (_enlistWait, purpose 'enlist') */
+      {
+        const used = new Set();
+        const isBot = !!(this.player(playerId) || {}).isBot;
+        for (const d of declarations) {
+          if (d.enlist == null) continue;
+          const o = this.obj(d.attackerId);
+          const x = typeof d.enlist === 'string' ? this.obj(d.enlist) : null;
+          if (!o || !this.hasKw(o, 'enlist') || !x || !this.enlistCandidates(playerId, declarations, used).includes(x)) {
+            if (!isBot) return this.fail(`${x ? x.name : 'That'} can't be tapped for ${o ? o.name + "'s" : 'an'} enlist.`);
+            d.enlist = null;
+            continue;
+          }
+          used.add(x.id);
+        }
+        for (const d of declarations) {
+          if (d.enlist !== undefined) continue;
+          const o = this.obj(d.attackerId);
+          if (!o || !this.hasKw(o, 'enlist')) continue;
+          const pool = this.enlistCandidates(playerId, declarations, used);
+          if (!pool.length) { d.enlist = null; continue; }
+          this._enlistWait = { declarations: JSON.parse(JSON.stringify(declarations)), attackerId: o.id, choice: ch,
+            opts: Object.assign(JSON.parse(JSON.stringify(opts || {})), { attackCostsPaid: true }) };
+          this.pendingChoice = MTG.choice.normalize({ type: 'choose', playerId, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true, sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+            prompt: `${o.name} attacks: enlist? You may tap a creature you control that isn't attacking. If you do, ${o.name} gets +X/+0 until end of turn, where X is that creature's power.` });
+          this.emit('choice', this.pendingChoice);
+          this.touch();
+          return true;
+        }
+      }
       this.pendingChoice = null;
       for (const o of this.battlefield) if (o.controller === playerId) o.bandId = null;
       for (const [k, ds] of bands) if (ds.length >= 2) for (const d of ds) { const o = this.obj(d.attackerId); if (o) o.bandId = 'band:' + this.turn + ':' + k; }
       if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
       // (Vengeful Ancestor: "a goaded creature" attacking — goad itself lasts until the goader's next turn, CR 701.15a)
       for (const id of ch.candidates) { const o = this.obj(id); if (o && this._goaders(o).length) o._goadedAttack = this.turn; }
+      /* Enlist: the creatures tapped for it, and each attacker's "When you do, add its power to this creature's until
+         end of turn." — a trigger, on the stack once attackers are declared; what enlisted is kept for "if it enlisted
+         a creature this combat" (Aradesh, the Founder: _enlisted) */
+      for (const d of declarations) {
+        const o = this.obj(d.attackerId), x = d.enlist ? this.obj(d.enlist) : null;
+        if (!o || !x || x.tapped || x.zone !== 'battlefield') continue;
+        this._markTapped(x, false, 'enlist');
+        o._enlisted = { id: x.id, power: this.powerOf(x), turn: this.turn, combat: this.combatsThisTurn || 1 };
+        this.logEvent('combat', `${o.name} enlists ${x.name}.`);
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          name: `${o.name} \u2014 enlist`, auto: true, abilityText: 'Enlist', optional: false, effects: [{ op: 'enlist', enlistedId: x.id }] });
+      }
       // (Jin Sakai, Ghost of Tsushima: who else attacks that player, declared before or after — aloneAttackingThatPlayer)
       this._declaringAttackers = declarations.map(d => ({ attackerId: d.attackerId, defenderId: d.defenderId }));
       for (const d of declarations) {
@@ -15568,6 +15623,13 @@
           const x = tdH.objectId && this.obj(tdH.objectId);
           const h = x && x._hadToAttack;
           return !!h && h.turn === this.turn && h.combat === (this.combatsThisTurn || 1);
+        }
+        // Aradesh, the Founder: "if it enlisted a creature this combat" — as attackers were declared (_enlisted)
+        case 'triggerObjEnlisted': {
+          const tdE = (ctx && ctx.triggerData) || {};
+          const x = tdE.objectId && this.obj(tdE.objectId);
+          const en = x && x._enlisted;
+          return !!en && en.turn === this.turn && en.combat === (this.combatsThisTurn || 1);
         }
         // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the one that died as it last was, against him now
         case 'triggerPowerOverSelf': {
@@ -33191,22 +33253,15 @@
           }
           break;
         }
-        /* Enlist: another untapped creature of yours that could have attacked
-           is tapped, and this one gets +X/+0, X its power */
+        /* Enlist: "When you do, add its power to this creature's until end of turn." — the creature tapped for it as
+           attackers were declared (declareAttackers), its power now, or as it last was */
         case 'enlist': {
           if (!src || src.zone !== 'battlefield') break;
-          const pool = this.battlefield.filter(o => o.controller === ctx.controller && o.id !== src.id && !o.tapped && !o.phasedOut &&
-            !o.attacking && this.characteristics(o).isCreature && (!o.summoningSick || this.hasKw(o, 'haste')));
-          if (!pool.length) break;
-          const got = this._choose({ playerId: ctx.controller, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
-            items: this._chooseItems(pool), min: 0, max: 1, prompt: `${src.name}: enlist? Tap a creature to add its power.` }, 'enlist');
-          if (got === SUSPEND) return SUSPEND;
-          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
-          if (!x || x.tapped || x.zone !== 'battlefield') break;
-          this._markTapped(x);
-          const k = this.powerOf(x);
+          const x = this.obj(e.enlistedId);
+          const en = src._enlisted && src._enlisted.id === e.enlistedId ? src._enlisted : null;
+          const k = x && x.zone === 'battlefield' ? this.powerOf(x) : ((en && en.power) || 0);
           if (k) src.effects.push({ p: k, t: 0, until: 'eot' });
-          this.logEvent('rules', `${src.name} enlists ${x.name} (+${k}/+0).`);
+          this.logEvent('rules', `${src.name} gets +${k}/+0 from enlisting ${x ? x.name : 'a creature'}.`);
           this.bumpBoard();
           break;
         }
@@ -37766,6 +37821,18 @@
             if (!got.ok) return this.fail(got.reason);
           }
           data = Object.assign({ picks: got.picks, number: got.number, order: got.order }, got.name ? { name: this._canonName(got.name) } : {});
+          /* Enlist: the creature tapped for an attacker's enlist, or none — and the declaration goes on, asking about
+             the next attacker with enlist, or done (_enlistWait) */
+          if (ch.purpose === 'enlist' && this._enlistWait) {
+            const w = this._enlistWait;
+            this._enlistWait = null;
+            const d = w.declarations.find(x => x.attackerId === w.attackerId);
+            if (d) d.enlist = got.picks.length ? got.picks[0] : null;
+            this.pendingChoice = w.choice;
+            // (refused now, something having changed: the attackers are declared again)
+            if (!this.declareAttackers(playerId, w.declarations, w.opts)) { this.emit('choice', this.pendingChoice); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
           // Deadpool, Trading Card: the creature picked as it entered, if any, exchanges text boxes with it

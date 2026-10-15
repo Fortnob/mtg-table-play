@@ -4941,7 +4941,15 @@
           typeof intent.choice === 'string' && /^[WUBRGC]{1,6}$/.test(intent.choice) ? intent.choice : undefined,
           // "in any combination of colors": a colour letter for each, chosen at the table
           Array.isArray(intent.split) ? intent.split.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c)) : undefined); break;
-        case 'declareAttackers': g.declareAttackers(actorId, intent.declarations || []); break;
+        /* each attacker: what it attacks, its band, and (enlist) the creature tapped for its enlist or null — the engine
+           checks them; anything else said is dropped */
+        case 'declareAttackers': g.declareAttackers(actorId, (Array.isArray(intent.declarations) ? intent.declarations : []).slice(0, 500).map(d => {
+          if (!d || typeof d !== 'object') return {};
+          const out = { attackerId: d.attackerId, defenderId: d.defenderId };
+          if (d.band != null) out.band = String(d.band);
+          if (typeof d.enlist === 'string' || d.enlist === null) out.enlist = d.enlist;
+          return out;
+        })); break;
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
         case 'choice': g.resolveChoice(actorId, choiceData(intent.data)); break;
         case 'concede': g.concede(actorId); break;

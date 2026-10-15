@@ -3244,11 +3244,12 @@
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
     // (Blaster, Morale Booster: "That artifact gains haste until end of turn." — the one just aimed at)
     // (Seifer, Balamb Rival: "that attacking creature gains deathtouch until end of turn" — the one the trigger is about)
-    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
+    // (Aradesh, the Founder: "the creature that attacked gains double strike until end of turn" — the one the trigger is about)
+    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|The creature that attacked|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that attacking creature|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that attacking creature|the creature that attacked|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     /* Fire Nation Palace: "Target creature you control gains firebending 4
        until end of turn" — a keyword with a number, which adds up */
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|CARDNAME|This creature|It|That creature) gains (firebending|annihilator|afflict|toxic) (\d+) until end of turn\.?$/i,
@@ -15664,6 +15665,8 @@
     [/^the exploited creature had power (\w+) or greater$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'triggerPowerLki', n: num(m[1]) } : null)],
     // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
     [/^that creature had to attack this combat$/i, () => ({ kind: 'triggerObjHadToAttack' })],
+    // Aradesh, the Founder: "if it enlisted a creature this combat" — the attacker the trigger is about (triggerObjEnlisted)
+    [/^it enlisted a creature this combat$/i, () => ({ kind: 'triggerObjEnlisted' })],
     // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
     [/^its power was different from its base power$/i, () => ({ kind: 'triggerPowerChanged' })],
     // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
@@ -19524,12 +19527,8 @@
       out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, text: 'Myriad',
         effects: [{ op: 'myriad' }], auto: true });
     }
-    /* Enlist (CR 702.154): as it attacks, another creature of yours may be
-       tapped to lend it that creature's power */
-    if (out.keywords.some(k => k.keyword === 'Enlist')) {
-      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, text: 'Enlist',
-        effects: [{ op: 'enlist' }], auto: true });
-    }
+    /* Enlist (CR 702.154): an optional cost of attacking, paid as attackers are declared — the engine asks it there
+       (declareAttackers) and puts its "When you do" trigger on the stack */
     /* Ravenous (CR 702.156): X +1/+1 counters as it enters, and a card if X
        was 5 or more */
     if (out.keywords.some(k => k.keyword === 'Ravenous')) {

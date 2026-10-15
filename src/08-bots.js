@@ -2831,6 +2831,7 @@
             try { plan = this.chooseAttacks(ch); } catch (e) { console.warn('[bot] attack plan', e); plan = []; }
           }
           if (plan.length) this._did('attack', null, `attacks with ${plan.length}`);
+          plan = this._withEnlist(plan);
           if (g.declareAttackers(this.pid, plan)) return true;
           const compelled = ch.candidates.map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
             .map(o => ({ attackerId: o.id, defenderId: g._mustAttackPlayerOf(o) || (plan[0] || {}).defenderId || ch.defenders[0].id }));
@@ -3332,6 +3333,23 @@
       // an optional pick of our own worst thing is declined when even that is worth keeping
       if (ch.optional && worst && cards.length && value(cards[0]) > 4) return [];
       return cards.slice(0, want).map(o => o.id);
+    }
+
+    /**
+     * Enlist, decided with the attack (CR 702.154): for each attacker with enlist, the strongest creature staying
+     * home if it adds 2 or more (the biggest, then the next) — or none, said so (enlist: null).
+     */
+    _withEnlist(plan) {
+      const g = this.game;
+      if (!g.enlistCandidates || !plan.some(d => g.hasKw(g.obj(d.attackerId), 'enlist'))) return plan;
+      const used = new Set();
+      return plan.map(d => {
+        if (!g.hasKw(g.obj(d.attackerId), 'enlist')) return d;
+        const best = g.enlistCandidates(this.pid, plan, used).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
+        const ok = best && g.powerOf(best) >= 2;
+        if (ok) used.add(best.id);
+        return Object.assign({}, d, { enlist: ok ? best.id : null });
+      });
     }
 
     /** The cards we would most happily lose from hand. */
