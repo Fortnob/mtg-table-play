@@ -11494,6 +11494,16 @@
     { re: /^shuffle (?:it|this card) into your library from your graveyard\. If you'?ve cycled a card named CARDNAME (\w+) or more times this game, put it onto the battlefield from your graveyard instead\.?$/i,
       make: (m) => (typeof num(m[1].toLowerCase()) === 'number' ? [{ op: 'ifCond', cond: { kind: 'cycledNamedSelf', n: num(m[1].toLowerCase()) },
         then: [{ op: 'selfFromGraveyard', to: 'battlefield' }], otherwise: [{ op: 'selfFromGraveyard', to: 'library' }] }] : null) },
+    /* Alaundo the Seer: "Draw a card, then exile a card from your hand and put a number of time counters on it equal to
+       its mana value. It gains "When the last time counter is removed from this card, if it's exiled, you may cast it
+       without paying its mana cost. If you cast a creature spell this way, it gains haste until end of turn." Then remove
+       a time counter from each other card you own in exile." (exileHandTimeCounters, removeTimeEachExiled) */
+    { re: /^Draw a card, then exile a card from your hand and put a number of time counters on it equal to its mana value\. It gains "When the last time counter is removed from this card, if it'?s exiled, you may cast it without paying its mana cost\. If you cast a creature spell this way, it gains haste until end of turn\.?" Then remove a time counter from each other card you own in exile\.?$/i,
+      make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'exileHandTimeCounters' }, { op: 'removeTimeEachExiled', other: true }] },
+    /* The Ur-Sphinx: "each player mills that many cards. For each player, you may cast a card that player milled this way
+       without paying its mana cost." — as many as attacked (castFreeMilledEach) */
+    { re: /^each player mills that many cards\. For each player, you may cast a card that player milled this way without paying its mana cost\.?$/i,
+      make: () => [{ op: 'mill', who: 'each', n: 'triggerAmount' }, { op: 'castFreeMilledEach' }] },
     /* Flamewar, Streetwise Operative: "exile that many cards from the top of your library face down. Put an intel counter
        on each of them. Convert Flamewar." — the damage dealt (impulse triggerAmount, counter) */
     { re: /^exile that many cards from the top of your library face down\. Put an? ([a-z]+) counter on each of them\. (Convert|Transform) CARDNAME\.?$/i,
@@ -16405,6 +16415,18 @@
         autoLines++;
         continue;
       }
+      /* Inquisitor Eisenhorn: "You may reveal the first card you draw each turn as you draw it. Whenever you reveal an
+         instant or sorcery card this way, create Cherubael, …" — only such a card is worth showing: one question,
+         the reveal and the token together (optional, reveal of triggerCard) */
+      const eis = line.match(/^You may reveal the first card you draw each turn as you draw it\. Whenever you reveal an? (instant or sorcery|creature|land|nonland) card this way, (create [^.]+\.)$/i);
+      const eisTk = eis && parseEffectSentence(eis[2].charAt(0).toUpperCase() + eis[2].slice(1));
+      if (eisTk && eisTk.op === 'createToken') {
+        out.abilities.push({ kind: 'triggered', event: 'youDraw', drawNth: 1, self: false, optional: true, condition: null, text: line,
+          objFilter: { words: eis[1].toLowerCase() },
+          effects: [{ op: 'reveal', of: 'triggerCard' }, eisTk], auto: true });
+        autoLines++;
+        continue;
+      }
       /* Partner with NAME (CR 702.124j): a deck rule, and as it enters you
          may search your library for the partner, reveal it and take it */
       const pw = line.match(/^Partner with ([^(]+?)\s*$/);
@@ -17403,6 +17425,15 @@
     /* "Put a +1/+1 counter on that creature" reads as the creature the
        trigger is about; anywhere else there is no such creature, and the
        line goes back to a person. */
+    /* Osgood, Operation Double: "When you cast this spell, create a token that's a copy of it, except it isn't
+       legendary." — "it" is the spell (self) */
+    for (const ab of out.abilities) {
+      if (ab.kind !== 'triggered' || ab.event !== 'castSelf') continue;
+      const effs = ab.effects || [];
+      if (effs.length !== 1 || effs[0].op !== 'copyPermanent' || effs[0].scope !== 'lastTarget' || (effs[0].targets || []).length) continue;
+      delete effs[0].scope;
+      effs[0].self = true;
+    }
     /* "Destroy it." with nothing targeted and no permanent the trigger is
        about: nothing for "it" to be, so the line goes back to a person */
     for (const ab of out.abilities) {
@@ -19860,6 +19891,9 @@
       // Party Thrasher: "Noncreature spells you cast from exile have convoke."
       { re: /^([A-Za-z ]*?)spells you cast from exile have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell', fromZones: ['exile'] }), auto: true },
+      // Ian Chesterton: "Each Saga spell you cast has replicate. The replicate cost is equal to its mana cost." (costIsManaCost)
+      { re: /^Each ([A-Z][a-z]+) spell you cast has replicate\. The replicate cost is equal to its mana cost\.?$/,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'replicate', costIsManaCost: true, filter: m[1].toLowerCase() }), auto: true },
       // Zinnia, Valley's Voice: "Creature spells you cast gain offspring {2} as you cast them."
       { re: /^(Creature )spells you cast gain offspring ((?:\{[^}]+\})+) as you cast them\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'offspring', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },

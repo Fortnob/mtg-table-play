@@ -1604,6 +1604,14 @@
       const best = items.find(x => (x.o.analysis() || {}).isCreature) || items.find(x => x.o.owner !== this.pid);
       return { picks: best ? [best.it.id] : [] };
     },
+    /* Alaundo the Seer: a card to cast free once its time counters are gone — the best spell, soonest back; a land never is */
+    exileForTime(s) {
+      const items = (s.items || []).map(it => ({ it, mv: (it.card && it.card.cmc) || 0, land: /\bLand\b/.test((it.card || {}).type_line || ''),
+        v: it.card ? rateCard(it.card, { prior: 0 }) : 0 }));
+      const spells = items.filter(x => !x.land && x.mv > 0).sort((a, b) => (b.v - b.mv * 0.5) - (a.v - a.mv * 0.5));
+      const pick = spells[0] || items.sort((a, b) => a.v - b.v)[0];
+      return pick ? { picks: [pick.it.id] } : null;
+    },
     /* Marina Vendrell: unlock a shut door (its words and its trigger) rather than lock an open one */
     roomDoor(s) {
       const i = (s.options || []).findIndex(o => o && o.unlock);

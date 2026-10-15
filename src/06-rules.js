@@ -6464,7 +6464,7 @@
       /* Replicate and splice are generic questions (docs/choices.md). The
          table may answer them alongside the other extra costs, sending the
          answers with the cast; a cast that arrives without them asks. */
-      const rep = this._replicateCost(a);
+      const rep = this._replicateCost(a, o);
       if (rep) {
         out.push({ kind: 'replicate', cost: rep, label: 'Replicate ' + rep,
           choose: { purpose: 'replicate', kind: 'number', number: { min: 0, max: 20 }, cost: rep,
@@ -6668,9 +6668,21 @@
     }
 
     /** "Replicate {1}{U}": the price of one more copy, or null. */
-    _replicateCost(a) {
+    _replicateCost(a, o, pid) {
       const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^replicate$/i.test(x.keyword || '') && x.arg);
-      return ab && /^(?:\{[^}]+\})+$/.test(ab.arg.trim()) ? ab.arg.trim() : null;
+      if (ab && /^(?:\{[^}]+\})+$/.test(ab.arg.trim())) return ab.arg.trim();
+      /* Ian Chesterton: "Each Saga spell you cast has replicate. The replicate cost is equal to its mana cost."
+         (grantCastKeyword replicate, costIsManaCost) — not for a copy, nor a card with no mana cost */
+      const caster = pid || (o && (o.controller || o.owner));
+      if (!o || o.isCopy || o.zone === 'battlefield' || !caster) return null;
+      const mc = String((o.card && o.card.mana_cost) || '').trim();
+      if (!/^(?:\{[^}]+\})+$/.test(mc)) return null;
+      for (const src of this.battlefield) {
+        if (src.controller !== caster || src.phasedOut) continue;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        if (g && g.keyword === 'replicate' && g.costIsManaCost && (!g.filter || g.filter === 'spell' || this._cardFitsWords(o, g.filter))) return mc;
+      }
+      return null;
     }
     /**
      * The cards in hand that could be spliced onto this spell (CR 702.47):
@@ -6693,7 +6705,7 @@
     _castAdded(playerId, o, a, opts) {
       const got = opts.choices || {};
       let more = '';
-      const rep = this._replicateCost(a);
+      const rep = this._replicateCost(a, o);
       if (rep && got.replicate && got.replicate.number) more += rep.repeat(got.replicate.number);
       if (got.splice) for (const x of this._spliceable(playerId, o)) if ((got.splice.picks || []).includes(x.obj.id)) more += x.cost;
       return more;
@@ -6704,7 +6716,7 @@
         (kind === 'replicate' ? '' : this._castAdded(playerId, o, a, opts));
       const purse = this.manaSources(playerId);
       if (kind === 'replicate') {
-        const rep = this._replicateCost(a);
+        const rep = this._replicateCost(a, o);
         if (!rep) return null;
         let most = 0;
         while (most < 20 && this.couldPay(playerId, base + rep.repeat(most + 1), purse)) most++;
@@ -7200,7 +7212,7 @@
          copies by replicate, other cards' words by splice, and a copy by
          conspire, whose price is two creatures tapped. */
       const bought = opts.choices || {};
-      const repCost = this._replicateCost(a);
+      const repCost = this._replicateCost(a, o, playerId);
       const replicated = repCost && bought.replicate ? Math.max(0, Math.min(20, bought.replicate.number || 0)) : 0;
       if (replicated) cost += repCost.repeat(replicated);
       const spliced = bought.splice && !o.isCopy ? this._spliceable(playerId, o).filter(x => (bought.splice.picks || []).includes(x.obj.id)) : [];
@@ -25616,6 +25628,12 @@
           break;
         }
         case 'reveal': {
+          // Inquisitor Eisenhorn: the card drawn, the trigger is about (of triggerCard)
+          if (e.of === 'triggerCard') {
+            const x = this.obj((ctx.triggerData || {}).objectId);
+            if (x) { this._know(x, '*'); this.logEvent('reveal', `${me.name} reveals ${x.name}.`); }
+            break;
+          }
           // (Prophecy: "the top card of target opponent's library")
           const revP = e.who === 'target' ? (firstPlayer() || me) : me;
           const from = this.zones[revP.id][e.from === 'library' ? 'library' : 'hand'] || [];
@@ -28374,6 +28392,8 @@
               : e.from === 'graveyard' ? this._freeFromGraveyardPick(e, ctx, me, firstPlayer, n)
               : e.from === 'handOrGraveyard' ? this._freeFromHandOrGravePick(e, ctx, me)
               : e.from === 'looked' ? (this._looked || []).slice()
+              // The Ur-Sphinx: "a card that player milled this way" — those cards, named (ids)
+              : e.from === 'ids' ? (e.ids || []).slice()
               // Malcolm, Alluring Scoundrel: "the discarded card" — what you discarded as this resolved, still in your graveyard (castDiscarded)
               : e.from === 'discarded' ? (((r && r._discBy) || []).filter(d => d.pid === ctx.controller).map(d => d.id).filter(id => (this.obj(id) || {}).zone === 'graveyard'))
               // Gríma, Saruman's Footman, Jodah, the Unifier: "You may cast that card without paying its mana cost." — the card the digging stopped at (thatCard)
@@ -28402,7 +28422,7 @@
             let picks = [];
             if (able.length) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: 'library', items: this._chooseItems(able),
-                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among them${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
+                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
               if (got === SUSPEND) return SUSPEND;
               picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
             }
@@ -30691,6 +30711,58 @@
           if (!x || x.zone !== e.zone || (Number(x.counters.time) || 0) > 0) break;
           if (x.zone === 'exile' && x.suspendedBy != null) this._castFromSuspend(x.owner, x);
           else if (x.zone === 'battlefield') this._sacrificeNow(x.controller, [x], ctx);
+          /* Alaundo the Seer: "When the last time counter is removed from this card, if it's exiled, you may cast it
+             without paying its mana cost. If you cast a creature spell this way, it gains haste until end of turn." (timeCastBy) */
+          else if (x.zone === 'exile' && x.timeCastBy != null) {
+            const pid = x.owner;
+            const yes = this._ask({ type: 'confirm', playerId: pid, prompt: `Cast ${x.name} without paying its mana cost?` }, 'tcc');
+            if (yes === SUSPEND) return SUSPEND;
+            if (!(yes && yes.yes !== false)) break;
+            x.timeCastBy = null;
+            if (this.castSpell(pid, x.id, { free: true, costOverride: '', alternative: 'resolution', auto: true, targets: [] }) === false) {
+              this.logEvent('rules', `${x.name} could not be cast.`);
+              break;
+            }
+            const it = this.stack.find(s => s.objId === x.id);
+            if (it && (x.analysis() || {}).isCreature) it.hasteOnResolve = true;
+          }
+          break;
+        }
+        /* Alaundo the Seer: "exile a card from your hand and put a number of time counters on it equal to its mana value.
+           It gains "When the last time counter is removed from this card, …"" — the card marked (timeCastBy) */
+        case 'exileHandTimeCounters': {
+          const hand = this.zones[me.id].hand.slice();
+          if (!hand.length) break;
+          const got = hand.length === 1 ? { picks: [hand[0].id] } : this._choose({ playerId: me.id, purpose: 'exileForTime', kind: 'objects', zone: 'hand',
+            items: this._chooseItems(hand), min: 1, max: 1,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}exile a card from your hand. It gets time counters equal to its mana value, and you may cast it free when the last is removed.` }, 'xht');
+          if (got === SUSPEND) return SUSPEND;
+          const x = hand.find(c => ((got && got.picks) || []).includes(c.id)) || hand[0];
+          this.moveObject(x, 'exile');
+          if (x.zone !== 'exile') break;
+          x.counters.time = (x.card && x.card.cmc) || 0;
+          x.timeCastBy = me.id;
+          ctx._timeExiled = x.id;
+          this.logEvent('rules', `${me.name} exiles ${x.name} from their hand with ${x.counters.time} time counter${x.counters.time === 1 ? '' : 's'}.`);
+          break;
+        }
+        /* Alaundo the Seer: "Then remove a time counter from each other card you own in exile." — a last one off is its
+           trigger (suspend's, or the one Alaundo gave), after this */
+        case 'removeTimeEachExiled': {
+          for (const x of this.zones[me.id].exile.slice()) {
+            if (x.owner !== me.id || (e.other && x.id === ctx._timeExiled) || !((Number(x.counters.time) || 0) > 0)) continue;
+            x.counters.time--;
+            x._chr = null;
+            this._fire('timeCounterRemoved', x.owner, { object: x, source: x });
+            this.logEvent('counters', `${x.name}: a time counter removed (${x.counters.time}).`);
+            if (x.counters.time === 0 && (x.suspendedBy != null || x.timeCastBy != null)) {
+              this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
+                controller: x.owner, name: `${x.name} — ${x.suspendedBy != null ? 'suspend' : 'last time counter'}`, auto: true,
+                effects: [{ op: 'timeCounterGone', zone: 'exile' }], abilityText: x.suspendedBy != null ? 'When the last time counter is removed from it, cast it without paying its mana cost.'
+                  : "When the last time counter is removed from this card, if it's exiled, you may cast it without paying its mana cost.", triggerData: { event: 'timeCounterGone', objectId: x.id } });
+            }
+          }
+          this.bumpBoard();
           break;
         }
         case 'exileSuspend': {
@@ -31832,6 +31904,18 @@
           }
           for (const c of picked) this.moveObject(c, 'battlefield', { controller: c.owner });
           if (picked.length) this.logEvent('reanimate', `${picked.map(c => c.name).join(', ')} return${picked.length === 1 ? 's' : ''} to the battlefield.`);
+          break;
+        }
+        /* The Ur-Sphinx: "For each player, you may cast a card that player milled this way without paying its mana cost."
+           — one pick among each player's milled cards in turn, each cast before the next is chosen (castFree ids) */
+        case 'castFreeMilledEach': {
+          const milled = (this._lastMilled || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard');
+          const run = [];
+          for (const p of this.players) {
+            const theirs = milled.filter(c => c.owner === p.id).map(c => c.id);
+            if (theirs.length) run.push({ op: 'castFree', from: 'ids', ids: theirs, upTo: 1, pickOne: true, among: p.id === ctx.controller ? 'the cards you milled' : `the cards ${p.name} milled` });
+          }
+          this._spliceNext(run);
           break;
         }
         // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand."
@@ -34408,7 +34492,9 @@
         const bare = w.replace(/s$/, '');
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
         // (Valley Questcaller: "Mice" are Mouse creatures)
-        const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
+        const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o')
+          // (The Ur-Sphinx: "Sphinxes"; "Foxes", "Witches")
+          .replace(/(x|ch|sh|ss)es$/, '$1');
         if (types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line)) return true;
         /* Roshan, Hidden Magister, Maskwood Nexus: a creature card or spell given a type wherever it is ("an Assassin
            card", "an outlaw") */
