@@ -2552,6 +2552,9 @@
       make: (m) => ({ op: 'doubleCounters', allKinds: true, scope: { who: 'you', what: 'creature', thatIs: m[1] + ' or legendary' } }) },
     // Mu Yanling, Wind Rider: "create a 3/2 colorless Vehicle artifact token with crew 1" — an artifact, no creature until crewed
     // (Lita, Mechanical Engineer: "a 5/5 colorless Vehicle artifact token named Zeppelin with flying and crew 3")
+    // Abby, Merciless Soldier: "create a number of 1/1 black Fungus Zombie creature tokens named Cordyceps Infected equal to …"
+    { re: /^([Cc]reate a number of .+? tokens) named ([A-Z][A-Za-z' -]+?) (equal to .+)$/,
+      make: (m) => { const inner = parseEffectSentence('C' + m[1].slice(1) + ' ' + m[3]); return inner && inner.op === 'createToken' ? Object.assign(inner, { name: m[2] }) : null; } },
     { re: /^Create an? (\d+|X)\/(\d+|X) colorless Vehicle artifact token(?: named ([A-Z][A-Za-z' -]+?))? with (?:(flying|trample|vigilance|haste|reach) and )?crew (\d+)\.?$/i,
       make: (m) => ({ op: 'createToken', n: 1, pt: m[1] + '/' + m[2], colorWords: ['colorless'], subtypes: 'Vehicle', addTypes: ['Artifact'],
         noncreature: true, keywords: m[4] ? [U.titleCase(m[4])] : [], grantedText: 'Crew ' + m[5], name: m[3] || undefined }) },
@@ -6502,8 +6505,13 @@
     { re: /^You may choose new targets for (target (?:spell|spell or ability|instant or sorcery spell))\.?$/i,
       make: (m) => ({ op: 'retarget', optional: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase().replace(/^target /, '').replace(/ or (?:activated |triggered )?ability/, ''), abilities: /ability/i.test(m[1]) }] }) },
     /* Rishkar's Expertise */
-    { re: /^You may cast a(?:n)? ([a-z ]*?)(?:spell|card) with (?:mana value|converted mana cost) (\d+|X) or less from your hand without paying its mana cost\.?$/i,
-      make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: m[2] === 'X' ? 'X' : +m[2] }) },
+    // (Gandalf, Party Guest: "…, where X is twice the number of legendary Wizards you control" — the X as it resolves)
+    { re: /^(?:You may )?cast a(?:n)? ([a-z ]*?)(?:spell|card) with (?:mana value|converted mana cost) (\d+|X) or less from your hand without paying its mana cost(?:, where X is (.+?))?\.?$/i,
+      make: (m) => {
+        const k = m[3] && m[2] === 'X' ? amountOf(m[3]) : null;
+        if (m[3] && !(k && typeof k === 'object' && !k.unread)) return null;
+        return { op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: k || (m[2] === 'X' ? 'X' : +m[2]) };
+      } },
     /* The Great Synthesis: "You may cast any number of spells from your hand without paying their mana costs." —
        which and in what order, one choice (castFreeHandAny) */
     { re: /^You may cast any number of spells from your hand without paying their mana costs\.?$/i, make: () => ({ op: 'castFreeHandAny' }) },
@@ -7244,11 +7252,12 @@
         targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
 
     /* ===== copies ===== */
-    { re: /^Create a token that'?s a copy of (another target [a-z0-9 '-]+?|target [a-z0-9 '-]+?|CARDNAME|this creature)(?:, except it (?:has|gains) ([a-z, ']+))?\.?$/i,
-      make: (m) => ({ op: 'copyPermanent', n: 1,
-        targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1].replace(/^another /i, ''))] : null,
-        self: /CARDNAME|this creature/i.test(m[1]),
-        grant: m[2] ? m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
+    // (Romana II: "Create a tapped token that's a copy of target token that entered this turn." — tapped)
+    { re: /^Create a (tapped )?token that'?s a copy of (another target [a-z0-9 '-]+?|target [a-z0-9 '-]+?|CARDNAME|this creature)(?:, except it (?:has|gains) ([a-z, ']+))?\.?$/i,
+      make: (m) => Object.assign({ op: 'copyPermanent', n: 1,
+        targets: /^(?:another )?target/i.test(m[2]) ? [targetSpec(m[2].replace(/^another /i, ''))] : null,
+        self: /CARDNAME|this creature/i.test(m[2]),
+        grant: m[3] ? m[3].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }, m[1] ? { tapped: true } : {}) },
     // Gruff Triplets: "create two tokens that are copies of it" — what the trigger is about (itself, as it enters)
     { re: /^Create (two|three|four|\d+) (tapped )?tokens that are copies of it\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), scope: 'triggerObject', tapped: !!m[2], grant: [] }) },
@@ -10630,6 +10639,20 @@
       make: (m) => {
         const kws = [m[1]].concat(m[2].split(/,\s*(?:and )?/)).map(x => x.trim().toLowerCase()).filter(Boolean);
         return kws.every(kwKnown) ? [{ op: 'kwCountersFromGrave', keywords: kws }] : null;
+      } },
+    /* Tahngarth, First Mate: "you may have that opponent gain control of Tahngarth until end of combat. If you do, choose a
+       player or planeswalker that opponent is attacking. Tahngarth is attacking that player or planeswalker." (lendToAttacker) */
+    { re: /^(?:You may )?have that opponent gain control of CARDNAME until end of combat\. If you do, choose a player or planeswalker that opponent is attacking\. CARDNAME is attacking that player or planeswalker\.?$/i,
+      make: () => [{ op: 'lendToAttacker' }] },
+    /* Stangg, Echo Warrior: "create Stangg Twin, a legendary 3/4 red and green Human Warrior creature token. It enters
+       tapped and attacking. For each Aura and Equipment attached to Stangg, create a token that's a copy of it attached
+       to Stangg Twin. Sacrifice all tokens created this way at the beginning of the next end step." (copyAttachmentsToMade) */
+    { re: /^Create CARDNAME Twin, (a legendary [^.]+? creature token)\. It enters tapped and attacking\. For each Aura and Equipment attached to CARDNAME, create a token that'?s a copy of it attached to CARDNAME Twin\. Sacrifice all tokens created this way at the beginning of the next end step\.$/i,
+      make: (m) => {
+        const tk = parseEffectSentence('Create Twin, ' + m[1] + '.');
+        if (!tk || tk.op !== 'createToken') return null;
+        return [Object.assign(tk, { name: 'CARDNAME Twin', tapped: true, attacking: true }), { op: 'copyAttachmentsToMade' },
+          { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Sacrifice those tokens at end of turn', effects: [{ op: 'sacrificeThat' }] }];
       } },
     /* Stonehewer Giant: "Search your library for an Equipment card, put it
        onto the battlefield, attach it to a creature you control, then shuffle." */
@@ -15834,7 +15857,8 @@
     { re: /^Whenever an opponent attacks one or more planeswalkers you control,? /i, event: 'anyPlayerAttacks', extra: { attackerIsOpponent: true, attacksYourPlaneswalkers: true } },
     // Karazikar, the Eye Tyrant: "Whenever an opponent attacks another one of your opponents"
     { re: /^Whenever an opponent attacks another one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsOpponent: true, attackedIsYourOpponent: true } },
-    { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
+    // (Tahngarth, First Mate: "Whenever an opponent attacks with one or more creatures" — any attack at all)
+    { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures| with one or more creatures)?,? /i, event: 'anyPlayerAttacks',
       extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
         m[3] && !m[2] ? { minAttackers: num(m[3]) } : {}) },
     // Merry, Esquire of Rohan: "Whenever you attack with Merry and another legendary creature" (withSelfAnd)

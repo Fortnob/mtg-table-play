@@ -3052,10 +3052,10 @@
         const best = options.slice().sort((x, y) => (k[y.label] || 0) - (k[x.label] || 0))[0];
         return [best ? best.i : 0];
       }
-      // Noctis, Heir Apparent: back attacking — the opponent with the least life
+      // Noctis, Heir Apparent: back attacking — the opponent with the least life (never itself: Tahngarth, First Mate)
       if (ch.purpose === 'attackWhom') {
         const vals = ch.values || [];
-        const life = (i) => { const q = g.player(vals[i]); return q ? q.life : 999; };
+        const life = (i) => { const q = g.player(vals[i]); return q && q.id !== this.pid ? q.life : 999; };
         const best = options.slice().sort((x, y) => life(x.i) - life(y.i))[0];
         return [best ? best.i : 0];
       }

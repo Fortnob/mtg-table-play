@@ -12700,11 +12700,15 @@
 
     _atEndOfCombat() {
       // Noctis, Heir Apparent: "It can't be blocked that combat." — over with the combat (untilEndOfCombat)
+      let lent = false;
       for (const o of this.battlefield) {
         if (!(o.effects || []).some(x => x && x.untilEndOfCombat)) continue;
+        // (Tahngarth, First Mate: "gain control of Tahngarth until end of combat")
+        if (o.effects.some(x => x && x.untilEndOfCombat && x.control != null)) lent = true;
         o.effects = o.effects.filter(x => !(x && x.untilEndOfCombat));
         o._chr = null;
       }
+      if (lent) this._refreshControl();
       /* Tokens that only came along for the fight (mobilize) go away when
          the fight is over. */
       // Abomination: what it fought is destroyed as combat ends
@@ -21073,6 +21077,8 @@
           break;
         }
         case 'createToken': {
+          // Stangg, Echo Warrior: "create Stangg Twin" — named for the card's short name
+          if (e.name && /CARDNAME/.test(e.name)) e = Object.assign({}, e, { name: e.name.replace(/CARDNAME/g, String((src && src.name) || '').split(',')[0].trim()) });
           // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — by this ability's controller (goadForever)
           if (e.goadForever === true) e = Object.assign({}, e, { goadForever: ctx.controller });
           // Ellie, Brick Master: "that's attacking that opponent" — the player the trigger's attack was at (attackingWho)
@@ -24518,6 +24524,9 @@
               if (def) { copy.attacking = def; this.combat.attackers.push(copy.id); }
             }
             copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+            // Stangg, Echo Warrior: "a copy of it attached to Stangg Twin" (attachToId)
+            const hostTo = e.attachToId && this.obj(e.attachToId);
+            if (hostTo && hostTo.zone === 'battlefield') { copy.attachedTo = hostTo.id; hostTo.attachments = (hostTo.attachments || []).concat(copy.id); }
             this.battlefield.push(copy);
             this.bumpBoard();
             // Yenna, Redtooth Regent: a copy of an Aura chooses what it enchants as it arrives (CR 303.4f)
@@ -30968,6 +30977,18 @@
           for (const id of e.ids || []) { const x = this.obj(id); if (x && x.zone === 'battlefield') { this.moveObject(x, 'exile'); this.logEvent('rules', `${x.name} is exiled.`); } }
           break;
         }
+        /* Stangg, Echo Warrior: "For each Aura and Equipment attached to Stangg, create a token that's a copy of it attached
+           to Stangg Twin." — the token just made (copyAttachmentsToMade) */
+        case 'copyAttachmentsToMade': {
+          const twin = this.obj((this._madeThisResolution || []).slice(-1)[0]);
+          if (!src || !twin || twin.zone !== 'battlefield') break;
+          const atts = (src.attachments || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && ((x.analysis() || {}).isAura || (x.analysis() || {}).isEquipment));
+          for (const x of atts) {
+            const r = this._runEffect({ op: 'copyPermanent', n: 1, _forced: x, attachToId: twin.id, grant: [] }, ctx);
+            if (r === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
         case 'exileMadeEoc': {
           for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.exileAtEndOfCombat = true; }
           break;
@@ -31010,6 +31031,38 @@
           this._refreshControl();
           this.logEvent('control', `${to.name} gains control of ${src.name}; it's goaded for as long as they control it.`);
           this.bumpBoard();
+          break;
+        }
+        /* Tahngarth, First Mate: "you may have that opponent gain control of Tahngarth until end of combat. If you do, choose
+           a player or planeswalker that opponent is attacking. Tahngarth is attacking that player or planeswalker." — not
+           offered when all it could attack is you or yours (lendToAttacker) */
+        case 'lendToAttacker': {
+          const tp = triggerPlayer();
+          if (!src || src.zone !== 'battlefield' || src.controller !== ctx.controller || !tp || tp.hasLost || !this.combat) break;
+          const defs = [...new Set(this.combat.attackers.map(id => this.obj(id)).filter(a => a && a.controller === tp.id && a.attacking).map(a => a.attacking))]
+            .filter(id => this.player(id) || (this.obj(id) && this.obj(id).zone === 'battlefield'));
+          const mine = (id) => id === ctx.controller || (this.obj(id) || {}).controller === ctx.controller;
+          if (!defs.length || defs.every(mine)) break;
+          const label = (id) => (this.player(id) || this.obj(id) || {}).name || '?';
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'lendSelf',
+            prompt: `${src.name}: Have ${tp.name} gain control of ${src.name} until end of combat? It attacks a player or planeswalker they're attacking.` }, 'q');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) break;
+          let def = defs[0];
+          if (defs.length > 1) {
+            const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'attackWhom', values: defs,
+              options: defs.map((d, i) => ({ i, label: label(d) })), prompt: `${src.name}: choose a player or planeswalker ${tp.name} is attacking. ${src.name} is attacking it.` }, 'def');
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            def = defs[idx == null ? 0 : idx] || defs[0];
+          }
+          src.effects.push({ control: tp.id, until: 'eot', untilEndOfCombat: true, ts: this._stampNew() });
+          this._refreshControl();
+          src.attacking = def;
+          if (!this.combat.attackers.includes(src.id)) this.combat.attackers.push(src.id);
+          src._chr = null;
+          this.bumpBoard();
+          this.logEvent('control', `${tp.name} gains control of ${src.name} until end of combat; it is attacking ${label(def)}.`);
           break;
         }
         // Wrong Turn: the target player gains control of the target permanent
