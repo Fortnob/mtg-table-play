@@ -10034,6 +10034,18 @@
       if (a.auraSpec && (a.auraSpec.type === 'player' || a.auraSpec.type === 'opponent')) return [];
       return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x));
     }
+    /**
+     * Harold and Bob, First Numens: a card coming back as an Aura it never printed ("It's an Aura enchantment with
+     * enchant Forest you control") — what it could enchant, by the enchant words it is handed, for the player it comes
+     * back under. Not targeted, so hexproof is no bar; protection still is.
+     */
+    _enterAuraHosts(x, enterEff, pid) {
+      const words = (enterEff.grantTexts || []).find(t => /^Enchant /.test(t));
+      const ga = words && O.analyze({ id: 'granted:' + U.hash(words), name: 'Granted', type_line: 'Enchantment — Aura', oracle_text: words, keywords: [], layout: 'token' });
+      const spec = ga && ga.auraSpec;
+      if (!spec || spec.zone !== 'battlefield' || spec.type === 'player' || spec.type === 'opponent') return [];
+      return this.battlefield.filter(h => h !== x && !h.phasedOut && MTG.oracle.matchesSpec(spec, h, h.analysis(), pid, this._specCtx()) && !this._protectedFrom(h, x));
+    }
     /** A leash goes on the best of theirs, a bonus on the best of ours. */
     _bestAuraHost(o, a, hosts) {
       const text = String(a.oracleText || '').toLowerCase();
@@ -12113,7 +12125,8 @@
           const opt = this._manaOptions(ab, o, playerId);
           // a source that would make nothing right now is no source at all
           if (!opt.any && !opt.produces.size) continue;
-          const pain = (ab.effects || []).some(e => e.op === 'damage' || e.op === 'loseLife') ? 1 : 0;
+          // (Harold and Bob, First Numens: rad counters with the mana are a price too)
+          const pain = (ab.effects || []).some(e => e.op === 'damage' || e.op === 'loseLife' || e.op === 'rad') ? 1 : 0;
           cand.push({ obj: o, ability: ab, index: i, produces: opt.produces, any: opt.any, amount: opt.amount, sac: sacs,
             flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) + (sacs ? 20 : 0) });
         }
@@ -15977,7 +15990,8 @@
         const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
         for (const entry of sources) {
           const ss = lb && lb.st.get(entry.src.id);
-          if (ss && (ss.lost || ss.rulesLost)) continue;          // its source has nothing left to hand out
+          // its source has nothing left to hand out (Harold and Bob: but what it was handed after, it has — grantTs)
+          if (ss && (ss.rulesLost || (ss.lost && !(entry.grantTs != null && entry.grantTs > ss.loseTs)))) continue;
           if (this._contApplies(entry, o, base)) { texts.push(said(entry.ef)); stamps.push(entry.ts); froms.push(entry.src.id); }
         }
         if (base.notCreatureUnless) {
@@ -16024,7 +16038,11 @@
           }
           // the Talents: a loyalty ability handed to a planeswalker ("+1: …") is read as a planeswalker's
           const loyal = /^[+\u2212-]?(?:\d+|X): /.test(t);
-          const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: loyal ? 'Planeswalker' : 'Creature', oracle_text: t, keywords: [], layout: 'token' });
+          /* Harold and Bob, First Numens: "enchant Forest you control" and "Enchanted Forest has '\u2026'" \u2014 an Aura's words,
+             read as an Aura's; what it can enchant comes with them (auraSpec) */
+          const auraWords = /^Enchant(?:ed)? /.test(t);
+          const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: loyal ? 'Planeswalker' : auraWords ? 'Enchantment \u2014 Aura' : 'Creature', oracle_text: t, keywords: [], layout: 'token' });
+          if (auraWords && /^Enchant /.test(t) && ga && ga.auraSpec && !out.auraSpec) out.auraSpec = ga.auraSpec;
           // words: triggered abilities, and activated ones ("has '{T}: Draw a card'")
           /* …and standing rules ("This creature gets +1/+1 for each …",
              "Creature tokens you control get +2/+2"): read as its own, so
@@ -16162,14 +16180,17 @@
         }
         /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '…'"" — a
            standing line it was given hands out its ability too */
-        for (const ge of (src.effects || [])) {
-          if (!ge || !ge.grantText || !/\bha(?:ve|s) "/.test(ge.grantText)) continue;
-          const ga = O.analyze({ id: 'granted:' + U.hash(ge.grantText), name: src.name, type_line: (src.card && src.card.type_line) || 'Enchantment',
+        (src.effects || []).forEach((ge, gi) => {
+          if (!ge || !ge.grantText || !/\bha(?:ve|s) "/.test(ge.grantText)) return;
+          // (Harold and Bob, First Numens: "Enchanted Forest has '…'" — an Aura's words, whatever the card printed)
+          const ga = O.analyze({ id: 'granted:' + U.hash(ge.grantText), name: src.name,
+            type_line: /^Enchanted /.test(ge.grantText) ? 'Enchantment — Aura' : (src.card && src.card.type_line) || 'Enchantment',
             oracle_text: ge.grantText, keywords: [], layout: 'token' });
+          /* (…and handed over after it lost everything else: still its to hand out — grantTs) */
           for (const ab of ((ga && ga.abilities) || [])) for (const x of (ab.effects || [])) {
-            if (x && x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6 });
+            if (x && x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6, grantTs: this._effTs(ge, gi) });
           }
-        }
+        });
       }
       this._grantCache = list;
       this._grantEpoch = this._boardKey;
@@ -17421,7 +17442,16 @@
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         /* Xu-Ifit, Osteoharmonist: what it is as it enters — no abilities, so none of them triggers or changes how it
            enters (enterEffects) */
-        for (const ef of ((opts && opts.enterEffects) || [])) o.effects.push(Object.assign(JSON.parse(JSON.stringify(ef)), { until: null }));
+        for (const ef of ((opts && opts.enterEffects) || [])) {
+          const one = Object.assign(JSON.parse(JSON.stringify(ef)), { until: null });
+          /* Harold and Bob, First Numens: "… loses all other abilities" — what it loses goes first, and what it is handed
+             in the same breath comes after it, so stays (grantTexts) */
+          const handed = one.grantTexts || [];
+          delete one.grantTexts;
+          if (handed.length) one.ts = this._stampNew();
+          o.effects.push(one);
+          for (const t of handed) o.effects.push({ grantText: t, until: null, ts: this._stampNew() });
+        }
         if (opts && opts.enterEffects) o._chr = null;
         this.battlefield.push(o);
         const a = o.analysis();
@@ -30880,8 +30910,24 @@
           // Homura, Human Ascendant: "return it to the battlefield flipped" — a flip card, its other half up
           const flipIt = !!(e.flipped && x.card.layout === 'flip');
           if (flipIt) { x.face = 1; x.flipped = true; }
+          /* Harold and Bob, First Numens: "It's an Aura enchantment with enchant Forest you control" — what it enchants is
+             chosen as it returns (CR 303.4f); with nothing it could enchant it stays where it is (enterAura) */
+          const backTo = e.owner ? x.owner : ctx.controller;
+          let auraHost = null;
+          if (e.enterEff && (e.enterEff.addSubtypes || []).includes('Aura')) {
+            const hosts = this._enterAuraHosts(x, e.enterEff, backTo);
+            if (!hosts.length) { this.logEvent('rules', `${x.name} stays where it is: there is nothing it could enchant.`); break; }
+            auraHost = hosts[0];
+            if (hosts.length > 1) {
+              const got = this._choose({ playerId: backTo, purpose: 'auraHostEnter', kind: 'objects', zone: 'battlefield', objId: x.id,
+                items: this._chooseItems(hosts), min: 1, max: 1, prompt: `${x.name}: choose what it enchants as it returns to the battlefield.` }, 'aura');
+              if (got === SUSPEND) return SUSPEND;
+              auraHost = hosts.find(h => ((got && got.picks) || []).includes(h.id)) || hosts[0];
+            }
+          }
           // (Tom, Bert, and William: "They're an artifact." — what it is as it enters: enterEff)
-          this.moveObject(x, 'battlefield', Object.assign({ controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+          this.moveObject(x, 'battlefield', Object.assign({ controller: backTo, tapped: !!(e.tapped) }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+          if (auraHost && x.zone === 'battlefield' && auraHost.zone === 'battlefield') { this._attachAura(x, auraHost); x._needsHost = false; }
           if (e.tapped) x.tapped = true;
           if (flipIt && x.zone === 'battlefield') { x.flipped = true; x.face = 1; x._chr = null; x._dyn = null; x._dynKey = null; this.bumpBoard(); }
           // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
@@ -37293,6 +37339,12 @@
         if (alts.length && alts.every(x => simple.test(x))) {
           const ok = alts.some(x => x === 'permanent' ? true : (ha.types || []).some(t => t.toLowerCase() === x));
           if (!ok) return false;
+        }
+        /* Harold and Bob, First Numens: "enchant Forest you control" — a basic land type, and whose it is (CR 303.4d) */
+        const landYours = alts.length === 1 && alts[0].match(/^(plains|island|swamp|mountain|forest)( you control)?$/);
+        if (landYours) {
+          if (!(ha.subtypes || []).some(t => t.toLowerCase() === landYours[1])) return false;
+          if (landYours[2] && host.controller !== o.controller) return false;
         }
       } else if (a.isEquipment && !o.bestowed) {
         if (!ha.isCreature) return false;

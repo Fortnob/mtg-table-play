@@ -1567,6 +1567,14 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Harold and Bob, First Numens: the Forest of ours it enchants as it returns — an untapped one, so its new mana
+       ability is there to use this turn, and one with nothing else on it */
+    auraHostEnter(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
+        .sort((a, b) => ((b.controller === this.pid) - (a.controller === this.pid)) || (a.tapped - b.tapped) || ((a.attachments || []).length - (b.attachments || []).length));
+      return os.length ? { picks: [os[0].id] } : null;
+    },
     /* Klaw, Sonic Subjugator; Blackmail: the cards of ours to reveal, one of which the other player makes us discard —
        the ones worth least */
     revealFromHand(s) {

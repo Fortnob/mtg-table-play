@@ -65670,4 +65670,78 @@ module.exports = (test) => {
     t.eq(hz.damage, 2, 'Hazduhr: the shield is spent');
     t.zone(angel, 'graveyard', 'Hazduhr: all of it to the Angel');
   });
+  test('Commanders: Harold and Bob, First Numens — dies a creature: back as an Aura on a Forest you choose, which taps for three and two rad', (mk, t) => {
+    t.auto('Harold and Bob, First Numens');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    const hb = T.bf('A', 'Harold and Bob, First Numens');
+    const f1 = T.bf('A', 'Forest');
+    const f2 = T.bf('A', 'Forest', { tapped: true });
+    T.bf('A', 'Mountain');
+    const bf = T.bf('B', 'Forest');
+    t.ok(g.hasKw(hb, 'reach') && g.hasKw(hb, 'vigilance'), 'Harold and Bob: reach, vigilance');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [f2.id] }; });
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [hb] });
+    t.ok(q && q.purpose === 'auraHostEnter', 'Harold and Bob: asked which Forest as it returns');
+    t.eq(q.items.map(x => x.id).sort().join(), [f1.id, f2.id].sort().join(), 'Harold and Bob: only the Forests A controls');
+    t.zone(hb, 'battlefield', 'Harold and Bob: back');
+    t.eq(hb.controller, 'A');
+    t.eq(hb.attachedTo, f2.id, 'Harold and Bob: on the Forest chosen');
+    const a = hb.analysis();
+    t.ok(a.isAura && a.isEnchantment && !a.isCreature, 'Harold and Bob: an Aura enchantment, not a creature');
+    t.eq((a.types || []).join(), 'Enchantment', 'Harold and Bob: no other card types');
+    t.eq((a.subtypes || []).join(), 'Aura', 'Harold and Bob: no Treefolk or Mutant');
+    t.ok(a.isLegendary, 'Harold and Bob: still legendary');
+    t.eq(hb.name, 'Harold and Bob, First Numens');
+    t.no(g.hasKw(hb, 'reach') || g.hasKw(hb, 'vigilance'), 'Harold and Bob: loses all other abilities');
+    // the enchanted Forest: "{T}: Add three mana of any one color. You get two rad counters."
+    const abs = g.manaAbilitiesOf(f2);
+    const i = abs.findIndex(ab => /three mana/.test(ab.text || ''));
+    t.ok(i >= 0, 'Harold and Bob: the enchanted Forest has the mana ability');
+    t.ok(g.manaAbilitiesOf(f1).every(ab => !/three mana/.test(ab.text || '')), 'Harold and Bob: not the other Forest');
+    t.ok(g.manaAbilitiesOf(bf).every(ab => !/three mana/.test(ab.text || '')), "Harold and Bob: not B's Forest");
+    f2.tapped = false;
+    const p = T.player('A');
+    const u0 = p.pool.U || 0;
+    t.ok(g.tapForMana('A', f2.id, i, 'U'), 'Harold and Bob: tapped for the mana');
+    t.eq((p.pool.U || 0) - u0, 3, 'Harold and Bob: three blue');
+    t.eq(p.rad || 0, 2, 'Harold and Bob: two rad counters');
+    t.eq(g.stack.length, 0, 'Harold and Bob: a mana ability, off the stack');
+    // destroyed as an Aura: not a creature — stays in the graveyard
+    T.mana('A', '1W'); T.cast('A', T.hand('A', 'Disenchant'), { targets: [hb] });
+    t.zone(hb, 'graveyard', 'Harold and Bob: not back when it dies an Aura');
+  });
+  test('Commanders: Harold and Bob, First Numens — no Forest of yours: stays in the graveyard; the Forest gone: the Aura goes', (mk, t) => {
+    t.auto('Harold and Bob, First Numens');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    const hb = T.bf('A', 'Harold and Bob, First Numens');
+    T.bf('B', 'Forest');
+    T.bf('A', 'Mountain');
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [hb] });
+    t.zone(hb, 'graveyard', 'Harold and Bob: nothing it could enchant — it stays');
+    t.no(T.asked.some(ch => ch.purpose === 'auraHostEnter'), 'Harold and Bob: nothing to ask');
+    // one Forest: no question, and when that Forest goes the Aura goes too, not back
+    const T2 = mk({ library: Array(20).fill('Swamp') });
+    const hb2 = T2.bf('A', 'Harold and Bob, First Numens');
+    const f = T2.bf('A', 'Forest');
+    T2.mana('A', '1BB'); T2.cast('A', T2.hand('A', 'Murder'), { targets: [hb2] });
+    t.eq(hb2.attachedTo, f.id, 'Harold and Bob: the one Forest, without asking');
+    t.no(T2.asked.some(ch => ch.purpose === 'auraHostEnter'), 'Harold and Bob: one Forest — not asked');
+    T2.mana('A', '3RR'); T2.cast('A', T2.hand('A', 'Stone Rain'), { targets: [f] });
+    t.zone(hb2, 'graveyard', 'Harold and Bob: the Forest gone, the Aura goes');
+    // a bot picks an untapped Forest of its own
+    const T3 = mk({ library: Array(20).fill('Swamp') });
+    const g3 = T3.g;
+    g3.player('A').isBot = true;
+    const hb3 = T3.bf('A', 'Harold and Bob, First Numens');
+    T3.bf('A', 'Forest', { tapped: true });
+    const f3 = T3.bf('A', 'Forest');
+    const M3 = T3.MTG;
+    const ans = M3.bots.answerChoose(g3, 'A', M3.choice.normalize({ playerId: 'A', purpose: 'auraHostEnter', kind: 'objects', min: 1, max: 1,
+      items: [{ id: g3.battlefield.find(o => o.name === 'Forest' && o.tapped).id }, { id: f3.id }] }));
+    t.eq(ans.picks[0], f3.id, 'Harold and Bob: a bot picks the untapped Forest');
+    t.ok(hb3);
+  });
 };

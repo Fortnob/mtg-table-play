@@ -574,6 +574,8 @@
       if (e.op === 'damage') return !!e.toSelf;
       if (e.op === 'loseLife') return e.who === 'you';
       if (e.op === 'gainLife') return (e.who === 'you' || e.who === 'opponents') && typeof e.n === 'number';
+      // Harold and Bob, First Numens: "{T}: Add three mana of any one color. You get two rad counters."
+      if (e.op === 'rad') return e.who === 'you' && typeof e.n === 'number';
       if (e.op === 'ifCond') return !e.cond || e.cond.kind !== 'manual' ? branches(e).every(fits) : false;
       if (e.op === 'counters' || e.op === 'tap' || e.op === 'untap') return e.scope === 'self';
       // Cloudcrest Lake: "This land doesn't untap during your next untap step."
@@ -2609,6 +2611,12 @@
       make: (m) => ({ op: 'manual', enterRider: { setTypes: ['Land'], setName: m[1] } }) },
     { re: /^(?:He|She)'?s an? ([A-Z][a-z]+) in addition to (?:his|her) other types\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]] } }) },
+    /* Harold and Bob, First Numens: "It's an Aura enchantment with enchant Forest you control and "Enchanted Forest has
+       '{T}: …'" Harold and Bob loses all other abilities." — only an Aura as it returns, everything it had gone and those
+       two handed to it after (enterRider, grantTexts) */
+    { re: /^It'?s an Aura enchantment with enchant ([A-Z][a-z]+(?: you control)?) and "(Enchanted [A-Z][a-z]+ has ['‘][^"]+['’])"\.? (?:CARDNAME|It) loses all other abilities\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { setTypes: ['Enchantment'], addSubtypes: ['Aura'], loseAll: true,
+        grantTexts: ['Enchant ' + m[1], m[2].replace(/['‘’]/g, '"')] } }) },
     { re: /^(?:They'?re|It'?s) an? (artifact|enchantment|land)\.?$/i,
       make: (m) => ({ op: 'manual', enterRider: { setTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] } }) },
     /* Vraska, the Silencer: "It's a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color,"
@@ -20008,6 +20016,8 @@
     'enchanted creature': { attached: true, what: 'creature' },
     'enchanted permanent': { attached: true, what: 'permanent' },
     'enchanted land': { attached: true, what: 'land' },
+    // (Harold and Bob, First Numens: "Enchanted Forest has '…'")
+    'enchanted forest': { attached: true, what: 'land' },
     'enchanted artifact': { attached: true, what: 'artifact' },
     'fortified land': { attached: true, what: 'land' },
     'this creature': { self: true, what: 'creature' },
