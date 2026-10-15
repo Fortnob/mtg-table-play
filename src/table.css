@@ -1297,6 +1297,8 @@
 .net-chip.rejoining .net-chip-dot { animation: chipBlink 1s ease-in-out infinite; }
 @keyframes chipBlink { 50% { opacity: .25; } }
 :root[data-phone] .net-chip { left: 60px; top: 10px; font-size: 10px; max-width: 40%; }
+/* more than one opponent on a wider screen: their tabs have the top left, so this goes top right (as the practice tally) */
+:root:not([data-phone]) .arena.multi > .net-chip { left: auto; right: 16px; top: 50px; max-width: calc(var(--side-w) - 32px); }
 /* Mindslaver: controlling another player, or being controlled, said across the top of the table */
 .ctl-bar { position: absolute; z-index: 5; left: 50%; top: 50%; translate: -50% calc(-100% - 34px); display: flex; align-items: center; gap: 12px;
   width: max-content; max-width: min(760px, calc(100% - 40px)); padding: 7px 10px 7px 16px; border-radius: 14px;
