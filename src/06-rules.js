@@ -22300,6 +22300,8 @@
           const s0 = (e.then || [])[0];
           if (s0 && s0.op === 'sacrificeChoice' && s0.who === 'you' && !this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut &&
             this._canSacrifice(x) && !(s0.other && src && x.id === src.id) && (!s0.filter || s0.filter === 'permanent' || this._cardFitsWords(x, s0.filter)))) break;
+          // Artist's Talent: "you may discard a card. If you do, draw a card." — with an empty hand, the same
+          if (s0 && s0.op === 'rummage' && (e.then || []).length === 1 && !e.who && !((this.zones[ctx.controller] || {}).hand || []).length) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
           const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
           // (asked of another player: the card's name and the question, "Edric, Spymaster of Trest: Draw a card?")
@@ -22392,6 +22394,32 @@
             break;
           }
           if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.removeAmong || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          // what could be sacrificed or discarded to pay, and how many it takes
+          const givable = () => {
+            const sf = pay.sacrifice ? String(pay.sacrifice.filter || 'permanent') : '';
+            const sOther = /^other /i.test(sf) || !!(pay.sacrifice && pay.sacrifice.another);
+            const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
+            return { need: pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1,
+              zone: pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
+                : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter)) };
+          };
+          /* A price there is no paying is no question either — saying yes could only fail: Mana Vault's {4} with
+             no mana to pay it, Artist's Talent's discard with an empty hand, Scavenger's Talent's three
+             permanents with two to give */
+          if (!e.noAsk) {
+            const parts = Object.keys(pay).filter(k => pay[k] != null && pay[k] !== false);
+            const only = parts.length === 1 ? parts[0] : null;
+            const hopeless = only === 'mana' ? !/\{X\}/i.test(pay.mana) && !this.canPayNow(ctx.controller, pay.mana)
+              : only === 'life' ? (me.life <= pay.life && this.config.rulesEnforcement === 'full') || (pay.life > 0 && this._lifeFrozen(me))
+              : only === 'sacrifice' || only === 'discard' ? (() => { const gv = givable(); return gv.zone.length < gv.need; })()
+              : false;
+            if (hopeless) {
+              const what = only === 'mana' ? pay.mana : only === 'life' ? pay.life + ' life' : only === 'discard' ? 'a card to discard' : 'enough to sacrifice';
+              this.logEvent('rules', `${(src && src.name) || ctx.name || 'Effect'}: ${me.name} cannot pay ${what}.`);
+              this._spliceNext(e.otherwise);
+              break;
+            }
+          }
           // (a "you may" already asked as the trigger resolved)
           // ("you may pay {1}": always, or never, for the rest of the turn — a price that is mana, life or energy alone)
           const plainPay = Object.keys(pay).every(k => k === 'mana' || k === 'life' || k === 'energy' || pay[k] == null) && (pay.mana || pay.life != null || pay.energy);
@@ -22597,12 +22625,7 @@
           }
           /* Scavenger's Talent: "you may sacrifice three other nonland
              permanents" — as many as it says, never the source itself */
-          const sf = pay.sacrifice ? String(pay.sacrifice.filter || 'permanent') : '';
-          const sOther = /^other /i.test(sf) || !!(pay.sacrifice && pay.sacrifice.another);
-          const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
-          const need = pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1;
-          const zone = pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
-            : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter));
+          const { need, zone } = givable();
           // not enough to give up, or not all picked: it wasn't paid (Giant Opportunity: "Otherwise, create three Food tokens")
           if (zone.length < need) { this._spliceNext(e.otherwise); break; }
           const picked = (me.isBot && need > 1) ? this._cheapestFirst(zone).slice(0, need).map(o => o.id)

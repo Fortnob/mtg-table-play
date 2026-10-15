@@ -19311,10 +19311,12 @@ module.exports = (test) => {
     T.toMain('A');
     const ina = T.put('A', 'Inalla, Archmage Ritualist', 'command'); ina.isCommander = true;
     const copies = () => T.g.battlefield.filter(o => o.isToken && o.name === 'Prodigal Sorcerer');
-    T.answer('confirm', { yes: false });
+    // (no mana to pay {1} with: not even asked)
     T.put('A', 'Prodigal Sorcerer', 'battlefield', { etb: true });
     T.resolve();
     t.eq(copies().length, 0, 'not paid: no copy');
+    t.no(T.asked.some(c => c.type === 'confirm'), 'nothing to pay with: not asked');
+    t.ok(T.g.log.some(l => /: A cannot pay \{1\}\.$/.test(l.text)), 'the log says why');
     T.answer('confirm', { yes: true });
     T.mana('A', '1');
     T.put('A', 'Prodigal Sorcerer', 'battlefield', { etb: true });
@@ -50394,8 +50396,7 @@ module.exports = (test) => {
     M.toMain('A', 'end');
     t.eq(M.life('B'), 18, 'Sygg: the Bears hit');
     t.eq(M.zone('A', 'hand').length, h0 + 1, 'Sygg: a card drawn');
-    // first main phase: {W} to transform — Wanderbrine Shield protects a creature
-    M.answer('confirm', { yes: false });
+    // first main phase: {W} to transform — Wanderbrine Shield protects a creature (no mana: not asked)
     M.nextTurn('A');
     t.eq(sy.face, 0, 'Sygg: not paid — the front face still');
     M.bf('A', 'Plains'); M.bf('A', 'Island');

@@ -284,6 +284,33 @@ module.exports = (test) => {
     t.eq(asked(T2, 'choose'), 1, 'an Island or the Bears: asked');
   });
 
+  test('Nothing to decide: "you may pay {4}" with no way to pay it is not asked', (mk, t) => {
+    t.auto('Mana Vault');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Mana Vault', { tapped: true });
+    T.nextTurn('A');
+    t.eq(asked(T, 'confirm'), 0, 'no mana: not asked');
+    t.ok(said(T, 'Mana Vault: A cannot pay {4}.'), 'the log says why');
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.bf('A', 'Mana Vault', { tapped: true });
+    for (let i = 0; i < 4; i++) T2.bf('A', 'Island');
+    T2.answer('confirm', { yes: true });
+    T2.nextTurn('A');
+    t.eq(asked(T2, 'confirm'), 1, 'four lands: asked');
+  });
+
+  test('Nothing to decide: "you may discard a card. If you do, draw a card." with an empty hand is not asked', (mk, t) => {
+    t.auto("Artist's Talent");
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', "Artist's Talent");
+    emptyHand(T, 'A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    emptyHand(T, 'A');
+    T.resolve();
+    t.eq(asked(T, 'confirm'), 0, 'nothing to discard: not asked');
+  });
+
   test('Nothing to decide: the cost of sacrificing one of two identical Foods is not asked', (mk, t) => {
     t.auto('Bill the Pony');
     const T = mk({ library: Array(20).fill('Island') });
