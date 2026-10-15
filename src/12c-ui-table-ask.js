@@ -162,7 +162,13 @@
         if (host._key) { host._key = null; host._base = null; host.innerHTML = ''; host.className = 'decision-host'; }
         return;
       }
-      if (host._key === want.key && !want.live) return;
+      if (host._key === want.key && !want.live) {
+        // kept as it is: its card slots are still in use, or the end of this render would take them away (the opening hand)
+        for (const w of host.querySelectorAll('[data-wrap]')) { this._usedWraps = this._usedWraps || new Set(); this._usedWraps.add(w.dataset.wrap); }
+        // and so are its cards
+        if (this._used) for (const n of host.querySelectorAll('.cv[data-id]')) this._used.add(n.dataset.id);
+        return;
+      }
       if (host._key !== want.key) {
         host._key = want.key;
         host._state = {};
