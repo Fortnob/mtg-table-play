@@ -20211,6 +20211,11 @@
           return v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length;
         }
         if (v && typeof v === 'object' && v.commanderCasts) return (me ? this._commanderCastCount(me.id) : 0) * (v.mult || 1);
+        // Odric, Blood-Cursed: "the number of abilities from among flying, … found among creatures you control" (kwAmongYours)
+        if (v && typeof v === 'object' && v.kwAmongYours) {
+          const mine = this.battlefield.filter(o => me && o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature);
+          return v.kwAmongYours.filter(k => mine.some(o => this.hasKw(o, k))).length;
+        }
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
@@ -23493,7 +23498,9 @@
             !(/^non-lair/.test(e.filter || '') && ((x.analysis() || {}).subtypes || []).includes('Lair'));
           const pool = e.how === 'discard' ? this.zones[ctx.controller].hand.filter(fits)
             : this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && fits(x) &&
-              !(e.untapped && x.tapped) && !(e.another && x === src) && !(e.how === 'sacrifice' && x === src));
+              !(e.untapped && x.tapped) && !(e.another && x === src) && !(e.how === 'sacrifice' && x === src) &&
+              // (Chisei, Heart of Oceans: "remove a counter from a permanent you control" — one with a counter on it)
+              !(e.how === 'removeCounter' && !Object.keys(x.counters || {}).some(k => Number(x.counters[k]) > 0)));
           let paid = null;
           // Balduvian Horde: yes or no, and if yes the card is chosen at random
           if (e.random && pool.length) {
@@ -23502,15 +23509,29 @@
             if (yes === SUSPEND) return SUSPEND;
             if (yes === null || !!yes) paid = pool[Math.floor(this.rng.next() * pool.length)];
           } else if (pool.length) {
-            const got = this._choose({ playerId: ctx.controller, purpose: 'unlessSacrifice', kind: 'objects',
+            const got = this._choose({ playerId: ctx.controller, purpose: e.how === 'removeCounter' ? 'unlessRemoveCounter' : 'unlessSacrifice', kind: 'objects',
               zone: e.how === 'discard' ? 'hand' : 'battlefield', items: this._chooseItems(pool), min: 0, max: 1,
               sourceId: src.id, sourceName: src.name,
-              prompt: `${e.how === 'discard' ? 'Discard' : e.how === 'return' ? 'Return' : 'Sacrifice'} ${/^[aeiou]/i.test(words) ? 'an' : 'a'} ${e.filter}${e.how === 'return' ? ' to its owner\'s hand' : ''}, or sacrifice ${src.name}?` }, 'unless');
+              prompt: e.how === 'removeCounter' ? `Remove a counter from a permanent you control, or sacrifice ${src.name}?`
+                : `${e.how === 'discard' ? 'Discard' : e.how === 'return' ? 'Return' : 'Sacrifice'} ${/^[aeiou]/i.test(words) ? 'an' : 'a'} ${e.filter}${e.how === 'return' ? ' to its owner\'s hand' : ''}, or sacrifice ${src.name}?` }, 'unless');
             if (got === SUSPEND) return SUSPEND;
             paid = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (paid && !pool.includes(paid)) paid = null;
           }
-          if (paid && e.how === 'discard') this._discardNow(ctx.controller, [paid]);
+          if (paid && e.how === 'removeCounter') {
+            const kinds = Object.keys(paid.counters || {}).filter(k => Number(paid.counters[k]) > 0);
+            let kind = kinds[0];
+            if (kinds.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'counterKind', kind: 'options', min: 1, max: 1,
+                options: kinds.map((k, i) => ({ i, label: k })), prompt: `Remove which counter from ${paid.name}?` }, 'unlessKind');
+              if (got === SUSPEND) return SUSPEND;
+              kind = kinds[(got && got.picks[0]) || 0] || kinds[0];
+            }
+            paid.counters[kind] -= 1;
+            if (paid.counters[kind] <= 0) delete paid.counters[kind];
+            paid._chr = null; this.bumpBoard();
+            this.logEvent('counters', `A ${kind} counter is removed from ${paid.name}.`);
+          } else if (paid && e.how === 'discard') this._discardNow(ctx.controller, [paid]);
           else if (paid && e.how === 'return') { this.moveObject(paid, 'hand'); this.logEvent('rules', `${me.name} returns ${paid.name} to hand.`); }
           else if (paid) this._sacrificeNow(ctx.controller, [paid], ctx);   // (it tells the table: oneSacrificeEach)
           else {
@@ -27792,14 +27813,18 @@
             : t.kind === 'object' ? this.obj(t.id) : null).find(o => o && (o.zone === 'battlefield' || o.zone === 'stack')) : src;
           if (!x || !(x.zone === 'battlefield' || (e.targets && x.zone === 'stack'))) break;
           const COLS = [['W', 'white'], ['U', 'blue'], ['B', 'black'], ['R', 'red'], ['G', 'green']];
-          const got = this._choose({ playerId: ctx.controller, purpose: 'color', kind: 'options', min: 1, max: 1,
-            options: COLS.map((c, i) => ({ i, label: c[1] })), prompt: `${x.name} becomes the colour of your choice.` }, 'col');
+          // (Mondo Gecko: hexproof from it too — the bots pick as for protection: protectionColor)
+          const got = this._choose({ playerId: ctx.controller, purpose: e.hexproofFrom ? 'protectionColor' : 'color', kind: 'options', min: 1, max: 1,
+            options: COLS.map((c, i) => ({ i, label: e.hexproofFrom ? U.titleCase(c[1]) : c[1] })),
+            prompt: e.hexproofFrom ? `${x.name} becomes the colour of your choice and gains hexproof from that colour.` : `${x.name} becomes the colour of your choice.` }, 'col');
           if (got === SUSPEND) return SUSPEND;
           const c = COLS[(got && got.picks && got.picks[0]) || 0] || COLS[0];
           x.effects = x.effects || [];
           x.effects.push({ setColors: [c[0]], until: 'eot' });
+          // (Mondo Gecko: "and gains hexproof from that color" — hexproofFrom)
+          if (e.hexproofFrom) x.effects.push({ keywords: ['Hexproof from ' + c[1]], until: 'eot' });
           x._chr = null; this.bumpBoard();
-          this.logEvent('rules', `${x.name} becomes ${c[1]}.`);
+          this.logEvent('rules', `${x.name} becomes ${c[1]}${e.hexproofFrom ? ' and gains hexproof from ' + c[1] : ''}.`);
           break;
         }
         // Phyrexian Gremlins, Flowstone Armor: a flag or a bonus that lasts while the source stays as it is
@@ -30190,6 +30215,14 @@
              it last was on the battlefield, what it was copying included (exiledCost) */
           if (e.of === 'exiledCost') {
             const x = ctx.exiledCost && this.obj(ctx.exiledCost.id);
+            const lk = x && (x._lkiCard || { card: x.card, face: x.face || 0 });
+            t = lk && lk.card ? { card: lk.card, face: lk.face || 0, name: lk.card.name || x.name, zone: 'battlefield' } : null;
+          }
+          /* The Ever-Changing 'Dane: "a copy of the sacrificed creature" — the one sacrificed to pay, by its copiable
+             values as it last was on the battlefield (sacrificedCost) */
+          if (e.of === 'sacrificedCost') {
+            const s0 = ((ctx.sacrificed || (ctx.item && ctx.item.sacrificed) || [])[0]) || null;
+            const x = s0 && this.obj(s0.id);
             const lk = x && (x._lkiCard || { card: x.card, face: x.face || 0 });
             t = lk && lk.card ? { card: lk.card, face: lk.face || 0, name: lk.card.name || x.name, zone: 'battlefield' } : null;
           }

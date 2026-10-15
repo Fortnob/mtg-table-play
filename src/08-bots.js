@@ -2213,6 +2213,15 @@
         .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : this.rating(o) })).sort((x, y) => x.v - y.v);
       return pool.length && pool[0].v <= keep ? { picks: [pool[0].o.id] } : { picks: [] };
     },
+    /* Chisei, Heart of Oceans: "sacrifice Chisei unless you remove a counter from a permanent you control" — always
+       a counter, the cheapest: a -1/-1 counter first, then from whichever has the most */
+    unlessRemoveCounter(s) {
+      const g = this.game;
+      const total = (o) => Object.keys(o.counters || {}).reduce((a, k) => a + (Number(o.counters[k]) || 0), 0);
+      const score = (o) => (Number((o.counters || {})['-1/-1']) > 0 && o.controller === this.pid ? 1000 : 0) + total(o);
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => score(b) - score(a));
+      return pool.length ? { picks: [pool[0].id] } : { picks: [] };
+    },
     /* Ward that asks for cards or permanents (Valgavoth: "Sacrifice three nonland permanents"; Westgate Regent:
        "Discard a card"): pay with the least of them when what it targeted is worth more than they are together;
        otherwise the spell or ability is countered (wardPay) */

@@ -4468,6 +4468,9 @@
     // Blind Seer: "Target spell or permanent becomes the color of your choice until end of turn."
     { re: /^Target spell or permanent becomes the colou?r of your choice until end of turn\.?$/i,
       make: () => ({ op: 'chooseColorFor', targets: [{ type: 'spellOrPermanent' }] }) },
+    // Mondo Gecko: "Until end of turn, Mondo Gecko becomes the color of your choice and gains hexproof from that color." (hexproofFrom)
+    { re: /^(?:This creature|CARDNAME) becomes the colou?r of your choice and gains hexproof from that colou?r until end of turn\.?$/i,
+      make: () => ({ op: 'chooseColorFor', scope: 'self', hexproofFrom: true }) },
     /* Phyrexian Gremlins, Icefall Regent: "It doesn't untap during its
        controller's untap step for as long as CARDNAME remains tapped" / "for
        as long as you control CARDNAME" */
@@ -5969,6 +5972,9 @@
     /* ===== counting things other than permanents ===== */
     { re: /^You gain (one|two|three|\d+) life for each spell you'?ve cast this turn\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { spellsThisTurn: num(m[1]) } }) },
+    // Odric, Blood-Cursed: "create X Blood tokens, where X is the number of abilities from among flying, …" — a list with commas (kwAmongYours)
+    { re: /^Create X (Treasure|Clue|Food|Blood|Powerstone) tokens?, where X is (the number of abilities from among [a-z ,]+ found among creatures you control)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k ? { op: 'createNamedToken', token: m[1], n: k } : null; } },
     { re: /^Create X (Treasure|Clue|Food|Blood|Powerstone) tokens?, where X is the number of ([-a-z' ]+?) (?:your opponents control|you control)\.?$/i,
       make: (m) => ({ op: 'createNamedToken', token: m[1],
         n: countSpec(m[2], 1, /your opponents control/i.test(m[0]) ? 'opponents' : 'you') }) },
@@ -7256,6 +7262,14 @@
         if (m[1] && (!copyExceptions(m[1], e) || e.keepOwn)) return null;
         return e;
       } },
+    /* The Ever-Changing 'Dane: "{1}, Sacrifice another creature: The Ever-Changing 'Dane becomes a copy of the sacrificed
+       creature, except it has this ability." — the creature sacrificed to pay, as it last was (sacrificedCost) */
+    { re: /^CARDNAME becomes a copy of the sacrificed creature(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const e = { op: 'becomeCopy', of: 'sacrificedCost' };
+        if (m[1] && (!copyExceptions(m[1], e) || e.keepOwn)) return null;
+        return e;
+      } },
     /* Taskmaster, Mercenary Mimic: "until your next turn, Taskmaster becomes a copy of up to one target creature on
        the battlefield or creature card in a graveyard, except …" — either zone (orGraveyardCard), until its
        controller's next turn (untilNextTurn) */
@@ -8288,6 +8302,9 @@
       make: (m) => ({ op: 'mayPay', pay: { discard: 1, filter: 'card' }, then: [],
         otherwise: [{ op: 'sacrificeChoice', n: 1, who: 'you', filter: m[1].toLowerCase(), other: false }],
         prompt: `Discard a card, or sacrifice a ${m[1].toLowerCase()}?`, yesLabel: 'Discard a card', noLabel: `Sacrifice a ${m[1].toLowerCase()}` }) },
+    // Chisei, Heart of Oceans: "sacrifice Chisei unless you remove a counter from a permanent you control" (how removeCounter)
+    { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you remove a counter from a permanent you control\.?$/i,
+      make: () => ({ op: 'sacSelfUnless', how: 'removeCounter', filter: 'permanent', untapped: false, another: false }) },
     // Balduvian Horde: "sacrifice it unless you discard a card at random"
     { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you discard a card at random\.?$/i,
       make: () => ({ op: 'sacSelfUnless', how: 'discard', filter: 'card', random: true, untapped: false, another: false }) },
@@ -9562,6 +9579,13 @@
     if (/^the number of times you chose a mode for that spell$/i.test(p)) return { triggerSpellModes: true };
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
+    /* Odric, Blood-Cursed: "the number of abilities from among flying, first strike, …, and vigilance found among creatures
+       you control" — each counted once (kwAmongYours) */
+    const kwa = p.match(/^the number of abilities from among ((?:[a-z ]+, )+and [a-z ]+) found among creatures you control$/i);
+    if (kwa) {
+      const kws = kwa[1].split(/,\s*(?:and )?/).map(x => x.trim().toLowerCase()).filter(Boolean);
+      return kws.length > 1 && kws.every(kwKnown) ? { kwAmongYours: kws } : null;
+    }
     // Korvold, Gleeful Glutton: "the number of permanent types among cards in your graveyard" (typesInGraveyards, permanentTypes)
     if (/^the number of permanent types among cards in your graveyard$/i.test(p)) return { typesInGraveyards: 'you', permanentTypes: true, mult: 1 };
     // Niv-Mizzet, Guildpact: "the number of different color pairs among permanents you control that are exactly two colors"
@@ -17144,7 +17168,8 @@
       }
       /* Dáin of the Ancient Halls: "Whenever Dáin attacks, he deals damage …"
          — a legend's "he" or "she" at the head of a clause is the legend */
-      text = text.replace(/(^|\n|[.,] )(?:[Hh]e|[Ss]he) (deals|gets|gains|has|becomes) /g, (x, pre, verb) => pre + 'CARDNAME ' + verb + ' ');
+      // (Abomination, Terrifying Titan: "He fights up to one target creature")
+      text = text.replace(/(^|\n|[.,] )(?:[Hh]e|[Ss]he) (deals|gets|gains|has|becomes|fights) /g, (x, pre, verb) => pre + 'CARDNAME ' + verb + ' ');
     }
     /* Ran and Shaw, Raph & Mikey: a card that is two (or more) characters
        says "When Ran and Shaw enter", "Whenever Raph & Mikey attack" — the
@@ -18773,6 +18798,8 @@
          where a condition gives it is not the card's own (an ability word in front of the line, "Celebration —", stays) */
       const saidIn = String((face && face.oracle_text) || card.oracle_text || '').split('\n').filter(l => new RegExp('\\b' + escapeRe(k) + '\\b', 'i').test(l));
       if (saidIn.length && saidIn.every(l => /^(?:[A-Z][A-Za-z' ]+ \u2014 )?As long as /.test(l) && !new RegExp('^' + escapeRe(k) + ' \u2014', 'i').test(l))) continue;
+      // (Odric, Blood-Cursed: "the number of abilities from among flying, first strike, …" — a list it counts, not its own)
+      if (saidIn.length && saidIn.every(l => /\babilities from among\b/i.test(l))) continue;
       if (!out.keywords.some(x => x.keyword.toLowerCase() === k.toLowerCase()))
         out.keywords.push({ keyword: U.titleCase(k), arg: null, text: k });
     }
