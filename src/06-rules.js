@@ -4087,6 +4087,8 @@
       // Rose, Cutthroat Raider: "for each opponent you attacked" this turn (opponentsAttacked)
       // Zedruu the Greathearted: "permanents you own that your opponents control"
       if (v.ownedOppControlled) return this.battlefield.filter(o => !o.phasedOut && o.owner === pid && o.controller !== pid && this.opponentsOf(pid).some(q => q.id === o.controller)).length * mult;
+      // Azula, Ruthless Firebender: "for each player who discarded a card this turn" (playersDiscarded)
+      if (v.playersDiscarded) { const by = ((this.turnHistory || {}).discardsBy) || {}; return this.players.filter(q => (by[q.id] || 0) > 0).length * mult; }
       if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
@@ -16208,7 +16210,20 @@
         }
         left--;
         if (extras > 0) extras--;
-        else { const ex = doubled(); if (ex) { left += ex; extras += ex; } }
+        else {
+          let ex = doubled();
+          /* Reed Richards, Smartest Man: "The first time you would draw a card each turn except the first card you draw
+             during each of your draw steps, you draw four cards instead." — the first such draw of the turn, whatever
+             was out then (drawFirstInstead); doubled after, if anything doubles it */
+          const firstInStep = this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id && p._drawStepTurn !== this.turn;
+          if (!firstInStep && p._firstDrawTurn !== this.turn) {
+            p._firstDrawTurn = this.turn;
+            const rr = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawFirstInstead'));
+            const k4 = rr ? Number(this._staticOp(rr, 'drawFirstInstead').n) || 1 : 1;
+            if (k4 > 1) { ex = k4 * (ex + 1) - 1; this.logEvent('draw', `${rr.name}: ${p.name} draws ${k4} cards instead.`); }
+          }
+          if (ex) { left += ex; extras += ex; }
+        }
         if (this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id) p._drawStepTurn = this.turn;
         if (!z.library.length) {
           // Laboratory Maniac: the draw that would lose wins instead
@@ -16741,6 +16756,16 @@
           })) continue;
           // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
           if (ab.targetsOnlySelf && !((data.spell && data.spell.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
+          /* Zevlor, Elturel Exile: "targets only a single opponent or a single permanent an opponent controls" — one of
+             them, maybe more than once, and nothing else (targetsOneOpponentOrTheirs) */
+          if (ab.targetsOneOpponentOrTheirs) {
+            const sp = data.spell || (data.stackId && this.stack.find(st => st.id === data.stackId));
+            const ts = (sp && sp.targets) || [];
+            const t0 = ts[0];
+            const x = t0 && t0.kind === 'object' ? this.obj(t0.id) : null;
+            const foe = t0 && (t0.kind === 'player' ? t0.id : x && x.zone === 'battlefield' ? x.controller : null);
+            if (!foe || !this.opponentsOf(o.controller).some(q => q.id === foe) || !ts.every(t => t.kind === t0.kind && t.id === t0.id)) continue;
+          }
           // Ivy, Gleeful Spellthief: "targets only a single creature other than Ivy" — one creature, maybe more than once, and nothing else
           if (ab.targetsOneOtherCreature) {
             const sp = data.spell || (data.stackId && this.stack.find(st => st.id === data.stackId));
@@ -18495,7 +18520,8 @@
         if (v && typeof v === 'object' && v.lookedToHand) return (this._lookedToHand || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
         // Green Goblin, Revenant: "for each card you've discarded this turn"
-        if (v && typeof v === 'object' && v.discardedThisTurn) return this._countValue(v, ctx.controller, src);
+        // (Azula, Ruthless Firebender: "for each player who discarded a card this turn" — playersDiscarded)
+        if (v && typeof v === 'object' && (v.discardedThisTurn || v.playersDiscarded)) return this._countValue(v, ctx.controller, src);
         // "twice X"
         if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
         // "the highest number you noted for cards named Garbage Fire"
@@ -21238,6 +21264,56 @@
           for (let k = 0; k < made.length; k++) {
             const copy = !made[k].fixed && this.stack.find(x => x.id === made[k].id);
             if (copy && this._newTargetsForCopy(copy, ctx.controller, 'nt' + k) === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
+
+        /* Zevlor, Elturel Exile: "for each other opponent, choose that player or a permanent they control, copy that spell,
+           and the copy targets the chosen player or permanent" — only what the spell could target; with one choice, no
+           question (copyForOtherOpponents) */
+        case 'copyForOtherOpponents': {
+          const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+          const item = id ? this.stack.find(st => st.id === id) : null;
+          if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+          const r = this.resolving;
+          const slot = r ? r.index + ':zcopies' : null;
+          r && (r.marks = r.marks || {});
+          if (r && r.marks[slot]) break;
+          const have = item.targets || [];
+          const t0 = have[0];
+          if (!t0) break;
+          const hit = t0.kind === 'player' ? t0.id : (this.obj(t0.id) || {}).controller;
+          const specs = this._specsOf(item, have.length);
+          const fits = (t) => have.every((h, i) => specs[i] && this._legalTargetsFor(specs[i], ctx.controller, item.objId).some(x => x.kind === t.kind && x.id === t.id));
+          const picks = [];
+          const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost && q.id !== hit);
+          for (let k = 0; k < opps.length; k++) {
+            const q = opps[k];
+            const pool = [{ kind: 'player', id: q.id }].concat(this.battlefield.filter(x => x.controller === q.id && !x.phasedOut)
+              .map(x => ({ kind: 'object', id: x.id }))).filter(fits);
+            if (!pool.length) continue;
+            let pick = pool[0];
+            if (pool.length > 1 && me.isBot) {
+              // a bot: the same kind of thing as the first, the costliest permanent
+              const objs = pool.filter(t => t.kind === 'object').map(t => this.obj(t.id)).sort((a, b) => ((b.card && b.card.cmc) || 0) - ((a.card && a.card.cmc) || 0));
+              pick = t0.kind === 'object' && objs.length ? { kind: 'object', id: objs[0].id } : pool[0];
+            } else if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'copyTargetPick', kind: 'options', min: 1, max: 1,
+                options: pool.map((t, i) => (t.kind === 'player' ? { i, label: q.name } : { i, label: this.obj(t.id).name, card: this.obj(t.id).card })),
+                prompt: `Copy ${item.name}: choose ${q.name} or a permanent ${q.name} controls for the copy to target.` }, 'zv' + k);
+              if (got === SUSPEND) return SUSPEND;
+              pick = pool[(got && got.picks && got.picks[0]) || 0] || pool[0];
+            }
+            picks.push(pick);
+          }
+          if (r) r.marks[slot] = true;
+          for (const pk of picks) {
+            const copy = this._copyOnStack(item, ctx.controller);
+            copy.targets = have.map(() => ({ kind: pk.kind, id: pk.id }));
+          }
+          if (picks.length) {
+            this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'} for ${picks.map(t => (t.kind === 'player' ? this.player(t.id).name : this.obj(t.id).name)).join(', ')}.`);
+            this.emit('sfx', 'cast');
           }
           break;
         }
@@ -27150,7 +27226,8 @@
         case 'topLand': {
           const z = this.zones[ctx.controller];
           const top = z && z.library[0];
-          if (!top) break;
+          // (Rulik Mons, Warren Chief: no card put onto the battlefield — none to look at, either: otherwise)
+          if (!top) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
           // (Kenessos, Priest of Thassa: "a Kraken, Leviathan, Octopus, or Serpent creature card" — what, subtypes)
           const isLand = e.what ? (this._cardFitsWords(top, e.what) && (!e.subtypes || e.subtypes.some(t => this._hasCreatureType(top, t))))
             : !!(top.analysis() || {}).isLand;
@@ -27170,6 +27247,8 @@
             this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) });
             if (e.tapped && top.zone === 'battlefield') top.tapped = true;
             this.logEvent('zone', `${me.name} puts ${top.name} onto the battlefield from the top of their library.`);
+          } else if (e.otherwise) {
+            this._spliceNext(e.otherwise);
           } else if (e.elseHand) {
             this.moveObject(top, 'hand');
             this.logEvent('zone', `${me.name} puts the top card of their library into their hand.`);

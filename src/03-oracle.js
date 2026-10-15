@@ -5404,6 +5404,11 @@
             : w === 'they' || w === 'that player' ? 'triggerPlayer' : w === 'defending player' ? 'defending' : 'you',
           targets: /^target/.test(w) ? [{ type: 'player', opponent: /opponent/.test(w) }] : undefined };
       } },
+    // Captain Marvel, Apex Avenger: "put the same number and kind of counters on Captain Marvel" — as the trigger put (kindFromTrigger)
+    { re: /^Put the same number and kind of counters on CARDNAME\.?$/, make: () => ({ op: 'counters', kind: null, kindFromTrigger: true, n: 'triggerAmount', scope: 'self' }) },
+    // Azula, Ruthless Firebender: "Then you get an experience counter for each player who discarded a card this turn."
+    { re: /^(?:Then )?(?:you )?get an experience counter for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[1]); return c ? { op: 'experience', n: c } : null; } },
     // Meren, Otharri: "you get an experience counter"
     { re: /^(?:You )?get (a|an|one|two|three|\d+) experience counters?\.?$/i, make: (m) => ({ op: 'experience', n: num(m[1]) }) },
 
@@ -7741,6 +7746,27 @@
     { re: /^CARDNAME and target ([A-Z][a-z]+|creature) you control can'?t be blocked this turn except by creatures with flying or reach\.?$/,
       make: (m) => ({ op: 'sequence', list: [{ op: 'restrict', flag: 'exceptByFlyingReach', scope: 'self' },
         { op: 'restrict', flag: 'exceptByFlyingReach', targets: [targetSpec('target ' + m[1] + ' you control')] }] }) },
+    // Azula, Ruthless Firebender: "Until end of turn, Azula gets +1/+1 for each experience counter you have and gains menace."
+    { re: /^Until end of turn, CARDNAME gets \+(\d+)\/\+(\d+) for each (.+?) and gains ([a-z ,]+?)\.?$/,
+      make: (m) => {
+        const c = countOf(m[3]);
+        const kws = keywordList(m[4]);
+        if (!c || !kws.length || !kws.every(kwKnown)) return null;
+        const amt = (k) => (+k ? Object.assign({}, c, { mult: (c.mult || 1) * (+k) }) : 0);
+        return { op: 'sequence', list: [{ op: 'pump', p: amt(m[1]), t: amt(m[2]), duration: 'eot', scope: 'self' },
+          { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'self' }] };
+      } },
+    /* Zevlor, Elturel Exile: "When you next cast an instant or sorcery spell that targets only a single opponent or a single
+       permanent an opponent controls this turn, for each other opponent, choose that player or a permanent they control,
+       copy that spell, and the copy targets the chosen player or permanent." — a turn's emblem, gone once it triggers
+       (targetsOneOpponentOrTheirs, copyForOtherOpponents) */
+    { re: /^When you next cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls this turn, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent\.?$/i,
+      make: () => ({ op: 'getEmblem', thisTurn: true, once: true, name: 'Next spell this turn',
+        emblemText: 'Whenever you cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent.',
+        abilities: [{ kind: 'triggered', event: 'youCastSpell', self: false, optional: false, auto: true, condition: null,
+          objFilter: { words: 'instant or sorcery' }, targetsOneOpponentOrTheirs: true,
+          text: 'Whenever you cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent.',
+          effects: [{ op: 'copyForOtherOpponents' }] }] }) },
     // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
     { re: /^(CARDNAME|This creature|Target creature(?: you control)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
       make: (m) => Object.assign({ op: 'restrict', flag: /haste/i.test(m[2]) ? 'exceptByHaste' : 'exceptByFlying' },
@@ -8660,6 +8686,8 @@
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
     // Green Goblin, Revenant: "for each card you've discarded this turn" (discardedThisTurn)
     if (/^card you'?ve discarded this turn$/i.test(p)) return { discardedThisTurn: 'you', mult: k };
+    // Azula, Ruthless Firebender: "for each player who discarded a card this turn" (playersDiscarded)
+    if (/^player who discarded a card this turn$/i.test(p)) return { playersDiscarded: true, mult: k };
     // Heliod, the Warped Eclipse: "for each card your opponents have drawn this turn"
     if (/^card your opponents have drawn this turn$/i.test(p)) return { drawnThisTurn: 'opponents', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
@@ -11405,6 +11433,13 @@
        battlefield if it is a land, and perhaps into the hand if not */
     { re: /^(?:Look at|Reveal) the top card of your library\. If it'?s a land card, (you may )?put it onto the battlefield( tapped)?\.(?: (If you don'?t put the card onto the battlefield|Otherwise), put (?:it|that card) into your hand\.)?$/i,
       make: (m) => [{ op: 'topLand', may: !!m[1], tapped: !!m[2], elseHand: !!m[3] }] },
+    /* Rulik Mons, Warren Chief: "… If you didn't put a card onto the battlefield this way, create a 1/1 red Goblin creature
+       token." — no land put there, or no card to look at (otherwise) */
+    { re: /^Look at the top card of your library\. If it'?s a land card, (you may )?put it onto the battlefield( tapped)?\. If you didn'?t put a card onto the battlefield this way, (create [^.]+)\.?$/i,
+      make: (m) => {
+        const tok = parseEffectSentence(m[3].charAt(0).toUpperCase() + m[3].slice(1) + '.', 1);
+        return tok && tok.op !== 'manual' ? [{ op: 'topLand', may: !!m[1], tapped: !!m[2], otherwise: [tok] }] : null;
+      } },
     /* Kenessos, Priest of Thassa: "Look at the top card of your library. If it's a Kraken, Leviathan, Octopus, or Serpent
        creature card, you may put it onto the battlefield. If you don't put the card onto the battlefield, you may put it
        on the bottom of your library." (topLand, subtypes, elseBottomMay) */
@@ -13858,6 +13893,8 @@
     [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Scriv, the Obligator's Contract: "if it's attacking one of your opponents" — the creature the trigger is about, attacking that player (trigAttackingYourOpp)
     [/^it'?s attacking one of your opponents$/i, () => ({ kind: 'trigAttackingYourOpp' })],
+    // Captain Marvel, Apex Avenger: "if it's not a Kree" — the creature the trigger is about
+    [/^it'?s not an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'not', cond: { kind: 'thatObjIs', noun: 'permanent', words: m[1] } })],
     // Urdnan, Dromoka Warrior: "that creature has two or more +1/+1 counters on it" — the target, or the one the trigger is about (thatObjCounters)
     [/^that creature has (\w+) or more ([a-z+\-0-9/]+) counters on it$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'thatObjCounters', n: num(m[1]), counter: m[2].toLowerCase() } : null)],
     // Reyhan, Last of the Abzan: "it had one or more +1/+1 counters on it"
@@ -16284,7 +16321,8 @@
           /\bthis way\b/i.test(/^you may /i.test(body) ? body.replace(/^[^.]*\./, '') : body);
         /* Sephiroth, Fallen Hero: "you may put a cell counter on target creature. Until end of turn, each modified
            creature …" — the second sentence happens either way: only the first step is asked (mayStep) */
-        const mayFirst = !linked && /^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body);
+        // (Azula, Ruthless Firebender: "you may discard a card. Then you get an experience counter …" — the same)
+        const mayFirst = !linked && (/^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body) || /^you may [^.]+\. Then [^.]+\.?$/i.test(body));
         const optional = !linked && !mayFirst && /^you may /i.test(body);
         const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
         // Disa the Restless: "… card is put into your graveyard from …, put it onto the battlefield" — that card
@@ -21206,6 +21244,10 @@
          some, the first one in your draw step) is two */
       { re: /^If you would draw a card( except the first one you draw in each of your draw steps)?, draw two cards instead\.?$/i,
         make: (m) => ({ op: 'drawDouble', exceptFirst: !!m[1] }), auto: true },
+      /* Reed Richards, Smartest Man: "The first time you would draw a card each turn except the first card you draw during
+         each of your draw steps, you draw four cards instead." (drawFirstInstead) */
+      { re: /^The first time you would draw a card each turn except the first card you draw during each of your draw steps, you draw (two|three|four|five) cards instead\.?$/i,
+        make: (m) => ({ op: 'drawFirstInstead', n: num(m[1]) }), auto: true },
       /* Eruth, Tormented Prophet: "If you would draw a card, exile the top two cards of your library instead. You may
          play those cards this turn."; Asmodeus the Archfiend: "If you would draw a card, exile the top card of your
          library face down instead." (drawExilesInstead) */
