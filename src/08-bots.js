@@ -1527,7 +1527,9 @@
     // Yosei, the Morning Star: "target player skips their next untap step"
     'skipUntap',
     // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able."
-    'attackNextTurn']);
+    'attackNextTurn',
+    // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature."
+    'sacrificeTargeted']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;

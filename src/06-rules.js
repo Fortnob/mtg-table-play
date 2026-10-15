@@ -8758,6 +8758,15 @@
           enterCounters = { kind, n };
         }
       }
+      /* Blaster, Combat DJ: "have modular 1" — a modular handed to it enters with its counters too (CR 702.43a);
+         the printed one is counted above */
+      const modPrinted = parseInt(((a.keywords || []).find(k => String(k.keyword).toLowerCase() === 'modular') || {}).arg, 10) || 0;
+      const modGiven = this._kwArg(o, 'modular') - modPrinted;
+      if (modGiven > 0) {
+        if (enterCounters && enterCounters.kind === '+1/+1') enterCounters.n += modGiven;
+        else if (enterCounters) this.addCounters(o, '+1/+1', modGiven);
+        else enterCounters = { kind: '+1/+1', n: modGiven };
+      }
       // what the draft noted: Lurking Automaton's counters, Cogwork Tracker's player
       this._enterNoted(o);
       /* Metallic Mimic, Giada, Renata: "each other creature you control
@@ -16052,6 +16061,8 @@
         o._leftAsLand = !!(was && was.isLand);   // (Princess Yue: "if she was a nonland creature")
         // Rhys, the Evermore: "gains persist until end of turn" — a keyword it was given still counts as it dies
         o._leftKw = lc ? ['persist', 'undying'].filter(k => lc.keywords.has(k)) : [];
+        // (Blaster, Combat DJ: "have modular 1" — a modular it was given still triggers as it dies)
+        if (lc && Array.from(lc.keywords).some(k => /^modular \d+$/.test(k))) o._leftKw.push('modular');
         // its power as it last existed, for "equal to its power" after it has gone
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
@@ -22762,8 +22773,9 @@
             to = this.player(who && who.picks && who.picks[0]) || opps[0];
           }
           /* Gandalf, Shadow's Foe: "exile up to three target lands you control, then return them to the battlefield
-             tapped" — all of them out, then all back together (tapped) */
-          const out = list.filter(x => x.zone === 'battlefield');
+             tapped" — all of them out, then all back together (tapped)
+             (Don & Leo, Problem Solvers: "exile … Then return them" — the same, once each) */
+          const out = list.filter((x, i) => x.zone === 'battlefield' && list.indexOf(x) === i);
           for (const x of out) { this.moveObject(x, 'exile'); this._lastExiled = x.id; }
           for (const x of out) {
             const back = this.obj(x.id) || x;
@@ -31235,7 +31247,8 @@
           const x = firstObj();
           if (!src || !x || x.zone !== 'battlefield') break;
           const have = Number(src.counters[e.kind]) || 0;
-          const k = Math.min(have, n(e.n) || 1);
+          // (Blaster, Morale Booster: "Move X" — X may be 0)
+          const k = Math.min(have, e.n === 'X' ? (n(e.n) || 0) : (n(e.n) || 1));
           if (!k) break;
           src.counters[e.kind] = have - k;
           if (src.counters[e.kind] <= 0) delete src.counters[e.kind];

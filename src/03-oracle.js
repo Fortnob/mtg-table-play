@@ -92,7 +92,8 @@
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
     // toxic N handed out: the engine adds every instance up (and so for these, Cyberman Patrol's afflict 3)
     // (Cayth, Famed Mechanist: "have fabricate 1" — fabricate is read off the keyword as it enters: grantFabricate)
-    if (/^(?:toxic|firebending|annihilator|afflict|fabricate) \d+$/i.test(w)) return true;
+    // (Blaster, Combat DJ: "have modular 1" — its counters read off the keyword as it enters, its trigger as it dies)
+    if (/^(?:toxic|firebending|annihilator|afflict|fabricate|modular) \d+$/i.test(w)) return true;
     // (Mishra, Tamer of Mak Fawa: 'have "Ward\u2014Sacrifice a permanent."' \u2014 any price the ward trigger can ask)
     const wardM = w.match(/^ward\s*(?:\u2014|-)\s*(.+)$/i);
     if (wardM && wardPrice(wardM[1])) return true;
@@ -2975,11 +2976,12 @@
       make: (m) => { const t = targetSpec(m[1].charAt(0).toLowerCase() + m[1].slice(1)); return t && !t.unknown ? { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [t] } : null; } },
     { re: /^Creatures you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
-    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gains ([a-z ,]+) until end of turn\.?$/i,
+    // (Blaster, Morale Booster: "That artifact gains haste until end of turn." — the one just aimed at)
+    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     /* Fire Nation Palace: "Target creature you control gains firebending 4
        until end of turn" — a keyword with a number, which adds up */
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|CARDNAME|This creature|It|That creature) gains (firebending|annihilator|afflict|toxic) (\d+) until end of turn\.?$/i,
@@ -4425,8 +4427,9 @@
     { re: /^(?:the )?defending player discards (a|one|two|\d+) cards?\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'defending' }) },
     { re: /^(?:the )?defending player loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[1], who: 'defending' }) },
     // Weapon Rack, Simic Fluxmage: "Move a +1/+1 counter from this onto target creature." (Diamond City: "from this land")
-    { re: /^Move (a|an|one|two|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|land|enchantment)) onto (target [a-z ]+?)\.?$/i,
-      make: (m) => ({ op: 'moveCounterFromSelf', n: num(m[1]), kind: m[2].toLowerCase(), targets: [targetSpec(m[3])] }) },
+    // (Blaster, Morale Booster: "Move X +1/+1 counters from Blaster onto another target artifact." — as many as it has, at most X)
+    { re: /^Move (a|an|one|two|X|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|land|enchantment)) onto ((?:another )?target [a-z ]+?)\.?$/i,
+      make: (m) => ({ op: 'moveCounterFromSelf', n: /^x$/i.test(m[1]) ? 'X' : num(m[1]), kind: m[2].toLowerCase(), targets: [targetSpec(m[3])] }) },
     // Spinal Parasite: "Remove a counter from target permanent."
     { re: /^Remove (a|an|one|two|three|\d+) ((?:[+\-0-9/a-z]+ )?)counters? from (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), kind: (m[2] || '').trim().toLowerCase() || null, targets: [targetSpec(m[3])] }) },
@@ -9954,6 +9957,16 @@
     { re: /^for each player, choose target permanent that player controls\. Those players sacrifice those permanents\. Each player who sacrificed a permanent this way reveals the top card of their library, then puts it onto the battlefield if it'?s a permanent card\.?$/i,
       make: () => [{ op: 'sacrificeTargeted', revealPutPermanent: true,
         perOpponentFrom: { type: 'permanent', filter: 'permanent', zone: 'battlefield', everyPlayer: true, mandatory: true } }] },
+    // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature." — its controller sacrifices it
+    { re: /^choose target creature that player controls\. The player sacrifices that creature\.?$/i,
+      make: () => [{ op: 'sacrificeTargeted', targets: [{ type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'triggerPlayer' }] }] },
+    /* Don & Leo, Problem Solvers: "exile up to one target artifact you control and up to one target creature you control.
+       Then return them to the battlefield under their owners' control." — out together, back together (together) */
+    { re: /^exile up to one (target [a-z]+ you control) and up to one (target [a-z]+ you control)\. Then return them to the battlefield under their owners'? control\.?$/i,
+      make: (m) => {
+        const a = targetSpec(m[1]), b = targetSpec(m[2]);
+        return a && b && !a.unknown && !b.unknown ? [{ op: 'blink', together: true, targets: [Object.assign(a, { upTo: true }), Object.assign(b, { upTo: true, distinct: true })] }] : null;
+      } },
     /* Zimone and Dina: "Draw a card. You may put a land card from your hand onto the battlefield tapped. If you control
        eight or more lands, repeat this process once." — the condition looked at once the first time is done (repeatOnceIf) */
     { re: /^(.+?\.) If (you control [^,.]+), repeat this process once\.$/i,
@@ -12333,7 +12346,8 @@
       const cond = altCond(m[3]);
       return cond ? { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), cond } : null;
     }
-    m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is the (greatest|total) power (?:among|of) (creatures you control)$/i);
+    // (The Lord of the Eagles: "the total power of creatures you control with flying")
+    m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is the (greatest|total) power (?:among|of) (creatures you control(?: with flying)?)$/i);
     if (m) return { amount: -1, x: /total/i.test(m[1]) ? 'totalPower' : 'greatestPower', scope: scopeOf(m[2]) };
     m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is the number of (.+)$/i);
     if (m) { const c = countOf(m[1].replace(/s\b/, '')) || countOf(m[1]); return c ? { amount: -1, per: c } : null; }
@@ -13935,6 +13949,8 @@
     // the depletion lands: "if there are no depletion counters on this land"
     [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Blaster, Morale Booster: "If Blaster has no +1/+1 counters on it"
+    [/^(?:this creature|this permanent|CARDNAME) has no ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // Arixmethes: "CARDNAME has a slumber counter on it"; War Balloon: "this Vehicle has three or more fire counters on it"
     // (Captain America, Super-Soldier: "has a shield counter on him" — counterOnHim)
@@ -14463,6 +14479,8 @@
     const f = {};
     let m;
     if ((m = p.match(/^(?:this creature|CARDNAME|this permanent|this artifact|this land|this enchantment) or (another .+)$/i))) { f.selfOk = true; p = m[1]; }
+    // Long Feng, Grand Secretariat: "another creature you control or a land you control" — one or the other of yours
+    if ((m = p.match(/^(another|an?) ([a-z]+) you control or an? ([a-z]+) you control$/i))) p = m[1] + ' ' + m[2] + ' or ' + m[3] + ' you control';
     /* Kutzil: "creatures you control each with power greater than its base power" */
     if (/ each with power greater than its base power$/i.test(p)) { f.pumped = true; p = p.replace(/ each with power greater than its base power$/i, ''); }
     if (/^another /i.test(p)) { f.other = true; p = p.replace(/^another /i, ''); }
