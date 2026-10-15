@@ -380,8 +380,7 @@
       view = this._seatView(view);
       if (this._actAs !== was && this.view) { this._seatChanged(view); return; }
       this.live = view;
-      this.queue.push(view);
-      if (!this.view) { this._pump(); return; }
+      this._enqueue(view);
       this._pump();
     }
 

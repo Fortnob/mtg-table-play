@@ -29,6 +29,8 @@
   const { stepKey, idNum, truncate, possessive, faceName, CARD_RATIO } = Table.helpers;
   const EASE = 'cubic-bezier(.22,.8,.24,1)';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  // what a view can carry and still have nothing in it to see (_worth)
+  const TRIVIAL_EVENT = new Set(['step', 'priority', 'log', 'tap', 'untap', 'mana', 'zone', 'phase', 'draw', 'shuffle', 'choice']);
   // why a player is out, in words (src/06b-events.js)
   const lossWords = (reason, from) => (MTG.events && MTG.events.lossWords ? MTG.events.lossWords(reason, from) : String(reason || ''));
   const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
@@ -69,19 +71,107 @@
         console.error('[table]', e);
       } finally {
         this._pumping = false;
+        this._wakeIdle();
       }
     },
 
-    /** How quickly beats play: slower when the table is idle, much faster when it is behind. */
+    /**
+     * A view arriving. A view that changes nothing worth seeing from the
+     * one waiting before it (a priority pass, a step) takes that one's
+     * place rather than queueing behind it, with the events of both, so a
+     * turn going by is a few views to show and not forty.
+     */
+    _enqueue(view) {
+      const q = this.queue;
+      const last = q[q.length - 1];
+      if (last && this.view && !this._worth(view) && this._minor(last, view)) {
+        view.events = last.events ? last.events.concat(view.events) : null;
+        q[q.length - 1] = view;
+        // it is as old as the one it replaced
+        if (this._queuedAt && this._queuedAt.has(last)) this._queuedAt.set(view, this._queuedAt.get(last));
+      } else q.push(view);
+      if (!this._queuedAt) this._queuedAt = new WeakMap();
+      if (!this._queuedAt.has(view)) this._queuedAt.set(view, performance.now());
+    },
+
+    /**
+     * How quickly beats play: slower when the table is idle, much faster
+     * when it is behind. Behind is counted in things worth seeing still
+     * waiting, not in views: a turn changing hands is forty views of steps
+     * and priority going by, and counting those played the one death among
+     * them at a twelfth of its time. Only if the oldest thing worth seeing
+     * has waited for seconds does the table hurry regardless, so it is
+     * never a whole turn behind the game.
+     */
     _pace() {
-      const q = this.queue.length;
+      let q = 0, oldest = 0;
+      for (const v of this.queue) {
+        if (!this._worth(v)) continue;
+        q++;
+        if (!oldest) oldest = (this._queuedAt && this._queuedAt.get(v)) || 0;
+      }
       let f = MTG.settings.animSpeed != null ? MTG.settings.animSpeed : 1;
       if (this.paceScale) f *= this.paceScale;          // a replay played faster or slower
       if (this._motionOff()) f *= 0.5;
-      if (q > 8) f *= 0.08;
-      else if (q > 4) f *= 0.35;
+      const late = oldest ? performance.now() - oldest : 0;
+      if (q > 8 || late > 8000) f *= 0.08;
+      else if (q > 4 || late > 4000) f *= 0.35;
       else if (q > 2) f *= 0.7;
       return f;
+    },
+
+    /**
+     * Whether a view carries something to see: anything but steps,
+     * priority, lines of the log, lands tapping and cards moving between
+     * hidden places. A view that came without its events is worked out
+     * from the picture and counts.
+     */
+    _worth(v) {
+      if (!v || !Array.isArray(v.events)) return true;
+      for (const e of v.events) if (!TRIVIAL_EVENT.has(e.type)) return true;
+      return false;
+    },
+
+    /**
+     * Resolves once the table has shown everything it has been given and
+     * let the last thing worth seeing sit for a moment: 400 ms after
+     * something small, 900 ms after a spell resolving or a creature dying.
+     * The bots wait on it (BotRunner.waitFor, src/14-app.js) so that what
+     * they do next does not land on top of what they did last. Never
+     * longer than `cap`, so a hidden tab or a stuck beat cannot hold the
+     * game up.
+     */
+    whenIdle(cap) {
+      const ms = cap || 6000;
+      const limit = performance.now() + ms;
+      return new Promise((resolve) => {
+        let over = false;
+        const done = (ok) => { if (!over) { over = true; clearTimeout(backstop); resolve(ok); } };
+        // a hidden tab, a beat that never ends: the game goes on regardless
+        const backstop = setTimeout(() => done(false), ms);
+        const check = () => {
+          if (over) return;
+          if (this._destroyed) return done(false);
+          const now = performance.now();
+          if (now >= limit) return done(false);
+          if (!this.queue.length && !this._pumping) {
+            const rest = (this._settleAt || 0) - now;
+            if (rest <= 0) return done(true);
+            setTimeout(check, rest + 5);
+            return;
+          }
+          // the pump says when it runs dry
+          (this._idleWaiters = this._idleWaiters || []).push(check);
+        };
+        check();
+      });
+    },
+
+    _wakeIdle() {
+      const w = this._idleWaiters;
+      if (!w || !w.length) return;
+      this._idleWaiters = [];
+      for (const f of w) f();
     },
 
     _minor(prev, next) {
