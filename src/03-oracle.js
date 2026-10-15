@@ -5558,6 +5558,8 @@
     // Two Streams Facility: "each player chooses green anchor or red waterfall" / "… chooses red waterfall, and vice versa"
     { re: /^Each player chooses green anchor or red waterfall\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'choose' }) },
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
+    // Bad Wolf Bay: "cards can't enter from exile this turn"
+    { re: /^Cards can'?t enter from exile this turn\.?$/i, make: () => ({ op: 'planar', what: 'noEnterFromExile' }) },
     // Mount Keralia: "prevent all damage that planes named Mount Keralia would deal this game to permanents you control"
     { re: /^Prevent all damage that planes named CARDNAME would deal this game to permanents you control\.?$/i,
       make: () => ({ op: 'planar', what: 'hold', kind: 'planeShield', who: 'you', forGame: true }) },

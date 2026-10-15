@@ -1737,4 +1737,17 @@ module.exports = (test) => {
     t.zone(karn, 'battlefield', 'not legendary: both stay');
     t.eq(Number(tok.counters['+1/+1']) || 0, 3, 'three counters for the Giant');
   });
+  test('Planes: Bad Wolf Bay — chaos: nothing enters from exile this turn, then planeswalk', (mk, t) => {
+    t.auto('Bad Wolf Bay');
+    const T = onPlane(mk, 'Bad Wolf Bay');
+    const g = T.hand('A', 'Hill Giant');
+    T.g.moveObject(g, 'exile');
+    chaos(T);
+    t.eq(JSON.stringify(T.g.facePlanes().map(o => o.name)), JSON.stringify(['Truga Jungle']), 'planeswalked on');
+    T.g.moveObject(g, 'battlefield', { controller: 'A' });
+    t.zone(g, 'exile', 'stays in exile this turn');
+    T.nextTurn('B');
+    T.g.moveObject(g, 'battlefield', { controller: 'A' });
+    t.zone(g, 'battlefield', 'next turn it can');
+  });
 };

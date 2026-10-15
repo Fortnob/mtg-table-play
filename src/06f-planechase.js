@@ -869,6 +869,12 @@
           this.bumpBoard();
           return null;
         }
+        // Bad Wolf Bay: "cards can't enter from exile this turn"
+        case 'noEnterFromExile': {
+          st.noExileEnter = this.turn;
+          this.logEvent('rules', 'Cards can\'t enter from exile this turn.');
+          return null;
+        }
         // Talon Gates: "remove two time counters from each suspended card you own" — the last one off, it is cast
         case 'untime': {
           for (const o of ((this.zones[pid] || {}).exile || []).slice()) {

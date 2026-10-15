@@ -17960,6 +17960,11 @@
       const from = o.zone;
       // (where everybody could see it go from, face up: _knowAfterMove)
       const inSight = from !== 'hand' && from !== 'library' && !o.faceDown && !(from === 'exile' && o.faceDownExile);
+      // Bad Wolf Bay (a plane): "cards can't enter from exile this turn" — they stay in exile
+      if (from === 'exile' && toZone === 'battlefield' && this.planar && this.planar.noExileEnter === this.turn) {
+        this.logEvent('rules', `${o.name} can't enter from exile this turn.`);
+        return o;
+      }
       /* Kunoros, Hound of Athreos, Grafdigger's Cage: "Creature cards in graveyards can't enter the battlefield." —
          it stays where it is */
       if (from === 'graveyard' && toZone === 'battlefield' && (this._anyStatic('graveCreaturesStay') || this._anyStatic('cageGraveyards')) &&
