@@ -160,6 +160,22 @@ module.exports = (test) => {
     t.eq(spirits(), 1, 'their foretelling: no Spirit');
   });
 
+  test('Keywords: Hero of Bretagard counts the lot: two permanents exiled by one spell, two counters; a foretold card, one', (mk, t) => {
+    t.auto('Hero of Bretagard');
+    const T = mk();
+    const g = T.g;
+    const h = T.bf('A', 'Hero of Bretagard');
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Runeclaw Bear');
+    T.mana('A', 'WW4');
+    T.cast('A', T.hand('A', 'Winds of Abandon'), { via: 'overload' });
+    t.eq(T.bfOf('B').filter(x => /Bear/.test(x.name)).length, 0, 'both exiled');
+    t.eq(h.counters['+1/+1'] || 0, 2, 'two counters');
+    T.mana('A', '2');
+    t.ok(g.foretellCard('A', T.hand('A', 'Doomskar').id, { auto: true }), g.lastError);
+    T.resolve();
+    t.eq(h.counters['+1/+1'] || 0, 3, 'and one more');
+  });
+
   test('Keywords: Cosmos Charger — foretelling costs {1} less, and can be done on any turn', (mk, t) => {
     t.auto('Cosmos Charger');
     const T = mk();
