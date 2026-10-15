@@ -31,6 +31,8 @@
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   // what a view can carry and still have nothing in it to see (_worth)
   const TRIVIAL_EVENT = new Set(['step', 'priority', 'log', 'tap', 'untap', 'mana', 'zone', 'phase', 'draw', 'shuffle', 'choice']);
+  // how long the turn passing has the middle of the table to itself (A5)
+  const TURN_HOLD = 900;
   // why a player is out, in words (src/06b-events.js)
   const lossWords = (reason, from) => (MTG.events && MTG.events.lossWords ? MTG.events.lossWords(reason, from) : String(reason || ''));
   const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
@@ -299,13 +301,23 @@
      * card that went from a library to a graveyard says so, damage says
      * where it came from, and a spell going on the stack is a cast even if
      * it has already resolved by the time this view is shown.
+     *
+     * Each thing an opponent puts on the stack is a moment of its own (a
+     * `sub`), held up in the middle in the order it happened: one still on
+     * the stack over the board as it now is, one already gone (cast and
+     * resolved between two views, as a guest often sees them) over the
+     * board as it was, before its result. Triggers that do nothing to
+     * anybody else — mana, a card drawn, a scry — are not held up at all
+     * (_quietAbility). The beat's own hold is for its results.
      */
     _planEvents(prev, next) {
       const me = this.meId;
-      const b = { hold: 0, spot: null, events: [], turn: false, fromEvents: true,
-        moves: new Map(), damage: [], life: new Map(), counters: [] };
+      const b = { hold: 0, spot: null, subs: [], events: [], turn: false, fromEvents: true,
+        moves: new Map(), damage: [], life: new Map(), counters: [], leaving: [], weight: 0, luck: false };
       const name = (pid) => { const p = next.players.find(x => x.id === pid) || prev.players.find(x => x.id === pid); return pid === me ? 'You' : (p ? p.name : 'Someone'); };
       const hold = (ms) => { b.hold = Math.max(b.hold, ms); };
+      // how long the bots give the table after this beat (whenIdle): longer after a spell or a death
+      const weigh = (w) => { b.weight = Math.max(b.weight, w); };
       const s = (pid) => (pid === me ? '' : 's');
       const known = (id) => this.objIn(id, next) || this.objIn(id, prev);
       const cardOf = (e) => e.card || (known(e.objId) || {}).card || null;
@@ -313,41 +325,67 @@
       // the face it shows (faceName), else the card's name
       const nameOf = (id, c) => cardName(id) || (c ? c.name : null);
       const liveStack = new Set((next.stack || []).map(x => x.id));
-      for (const e of next.events) {
+      const multi = (next.players || []).length > 2;
+      const evs = next.events;
+      // what came before, for why something left (_causeOf)
+      const back = (this._evBack || []).concat(evs);
+      const off = back.length - evs.length;
+      for (let i = 0; i < evs.length; i++) {
+        const e = evs[i];
         switch (e.type) {
-          case 'turn': b.turn = true; hold(e.player === me ? 1100 : 900); break;
+          case 'turn': b.turn = true; hold(TURN_HOLD); weigh(400); break;
           case 'cast': case 'activate': case 'trigger': {
             const kind = e.type === 'cast' ? 'cast' : e.type === 'trigger' ? 'trigger' : 'ability';
             const targets = (e.targets || []).map(t => this.targetName(t)).filter(Boolean);
             const verb = kind === 'cast' ? 'cast' + s(e.controller) : kind === 'trigger' ? '— trigger:' : 'activate' + s(e.controller);
-            b.events.push({ kind, who: e.controller, card: cardOf(e), name: e.name, targets,
-              text: `${name(e.controller)} ${verb} ${e.name}${targets.length ? ' → ' + targets.join(', ') : ''}` });
-            if (e.controller !== me) {
-              // held up in the middle while it is still there to be held up
-              if (liveStack.has(e.stackId)) b.spot = { stackId: e.stackId, objId: kind === 'cast' ? e.objId : null, trigger: kind === 'trigger' };
-              hold(kind === 'cast' ? 1500 : 1000);
-            } else hold(160);
+            const entry = { kind, who: e.controller, card: cardOf(e), name: e.name, targets,
+              text: `${name(e.controller)} ${verb} ${e.name}${targets.length ? ' → ' + targets.join(', ') : ''}` };
+            b.events.push(entry);
+            if (e.controller === me) { hold(160); break; }
+            // B8: a trigger that only helps its own controller goes by in the rail and the log
+            if (kind !== 'cast' && this._quietAbility(e)) { entry.quiet = true; hold(200); break; }
+            entry.spotted = true;
+            weigh(900);
+            // the same trigger several times over is one moment, ×N
+            const last = b.subs[b.subs.length - 1];
+            if (last && last.kind === 'spot' && last.e.type === e.type && last.e.controller === e.controller && last.e.name === e.name &&
+                (last.e.text || '') === (e.text || '') && !(e.targets || []).length && !(last.e.targets || []).length &&
+                last.live === liveStack.has(e.stackId)) {
+              last.n++;
+              break;
+            }
+            b.subs.push({ kind: 'spot', e, entry, n: 1, live: liveStack.has(e.stackId), stackId: e.stackId,
+              objId: kind === 'cast' ? e.objId : null, trigger: kind === 'trigger', who: e.controller,
+              hold: kind === 'cast' ? 1500 : 1150 });
             break;
           }
-          case 'resolve': hold(260); break;
+          case 'resolve': hold(260); weigh(e.kind === 'spell' ? 900 : 400); break;
           case 'counter':
             b.events.push({ kind: 'countered', who: e.controller, card: cardOf(e), name: e.name, text: `${e.name} is countered` });
-            hold(260);
+            // long enough to read the stamp on it before it goes (A8)
+            hold(1000); weigh(900);
             break;
           case 'attack': {
             const first = e.attackers[0];
             const c = cardOf({ objId: first.objId });
+            /* No words for an attack on you, or your own: the creatures stepping forward and their arrows say it
+               (A9). One between two other players in a bigger game is said, and whom it is at. */
+            const atMe = e.player === me || e.attackers.some(a => a.defender === me || (known(a.defender) || {}).controller === me);
+            const at = multi && !atMe ? next.players.find(x => x.id === first.defender) : null;
             b.events.push({ kind: 'attack', who: e.player, card: c, name: `${e.attackers.length} attacker${e.attackers.length === 1 ? '' : 's'}`,
-              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.attackers.length + ' creatures'}` });
-            hold(900);
+              quiet: !multi || atMe,
+              text: `${name(e.player)} attack${s(e.player)}${at ? ' ' + at.name : ''} with ${e.attackers.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.attackers.length + ' creatures'}` });
+            hold(900); weigh(400);
             break;
           }
           case 'block': {
             const first = e.blocks[0];
             const c = cardOf({ objId: first.objId });
+            const atkBy = (known((first.attackers || [])[0]) || {}).controller;
             b.events.push({ kind: 'block', who: e.player, card: c, name: `${e.blocks.length} blocker${e.blocks.length === 1 ? '' : 's'}`,
+              quiet: !multi || e.player === me || atkBy === me,
               text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.blocks.length + ' creatures'}` });
-            hold(900);
+            hold(900); weigh(400);
             break;
           }
           case 'leave': {
@@ -360,8 +398,12 @@
             // (the face it showed as it left: a transformed card dies as its back face)
             const was = this.objIn(e.objId, prev);
             const nm = (was && was.card ? faceName(was) : null) || nameOf(e.objId, c) || 'A permanent';
-            b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, text: `${nm} ${verb}` });
-            hold(420);
+            // A3: and why, where the events say
+            const why = this._causeOf(e, nm, back, off + i);
+            b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, cause: why ? why.text : null,
+              source: why ? why.source : null, objId: e.objId, text: `${nm} ${verb}${why ? ' — ' + why.text : ''}` });
+            b.leaving.push(e.objId);
+            hold(e.died ? 700 : 450); weigh(e.died ? 900 : 400);
             break;
           }
           case 'enter': {
@@ -370,32 +412,35 @@
             const a = c ? MTG.oracle.analyze(c, 0) : null;
             const nm = nameOf(e.objId, c) || 'A permanent';
             if (a && a.isLand) {
-              if (e.controller !== me) { b.events.push({ kind: 'land', who: e.controller, card: c, name: nm, text: `${name(e.controller)} plays ${nm}` }); hold(500); }
+              // a land an opponent plays lands with a thud and goes in the rail; it needs no words (A7)
+              if (e.controller !== me) { b.events.push({ kind: 'land', who: e.controller, card: c, name: nm, quiet: true, text: `${name(e.controller)} plays ${nm}` }); hold(500); weigh(400); }
               break;
             }
             b.events.push({ kind: 'enter', who: e.controller, card: c, name: nm, text: `${nm} enters the battlefield` });
-            hold(380);
+            hold(380); weigh(400);
             break;
           }
           case 'token': {
             const c = cardOf(e);
             const nm = nameOf(e.objId, c) || 'a token';
             b.events.push({ kind: 'token', who: e.controller, card: c, name: nm, text: `${name(e.controller)} create${s(e.controller)} ${nm}` });
-            hold(320);
+            hold(320); weigh(400);
             break;
           }
           case 'zone': b.moves.set(e.objId, e); break;
-          case 'damage': b.damage.push(e); hold(450); break;
+          case 'damage': b.damage.push(e); hold(450); weigh(400); break;
           case 'life': {
             b.life.set(e.player, (b.life.get(e.player) || 0) + e.delta);
-            hold(Math.abs(b.life.get(e.player)) >= 5 ? 700 : 450);
+            hold(Math.abs(b.life.get(e.player)) >= 5 ? 700 : 450); weigh(400);
             break;
           }
           case 'counters': b.counters.push(e); break;
           case 'lose':
             b.events.push(lostEvent(e.player, name(e.player), me, e.reason, e.from));
-            hold(1200);
+            hold(1200); weigh(900);
             break;
+          // coins and dice: shown in the middle (src/12f-ui-feel.js), a moment of their own (_present)
+          case 'roll': case 'coin': b.luck = true; weigh(400); break;
           default: break;
         }
       }
@@ -405,9 +450,108 @@
           !next.battlefield.some(o => (o.blocking || []).length) && attackers[0].controller === me) {
         b.events.push({ kind: 'noblock', who: null, text: 'No blocks' }); hold(500);
       }
+      // several things died at once: one line for them all
+      const died = b.events.filter(x => x.kind === 'died');
+      if (died.length > 1) {
+        const cause = died.every(x => x.cause === died[0].cause) ? died[0].cause : null;
+        const names = died.map(x => x.name);
+        const all = names.length > 4 ? `${names.length} creatures` : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+        died[died.length - 1].sum = `${all} die${cause ? ' — ' + cause : ''}`;
+      }
       return b;
     },
 
+    /**
+     * An ability an opponent's permanent put on the stack that is no news to
+     * anybody else: it targets nothing and only makes mana, draws or looks
+     * at its own controller's cards, or the like. Said in the rail and the
+     * log; not held up in the middle (B8).
+     */
+    _quietAbility(e) {
+      if ((e.targets || []).length) return false;
+      const text = String(e.text || '').replace(/\([^)]*\)/g, ' ');
+      if (!text.trim()) return false;
+      // anything that reaches past its controller is news
+      if (/opponent|each player|each other player|target|each creature|all creatures|each permanent|all permanents|destroy|exile|sacrific|discard|damage|loses? .*life|the game|owner'?s? hand|counter (it|that|target)|gain control|tap (all|each|up to)|copy|attack|fight/i.test(text)) return false;
+      return /\badd\b|draws? (a|an|one|two|three|\d+) cards?|\bscry\b|\bsurveil\b|untap (it|this|~)|you gain \d+ life|investigate|create (a|an) (treasure|clue|food|blood)|look at the top/i.test(text);
+    },
+
+    /**
+     * Why something left the battlefield, from the events before it (and
+     * just after: a sacrifice is written down as it is made): a rule
+     * ("legend rule", "0 toughness"), the damage that did it and from
+     * what, or the spell or ability resolving at the time. Null when it
+     * cannot be told, which is then simply not said.
+     * @returns {{text: string, source: string|null}|null}
+     */
+    _causeOf(e, nm, back, at) {
+      const id = e.objId;
+      const has = (x) => !!(nm && x && x.text && x.text.indexOf(nm) >= 0);
+      let rule = null, resolving = null, sac = null, settled = false;
+      for (let i = at - 1, n = 0; i >= 0 && n < 160; i--, n++) {
+        const x = back[i];
+        if (x.type === 'turn' || (x.type === 'leave' && x.objId === id)) break;
+        // anything before priority last passed belongs to an earlier moment
+        if (x.type === 'priority' || x.type === 'step') settled = true;
+        if (settled) continue;
+        if (x.type === 'log' && x.kind === 'sba' && !rule && has(x)) rule = x;
+        if (x.type === 'log' && x.kind === 'sacrifice' && !sac && has(x)) sac = x;
+        if (x.type === 'resolve' && !resolving) resolving = x;
+      }
+      for (let i = at + 1; i < back.length && i < at + 8 && !sac; i++) {
+        const x = back[i];
+        if (x.type === 'priority' || x.type === 'turn' || x.type === 'step') break;
+        if (x.type === 'log' && x.kind === 'sacrifice' && has(x)) sac = x;
+      }
+      // what dealt it damage this turn
+      const hurt = [];
+      for (let i = at - 1, n = 0; i >= 0 && n < 400; i--, n++) {
+        const x = back[i];
+        if (x.type === 'turn') break;
+        if (x.type === 'damage' && x.target && x.target.kind === 'object' && x.target.id === id) hurt.push(x);
+      }
+      const byDamage = () => {
+        if (!hurt.length) return null;
+        const total = hurt.reduce((m, x) => m + (x.amount || 0), 0);
+        const srcs = [...new Set(hurt.map(x => x.sourceName || ''))];
+        if (srcs.length === 1 && srcs[0]) return { text: `${srcs[0]} (${total} damage)`, source: hurt[0].source || null };
+        if (hurt.every(x => x.combat)) return { text: 'in combat', source: null };
+        return { text: `${total} damage`, source: null };
+      };
+      // (a trigger is named by its source: "Flametongue Kavu", not the start of its words)
+      const what = resolving ? String(resolving.name || '').split(' \u2014 ')[0] : '';
+      if (rule) {
+        const t = rule.text;
+        if (/^Legend rule/i.test(t)) return { text: 'legend rule', source: null };
+        if (/\(toughness -?\d+\)/.test(t)) return { text: resolving ? `${what} (0 toughness)` : '0 toughness', source: resolving ? resolving.objId || null : null };
+        if (/damage/.test(t)) return byDamage() || { text: 'lethal damage', source: null };
+        if (/0 loyalty/.test(t)) return { text: 'no loyalty left', source: null };
+        if (/sacrificed/.test(t)) return { text: 'sacrificed — ' + ((t.match(/\(([^)]*)\)/) || [])[1] || 'a rule'), source: null };
+        if (/enchanted|attached/.test(t)) return { text: 'what it was attached to is gone', source: null };
+      }
+      if (sac) return { text: resolving && resolving.objId !== id ? `sacrificed to ${what}` : 'sacrificed', source: null };
+      if (resolving && resolving.objId !== id) {
+        if (e.died && hurt.some(x => x.source === resolving.objId || x.sourceName === resolving.name || x.sourceName === what)) return byDamage();
+        return { text: (e.died || e.to === 'graveyard' ? 'destroyed by ' : '') + what, source: resolving.objId || null };
+      }
+      return e.died ? byDamage() : null;
+    },
+
+    /** Keep the latest events, for the causes of what happens next (_causeOf). */
+    _remember(evs) {
+      if (!Array.isArray(evs) || !evs.length) return;
+      const keep = (this._evBack || []).concat(evs.filter(e => e.type !== 'tap' && e.type !== 'untap' && e.type !== 'zone'));
+      this._evBack = keep.length > 400 ? keep.slice(-300) : keep;
+    },
+
+    /**
+     * One beat: its moments one at a time, in order, each given its time —
+     * whatever an opponent put on the stack and is gone already, held up
+     * over the board as it was; the board as it now is, with what happened
+     * said; coins and dice; the turn passing; then whatever is on the stack
+     * now, one after another. The middle of the table never shows two of
+     * these at once (A2, A5, A7).
+     */
     async _present(next) {
       const prev = this.view;
       const beat = this._plan(prev, next);
@@ -417,30 +561,181 @@
       if (prev && (!next.pendingChoice || !/^(discard|discardToHandSize)$/.test(next.pendingChoice.type))) this.discardSel = [];
       if (prev && (!next.pendingChoice || next.pendingChoice.type !== 'sacrifice')) this.sacSel = [];
       if (this.targeting && this.targeting.legal && !(next.pendingChoice && next.pendingChoice.type === 'pickTarget')) this.targeting = null;
+      if (beat.fromEvents) this._remember(next.events);
+      // (a picture worked out by comparison holds up its newest spell, as it always did)
+      const subs = beat.subs || (beat.spot ? [{ kind: 'spot', live: true, stackId: beat.spot.stackId, objId: beat.spot.objId, trigger: beat.spot.trigger, n: 1, hold: beat.hold, who: null }] : []);
+      const spots = subs.filter(x => x.kind === 'spot');
+      const line = prev ? this._beatLine(next, beat) : null;
+      // whatever the last beat said is done with once this one has something of its own (A7)
+      if (line || spots.length || beat.turn) this._captionDone();
 
+      // 1. what was cast and is gone already, over the board as it was
+      if (prev) for (const sp of spots.filter(x => !x.live)) {
+        if (this._destroyed) return;
+        await this._spotBeat(sp, true);
+      }
+      if (this._destroyed) return;
+
+      // 2. the board as it is now
+      const live = spots.filter(x => x.live && (next.stack || []).some(s => s.id === x.stackId));
+      // its first spell straight into the middle, unless something is to be said or seen first
+      const first = live.length && !line && !beat.turn && !beat.luck ? live[0] : null;
       this.view = next;
       /* A view the table jumps to rather than plays out to — a replay scrubbed to another turn (which asks for no
          motion before handing it over), an undo — changes whose board is in view without the turn to it. */
       this._focusCut = !!this._noMotionOnce || (Array.isArray(next.events) && next.events.some(e => e.type === 'restore'));
-      if (beat.spot) this.spot = beat.spot;
-      else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this.spot = null;
-      // where each card that moved really came from and went to, for the flights
+      if (first) this._spotOn(first);
+      else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this._spotOff();
+      // where each card that moved really came from, and where whatever is leaving last stood
       this._moves = beat.moves || null;
+      const lastAt = new Map();
+      for (const id of (beat.leaving || [])) { const n = this.els.get(id); if (n && n.isConnected) { const r = U.rect(n); if (r.width) lastAt.set(id, r); } }
+      beat.lastAt = lastAt;
       this.render();
       this._moves = null;
       this._focusCut = false;
-      this._report(prev, next, beat);
+      this._report(prev, next, beat, line);
+      const shownAt = performance.now();
 
-      const ms = beat.hold * this._pace();
-      if (ms > 30) await sleep(ms);
-      if (beat.spot && this.spot === beat.spot) {
-        this.spot = null;
+      // 3. coins and dice, then the turn passing, each on its own
+      if (beat.luck && prev) await this._luckWait();
+      if (beat.turn && prev) {
+        await this._hold(TURN_HOLD, 'turn');
+        this._turnBandOff();
+      }
+      if (this._destroyed) return;
+      // 4. what is on the stack now, one at a time; the first once what was said has been read
+      if (first) await this._hold(first.hold, 'spot');
+      else if (live.length && line) await this._hold(Math.max(700, beat.hold), 'line');
+      for (const sp of live) {
+        if (sp === first || this._destroyed) continue;
+        await this._spotBeat(sp, false);
+      }
+      if (this._destroyed) return;
+      // 5. and what happened, for as long as it deserves
+      if (!live.length) {
+        const pace = this._pace();
+        const rest = beat.hold * pace - (performance.now() - shownAt);
+        if (rest > 30) await this._hold(rest / Math.max(0.01, pace), 'result');
+      }
+      if (this.spot && spots.some(x => x.stackId === this.spot.stackId)) {
+        this._spotOff();
         if (!this.queue.length && !this._destroyed) this.render();
       }
+      // the bots give the table a moment after anything worth seeing (whenIdle)
+      if (beat.weight) {
+        const base = (MTG.settings.animSpeed != null ? MTG.settings.animSpeed : 1) * (this.paceScale || 1);
+        this._settleAt = performance.now() + beat.weight * base * (this._pace() < 0.5 ? 0.3 : 1);
+      }
+      this._flushSay();
+    },
+
+    /**
+     * Wait for a moment of a beat to be seen: `ms` at the table's pace. A
+     * click on the table cuts it short (_beatClick), so nobody is kept
+     * waiting on the show.
+     */
+    _hold(ms, what) {
+      const t = ms * this._pace();
+      if (this._holdTrace) this._holdTrace(what, ms, t);
+      if (!(t > 30)) return Promise.resolve();
+      return new Promise((resolve) => {
+        const done = () => { clearTimeout(timer); if (this._skipHold === done) this._skipHold = null; resolve(undefined); };
+        const timer = setTimeout(done, t);
+        this._skipHold = done;
+      });
+    },
+
+    /** The coins and dice of this beat, landed and read (a click puts them away), before anything else is shown. */
+    _luckWait() {
+      const q = MTG.feel && MTG.feel._luckQueue;
+      if (!q) return Promise.resolve();
+      if (this._holdTrace) this._holdTrace('luck', 0, 0);
+      return new Promise((resolve) => {
+        const done = () => { clearTimeout(timer); if (this._skipHold === done) this._skipHold = null; resolve(undefined); };
+        const timer = setTimeout(done, 4000);
+        this._skipHold = done;
+        q.then(done, done);
+      });
+    },
+
+    /** A pointer pressed while a moment is held: on the thing held up, or anywhere while the table is catching up, moves it on. */
+    _beatClick(e) {
+      if (!this._skipHold) return;
+      const sr = this.spotHost.classList.contains('on') ? U.rect(this.spotHost) : null;
+      const onSpot = !!sr && e.clientX >= sr.left && e.clientX <= sr.right && e.clientY >= sr.top && e.clientY <= sr.bottom;
+      if (onSpot || !this._ready()) this._skipHold();
+    },
+
+    /** Hold one thing an opponent put on the stack up in the middle for its time; `ghost` when it is gone already. */
+    async _spotBeat(sp, ghost) {
+      // in a bigger game, the board it is aimed at is brought into view for it (A10)
+      const swung = this._swingFor(sp, this.view);
+      this._spotOn(sp, ghost);
+      // (heard now: a spell gone before its picture came is not heard again with its result)
+      if (ghost && sp.e && MTG.feel && MTG.feel.cue) MTG.feel.cue(this, sp.e);
+      this.render();
+      await this._hold(sp.hold, ghost ? 'ghost' : 'spot');
+      this._spotOff();
+      if (swung) this._beatFocus = null;
+      if (ghost || swung) this.render();
+    },
+
+    _spotOn(sp, ghost) {
+      this.spot = Object.assign({}, sp, { ghost: !!ghost });
+      if (this.accessSay && sp.entry && sp.who !== this.meId) this.accessSay(sp.entry.text + (sp.n > 1 ? ` (${sp.n} times)` : '') + '.');
+      this._actingPlate(sp.who, true);
+    },
+    _spotOff() {
+      if (this.spot) this._actingPlate(this.spot.who, false);
+      this.spot = null;
+      for (const n of this.arena.querySelectorAll('.spot-target')) n.classList.remove('spot-target');
+    },
+
+    /** The nameplate along the top of whoever is acting, in a bigger game, lit while their moment is up (A10). */
+    _actingPlate(pid, on) {
+      const plate = pid && this._plates && this._plates.get(pid);
+      if (plate) plate.classList.toggle('casting', !!on);
+    },
+
+    /**
+     * A10: in a game of more than two, what is held up should be seen
+     * landing. When it is aimed at a board that is not in view (not yours,
+     * not the one looked at), the table turns to that board for the moment
+     * and back after. Never while you are choosing something, never away
+     * from a board you picked yourself, and not with less motion asked for
+     * (the caster's nameplate lights instead).
+     */
+    _swingFor(sp, v) {
+      if (!v || (v.players || []).length < 3 || this._pinned || this.targeting || this._motionOff()) return false;
+      if (MTG.settings.splitOpponents) return false;
+      const ch = (this.live || v).pendingChoice;
+      if (ch && ch.playerId === this.meId) return false;
+      const ts = (sp.e ? sp.e.targets : ((v.stack || []).find(s => s.id === sp.stackId) || {}).targets) || [];
+      let want = null;
+      for (const t of ts) {
+        const pid = t.kind === 'player' ? t.id : t.kind === 'object' ? (this.objIn(t.id, v) || {}).controller : null;
+        // aimed at you, or at the board in view: that is in view already
+        if (!pid || pid === this.meId || pid === this.focusSeat) return false;
+        want = want || pid;
+      }
+      if (!want || !(v.players || []).some(p => p.id === want && !p.hasLost)) return false;
+      this._beatFocus = want;
+      return true;
+    },
+
+    /** The words for a beat in the middle of the table, if it has any: what you did yourself needs none, except where it ended up. */
+    _beatLine(next, beat) {
+      const out = this._eliminations(next, beat);
+      const told = beat.events.filter(e => e.text && !e.quiet && !e.spotted && !out.includes(e) &&
+        (e.who !== this.meId || ['attack', 'died', 'lost', 'countered', 'noblock'].includes(e.kind)));
+      const line = told.length ? told[told.length - 1] : null;
+      if (line && beat.spot && !beat.subs && (line.kind === 'cast' || line.kind === 'ability' || line.kind === 'trigger')) return null;
+      return line ? { text: line.sum || line.text, kind: line.kind } : null;
     },
 
     /** Everything said about a beat that is not a card moving. */
-    _report(prev, next, beat) {
+    _report(prev, next, beat, line) {
       if (!prev) return;
       if (beat.turn) this._turnChange(next);
       if (beat.fromEvents) this._eventFloats(prev, next, beat);
@@ -451,11 +746,13 @@
       // somebody out of a game that goes on without them has a callout of their own
       const out = this._eliminations(next, beat);
       if (out.length) this._eliminatedCallout(out);
-      // what you did yourself needs no announcing, except where it ended up
-      const told = beat.events.filter(e => e.text && !out.includes(e) &&
-        (e.who !== this.meId || ['attack', 'died', 'lost', 'countered', 'noblock'].includes(e.kind)));
-      const line = told.length ? told[told.length - 1] : null;
-      if (line && !(beat.spot && (line.kind === 'cast' || line.kind === 'ability' || line.kind === 'trigger'))) this.say(line.text, line.kind);
+      if (line) this.say(line.text, line.kind);
+      // what left, and what made it: a line from the thing that did it to where it stood (A3)
+      for (const e of beat.events) {
+        if ((e.kind !== 'died' && e.kind !== 'left') || !e.source) continue;
+        const to = beat.lastAt && beat.lastAt.get(e.objId);
+        if (to && !(beat.damage || []).some(d => d.target && d.target.id === e.objId && !d.combat)) this.zap(e.source, null, to);
+      }
       // anything the engine could not do itself is said loudly, once
       /* the entries after the last one the table had seen: the view carries only the last 200, so once
          it is full a count of new lines comes to nothing — and slice(-0) is the whole log, which said
@@ -955,8 +1252,20 @@
         if (a) this._arrow(a, ptr, 'blk', true, true);
       }
 
+      // what is held up in the middle points from there at what it chose, gone already or not (A2, A6)
+      const sp = this.spot;
+      const spotBox = sp ? box(this.spotHost.querySelector('.spot-card')) : null;
+      if (sp && spotBox) {
+        const item = sp.ghost ? sp.e : (v.stack || []).find(x => x.id === sp.stackId);
+        for (const t of ((item && item.targets) || [])) {
+          const b = t.kind === 'player' ? orbBox(t.id) : t.kind === 'stack'
+            ? box(this.stackCol.querySelector(`[data-stack="${CSS.escape(String(t.id))}"]`)) : cardBox(t.id);
+          if (b) this._arrow(spotBox, b, 'tgt');
+        }
+      }
       // whatever is on the stack points at what it chose
       for (const s of (v.stack || [])) {
+        if (sp && spotBox && !sp.ghost && s.id === sp.stackId) continue;
         const src = (s.objId && cardBox(s.objId)) || box(this.arena.querySelector(`.ability-chip[data-stack="${CSS.escape(String(s.id))}"]`));
         if (!src) continue;
         for (const t of (s.targets || [])) {
@@ -1017,15 +1326,61 @@
 
     /* ---------------- what just happened ---------------- */
 
-    /** A line across the middle of the table saying what just happened. */
+    /**
+     * A line across the middle of the table saying what just happened.
+     *
+     * The middle of the table says one thing at a time (A7): while a card
+     * is held up there, the turn is passing or dice are rolling, a line
+     * waits its turn (_flushSay) — or, if it has waited too long to still
+     * be news, is only read out to a screen reader. A line the engine
+     * could not act on by itself ('manual') never waits.
+     */
     say(text, kind, ms) {
       if (!text) return;
+      if (kind !== 'manual' && this._slotBusy()) {
+        const q = this._sayQ = (this._sayQ || []).filter(x => x.text !== text);
+        q.push({ text, kind, ms, at: performance.now() });
+        if (q.length > 3) q.shift();
+        return;
+      }
+      this._showCaption(text, kind, ms);
+    },
+
+    _showCaption(text, kind, ms) {
       const c = this.caption;
       c.innerHTML = '';
       c.appendChild(el('span', { class: 'cap-' + (kind || 'info'), html: this.logHtml(text) }));
       c.classList.remove('on'); void c.offsetWidth; c.classList.add('on');
+      this._capKind = kind || 'info';
+      this._capUntil = performance.now() + (ms || 2600);
       clearTimeout(this._captionTimer);
       this._captionTimer = setTimeout(() => c.classList.remove('on'), ms || 2600);
+    },
+
+    /** Something else has the middle of the table: a card held up, the turn passing, coins or dice. */
+    _slotBusy() {
+      return !!(this.spot || this._turnBand || (this.arena && this.arena.querySelector('.luck-reveal:not(.out)')));
+    },
+
+    /** The line that waited for the middle of the table, now it is free; one too old to be news is only read out. */
+    _flushSay() {
+      const q = this._sayQ;
+      if (!q || !q.length || this._slotBusy()) return;
+      this._sayQ = [];
+      const now = performance.now();
+      const fresh = q.filter(x => now - x.at < 3000);
+      for (const x of q) if (!fresh.includes(x) || x !== fresh[fresh.length - 1]) { if (this.accessSay) this.accessSay(x.text.replace(/<[^>]*>/g, '')); }
+      const last = fresh[fresh.length - 1];
+      if (last) this._showCaption(last.text, last.kind, last.ms);
+    },
+
+    /** A caption never outlives its beat: the next one with something to say takes it down (a 'manual' line stays its time). */
+    _captionDone() {
+      const c = this.caption;
+      if (!c || !c.classList.contains('on')) return;
+      if (this._capKind === 'manual' && performance.now() < (this._capUntil || 0)) return;
+      clearTimeout(this._captionTimer);
+      c.classList.remove('on');
     },
 
     pushHistory(e) {
@@ -1087,7 +1442,7 @@
             setTimeout(() => n.classList.remove('hit'), 520);
           }
         }
-        if (!d.combat) this.zap(d.source, d.target);
+        if (!d.combat) this.zap(d.source, d.target, beat.lastAt && d.target.kind === 'object' ? beat.lastAt.get(d.target.id) : null);
       }
       for (const [pid, delta] of beat.life) {
         if (!delta) continue;
@@ -1117,13 +1472,16 @@
       }
     },
 
-    /** A quick line from a source to whatever it dealt damage to. */
-    zap(sourceId, target) {
+    /**
+     * A quick line from a source to whatever it dealt damage to; `at`, where
+     * that was, for something that has gone from the table with the blow.
+     */
+    zap(sourceId, target, at) {
       if (this._motionOff() || !sourceId) return;
       const box = (n) => { if (!n || !n.isConnected) return null; const r = U.rect(n); return r.width ? r : null; };
       // a spell has usually gone by the time its damage is shown: it comes from where it was held up
       const from = box(this.els.get(sourceId)) || box(this.spotHost.querySelector('.spot-card')) || box(this.stackCol.lastElementChild);
-      const to = target.kind === 'player' ? box(this.orbFor(target.id)) : box(this.els.get(target.id));
+      const to = (target ? (target.kind === 'player' ? box(this.orbFor(target.id)) : box(this.els.get(target.id))) : null) || at || null;
       if (!from || !to) return;
       this._zaps = (this._zaps || []).filter(z => z.until > performance.now());
       this._zaps.push({ from, to, until: performance.now() + 700 });
@@ -1218,7 +1576,19 @@
       if (this._turnBand) this._turnBand.remove();
       this._turnBand = b;
       this.fxLayer.appendChild(b);
-      setTimeout(() => { b.remove(); if (this._turnBand === b) this._turnBand = null; }, 1900);
+      /* It is a moment of its own in the beats (_present: TURN_HOLD), and goes when its moment is over
+         (_turnBandOff) so that nothing is held up under it; this is only the backstop. */
+      setTimeout(() => { b.remove(); if (this._turnBand === b) { this._turnBand = null; this._flushSay(); } }, 2400);
+    },
+
+    /** The turn's banner, done: it goes quickly, and the middle of the table is free for what comes next. */
+    _turnBandOff() {
+      const b = this._turnBand;
+      if (!b) return;
+      this._turnBand = null;
+      b.classList.add('out');
+      setTimeout(() => b.remove(), this._motionOff() ? 0 : 220);
+      this._flushSay();
     },
 
     /** The new active player's board, sweeping in: from the side it was turned to from (the right, round the table). */

@@ -180,6 +180,7 @@
     }
 
     /* ---------------- shell ---------------- */
+    /** @this {MTG.TableInstance} */
     _build() {
       this.root.innerHTML = '';
       this.root.classList.add('table-screen', 'arena-screen');
@@ -245,6 +246,8 @@
       document.body.appendChild(this.preview);
 
       this._wireInput();
+      // a press on the card held up in the middle, or anywhere while the table catches up, moves the show on (12b: _beatClick)
+      this.arena.addEventListener('pointerdown', (e) => this._beatClick(e), true);
       // a token's picture arriving from Scryfall, or another chosen for it, is a reason to repaint it
       this._onTokenArt = U.debounce(() => {
         for (const [id, n] of this.els) {
@@ -980,6 +983,7 @@
      * attacking or whoever just put something on the stack. A choice you
      * make lasts until the turn changes hands.
      */
+    /** @this {MTG.TableInstance} */
     _chooseFocus(others) {
       const v = this.view;
       const alive = others.filter(p => !p.hasLost);
@@ -989,7 +993,9 @@
       if (this._pinned && (this._pinned.turn !== v.turn || !ids.includes(this._pinned.id))) this._pinned = null;
       if (this._pinned) { this.focusSeat = this._pinned.id; return; }
       let want = null;
-      if (ids.includes(v.activePlayer)) want = v.activePlayer;
+      // for a moment, the board something being held up is aimed at (A10: _swingFor)
+      if (this._beatFocus && ids.includes(this._beatFocus)) want = this._beatFocus;
+      if (!want && ids.includes(v.activePlayer)) want = v.activePlayer;
       if (!want) {
         const top = (v.stack || [])[(v.stack || []).length - 1];
         if (top && top.controller !== this.meId && ids.includes(top.controller)) want = top.controller;
@@ -1623,18 +1629,20 @@
         if (w.title !== said) w.title = said;
         w.classList.toggle('targetable', !!(this.targeting && this.isTargetableStack(s)));
         const who = v.players.find(p => p.id === s.controller);
+        // countered: stamped so, for the moment before it goes (A8)
+        const stamp = s.countered ? (w._stamp = w._stamp || el('div', { class: 'stack-stamp', 'aria-hidden': 'true', text: 'Countered' })) : null;
         // a spell is its own card; an ability is a chip that names where it came from
         if (this.spot && this.spot.stackId === s.id) {
           // held up in the middle for now; the stack keeps its place
           this.place(w, [el('div', { class: 'stack-ph' })]);
         } else if (s.kind !== 'ability' && s.objId) {
           const o = Object.assign({ id: s.objId, card: s.card, zone: 'stack' });
-          this.place(w, [i === 0 ? this._batchRow(s) : null, this.cardEl(o), this._stackLabel(s, who, i === 0)].filter(Boolean));
+          this.place(w, [i === 0 ? this._batchRow(s) : null, this.cardEl(o), this._stackLabel(s, who, i === 0), stamp].filter(Boolean));
         } else {
           let chip = w.querySelector(':scope > .ability-chip');
           if (!chip) chip = this._abilityChip(s);
           // (the top of a batch of your triggers: what can be done with the lot, above it)
-          this.place(w, [i === 0 ? this._batchRow(s) : null, chip, this._stackLabel(s, who, i === 0)].filter(Boolean));
+          this.place(w, [i === 0 ? this._batchRow(s) : null, chip, this._stackLabel(s, who, i === 0), stamp].filter(Boolean));
         }
         return w;
       });
@@ -1716,32 +1724,125 @@
     }
 
     /* ---- the card held up in the middle ---- */
+    /** @this {MTG.TableInstance} */
     renderSpot() {
       const sp = this.spot;
       const v = this.view;
-      if (!sp) { this.place(this.spotHost, []); this.spotHost.classList.remove('on'); return; }
-      const item = (v.stack || []).find(s => s.id === sp.stackId);
-      if (!item) { this.spot = null; this.place(this.spotHost, []); this.spotHost.classList.remove('on'); return; }
+      const off = () => {
+        this.place(this.spotHost, []);
+        this.spotHost.classList.remove('on', 'ghost');
+        for (const n of this.arena.querySelectorAll('.spot-target')) n.classList.remove('spot-target');
+      };
+      if (!sp) return off();
+      /* A spell or ability that is still on the stack is shown from it; one already gone by the time the table
+         got to it (a ghost: _present) from the event that put it there (A2). */
+      const e = sp.ghost ? sp.e : null;
+      const item = e ? { id: e.stackId, kind: e.type === 'cast' ? 'spell' : 'ability', name: e.name, objId: e.objId,
+        card: e.card || ((this.objIn(e.objId, v) || {}).card) || null, abilityText: e.text || '', targets: e.targets || [], controller: e.controller, modes: [] }
+        : (v.stack || []).find(s => s.id === sp.stackId);
+      if (!item) { this.spot = null; return off(); }
       const who = v.players.find(p => p.id === item.controller);
-      const w = this.wrapFor('spot', 'spot-card');
       let body;
-      if (item.kind !== 'ability' && item.objId) body = this.cardEl({ id: item.objId, card: item.card, zone: 'stack' });
-      else body = this.staticCard(item.card) || this._abilityChip(item);
+      if (e) {
+        const w = el('div', { class: 'spot-card' });
+        w.appendChild(this.staticCard(item.card) || this._abilityChip(item));
+        body = w;
+      } else {
+        const w = this.wrapFor('spot', 'spot-card');
+        let card;
+        if (item.kind !== 'ability' && item.objId) card = this.cardEl({ id: item.objId, card: item.card, zone: 'stack' });
+        else card = this.staticCard(item.card) || this._abilityChip(item);
+        this.place(w, [card]);
+        body = w;
+      }
       const targets = (item.targets || []).map(t => this.targetName(t)).filter(Boolean);
       const verb = item.kind === 'ability' ? (sp.trigger ? 'triggers' : 'activates') : 'casts';
-      this.place(w, [body]);
+      const theirs = who && who.id !== this.meId;
+      // whose it is, by face as well as name: in a bigger game the caster may be a board away (A10)
+      const faceCard = theirs ? this.portraitCard(who) : null;
+      const chosen = theirs && MTG.app && MTG.app.avatarFor ? MTG.app.avatarFor(who.id) : null;
+      const faceUrl = chosen || (faceCard ? (MTG.scry.imageUrl(faceCard, 'art_crop', 0) || '') : '');
+      const face = theirs ? el('span', { class: 'spot-face', text: faceUrl ? '' : (who.name || '?')[0].toUpperCase(),
+        style: faceUrl ? { backgroundImage: 'url("' + faceUrl.replace(/"/g, '%22') + '")' } : { '--seat-hue': UI.avatarColor(who.name) } }) : null;
       this.place(this.spotHost, [
-        w,
+        body,
         el('div', { class: 'spot-cap' }, [
-          el('div', { class: 'spot-who', text: `${who ? (who.id === this.meId ? 'You' : who.name) : 'Someone'} ${verb}` }),
-          el('div', { class: 'spot-name', text: item.kind === 'ability' && item.card ? item.card.name : (item.name || (item.card ? item.card.name : '')) }),
+          el('div', { class: 'spot-who' }, [face, el('span', { text: `${who ? (who.id === this.meId ? 'You' : who.name) : 'Someone'} ${verb}` })].filter(Boolean)),
+          el('div', { class: 'spot-name' }, [
+            el('span', { text: item.kind === 'ability' && item.card ? item.card.name : (item.name || (item.card ? item.card.name : '')) }),
+            // the same trigger several times at once: one moment, and how many (A2)
+            sp.n > 1 ? el('span', { class: 'spot-n', text: '×' + sp.n }) : null,
+          ].filter(Boolean)),
           // (all of it: a long trigger, Emrakul's or Sen Triplets', is read here as it arrives)
           item.kind === 'ability' && item.abilityText ? el('div', { class: 'spot-ab', html: MTG.mana.textHtml(item.abilityText) }) : null,
           (item.modes || []).length ? el('div', { class: 'spot-ab', html: MTG.mana.textHtml(item.modes.join('; ')) }) : null,
-          targets.length ? el('div', { class: 'spot-tg', text: 'targeting ' + targets.join(', ') }) : null,
+          targets.length ? el('div', { class: 'spot-tg', text: '→ ' + targets.join(', ') }) : null,
         ].filter(Boolean)),
       ]);
       this.spotHost.classList.add('on');
+      this.spotHost.classList.toggle('ghost', !!e);
+      this._placeSpot(item.targets || []);
+    }
+
+    /**
+     * Where the card held up goes (A6): clear of whatever it is aimed at, so
+     * its arrow has somewhere to land. On a wide screen it sits to the side
+     * of the board away from its targets; on a phone in the half of the
+     * board away from them (with no targets, the caster's half). What it is
+     * aimed at is lit, so the arrow lands on something that stands out.
+     */
+    /** @this {MTG.TableInstance} */
+    _placeSpot(targets) {
+      const host = this.spotHost;
+      for (const n of this.arena.querySelectorAll('.spot-target')) n.classList.remove('spot-target');
+      const ar = U.rect(this.arena);
+      if (!ar.width) return;
+      const boxes = [];
+      for (const t of targets) {
+        const n = t.kind === 'player' ? this.orbFor(t.id)
+          : t.kind === 'stack' ? this.stackCol.querySelector(`[data-stack="${CSS.escape(String(t.id))}"]`)
+          : (this.els.get(t.id) && this.els.get(t.id).isConnected ? this.els.get(t.id) : null);
+        if (!n) continue;
+        n.classList.add('spot-target');
+        const r = U.rect(n);
+        if (r.width) boxes.push({ l: r.left - ar.left, t: r.top - ar.top, r: r.right - ar.left, b: r.bottom - ar.top });
+      }
+      host.style.left = ''; host.style.top = '';
+      const w = host.offsetWidth, h = host.offsetHeight;
+      if (!w || !h) return;
+      const cs = getComputedStyle(this.arena);
+      const px = (k) => parseFloat(cs.getPropertyValue(k)) || 0;
+      const side = px('--side-w'), rail = px('--rail-w');
+      const phone = MTG.isPhone() || ar.width <= 520;
+      // the board's own room: between the rail and the stack, under the corner buttons, above the hand
+      const handTop = this.handHost ? U.rect(this.handHost).top - ar.top : ar.height;
+      const x0 = rail + 8, x1 = ar.width - side - 8;
+      const y0 = (phone ? 50 : 8), y1 = Math.max(y0 + h, Math.min(ar.height - 8, handTop + (phone ? 40 : 60)));
+      const clampX = (cx) => Math.min(Math.max(cx, x0 + w / 2), Math.max(x0 + w / 2, x1 - w / 2));
+      const clampY = (cy) => Math.min(Math.max(cy, y0 + h / 2), Math.max(y0 + h / 2, y1 - h / 2));
+      const midY = (y0 + y1) / 2, midX = (x0 + x1) / 2;
+      const spot = this.spot;
+      const casterTop = !spot || spot.who !== this.meId;
+      let cands;
+      if (phone) {
+        const top = clampY(y0 + (y1 - y0) * 0.27), bot = clampY(y0 + (y1 - y0) * 0.73);
+        cands = casterTop ? [[midX, top], [midX, bot], [midX, clampY(midY)]] : [[midX, bot], [midX, top], [midX, clampY(midY)]];
+        cands = cands.map(([x, y]) => [clampX(x), y]);
+      } else {
+        const y = clampY(midY);
+        cands = (boxes.length ? [[x0 + (x1 - x0) * 0.27, y], [x0 + (x1 - x0) * 0.73, y], [midX, y]] : [[midX, y], [x0 + (x1 - x0) * 0.27, y]])
+          .map(([x, yy]) => [clampX(x), yy]);
+      }
+      const overlap = ([cx, cy]) => {
+        const l = cx - w / 2, r = cx + w / 2, t = cy - h / 2, b = cy + h / 2;
+        let s = 0;
+        for (const x of boxes) s += Math.max(0, Math.min(r, x.r) - Math.max(l, x.l)) * Math.max(0, Math.min(b, x.b) - Math.max(t, x.t));
+        return s;
+      };
+      let best = cands[0], bo = overlap(best);
+      for (const c of cands.slice(1)) { const o = overlap(c); if (o < bo - 1) { best = c; bo = o; } }
+      host.style.left = Math.round(best[0]) + 'px';
+      host.style.top = Math.round(best[1]) + 'px';
     }
 
     /* ---- the dock: the button, the turn and the steps ---- */

@@ -86,6 +86,22 @@
     },
 
     /**
+     * The sound of one spell or ability going on the stack, heard as the
+     * table holds it up — for one that was gone again before the table
+     * showed the board it left (12b: _spotBeat). Its beat then does not
+     * play it a second time.
+     */
+    cue(t, e) {
+      if (!e) return;
+      (t._voiced = t._voiced || new WeakSet()).add(e);
+      const pan = e.controller == null ? null : t.panFor(e.controller);
+      if (e.type === 'cast') {
+        const card = e.card || null;
+        MTG.sfx('cast', { pan, colors: colorsOf(card), intensity: clamp(manaValue(card) / 7, 0.15, 1), copy: !!e.copy, why: 'cast' });
+      } else MTG.sfx(e.type === 'trigger' ? 'trigger' : 'activate', { pan, why: e.type });
+    },
+
+    /**
      * The sounds for a beat that came with its events. Each sound gets a
      * place in time (`at`, milliseconds into the beat), an importance
      * (`pri`) for when not everything can be played, and the event that
@@ -139,12 +155,14 @@
           case 'cast': {
             const card = cardOf(e);
             const colors = colorsOf(card);
+            // (heard already, as it was held up before its result: cue)
+            if (t._voiced && t._voiced.has(e)) { info.casts.push({ objId: e.objId, stackId: e.stackId, colors }); break; }
             add('cast', { pan: pan(e.controller), colors, intensity: clamp(manaValue(card) / 7, 0.15, 1), copy: !!e.copy }, 7, 'cast', 120);
             info.casts.push({ objId: e.objId, stackId: e.stackId, colors });
             break;
           }
           case 'activate': case 'trigger':
-            add(e.type, { pan: pan(e.controller) }, 4, e.type, 60);
+            if (!(t._voiced && t._voiced.has(e))) add(e.type, { pan: pan(e.controller) }, 4, e.type, 60);
             if (e.objId) info.pulses.push(e.objId);
             break;
           case 'resolve': {
