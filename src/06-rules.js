@@ -2063,10 +2063,19 @@
       return (tron.names || []).every(nm => this.battlefield.some(o => o.controller === pid && norm(o.name) === norm(nm)));
     }
 
+    /** Rosheen, Roaring Prophet: the cards in a player's hand with {X} in their mana cost (a face's will do). */
+    _handXCards(pid) {
+      const hasX = (c) => /\{X\}/.test((c && c.mana_cost) || '') || ((c && c.card_faces) || []).some(f => f && /\{X\}/.test(f.mana_cost || ''));
+      return ((this.zones[pid] || {}).hand || []).filter(o => hasX(o.card));
+    }
     _manaXValue(e, o, pid) {
       // Arbor Adherent: an amount described in words
       if (e.amount) return e.amount.ofExiledCost ? 0 : Math.max(0, this._countValue(e.amount, pid, o));
       if (e.x === 'power') return o ? Math.max(0, this.powerOf(o)) : 0;
+      // Vhal, Candlekeep Researcher: "equal to Vhal's toughness"
+      if (e.x === 'toughness') return o ? Math.max(0, this.toughnessOf(o)) : 0;
+      // Rosheen, Roaring Prophet: "for each card revealed this way" — every card in hand with {X} in its mana cost (handXCards)
+      if (e.x === 'handXCards') return this._handXCards(pid).length * (e.mult || 1);
       // Neheb, the Eternal: the life your opponents have lost this turn
       if (e.x === 'opponentsLifeLost') return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0);
       if (e.x === 'count') return this._scopeList(e.scope || {}, pid, o).length;
@@ -11096,6 +11105,8 @@
     _spendForAbility(spendOnly, abilityOf, ab, src) {
       if (!spendOnly || !abilityOf) return false;
       if (spendOnly.open && !spendOnly.words) return true;
+      // Vhal, Candlekeep Researcher: "can't be spent to cast spells from your hand" — any ability may have it (anyAbility)
+      if (spendOnly.anyAbility) return true;
       // (Rosheen Meanderer: an ability whose cost has {X} in it — costWithX)
       if (spendOnly.costWithX) return !!(ab && ab.cost && /\{X\}/.test(ab.cost.mana || ''));
       /* "…or activate abilities of creatures": an ability of the right
@@ -11403,7 +11414,18 @@
     _declareAttackersStep() {
       const ap = this.activePlayer;
       this.combat = { attackers: [], blockers: [], damageDealt: false, firstStrikeDone: false };
+      /* Noctis, Heir Apparent: "at the beginning of that player's next declare attackers step" — what waits for it goes
+         on the stack once attackers are declared (CR 508.2); a creature put onto the battlefield attacking then keeps
+         the combat going even with none declared (CR 508.8: _atkStepTrig) */
+      const trigBefore = this.pendingTriggers.length;
+      this._fire('declareAttackersBegin', ap.id, { playerId: ap.id });
+      this._atkStepTrig = this.pendingTriggers.length > trigBefore ? this.turn : null;
       const possible = this.battlefield.filter(o => this.canAttack(o));
+      if (!possible.length && this._atkStepTrig === this.turn) {
+        this.logEvent('combat', `${ap.name} has no creatures that can attack.`);
+        this._givePriority(this.activeIndex);
+        return;
+      }
       if (!possible.length) {
         this.logEvent('combat', `${ap.name} has no creatures that can attack.`);
         // skip straight past blockers
@@ -11743,6 +11765,9 @@
         this.emit('sfx', 'attack');
         this._attackKeywords(declarations.map(d => this.obj(d.attackerId)).filter(Boolean));
         this.logEvent('combat', `${this.player(playerId).name} attacks with ${declarations.map(d => this.obj(d.attackerId).name).join(', ')}.`);
+      } else if (this._atkStepTrig === this.turn) {
+        // (Noctis, Heir Apparent: something waits on this step — the step goes on: _atkStepTrig)
+        this.logEvent('combat', `${this.player(playerId).name} declares no attackers.`);
       } else {
         this.logEvent('combat', `${this.player(playerId).name} declares no attackers.`);
         this.stepIndex = this.phase.steps.indexOf('endCombat') - 1;
@@ -12642,6 +12667,12 @@
     }
 
     _atEndOfCombat() {
+      // Noctis, Heir Apparent: "It can't be blocked that combat." — over with the combat (untilEndOfCombat)
+      for (const o of this.battlefield) {
+        if (!(o.effects || []).some(x => x && x.untilEndOfCombat)) continue;
+        o.effects = o.effects.filter(x => !(x && x.untilEndOfCombat));
+        o._chr = null;
+      }
       /* Tokens that only came along for the fight (mobilize) go away when
          the fight is over. */
       // Abomination: what it fought is destroyed as combat ends
@@ -19467,6 +19498,12 @@
           const td0 = ctx.triggerData || {};
           const about = e.x === 'power' && ['permAttacks', 'permCombatDamage'].includes(td0.event) && td0.objectId && this.obj(td0.objectId);
           const k = e.amount ? Math.max(0, n(e.amount)) : this._manaXValue(e, (about && about.zone === 'battlefield') ? about : src, ctx.controller);
+          // Rosheen, Roaring Prophet: "Reveal any number of cards with {X} in their mana cost" — all of them (reveal)
+          if (e.reveal && k > 0) {
+            const shown = this._handXCards(ctx.controller);
+            for (const c of shown) this._know(c, '*');
+            this.logEvent('reveal', `${me.name} reveals ${shown.map(c => c.name).join(', ')}.`);
+          }
           const color = e.symbol ? e.symbol
             : ctx.manaChoice && MANA.COLORS.includes(ctx.manaChoice) ? ctx.manaChoice : this._preferredColor(me);
           for (let i = 0; i < k; i++) me.pool.add(color);
@@ -20891,7 +20928,9 @@
           const pool = (this._lastMilled || []).map(id => this.obj(id))
             .filter(o => o && o.zone === 'graveyard' && (e.anyOwner || o.owner === ctx.controller) &&
               (!e.filter || e.filter === 'any' || this._cardFitsWords(o, e.filter)) &&
-              (!e.mvParity || (((o.card && o.card.cmc) || 0) % 2 === 0) === (e.mvParity === 'even')));
+              (!e.mvParity || (((o.card && o.card.cmc) || 0) % 2 === 0) === (e.mvParity === 'even')) &&
+              // Rosheen, Roaring Prophet: "a card with {X} in its mana cost" (xCost)
+              (!e.xCost || /\{X\}/.test(((o.card || {}).mana_cost) || '') || (((o.card || {}).card_faces) || []).some(f => f && /\{X\}/.test(f.mana_cost || ''))));
           if (!pool.length) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
           const want = Math.min(n(e.n) || 1, pool.length);
           // (Gyruda: a put that must happen, with only as many to put as there are, asks nothing)
@@ -25180,6 +25219,45 @@
           if (tok && top) tok._uginCard = top.id;
           break;
         }
+        /* Noctis, Heir Apparent: "Return it to the battlefield under its owner's control tapped and attacking at the
+           beginning of that player's next declare attackers step." — the card just exiled, while it stays there (warpReturn) */
+        case 'warpReturn': {
+          const x = src && src.zone === 'exile' ? src : (this._lastExiled && this.obj(this._lastExiled));
+          if (!x || x.zone !== 'exile') break;
+          const owner = x.owner || ctx.controller;
+          this.scheduleDelayed({ event: 'declareAttackersBegin', controller: owner, forPlayer: owner, objId: x.id, whileExiled: x.exileStamp,
+            name: 'Return it tapped and attacking', effects: [{ op: 'warpReturnNow' }] });
+          this.logEvent('rules', `${x.name} returns at the beginning of ${(this.player(owner) || me).name}'s next declare attackers step.`);
+          break;
+        }
+        // (… "It can't be blocked that combat.") — tapped, attacking whom its owner chooses, never declared
+        case 'warpReturnNow': {
+          const x = src;
+          if (!x || x.zone !== 'exile') break;
+          const owner = x.owner || ctx.controller;
+          // (whom it attacks asked first, while it waits in exile: asked again, the answer is there)
+          const inCombat = !!(this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) && !!(x.analysis() || {}).isCreature;
+          const defs = inCombat ? this._legalDefenders(owner) : [];
+          let def = defs[0] || null;
+          if (defs.length > 1) {
+            const picked = this._ask({ type: 'mode', playerId: owner, count: 1, purpose: 'attackWhom', values: defs.map(d => d.id),
+              options: defs.map((d, i) => ({ i, label: d.name })), prompt: `${x.name} returns attacking. Attack whom?` }, 'warpdef');
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            def = defs[idx == null ? 0 : idx] || defs[0];
+          }
+          this.moveObject(x, 'battlefield', { controller: owner, tapped: true });
+          if (x.zone !== 'battlefield') break;
+          x.tapped = true;
+          if (!def) break;
+          x.attacking = def.id;
+          if (!this.combat.attackers.includes(x.id)) this.combat.attackers.push(x.id);
+          x.effects.push({ flag: 'unblockable', until: 'eot', untilEndOfCombat: true });
+          x._chr = null;
+          this.bumpBoard();
+          this.logEvent('combat', `${x.name} returns tapped and attacking ${def.name}; it can't be blocked this combat.`);
+          break;
+        }
         // Kodama of the East Tree: a permanent card from hand no costlier than what entered
         case 'kodamaPut': {
           const td = ctx.triggerData || {};
@@ -27374,6 +27452,8 @@
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
             // Aether Vial: "with mana value equal to the number of charge counters on this artifact"
             const mvIs = e.exactMv != null ? n(e.exactMv) : null;
+            // Bane, Lord of Darkness: "with equal or lesser toughness" — than the creature that died (maxToughness)
+            const tCap = e.maxToughness != null ? n(e.maxToughness) : null;
             // Kastral, the Windcrested: "a Bird creature card from your hand or graveyard" (from)
             const fromZones = e.from || ['hand'];
             // (Shadowfax, Lord of Horses: "with lesser power" — than its own, last known if it has left — lesserPower)
@@ -27381,7 +27461,8 @@
             // (an instant or sorcery card never goes onto the battlefield: "a permanent card" or not, only those — CR 110.4b)
             const pool = [].concat(...fromZones.map(zn => this.zones[p.id][zn] || [])).filter(o => (o.analysis() || {}).isPermanent && this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs) &&
-              (powCap == null || this.powerOf(o) < powCap));
+              (powCap == null || this.powerOf(o) < powCap) &&
+              (tCap == null || (parseInt((o.analysis() || {}).toughness, 10) || 0) <= tCap));
             if (!pool.length) continue;
             // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
             if (!e.any && e.n != null && typeof e.n === 'object' && !(n(e.n) > 0)) continue;

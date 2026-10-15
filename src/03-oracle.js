@@ -1499,8 +1499,9 @@
     { re: /^Add X mana of any one colou?r, where X is the number of ([a-z]+) counters on (?:CARDNAME|this (?:artifact|creature|land|permanent))\.?$/i,
       make: (m) => ({ op: 'addManaX', x: 'counters', counter: m[1].toLowerCase() }) },
     // Marwyn: "Add an amount of {G} equal to CARDNAME's power."
-    { re: /^Add an amount of \{([WUBRGC])\} equal to (?:CARDNAME'?s?|this creature'?s|its) power\.?$/i,
-      make: (m) => ({ op: 'addManaX', x: 'power', symbol: m[1].toUpperCase() }) },
+    // (Vhal, Candlekeep Researcher: "Add an amount of {C} equal to Vhal's toughness.")
+    { re: /^Add an amount of \{([WUBRGC])\} equal to (?:CARDNAME'?s?|this creature'?s|its) (power|toughness)\.?$/i,
+      make: (m) => ({ op: 'addManaX', x: m[2].toLowerCase(), symbol: m[1].toUpperCase() }) },
     /* Curse of the Swine: "Exile X target creatures. For each creature
        exiled this way, its controller creates a 2/2 green Boar creature token." */
     { re: /^For each (creature|permanent) (?:exiled|destroyed) this way, its controller creates (.+)$/i,
@@ -1548,6 +1549,8 @@
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
     // Rosheen Meanderer: "Spend this mana only on costs that contain {X}." — a spell or an ability with {X} to pay (costWithX)
     { re: /^Spend this mana only on costs that contain \{X\}\.?$/i, make: () => ({ op: 'spendOnly', costWithX: true }) },
+    // Vhal, Candlekeep Researcher: "This mana can't be spent to cast spells from your hand." — abilities, and spells from elsewhere
+    { re: /^This mana can'?t be spent to cast spells from your hand\.?$/i, make: () => ({ op: 'spendOnly', anyAbility: true, notFromHand: true }) },
     // Mm'menon, the Right Hand: "Spend this mana only to cast a spell from anywhere other than your hand." (notFromHand)
     { re: /^Spend this mana only to cast (?:a spell|spells) from anywhere other than your hand\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notFromHand: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
@@ -6000,6 +6003,10 @@
        tapped and attacking" — lesser than Shadowfax's power as it resolves (lesserPower) */
     { re: /^(?:you may )?put an? ([a-z]+) card with lesser power from your hand onto the battlefield tapped and attacking\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', lesserPower: true, tapped: true, attacking: true }) },
+    /* Bane, Lord of Darkness: "you may put a creature card with equal or lesser toughness from your hand onto the
+       battlefield" — no tougher than the creature that died (maxToughness ofTrigger) */
+    { re: /^you may put an? ([a-z]+) card with equal or lesser toughness from your hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxToughness: { ofTrigger: 'toughness' } }) },
     /* Maralen of the Mornsong: "that player loses 3 life, searches their library for a card, puts it into their hand,
        then shuffles." — the player whose draw step it is, and their own choice of card */
     { re: /^that player loses (\d+) life, searches their library for a card, puts it into their hand, then shuffles\.?$/i,
@@ -9967,6 +9974,14 @@
         const a = targetSpec(m[1]), b = targetSpec(m[2]);
         return a && b && !a.unknown && !b.unknown ? [{ op: 'blink', together: true, targets: [Object.assign(a, { upTo: true }), Object.assign(b, { upTo: true, distinct: true })] }] : null;
       } },
+    /* Noctis, Heir Apparent: "Return it to the battlefield under its owner's control tapped and attacking at the beginning
+       of that player's next declare attackers step. It can't be blocked that combat." — the card just exiled (warpReturn) */
+    { re: /^(Exile CARDNAME\. )?Return it to the battlefield under its owner'?s control tapped and attacking at the beginning of that player'?s next declare attackers step\. It can'?t be blocked that combat\.?$/i,
+      make: (m) => [...(m[1] ? [{ op: 'exileSelf' }] : []), { op: 'warpReturn' }] },
+    /* Rosheen, Roaring Prophet: "Reveal any number of cards with {X} in their mana cost in your hand. Add {C}{C} for each
+       card revealed this way." — revealing is free and only helps, so every one is shown (handXCards, reveal) */
+    { re: /^Reveal any number of cards with \{X\} in their mana cost in your hand\. Add \{C\}\{C\} for each card revealed this way\.( Spend this mana only on costs that contain \{X\}\.)?$/i,
+      make: (m) => [{ op: 'addManaX', x: 'handXCards', mult: 2, symbol: 'C', reveal: true }, ...(m[1] ? [{ op: 'spendOnly', costWithX: true }] : [])] },
     /* Zimone and Dina: "Draw a card. You may put a land card from your hand onto the battlefield tapped. If you control
        eight or more lands, repeat this process once." — the condition looked at once the first time is done (repeatOnceIf) */
     { re: /^(.+?\.) If (you control [^,.]+), repeat this process once\.$/i,
@@ -11103,7 +11118,8 @@
     /* Combustible Gearhulk, Palantír of Orthanc, Risk Factor: "Target
        opponent may have you draw three cards. If the player doesn't, …" —
        the opponent picks which happens */
-    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?target opponent may have (you draw (?:a|one|two|three|four|five|\d+) cards?|CARDNAME deal (?:one|two|three|four|five|six|\d+) damage to them)\. If (?:the|that) player doesn'?t, ([\s\S]+?)\.?$/i,
+    // (Bane, Lord of Darkness: "target opponent may have you draw a card. If they don't, …")
+    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?target opponent may have (you draw (?:a|one|two|three|four|five|\d+) cards?|CARDNAME deal (?:one|two|three|four|five|six|\d+) damage to them)\. If (?:(?:the|that) player doesn'?t|they don'?t), ([\s\S]+?)\.?$/i,
       make: (m) => {
         const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
         const dmg = m[2].match(/deal (\S+) damage/i);
@@ -11650,6 +11666,10 @@
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
         { op: 'takeFromMilled', n: 1, filter: m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any', optional: !!m[2] }] },
+    // Rosheen, Roaring Prophet: "mill six cards. You may put a card with {X} in its mana cost from among them into your hand." (xCost)
+    { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?put a card with \{X\} in its mana cost from among (?:them|the milled cards) into your hand\.?$/i,
+      make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
+        { op: 'takeFromMilled', n: 1, filter: 'any', xCost: true, optional: !!m[2], prompt: 'Choose a card with {X} in its mana cost to put into your hand.' }] },
     /* Lluwen, Imperfect Naturalist: "mill four cards, then you may put a creature or land card from among the milled
        cards on top of your library" (takeFromMilled to the top) */
     { re: /^Mill (two|three|four|five|six|\d+) cards, then (you may )?put an? ([a-z, ]*?)card from among (?:them|the milled cards) on top of your library\.?$/i,

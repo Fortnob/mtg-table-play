@@ -3041,6 +3041,13 @@
         const best = options.slice().sort((x, y) => (k[y.label] || 0) - (k[x.label] || 0))[0];
         return [best ? best.i : 0];
       }
+      // Noctis, Heir Apparent: back attacking — the opponent with the least life
+      if (ch.purpose === 'attackWhom') {
+        const vals = ch.values || [];
+        const life = (i) => { const q = g.player(vals[i]); return q ? q.life : 999; };
+        const best = options.slice().sort((x, y) => life(x.i) - life(y.i))[0];
+        return [best ? best.i : 0];
+      }
       // Pippin, Guard of the Citadel: protection from the type of what an opponent has on the stack, else creatures
       if (ch.purpose === 'protectionCardType') {
         const st = g.stack.slice().reverse().find(x => x.controller !== this.pid && x.obj);
