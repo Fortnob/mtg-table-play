@@ -478,7 +478,9 @@ function checkView(view, viewer, game) {
   /* A face-down card is a secret from everyone but the one who controls
      it (morph, manifest, cards exiled face down). */
   for (const [oid, seen] of all) for (const { o, where } of seen) {
-    if (o.faceDown && o.card && o.card.id !== '__facedown__' && o.controller !== viewer && o.owner !== viewer)
+    /* (but for a face-down creature the viewer may look at: Lens of Clarity, or one they looked at — Spy Network) */
+    const mayLook = !!game && o.zone === 'battlefield' && ((game._seesFaceDown && game._seesFaceDown(viewer)) || (game._knows && game._knows(game.obj(o.id), viewer)));
+    if (o.faceDown && o.card && o.card.id !== '__facedown__' && o.controller !== viewer && o.owner !== viewer && !mayLook)
       bad('view.privacy', `${where} ${oid}`, `face down, but ${viewer}'s view carries the card (${o.card.name})`);
     // (nor what the card underneath is like: an exiled face-down card's power, keywords or effects name it)
     if (o.faceDown && o.card && o.card.id === '__facedown__' && o.zone !== 'battlefield' && o.zone !== 'stack' &&

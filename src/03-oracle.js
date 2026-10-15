@@ -5971,6 +5971,16 @@
     { re: /^Look at the top card of your library\.?$/i, make: () => ({ op: 'lookTop', n: 1 }) },
     // Mishra's Bauble: "Look at the top card of target player's library."
     { re: /^Look at the top card of target player'?s library\.?$/i, make: () => ({ op: 'lookTop', n: 1, who: 'target', targets: [{ type: 'player' }] }) },
+    /* Spy Network: "Look at target player's hand, the top card of that player's library, and any face-down creatures they
+       control." — each known to the one who looked for as long as it stays where it is */
+    { re: /^Look at target player'?s hand, the top card of that player'?s library, and any face-down creatures they control\.?$/i,
+      make: () => [{ op: 'revealHand', look: true, targets: [{ type: 'player' }] }, { op: 'lookTop', n: 1, who: 'target' }, { op: 'lookFaceDown', who: 'target' }] },
+    // Saheeli's Silverwing: "look at the top card of target opponent's library"
+    { re: /^Look at the top card of target opponent'?s library\.?$/i, make: () => ({ op: 'lookTop', n: 1, who: 'target', targets: [{ type: 'player', opponent: true }] }) },
+    // Case the Joint, Medomai's Prophecy: "look at the top card of each player's library" — every top card, to the one looking
+    { re: /^(?:Then )?look at the top card of each player'?s library\.?$/i, make: () => ({ op: 'lookTop', n: 1, who: 'each' }) },
+    // Lumbering Laundry: "Until end of turn, you may look at face-down creatures you don't control any time."
+    { re: /^Until end of turn, you may look at face-down creatures you don'?t control any time\.?$/i, make: () => ({ op: 'seeFaceDownTurn' }) },
     { re: /^Monstrosity (\d+|X)\.?$/i, make: (m) => ({ op: 'monstrosity', n: m[1] === 'X' ? 'X' : +m[1] }) },
     // Maester Seymour: "Monstrosity X, where X is the number of counters among creatures you control."
     { re: /^Monstrosity X, where X is (.+?)\.?$/i,
@@ -7796,6 +7806,9 @@
     // Lobelia, Defender of Bag End: "look at the top card of each opponent's library and exile those cards face down"
     { re: /^Look at the top card of each opponent'?s library and exile those cards face down\.?$/i,
       make: () => ({ op: 'exileBottomEach', who: 'opponents', faceDown: true, top: true }) },
+    // Extract Power: "Look at the top card of each player's library, then exile those cards face down." — yours too (who each)
+    { re: /^Look at the top card of each player'?s library, then exile those cards face down\.?$/i,
+      make: () => ({ op: 'exileBottomEach', who: 'each', faceDown: true, top: true }) },
     /* Lobelia, Defender of Bag End: "Until end of turn, you may play a card exiled with Lobelia without paying its mana
        cost." — one of them, and then none of the rest (mayPlayExiled exiledWith, oneOf) */
     { re: /^Until end of turn, you may play a card exiled with CARDNAME without paying its mana cost\.?$/i,
@@ -9924,8 +9937,24 @@
         { op: 'attachPutToChosen' }] },
     /* Jace, the Mind Sculptor: "Look at the top card of target player's
        library. You may put that card on the bottom of that player's library." */
+    /* Prophecy: "Reveal the top card of target opponent's library. If it's a land, you gain 1 life. Then that player
+       shuffles." — the shuffle is a real one here, nothing having been searched (shuffle who target) */
+    { re: /^Reveal the top card of target (player|opponent)'?s library\. If it'?s an? ([a-z]+)(?: card)?, you gain (\d+) life\. Then that player shuffles\.$/i,
+      make: (m) => [{ op: 'reveal', n: 1, from: 'library', who: 'target', targets: [/opponent/i.test(m[1]) ? { type: 'player', opponent: true } : { type: 'player' }] },
+        { op: 'ifCond', cond: { kind: 'itIs', filter: m[2].toLowerCase() }, then: [{ op: 'gainLife', n: +m[3], who: 'you' }] },
+        { op: 'shuffle', who: 'target' }] },
     { re: /^Look at the top card of target player'?s library\. You may put that card on the bottom of that player'?s library\.$/i,
       make: () => [{ op: 'fateseal', targets: [{ type: 'player' }] }] },
+    /* …and the others like it: Precognition's "you may look at the top card of target opponent's library. If you do, you may
+       put that card on the bottom"; Coral Fighters' "defending player's"; Eye Spy, Draugr Thought-Thief, Lurking Informant:
+       "You may put that card into their graveyard" (to graveyard) */
+    { re: /^(?:You may )?look at the top card of (target player|target opponent|defending player)'?s library\. (?:If you do, )?You may put that card (?:on the bottom of that player'?s library|into (?:their|that player'?s) graveyard)\.$/i,
+      make: (m) => [Object.assign({ op: 'fateseal' }, /graveyard/i.test(m[0]) ? { to: 'graveyard' } : {},
+        /defending/i.test(m[1]) ? { who: 'defending' } : { targets: [/opponent/i.test(m[1]) ? { type: 'player', opponent: true } : { type: 'player' }] })] },
+    /* Wand of Denial: "Look at the top card of target player's library. If it's a nonland card, you may pay 2 life. If you do,
+       put it into that player's graveyard." (fateseal to graveyard, for life, of a kind) */
+    { re: /^Look at the top card of target player'?s library\. If it'?s a ([a-z]+) card, you may pay (\d+) life\. If you do, put it into that player'?s graveyard\.$/i,
+      make: (m) => [{ op: 'fateseal', to: 'graveyard', filter: m[1].toLowerCase() + ' card', payLife: +m[2], targets: [{ type: 'player' }] }] },
     /* Parley (Selvala, Rousing of Souls, the Negotiators): "Each player
        reveals the top card of their library. For each nonland card revealed
        this way, …. Then each player draws a card." */
@@ -20499,6 +20528,23 @@
         make: (m) => ({ op: 'handSizeMod', who: /opponent/i.test(m[1]) ? 'opponents' : 'you', n: (/reduced/i.test(m[2]) ? -1 : 1) * num(m[3]) }), auto: true },
       { re: /^You may look at the top card of your library any time\.?$/i,
         eff: { op: 'peekTop' }, auto: true },
+      // Wizened Snitches, Field of Dreams, Lantern of Insight: "Players play with the top card of their libraries revealed." — every library (who all)
+      { re: /^Players play with the top cards? of their librar(?:y|ies) revealed\.?$/i,
+        eff: { op: 'peekTop', revealed: true, who: 'all' }, auto: true },
+      // Lens of Clarity: "You may look at the top card of your library and at face-down creatures you don't control any time."
+      { re: /^You may look at the top card of your library and at face-down creatures you don'?t control any time\.?$/i,
+        make: () => [{ op: 'peekTop' }, { op: 'seeFaceDown' }], auto: true },
+      // Keeper of the Lens, Found Footage: face-down creatures shown face up to you (seeFaceDown)
+      { re: /^You may look at face-down creatures (?:you don'?t control|your opponents control) any time\.?$/i,
+        eff: { op: 'seeFaceDown' }, auto: true },
+      /* Oura, the Imitator, Chittering Illuminator: "As long as the top card of your library is a Faerie or instant card, you may
+         look at it any time and you may cast it." — only that kind of top card (peekTop filter) */
+      { re: /^As long as the top card of your library is an? ([A-Za-z]+(?: or [A-Za-z]+)?) card, you may look at it any time and you may cast it\.?$/i,
+        make: (m) => { const f = m[1].toLowerCase(); return [{ op: 'peekTop', filter: f + ' card' }, { op: 'playFrom', zone: 'top', what: 'spell', filter: f }]; }, auto: true },
+      /* Pearl Lake Warden, Chittering Illuminator: "As long as this card is the top card of your library, you may look at it any
+         time and you may cast it." — the card's own words, read from the top of the library (self) */
+      { re: /^As long as (?:this card|CARDNAME) is (?:the top card of|at the top of) your library, you may look at it any time and you may cast it\.?$/i,
+        make: () => [{ op: 'peekTop', self: true }, { op: 'playFrom', zone: 'top', what: 'spell', self: true }], auto: true },
       // Radha, Heart of Keld: "You may look at the top card of your library any time, and you may play lands from the top of your library." — both
       { re: /^You may look at the top card of your library any time, and you may play lands from the top of your library\.?$/i,
         make: () => [{ op: 'peekTop' }, { op: 'playFrom', zone: 'top', what: 'land' }], auto: true },

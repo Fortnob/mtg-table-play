@@ -158,4 +158,132 @@ module.exports = (test) => {
     // undo too: the card moved and came back with the take-back
     t.ok(shownIn(g, 'A', 'B', o2), 'A still does');
   });
+  test('Look at the top: "Players play with the top card of their libraries revealed" shows every library to everybody (Wizened Snitches)', (mk, t) => {
+    t.auto('Wizened Snitches');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const tops = { A: T.top('A', 'Ornithopter'), B: T.top('B', 'Grizzly Bears'), C: T.top('C', 'Island') };
+    T.bf('B', 'Wizened Snitches');
+    for (const v of ['A', 'B', 'C']) for (const pid of ['A', 'B', 'C']) {
+      const tc = topOf(g, v, pid);
+      t.eq((tc || {}).id, tops[pid].id, `${v} sees ${pid}'s top card`);
+      t.eq(tc.seenBy, 'all', 'revealed');
+    }
+  });
+
+  test('Look at the top: Oura shows only a Faerie or instant on top; Pearl Lake Warden only itself, and may be cast from there', (mk, t) => {
+    t.auto('Oura, the Imitator');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Oura, the Imitator');
+    const land = T.top('A', 'Island');
+    t.no(topOf(g, 'A', 'A'), 'a land on top: not shown');
+    const bolt = T.top('A', 'Opt');
+    t.eq((topOf(g, 'A', 'A') || {}).id, bolt.id, 'an instant on top: shown to A');
+    t.no(topOf(g, 'B', 'A'), 'never to B');
+    t.ok(g._playFromRule('A', bolt, 'spell'), 'and A may cast it');
+    const T2 = mk();
+    const g2 = T2.g;
+    const warden = T2.top('A', 'Pearl Lake Warden');
+    t.eq((topOf(g2, 'A', 'A') || {}).id, warden.id, 'the Warden on top: its owner sees it');
+    t.no(topOf(g2, 'B', 'A'), 'B does not');
+    t.ok(g2._playFromRule('A', warden, 'spell'), 'castable from the top');
+    T2.top('A', 'Island');
+    t.no(topOf(g2, 'A', 'A'), 'covered: nothing shown');
+    t.no(g2._playFromRule('A', warden, 'spell'), 'nor castable');
+    T2.bf('A', 'Pearl Lake Warden');
+    t.no(topOf(g2, 'A', 'A'), 'one on the battlefield says nothing of the library');
+    t.ok(land.zone === 'library', 'the land stayed');
+  });
+
+  test('Look at the top: Lens of Clarity shows its controller face-down creatures and the top card; Keeper of the Lens too', (mk, t) => {
+    t.auto('Lens of Clarity'); t.auto('Keeper of the Lens'); t.auto('Found Footage');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const fd = T.bf('B', 'Grizzly Bears');
+    fd.faceDown = true;
+    const seen = (v) => { const x = g.viewFor(v).battlefield.find(o => o.id === fd.id); return x && x.card && x.card.name === 'Grizzly Bears'; };
+    t.no(seen('A'), 'hidden at first');
+    const top = T.top('A', 'Ornithopter');
+    T.bf('A', 'Lens of Clarity');
+    t.ok(seen('A'), 'Lens: A sees the face-down creature');
+    t.no(seen('C'), 'C does not');
+    t.eq((topOf(g, 'A', 'A') || {}).id, top.id, 'and A sees the top card');
+    t.no(topOf(g, 'B', 'A'), 'B does not');
+    T.bf('C', 'Keeper of the Lens');
+    t.ok(seen('C'), 'Keeper of the Lens: C sees it too');
+  });
+
+  test('Look at the top: Eye Spy, Wand of Denial and Precognition look at another library, and may move the card', (mk, t) => {
+    for (const n of ['Eye Spy', 'Draugr Thought-Thief', 'Lurking Informant', 'Wand of Denial', 'Precognition', 'Coral Fighters', "Saheeli's Silverwing", 'Case the Joint', 'Extract Power', 'Prophecy', 'Spy Network']) t.auto(n);
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const top = T.top('B', 'Ornithopter');
+    T.mana('A', 'U');
+    T.answer('confirm', { yes: false });
+    T.cast('A', T.hand('A', 'Eye Spy'), { targets: ['B'] });
+    t.zone(top, 'library');
+    t.eq((topOf(g, 'A', 'B') || {}).id, top.id, 'left there: A knows it');
+    t.no(topOf(g, 'C', 'B'), 'C does not');
+    T.mana('A', 'U');
+    T.answer('confirm', { yes: true });
+    T.cast('A', T.hand('A', 'Eye Spy'), { targets: ['B'] });
+    t.zone(top, 'graveyard', 'into the graveyard the second time');
+    // Wand of Denial: a land is not for the graveyard; a nonland card is, for 2 life
+    const land = T.top('C', 'Island');
+    const wand = T.bf('A', 'Wand of Denial');
+    T.activate('A', wand, 0, { targets: ['C'] });
+    t.zone(land, 'library'); t.eq((topOf(g, 'A', 'C') || {}).id, land.id, 'the land looked at and known');
+    const bear = T.top('C', 'Grizzly Bears');
+    wand.tapped = false;
+    const life = T.life('A');
+    T.answer('confirm', { yes: true });
+    T.activate('A', wand, 0, { targets: ['C'] });
+    t.zone(bear, 'graveyard'); t.eq(T.life('A'), life - 2, 'paid 2 life');
+  });
+
+  test('Look at the top: Case the Joint looks at every library; Prophecy reveals, gains for a land, and shuffles', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Case the Joint'));
+    for (const pid of ['A', 'B', 'C']) {
+      const top = g.zones[pid].library[0];
+      t.eq((topOf(g, 'A', pid) || {}).id, top.id, `A knows ${pid}'s top card`);
+      if (pid !== 'A') t.no(topOf(g, pid, pid), `${pid} does not know their own`);
+    }
+    const land = T.top('B', 'Forest');
+    const life = T.life('A');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Prophecy'), { targets: ['B'] });
+    t.eq(T.life('A'), life + 1, 'a land: 1 life');
+    t.no(land.knownTo, 'shuffled: no longer known');
+  });
+
+  test('Look at the top: Spy Network shows a hand, a top card and face-down creatures to the one who looked', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const orn = T.hand('B', 'Ornithopter');
+    const top = T.top('B', 'Island');
+    const fd = T.bf('B', 'Grizzly Bears'); fd.faceDown = true;
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Spy Network'), { targets: ['B'] });
+    t.ok(shownIn(g, 'A', 'B', orn), 'the hand');
+    t.eq((topOf(g, 'A', 'B') || {}).id, top.id, 'the top card');
+    t.eq((g.viewFor('A').battlefield.find(o => o.id === fd.id).card || {}).name, 'Grizzly Bears', 'the face-down creature');
+    t.no(shownIn(g, 'C', 'B', orn) || topOf(g, 'C', 'B'), 'none of it to C');
+    t.no((g.viewFor('C').battlefield.find(o => o.id === fd.id).card || {}).name === 'Grizzly Bears', 'nor the creature');
+  });
+
+  test('Look at the top: Glowcap Lantern\'s equipped creature lets its controller look', (mk, t) => {
+    const T = mk();
+    const g = T.g;
+    const top = T.top('A', 'Ornithopter');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const lantern = T.bf('A', 'Glowcap Lantern');
+    t.no(topOf(g, 'A', 'A'), 'nothing yet');
+    lantern.attachedTo = bear.id; bear.attachments.push(lantern.id); g.bumpBoard();
+    t.eq((topOf(g, 'A', 'A') || {}).id, top.id, 'equipped: A sees the top card');
+    t.no(topOf(g, 'B', 'A'), 'B does not');
+  });
 };

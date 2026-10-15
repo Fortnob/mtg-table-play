@@ -4968,6 +4968,13 @@
       // (Gwenom, Remorseless: "pay life equal to its mana value rather than pay its mana cost" — payLife)
       if (grant) return Object.assign({ op: 'playFrom', zone: where, what: grant.what }, grant.payLife ? { payLife: true } : {});
       let costly = null;
+      /* Pearl Lake Warden: "As long as this card is the top card of your library, … you may cast it." — its own words, from
+         the top of its owner's library (self) */
+      if (where === 'top' && kind !== 'land') {
+        const own = (o.analysis() || {}).abilities || [];
+        const ef = own.find(ab => ab.kind === 'static') && own.filter(ab => ab.kind === 'static').flatMap(ab => ab.effects || []).find(x => x && x.op === 'playFrom' && x.self);
+        if (ef) return ef;
+      }
       for (const src of this.battlefield) {
         if (src.controller !== playerId || src.phasedOut) continue;
         const a = src.analysis();
@@ -4975,6 +4982,8 @@
         for (const ab of a.abilities) {
           for (const ef of (ab.effects || [])) {
             if (ef.op !== 'playFrom' && ef.op !== 'playFromTop') continue;
+            // (a card's words about itself on top of the library say nothing on the battlefield)
+            if (ef.self) continue;
             if (ef.zone === 'exiledCounter') {
               if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId) || (ef.owned && o.owner !== playerId)) continue;
               // Haldan, Avid Arcanist: "cards you exiled" (exiledByYou)
@@ -19092,6 +19101,17 @@
            them says so in the next sentence, which is its own effect. */
         case 'lookTop': {
           const k = Math.max(1, n(e.n) || 1);
+          // Case the Joint: "look at the top card of each player's library" — all of them at once, to the one looking
+          if (e.who === 'each') {
+            const tops = this.players.filter(q => !q.hasLost).map(q => this.zones[q.id].library[0]).filter(Boolean);
+            if (!tops.length) break;
+            this._know(tops, ctx.controller);
+            const seen = this._ask({ type: 'arrange', playerId: ctx.controller, count: tops.length, look: true,
+              cards: tops.map(c => ({ id: c.id, name: c.name, card: c.card })), prompt: `Look at the top card of each player's library.` }, 'lookEach');
+            if (seen === SUSPEND) return SUSPEND;
+            this.logEvent('rules', `${me.name} looks at the top card of each player's library.`);
+            break;
+          }
           // Mishra's Bauble: "of target player's library"
           const whose = e.who === 'target' ? firstPlayer() : me;
           if (!whose) break;
@@ -23882,21 +23902,45 @@
           break;
         }
         // Jace, the Mind Sculptor: a look at someone's top card, which may go to the bottom
+        /* Jace, the Mind Sculptor: "Look at the top card of target player's library. You may put that card on the bottom of
+           that player's library." — the card is known to the one who looked while it stays on top. Coral Fighters: the
+           defending player's (who); Eye Spy: "into their graveyard" (to); Wand of Denial: "If it's a nonland card, you may
+           pay 2 life. If you do, put it into …" (filter, payLife) */
         case 'fateseal': {
-          const p = firstPlayer() || me;
+          const p = e.who === 'defending' ? (this._defenderOf(src) || firstPlayer()) : (firstPlayer() || me);
+          if (!p) break;
           const top = this.zones[p.id].library[0];
           if (!top) break;
-          this.logEvent('rules', `${me.name} looks at the top card of ${p.id === me.id ? 'their' : p.name + "'s"} library.`);
+          const whose = p.id === me.id ? 'your' : p.name + "'s";
+          if (!this._doneHere('fsLook')) this.logEvent('rules', `${me.name} looks at the top card of ${p.id === me.id ? 'their' : p.name + "'s"} library.`);
+          this._know(top, ctx.controller);
+          const toGy = e.to === 'graveyard';
+          if (e.filter && !this._cardFitsWords(top, e.filter)) {
+            // (nothing to decide: still the looker's to see)
+            this._ask({ type: 'arrange', playerId: ctx.controller, count: 1, look: true, cards: [{ id: top.id, name: top.name, card: top.card }],
+              prompt: `The top card of ${whose} library.` }, 'fsSeen');
+            break;
+          }
+          if (e.payLife && !(me.life >= e.payLife && !this._lifeFrozen(me))) break;
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'fateseal', card: top.card, cardId: top.id,
-            prompt: `Put ${top.name} on the bottom of ${p.id === me.id ? 'your' : p.name + "'s"} library?` }, 'fs');
+            prompt: e.payLife ? `Pay ${e.payLife} life to put ${top.name} into ${whose} graveyard?`
+              : `Put ${top.name} ${toGy ? 'into ' + whose + ' graveyard' : 'on the bottom of ' + whose + ' library'}?` }, 'fs');
           if (yes === SUSPEND) return SUSPEND;
           if (yes && top.zone === 'library') {
-            const lib = this.zones[p.id].library;
-            lib.splice(lib.indexOf(top), 1); lib.push(top);
-            this.logEvent('rules', `${me.name} puts the card on the bottom.`);
+            if (e.payLife) this.changeLife(me, -e.payLife, 'cost');
+            if (toGy) {
+              this.moveObject(top, 'graveyard');
+              this.logEvent('zone', `${me.name} puts ${top.name} into ${p.id === me.id ? 'their' : p.name + "'s"} graveyard.`);
+            } else {
+              const lib = this.zones[p.id].library;
+              lib.splice(lib.indexOf(top), 1); lib.push(top);
+              this.logEvent('rules', `${me.name} puts the card on the bottom.`);
+            }
           }
           break;
         }
+        // Lumbering Laundry: "Until end of turn, you may look at face-down creatures you don't control any time."
+        case 'seeFaceDownTurn': me.seeFaceDownTurn = this.turn; this.logEvent('rules', `${me.name} may look at face-down creatures this turn.`); break;
         // Jace, the Mind Sculptor: a whole library exiled
         case 'exileLibrary': {
           const p = e.who === 'you' ? me : firstPlayer();
@@ -24726,7 +24770,9 @@
           break;
         }
         case 'reveal': {
-          const from = this.zones[ctx.controller][e.from === 'library' ? 'library' : 'hand'] || [];
+          // (Prophecy: "the top card of target opponent's library")
+          const revP = e.who === 'target' ? (firstPlayer() || me) : me;
+          const from = this.zones[revP.id][e.from === 'library' ? 'library' : 'hand'] || [];
           const shown = from.slice(0, n(e.n)).map(o => o.name);
           this._know(from.slice(0, n(e.n)), '*');
           // "Reveal the top card of your library. If it's a creature card, …"
@@ -24734,7 +24780,7 @@
           /* Nissa's Revelation, Interpret the Signs, Sifter Wurm: "equal to its power", "that card's mana
              value" — the one card revealed from the top (revealNotes) */
           if (from.length && e.from === 'library' && n(e.n) === 1) this._noteLastAffected([{ kind: 'object', id: from[0].id }]);
-          this.logEvent('reveal', `${me.name} reveals ${shown.join(', ') || 'nothing'}.`);
+          this.logEvent('reveal', `${revP.name} reveals ${shown.join(', ') || 'nothing'}.`);
           break;
         }
 
@@ -27218,7 +27264,9 @@
            went face down (the leave to cast follows: mayPlayExiled) */
         case 'exileBottomEach': {
           // Ixhel, Scion of Atraxa: "each opponent who has three or more poison counters exiles the top card" (minPoison, top)
-          const who = (e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost) : [me])
+          const who = (e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost)
+            // Extract Power: "the top card of each player's library"
+            : e.who === 'each' ? this.players.filter(q => !q.hasLost) : [me])
             .filter(q => !e.minPoison || (q.poison || 0) >= e.minPoison);
           const out = [];
           for (const pl of who) {
@@ -27232,7 +27280,7 @@
           }
           this._lastExiledList = out;
           this._lastExiled = out.length ? out[out.length - 1] : null;
-          if (who.length || !e.minPoison) this.logEvent('exile', `${me.name} exiles the ${e.top ? 'top' : 'bottom'} card of ${who.length === 1 ? who[0].name + "'s library" : "each opponent's library"}${e.faceDown ? ' face down' : ''}.`);
+          if (who.length || !e.minPoison) this.logEvent('exile', `${me.name} exiles the ${e.top ? 'top' : 'bottom'} card of ${who.length === 1 ? who[0].name + "'s library" : e.who === 'each' ? "each player's library" : "each opponent's library"}${e.faceDown ? ' face down' : ''}.`);
           break;
         }
         case 'exileTop': {
@@ -30947,7 +30995,22 @@
           this.logEvent('rules', `${to.name} gets the gift: ${g === 'card' ? 'a card' : g === 'extra turn' ? 'an extra turn' : 'a ' + g}.`);
           break;
         }
-        case 'shuffle': this.rng.shuffle(this.zones[ctx.controller].library); this.emit('sfx', 'shuffle'); break;
+        // (Prophecy: "Then that player shuffles." — the player aimed at)
+        case 'shuffle': this.rng.shuffle(this.zones[(e.who === 'target' && firstPlayer() ? firstPlayer() : me).id].library); this.emit('sfx', 'shuffle'); break;
+        /* Spy Network: "and any face-down creatures they control" — shown to the one who looked, for as long as each stays face
+           down on the battlefield (knownTo) */
+        case 'lookFaceDown': {
+          const p = e.who === 'target' ? firstPlayer() : me;
+          if (!p) break;
+          const fd = this.battlefield.filter(o => o.controller === p.id && o.faceDown && !o.phasedOut);
+          for (const o of fd) this._setKnown(o, [ctx.controller]);
+          if (fd.length && p.id !== ctx.controller) {
+            const seen = this._ask({ type: 'arrange', playerId: ctx.controller, count: fd.length, look: true,
+              cards: fd.map(o => ({ id: o.id, name: o.card.name, card: o.card })), prompt: `${p.name}'s face-down creatures.` }, 'lookFd');
+            if (seen === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
         case 'noop': break;
         case 'etbTapped': case 'cantBlock': case 'cantAttack': case 'mustAttack':
         case 'anthem': case 'equipBonus': case 'auraBonus': case 'enchant': case 'equip':
@@ -34379,6 +34442,13 @@
         return !!e && this._peekTopFits(e, o, top) && (e.who === 'all' || (e.revealed && o.controller === ownerId));
       });
     }
+    /** Lens of Clarity, Keeper of the Lens, Lumbering Laundry: may this player look at face-down creatures they don't control? */
+    _seesFaceDown(pid) {
+      const p = this.player(pid);
+      if (!p) return false;
+      if (p.seeFaceDownTurn === this.turn) return true;
+      return this.battlefield.some(o => o.controller === pid && !o.phasedOut && !!this._staticOp(o, 'seeFaceDown'));
+    }
     /** May `viewer` see the top card of `ownerId`'s library now: something lets them, or they know that card. */
     _topCardVisible(ownerId, viewer) {
       const top = (this.zones[ownerId] || { library: [] }).library[0];
@@ -34445,7 +34515,10 @@
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
          so the card cannot be read off the wire. */
-      const secret = (o) => ((o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId) ||
+      // Lens of Clarity, Keeper of the Lens: face-down creatures, to the one who may look at them (seeFaceDown)
+      const seesDown = this._seesFaceDown(playerId);
+      const secret = (o) => ((o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId &&
+          !(o.faceDown && o.zone === 'battlefield' && (seesDown || this._knows(o, playerId)))) ||
         /* exiled face down, a card is nobody's to see but the player allowed to look at or play it, or
            whose hideaway holds it (CR 406.3) — Gonti, Lord of Luxury's opponent included */
         (o.zone === 'exile' && !!o.faceDownExile && o.lookableBy !== playerId && o.impulseBy !== playerId && o.freeCastBy !== playerId &&
