@@ -1708,6 +1708,15 @@
       if (i < 0) i = opts.findIndex(o => o && o.kind !== '+1/+1');
       return { picks: [i < 0 ? 0 : i] };
     },
+    /* Borborygmos and Fblthp: land cards discarded for damage — those beyond what we still need to play, and only with
+       a creature of theirs to hit (discardAnyOf) */
+    discardAnyOf(s) {
+      const g = this.game;
+      if (!g.battlefield.some(x => x.controller !== this.pid && (g.characteristics(x) || {}).isCreature)) return { picks: [] };
+      const lands = g.battlefield.filter(x => x.controller === this.pid && (g.characteristics(x) || {}).isLand).length;
+      const items = (s.items || []).map(it => it.id || it);
+      return { picks: items.slice(0, Math.max(0, items.length - (lands >= 5 ? 0 : 1))) };
+    },
     /* Isu the Abominable: "you may pay {G}, {W}, or {U}" — paid, with the first of them we can (mayPayOneOf) */
     mayPayOneOf(s) {
       const i = (s.options || []).findIndex(o => o && o.mana);

@@ -6142,6 +6142,14 @@
         : { op: 'massReanimate', filter: m[1].trim().toLowerCase(), maxMv: +m[2], yours: true }) },
     { re: /^(?:Then )?[Rr]eturn all ((?:land|creature|artifact|enchantment|permanent|nonland permanent)(?: (?:and\/or|and) (?:land|creature|artifact|enchantment))?) cards from your graveyard to the battlefield( tapped)?(?: under your control)?\.?$/,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ (?:and\/or|and) /g, ' or '), yours: true, tapped: !!m[2] }) },
+    /* Borborygmos and Fblthp: "draw a card, then you may discard any number of land cards." — picked, none too (discardAnyOf) */
+    { re: /^Draw a card, then you may discard any number of (land|creature|nonland|artifact) cards\.?$/i,
+      make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'discardAnyOf', filter: m[1].toLowerCase() }] },
+    /* Borborygmos and Fblthp: "When you discard one or more cards this way, Borborygmos and Fblthp deals twice that much
+       damage to target creature." — a reflexive trigger, only if some were; "that much" is how many (ifDiscardedAny) */
+    { re: /^When you discard one or more cards this way, CARDNAME deals twice that much damage to (target creature|any target)\.?$/i,
+      make: (m) => ({ op: 'reflexive', ifDiscardedAny: true, text: m[0],
+        effects: [{ op: 'damage', n: { triggerAmount: true, mult: 2 }, targets: [targetSpec(m[1])] }] }) },
     /* The Ancient One: "Draw a card, then discard a card. When you discard a card this way, target player mills
        cards equal to its mana value." — a reflexive trigger about the card discarded, none if none was (ifDiscarded) */
     // (Evie Frye: "When you discard a creature card this way, target creature you control can't be blocked this turn." — discardFilter)
@@ -16270,8 +16278,9 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to a creature,? /i, event: 'dealsDamageToCreature', self: true,
       aboutObject: true, extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
     // Sosuke, Son of Seshiro: "Whenever a Warrior you control deals combat damage to a creature," — the creature hit (dmgSourceYourType)
-    { re: /^Whenever an? ([A-Z][a-z]+) you control deals combat damage to a creature,? /, event: 'dealsDamageToCreature',
-      aboutObject: true, extraOf: (m) => ({ combatOnly: true, dmgSourceYourType: m[1] }) },
+    // (Ohabi Caleria: "Whenever an Archer you control deals damage to a creature," — any damage)
+    { re: /^Whenever an? ([A-Z][a-z]+) you control deals (combat )?damage to a creature,? /, event: 'dealsDamageToCreature',
+      aboutObject: true, extraOf: (m) => Object.assign({ dmgSourceYourType: m[1] }, m[2] ? { combatOnly: true } : {}) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes monstrous,? /i, event: 'becomesMonstrous', self: true },
     { re: /^When(?:ever)? you scry or surveil,? /i, event: 'youScry', also: 'youSurveil' },
     { re: /^When(?:ever)? you scry,? /i, event: 'youScry' },
@@ -19361,6 +19370,11 @@
     if ((mm0 = rest.match(/ with base power (\d+)$/i))) { sc.basePower = +mm0[1]; rest = rest.slice(0, mm0.index); }
     // Duskana, the Rage Mother: "each creature you control with base power and toughness 2/2" (baseToughness too)
     if ((mm0 = rest.match(/ with base power and toughness (\d+)\/(\d+)$/i))) { sc.basePower = +mm0[1]; sc.baseToughness = +mm0[2]; rest = rest.slice(0, mm0.index); }
+    // Zar Ojanen, Scion of Efrava: "with toughness less than the number of basic land types among lands you control" (toughnessBelow)
+    if ((mm0 = rest.match(/ with toughness less than (the number of .+)$/i)) && amountOf(mm0[1]) && typeof amountOf(mm0[1]) === 'object') {
+      sc.toughnessBelow = amountOf(mm0[1]);
+      rest = rest.slice(0, mm0.index);
+    }
     // who controls them
     // Curse of Death's Hold: "Creatures enchanted player controls"
     const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
@@ -21062,6 +21076,8 @@
         eff: { op: 'chooseOnEnter', what: 'parity' }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a number between (\d+) and (\d+)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'number', min: +m[1], max: +m[2] }), auto: true },
+      // Wonder Man, Hollywood Hero: "Each power-up ability of permanents you control can be activated an additional time." (powerUpExtra)
+      { re: /^Each power-up ability of permanents you control can be activated an additional time\.?$/i, eff: { op: 'powerUpExtra' }, auto: true },
       // Haktos the Unscarred: "As Haktos enters, choose 2, 3, or 4 at random." — nobody chooses (random)
       { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose ((?:\d+, )+)or (\d+) at random\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: 'number', random: true, values: m[1].split(/, /).filter(Boolean).map(Number).concat([+m[2]]) }), auto: true },
@@ -22648,6 +22664,9 @@
           return { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', legendary: true }, pt: { p: c, t: Object.assign({}, c) } }; }, auto: true },
       { re: /^Untap all (artifacts|creatures|permanents) you control during each other player'?s untap step\.?$/i,
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase().replace(/s$/, '') }), auto: true },
+      // Ohabi Caleria: "Untap all Archers you control during each other player's untap step." — a creature type
+      { re: /^Untap all ([A-Z][a-z]+) you control during each other player'?s untap step\.?$/,
+        make: (m) => ({ op: 'untapOnEveryUntapStep', filter: singularType(m[1]).toLowerCase() }), auto: true },
       // Prop Room: "Untap each creature you control during each other player's untap step."
       { re: /^Untap each (artifact|creature|permanent) you control during each other player'?s untap step\.?$/i,
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase() }), auto: true },

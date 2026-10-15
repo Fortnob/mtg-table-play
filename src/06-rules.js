@@ -9637,6 +9637,11 @@
       const used = ab.cost && ab.cost.label;
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
       if (used === 'exhaust' || used === 'power-up') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
+      // (Wonder Man, Hollywood Hero: power-up counted, for "an additional time" — powerUpExtra)
+      if (used === 'power-up') {
+        const pu = (o._powerUpUses = o._powerUpUses || {})[ab.text];
+        o._powerUpUses[ab.text] = { entered: o.entered, n: (pu && pu.entered === o.entered ? pu.n : 0) + 1 };
+      }
       if (ab.only && ab.only.once) { o._usedOnce = o._usedOnce || {}; o._usedOnce[ab.text] = o.entered; }
       // "only once each turn", "no more than twice each turn" — and Dragon Whelp's "activated four or more times this turn": every ability counted
       if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
@@ -10106,7 +10111,13 @@
       }
       if (label === 'exhaust' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That exhaust ability has been used.';
       // power-up: once, as exhaust is
-      if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) return 'That power-up ability has been used.';
+      // (Wonder Man, Hollywood Hero: "Each power-up ability of permanents you control can be activated an additional time." — powerUpExtra)
+      if (label === 'power-up' && o._exhausted && o._exhausted[ab.text] === o.entered) {
+        const pu = (o._powerUpUses || {})[ab.text];
+        const uses = pu && pu.entered === o.entered ? pu.n : 1;
+        const extra = this.battlefield.filter(x => x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'powerUpExtra')).length;
+        if (uses >= 1 + extra) return 'That power-up ability has been used.';
+      }
       // Kang the Conqueror: "During that turn, power-up abilities can't be activated." (noPowerUpTurn)
       if (label === 'power-up' && this.noPowerUpTurn && this.noPowerUpTurn === this.turn) return "Power-up abilities can't be activated this turn.";
       if (ab && ab.only && ab.only.once && o._usedOnce && o._usedOnce[ab.text] === o.entered) return 'That ability can be activated only once.';
@@ -25971,6 +25982,26 @@
           }
           break;
         }
+        /* Borborygmos and Fblthp: "you may discard any number of land cards" — any of them, or none; "this way" is
+           those (discardAnyOf) */
+        case 'discardAnyOf': {
+          const r0 = this.resolving;
+          const slot = r0 ? r0.index + ':dao' : null;
+          if (r0 && r0.marks && r0.marks[slot]) break;
+          const pool = this.zones[ctx.controller].hand.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          let picks = [];
+          if (pool.length) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'discardAnyOf', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may discard any number of ${e.filter || ''} cards.`.replace(/  +/g, ' ') }, 'dao');
+            if (got === SUSPEND) return SUSPEND;
+            picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x) && x.zone === 'hand');
+          }
+          if (r0) { r0.marks = r0.marks || {}; r0.marks[slot] = true; }
+          if (picks.length) this._discardNow(ctx.controller, picks);
+          this._lastDiscarded = picks.map(x => x.id);
+          break;
+        }
         // Brass's Tunnel-Grinder: enough counters, and they come off as it transforms
         case 'countersThenTransform': {
           if (!src || src.zone !== 'battlefield' || (Number(src.counters[e.kind]) || 0) < e.n) break;
@@ -27785,6 +27816,9 @@
           // The Ancient One: "When you discard a card this way" — only if one was, and "its" is that card (ifDiscarded)
           const tossed = e.ifDiscarded ? (this._lastDiscarded || [])[0] : null;
           if (e.ifDiscarded && !tossed) break;
+          // Borborygmos and Fblthp: "When you discard one or more cards this way" — only if some were; "that much" is how many (ifDiscardedAny)
+          const discN = e.ifDiscardedAny ? (this._lastDiscarded || []).length : 0;
+          if (e.ifDiscardedAny && !discN) break;
           // Saruman of Many Colors: "When one or more cards are milled this way" — only if some were (ifMilled)
           if (e.ifMilled && !(this._lastMilled || []).length) break;
           // Ratonhnhaké꞉ton: "create … token. When you do, …" — only if one was made, and "that token" is it (madeObject)
@@ -27821,7 +27855,7 @@
               : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
               putOne ? { objectId: putOne } : {},
-              sacN ? { amount: sacN } : {},
+              sacN ? { amount: sacN } : {}, discN ? { amount: discN } : {},
               // Hawkeye, Master Marksman: "choose up to that many" — the times paid (amountX)
               e.amountX ? { amount: Number(ctx.x) || 0 } : {}) });
           break;
@@ -35074,6 +35108,13 @@
           ? (parseInt(oa.toughness, 10) || 0) + (Number(o.counters['+1/+1']) || 0) - (Number(o.counters['-1/-1']) || 0)
           : this.toughnessOf(o);
         if (tg > sc.maxToughness) return false;
+      }
+      // Zar Ojanen, Scion of Efrava: "with toughness less than the number of basic land types among lands you control" (toughnessBelow)
+      if (sc.toughnessBelow != null) {
+        const tg = inLayers
+          ? (parseInt(oa.toughness, 10) || 0) + (Number(o.counters['+1/+1']) || 0) - (Number(o.counters['-1/-1']) || 0)
+          : this.toughnessOf(o);
+        if (!(tg < this._countValue(sc.toughnessBelow, pid, src, inLayers))) return false;
       }
       // Raggadragga, Goreguts Boss: "Each creature you control with a mana ability" (withManaAbility)
       if (sc.withManaAbility && !this._hasManaAbility(o, oa, inLayers)) return false;
