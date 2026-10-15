@@ -99,6 +99,11 @@ const U = MTG.util = {
   priceSymbol(cur) {
     return { usd: '$', eur: '\u20ac', tix: '' }[cur || MTG.settings.priceCurrency || 'usd'] || '$';
   },
+  /** Dearest first, for a sort: a card with no price after every card with one. */
+  byPriceDesc(a, b, cur) {
+    const x = MTG.util.priceOf(a, cur), y = MTG.util.priceOf(b, cur);
+    return ((x == null) - (y == null)) || ((y || 0) - (x || 0));
+  },
   money(n, cur) {
     if (n == null) return '\u2014';
     const sym = MTG.util.priceSymbol(cur);
@@ -257,7 +262,10 @@ const defaultSettings = {
   deckSort: 'recent',
   deckFilter: 'all',
   rulePresets: {},               // formatId -> [{name, rules}] the host saved
-  showCardPrices: false,         // a price on every line of the decklist
+  showCardPrices: false,         // a price on every card: the decklist, its search, the collection
+  deckListSort: 'type',          // the deck builder's list: 'type' | 'mv' | 'name' | 'color' | 'rarity' | 'price'
+  searchSort: 'color',           // the deck builder's card search: 'color' | 'price' | 'name'
+  collectionSort: 'color',       // the Collection's order (COL_SORTS in src/10d-ui-store.js)
   priceCurrency: 'usd',          // 'usd' | 'eur' | 'tix'
   chaosPool: null,               // {preset, sets:[code]} for chaos draft
   compactZones: false,

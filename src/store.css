@@ -384,6 +384,12 @@ html[data-play="1"] .shard-chip { display: none; }
 .col-pips i { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: rgba(255,255,255,.13); }
 .col-pips i.on { background: linear-gradient(135deg, #fff1c2, var(--gold-hi, #f3cf7a)); box-shadow: 0 0 6px rgba(255, 210, 120, .75); }
 .col-sort { min-width: 0 !important; }
+/* a card's price, beside its copies */
+.col-pips { align-items: center; }
+.col-price { margin-left: 4px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: #e9ffe9; line-height: 1; }
+.col-price.none { color: #b9c0cc; font-weight: 600; }
+.col-filters .col-show-price { white-space: nowrap; }
+.col-filters .col-show-price input, :root[data-phone] .col-filters .col-show-price input { width: 16px; min-width: 0; flex: none; }
 /* the rarity chips: each letter in its rarity's colour, lit when chosen (outranking the plain chip's colours) */
 .seg.mini.rar-chips .seg-btn[class*="rar-"] { font-weight: 800; min-width: 30px; }
 .seg.mini.rar-chips .seg-btn.rar-common { color: #e4e7ec; }

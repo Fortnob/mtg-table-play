@@ -1182,6 +1182,8 @@ Sideboard
             el('button', { class: 'btn sm primary grow', text: '+ Add cards', onclick: addCard }),
             el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
           ]),
+          // the order of the list below, and prices on it
+          deck.main.length || deck.sideboard.length ? sortControls(left) : null,
         ]));
 
       if (!drafted && !deck.main.length && !deck.commanders.length) left.appendChild(startHere());
@@ -1224,30 +1226,30 @@ Sideboard
         }
       }
 
-      const groups = U.groupBy(deck.main, e => primaryType(e.card));
-      for (const g of TYPE_ORDER) {
-        const list = groups.get(g);
-        if (!list || !list.length) continue;
-        const n = U.sum(list.map(e => e.qty));
-        const on = highlight && highlight.kind === 'type' && highlight.value === g;
-        left.appendChild(el('button', {
+      const sortMode = UI.deckListSort();
+      for (const sec of UI.deckSections(deck.main, sortMode)) {
+        const head = `${sec.label} · ${U.sum(sec.items.map(e => e.qty))}${sectionPrice(sec.items)}`;
+        // a section of one card type is a button that marks its cards, as it always was
+        const g = sec.type;
+        const on = g && highlight && highlight.kind === 'type' && highlight.value === g;
+        left.appendChild(g ? el('button', {
           type: 'button',
           class: 'section-title as-button' + (on ? ' on' : ''),
-          text: `${TYPE_PLURAL[g] || g} · ${n}`,
+          text: head,
           title: `Mark every ${g.toLowerCase()} in this deck`,
           onclick: () => setHighlight('type', g),
-        }));
-        for (const e of UI.sortCards(list, 'cmc')) left.appendChild(entryRow(e));
+        }) : el('div', { class: 'section-title', text: head }));
+        for (const e of sec.items) left.appendChild(entryRow(e));
       }
       if (deck.sideboard && deck.sideboard.length) {
-        left.appendChild(el('div', { class: 'section-title', text: `${drafted ? 'Your pool' : 'Sideboard'} · ${U.sum(deck.sideboard.map(e => e.qty))}` }));
-        if (drafted && MTG.sealed) {
+        left.appendChild(el('div', { class: 'section-title', text: `${drafted ? 'Your pool' : 'Sideboard'} · ${U.sum(deck.sideboard.map(e => e.qty))}${sectionPrice(deck.sideboard)}` }));
+        if (drafted && MTG.sealed && sortMode === 'type') {
           // the pool laid out as on the table: a colour at a time, creatures first, cheapest first
           for (const col of MTG.sealed.columns(deck.sideboard, e => e.card)) {
             left.appendChild(el('div', { class: 'pool-sub', text: `${col.label} · ${U.sum(col.items.map(e => e.qty))}` }));
             for (const e of col.items) left.appendChild(entryRow(e));
           }
-        } else for (const e of UI.sortCards(deck.sideboard, 'cmc')) left.appendChild(entryRow(e));
+        } else for (const e of UI.sortCards(deck.sideboard, sortMode === 'type' || sortMode === 'mv' ? 'cmc' : sortMode)) left.appendChild(entryRow(e));
       }
       left.scrollTop = listTop;
       if (justAdded) {
@@ -1437,10 +1439,12 @@ Sideboard
 
       const gBox = el('section', { class: 'panel' });
       gBox.appendChild(el('h3', null, [el('span', { text: 'Cards' }), el('span', { class: 'tiny dim', text: 'Click a card to choose its art.' })]));
+      // laid out in the order the list is in
+      if (deck.main.length) gBox.appendChild(sortControls(paneCards));
       const grid = el('div', { class: 'card-grid' });
       const seen = new Set();
       for (const c of deck.commanders) { grid.appendChild(cardTile(c, true)); seen.add(c.id); }
-      for (const e of UI.sortCards(deck.main, 'cmc')) {
+      for (const sec of UI.deckSections(deck.main, UI.deckListSort())) for (const e of sec.items) {
         if (seen.has(e.card.id)) continue;
         seen.add(e.card.id);
         grid.appendChild(cardTile(e.card, false, e.qty));
@@ -1454,6 +1458,40 @@ Sideboard
       else if (activePane === 'advisor') advisor.refresh(validation);
       else advisor.refreshLocalOnly(validation);
       for (const p of extra) if (p.live && p.live.refresh) p.live.refresh();
+    }
+
+    /**
+     * Over the list and over the card grid: the order the deck is laid out
+     * in, and a price on every card (with what the deck costs beside it).
+     * Both are remembered, and both places show the same.
+     */
+    function sortControls(host) {
+      const sel = el('select', { class: 'col-sort deck-sort', 'aria-label': 'Sort the deck by' },
+        DECK_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: v === UI.deckListSort() })));
+      // (the list is drawn again, so the keyboard is given back to the control it was on)
+      const again = (sel2) => { render(); const n = host.querySelector(sel2); if (n) n.focus(); };
+      sel.addEventListener('change', () => { MTG.setSetting('deckListSort', sel.value); again('.deck-sort'); });
+      const on = !!MTG.settings.showCardPrices;
+      const box = el('input', { type: 'checkbox', checked: on });
+      box.addEventListener('change', () => { MTG.setSetting('showCardPrices', box.checked); again('.deck-show-price input'); });
+      const money = on ? U.deckPrice(deck) : null;
+      return el('div', { class: 'deck-head-row deck-sort-row' }, [
+        sel,
+        el('label', { class: 'inline-check deck-show-price', title: 'Each card\u2019s price from Scryfall, and what the deck costs' }, [box, el('span', { text: 'Show price' })]),
+        money ? el('span', {
+          class: 'deck-total',
+          title: money.unpriced
+            ? `What this deck costs, from Scryfall. ${money.unpriced} card${money.unpriced === 1 ? ' has' : 's have'} no price on Scryfall and ${money.unpriced === 1 ? 'is' : 'are'} not counted.`
+            : 'What this deck costs, from Scryfall.',
+        }, [el('b', { text: U.money(money.total) }), money.unpriced ? el('i', { text: ` +${money.unpriced} unpriced` }) : null].filter(Boolean)) : null,
+      ].filter(Boolean));
+    }
+    /** What a section's cards cost together, after its count, while prices are shown. */
+    function sectionPrice(items) {
+      if (!MTG.settings.showCardPrices) return '';
+      let total = 0, any = false;
+      for (const e of items) { const p = U.priceOf(e.card); if (p != null) { total += p * e.qty; any = true; } }
+      return any ? ' · ' + U.money(total) : '';
     }
 
     /** The deck's automation share under its size: a tap marks the cards that need a hand. */
@@ -1519,6 +1557,7 @@ Sideboard
       const slot = applyHighlight(UI.cardSlot(card, { isCommander: isCmd }, { size: 'normal' }), card);
       if (qty > 1) slot.appendChild(el('div', { class: 'badge-row' }, el('span', { class: 'badge', text: '×' + qty })));
       slot.appendChild(UI.autoBadge(card, { corner: true }));
+      if (MTG.settings.showCardPrices) slot.appendChild(UI.priceTag(card));
       slot.style.cursor = 'pointer';
       slot.addEventListener('click', async () => {
         const picked = await UI.pickArt(card);
@@ -1561,7 +1600,8 @@ Sideboard
         UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
         MTG.settings.showCardPrices
-          ? el('span', { class: 'tiny price', text: U.money(U.priceOf(e.card)) })
+          ? el('span', Object.assign({ class: 'tiny price', text: U.money(U.priceOf(e.card)) },
+            U.priceOf(e.card) == null ? { title: 'Scryfall has no price for this card' } : {}))
           : null,
         !isCmd && !drafted ? el('span', { class: 'qty-ctl' }, [
           el('button', { type: 'button', class: 'qty-btn', text: '\u2212', title: `One fewer ${e.card.name}`, 'aria-label': `One fewer ${e.card.name}`,
@@ -1663,6 +1703,63 @@ Sideboard
     return 'Other';
   }
 
+  /* ---------------- the order of the deck list ----------------
+     By type is the list as it always was: creatures, then the rest, a
+     section each. The other orders lay out the spells by what they say
+     (a section for each mana value, colour or rarity; by name or by
+     price, one run), and the lands stay together after them whatever the
+     order, as they are in the type list. */
+  const DECK_SORTS = [['type', 'Type'], ['mv', 'Mana value'], ['name', 'Name'], ['color', 'Colour'], ['rarity', 'Rarity'], ['price', 'Price']];
+  UI.DECK_SORTS = DECK_SORTS;
+  const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G', 'M', 'C'];
+  const COLOUR_LABEL = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', M: 'Multicolour', C: 'Colourless' };
+  const RARITY_LABEL = ['Mythic', 'Special', 'Rare', 'Uncommon', 'Common', 'Other'];
+  /** A card's colour as the collection sorts it: one of the five, several (M), or none (C). */
+  function colourOf(card) {
+    const cs = (card && (card.colors || (card.card_faces && card.card_faces[0] && card.card_faces[0].colors))) || [];
+    return cs.length > 1 ? 'M' : cs.length ? cs[0] : 'C';
+  }
+  /** The sort the deck list is in: the one remembered, or by type. */
+  UI.deckListSort = () => (DECK_SORTS.some(x => x[0] === MTG.settings.deckListSort) ? MTG.settings.deckListSort : 'type');
+  /**
+   * The deck's cards in sections, in the order `mode` asks (UI.DECK_SORTS):
+   * [{ key, label, type?, items }], `type` set on a section of one card type.
+   */
+  UI.deckSections = function (list, mode) {
+    mode = DECK_SORTS.some(x => x[0] === mode) ? mode : 'type';
+    const out = [];
+    if (mode === 'type') {
+      const groups = U.groupBy(list, e => primaryType(e.card));
+      for (const g of TYPE_ORDER) {
+        const items = groups.get(g);
+        if (items && items.length) out.push({ key: g, label: TYPE_PLURAL[g] || g, type: g, items: UI.sortCards(items, 'cmc') });
+      }
+      return out;
+    }
+    const lands = list.filter(e => primaryType(e.card) === 'Land');
+    const spells = list.filter(e => primaryType(e.card) !== 'Land');
+    const section = (key, label, items) => { if (items.length) out.push({ key, label, items }); };
+    if (mode === 'mv') {
+      // a section for each mana value, cheapest first, and the X costs after them
+      const sorted = UI.sortCards(spells, 'cmc');
+      const keyOf = (c) => (MTG.mana.hasX(c) ? 'X' : String(Math.floor(c.cmc || 0)));
+      for (const k of U.uniq(sorted.map(e => keyOf(e.card))))
+        section('mv' + k, k === 'X' ? 'X costs' : k + ' mana', sorted.filter(e => keyOf(e.card) === k));
+    } else if (mode === 'color') {
+      for (const c of COLOUR_ORDER) section('c' + c, COLOUR_LABEL[c], UI.sortCards(spells.filter(e => colourOf(e.card) === c), 'cmc'));
+    } else if (mode === 'rarity') {
+      const sorted = UI.sortCards(spells, 'rarity');
+      const at = (e) => Math.min(5, UI.rarityOrder(e.card));
+      for (let r = 0; r <= 5; r++) section('r' + r, RARITY_LABEL[r], sorted.filter(e => at(e) === r));
+    } else {
+      section('spells', 'Nonland cards', UI.sortCards(spells, mode));
+    }
+    // the lands, together: by name, or by colour, rarity or price when that is the order
+    section('Land', TYPE_PLURAL.Land, UI.sortCards(lands, mode === 'mv' || mode === 'color' ? 'name' : mode));
+    if (out.length && out[out.length - 1].key === 'Land') out[out.length - 1].type = 'Land';
+    return out;
+  };
+
   /* ---------------- context menu ---------------- */
   /* A menu of actions. On a desktop it appears at the pointer; on a phone it
      rises from the bottom of the screen as a sheet with thumb-sized rows,
@@ -1757,6 +1854,14 @@ Sideboard
     // your collection: how many of each you own, and only those if you like
     const ec = MTG.economy && MTG.economy.rulesOn() ? MTG.economy : null;
     const ownedOnly = el('input', { type: 'checkbox', checked: !!(ec && MTG.settings.searchOwnedOnly), id: 'cs-owned' });
+    /* the order the results come in: by colour and cost as a shop shelves
+       them, dearest first (a card nobody has priced at the end), or by name */
+    const SEARCH_SORTS = [['color', 'Colour'], ['price', 'Price'], ['name', 'Name']];
+    let sortKey = SEARCH_SORTS.some(x => x[0] === MTG.settings.searchSort) ? MTG.settings.searchSort : 'color';
+    const sortSel = el('select', { class: 'col-sort search-sort', 'aria-label': 'Sort the results by' },
+      SEARCH_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: v === sortKey })));
+    // a price on each result while prices are shown, and always when the results are in price order
+    const pricesOn = () => !!MTG.settings.showCardPrices || sortKey === 'price';
 
     /* Narrowing by what a card is and what it costs is most of searching,
        so those are chips you tap rather than syntax you have to remember.
@@ -1837,6 +1942,7 @@ Sideboard
             [autoOnly, el('span', { text: 'Only cards the game runs fully' })]),
           ec ? el('label', { class: 'inline-check', for: 'cs-owned', title: 'Only cards in your collection' },
             [ownedOnly, el('span', { text: 'Only cards I own' })]) : null,
+          sortSel,
           el('span', { class: 'grow' }),
           status,
         ].filter(Boolean)),
@@ -1868,6 +1974,9 @@ Sideboard
     // the search in flight, cut off when a newer one starts
     let inFlight = null, suggestFlight = null;
     let pager = null, shownN = 0, hiddenN = 0, lastQ = '', lastText = '', busy = 0;
+    /* In price order, a card whose printing here has no price is held back
+       for the end (Scryfall can sort a card by a printing that has one). */
+    let unpriced = [];
     const more = el('div', { class: 'search-more', 'aria-live': 'polite' });
     const run = U.debounce(async () => {
       const q = input.value.trim();
@@ -1876,7 +1985,7 @@ Sideboard
       const mine = ++token;
       if (inFlight) inFlight.abort();
       inFlight = null;
-      pager = null; shownN = 0; hiddenN = 0;
+      pager = null; shownN = 0; hiddenN = 0; unpriced = [];
       results.innerHTML = '';
       more.textContent = '';
       // the end of the list, in it (the list may scroll on its own): reaching it reads in more
@@ -1893,13 +2002,15 @@ Sideboard
       if (only && !query.includes(only)) query += ' ' + only;
       lastQ = q || chips || 'that';
       lastText = !looksLikeQuery && !chips ? q : '';
-      pager = MTG.scry.pager(query.trim(), { order: 'colormv', per: PAGE });
+      pager = MTG.scry.pager(query.trim(), sortKey === 'price' ? { order: MTG.settings.priceCurrency || 'usd', dir: 'desc', per: PAGE }
+        : { order: sortKey === 'name' ? 'name' : 'colormv', per: PAGE });
       await readMore(mine);
     }, 200);
     legalOnly.addEventListener('change', () => run());
     inColor.addEventListener('change', () => run());
     autoOnly.addEventListener('change', () => { MTG.setSetting('searchAutoOnly', autoOnly.checked); run(); });
     ownedOnly.addEventListener('change', () => { MTG.setSetting('searchOwnedOnly', ownedOnly.checked); run(); });
+    sortSel.addEventListener('change', () => { sortKey = sortSel.value; MTG.setSetting('searchSort', sortKey); run(); });
 
     /** The next page in, or more than one when what is left out leaves it thin. */
     async function readMore(mine) {
@@ -1924,8 +2035,13 @@ Sideboard
             break;
           }
           if (mine !== token) return;
+          if (sortKey === 'price') {
+            unpriced.push(...cards.filter(c => U.priceOf(c) == null));
+            cards = cards.filter(c => U.priceOf(c) != null);
+          }
           got += draw(cards);
         }
+        if (pager.done && unpriced.length) { got += draw(unpriced); unpriced = []; }
       } finally { if (busy === mine) busy = 0; }
       if (mine !== token) return;
       results.classList.remove('loading');
@@ -1979,6 +2095,8 @@ Sideboard
           onContext: opts.onRemove ? () => { if (opts.onRemove(c)) { MTG.sfx('click'); redrawCounts(); } } : null,
         });
         slot.appendChild(UI.autoBadge(c, { corner: true }));
+        if (pricesOn()) slot.appendChild(UI.priceTag(c));
+        tile._card = c;
         tile.appendChild(slot);
         tile.appendChild(el('div', { class: 'search-name', text: c.name }));
         // how many you own: four diamonds, lit for each copy (basics: all you like)
@@ -1996,10 +2114,16 @@ Sideboard
     }
     function redrawCounts() {
       const have = opts.inDeck ? opts.inDeck() : new Map();
+      const priced = pricesOn();
       results.querySelectorAll('.search-count').forEach((n) => {
         const q = have.get(n.dataset.id) || 0;
         n.textContent = q ? q + ' in deck' : '';
-        n.closest('.search-card').classList.toggle('have', !!q);
+        const tile = n.closest('.search-card');
+        tile.classList.toggle('have', !!q);
+        // prices shown or hidden since these were laid out
+        const tag = tile.querySelector('.price-tag'), slot = tile.querySelector('.card-slot');
+        if (priced && !tag && slot && tile._card) slot.appendChild(UI.priceTag(tile._card));
+        else if (!priced && tag) tag.remove();
       });
     }
 

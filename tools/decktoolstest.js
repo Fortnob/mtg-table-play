@@ -16,7 +16,10 @@
    - the builder (src/11-ui-deck.js) on a pretend DOM: leaving it with
      changes not saved, by every way out, asks "Leave without saving?",
      and stay, discard and save each do what they say; no question when
-     nothing changed, and the tab's own "leave this page?" while changed.
+     nothing changed, and the tab's own "leave this page?" while changed;
+   - the deck list's order (Sort by: type, mana value, name, colour,
+     rarity, price; lands together, X costs last) and Show price, with
+     the cards nobody has priced sorted last.
 
    node tools/decktoolstest.js            A failure exits non-zero.
    Run by tools/check.py ('decktools'). */
@@ -287,11 +290,8 @@ function importNameChecks() {
   check(D.nameFromCommanders([]) === '', 'no commander: no name, so "Imported deck"');
 }
 
-/* ================= the builder: leaving with changes not saved =================
-   The real builder (src/11-ui-deck.js) on a pretend DOM (tools/fakedom.js),
-   in a page of its own: closed every way there is, with and without
-   changes, and the three answers to "Leave without saving?". */
-async function leaveChecks() {
+/** The app's deck builder (src/11-ui-deck.js) in a page of its own, on a pretend DOM (tools/fakedom.js). */
+function builderPage() {
   const { Document, makeEvent } = require('./fakedom');
   const doc = new Document();
   const store = new Map();
@@ -325,6 +325,14 @@ async function leaveChecks() {
   UI.toast = () => {};
   UI.ok = UI.toast;
   UI.error = UI.toast;
+  return { page, doc, onWindow, makeEvent, P, UI };
+}
+
+/* ================= the builder: leaving with changes not saved =================
+   Closed every way there is, with and without changes, and the three
+   answers to "Leave without saving?". */
+async function leaveChecks() {
+  const { page, doc, onWindow, makeEvent, P, UI } = builderPage();
   const tick = (ms) => new Promise(r => setTimeout(r, ms || 10));
   const windows = () => doc.querySelectorAll('.modal');
   const asking = () => windows().find(m => m.classList.contains('leave-modal')) || null;
@@ -450,8 +458,85 @@ async function leaveChecks() {
   check(!unload(), 'nothing open, nothing to lose');
 }
 
+/* ================= the deck list's order, and prices =================
+   Price sorts dearest first with the cards nobody has priced last; the
+   list's sections in each order, lands kept together and X costs after
+   the rest; the Sort and Show price controls remembered, and the deck's
+   total shown while prices are on. */
+async function sortChecks() {
+  const { doc, makeEvent, P, UI } = builderPage();
+  const tick = (ms) => new Promise(r => setTimeout(r, ms || 10));
+  const U = P.util;
+  const priced = (name, usd) => Object.assign({}, card(name), { prices: { usd: usd == null ? null : String(usd), usd_foil: null, eur: null, tix: null } });
+  const cheap = priced('Grizzly Bears', 0.25), dear = priced('Doubling Season', 34.5), none = priced('Ponder', null), mid = priced('Counterspell', 4);
+  const names = (list) => list.map(x => (x.card || x).name).join(', ');
+  check(names([cheap, none, dear, mid].sort(U.byPriceDesc)) === 'Doubling Season, Counterspell, Grizzly Bears, Ponder',
+    'price: dearest first, no price last', names([cheap, none, dear, mid].sort(U.byPriceDesc)));
+  check(names([none, priced('Lightning Bolt', null)].sort(U.byPriceDesc)) === 'Ponder, Lightning Bolt', 'price: two with none keep their order');
+  const e = (c, qty) => ({ card: c, qty: qty || 1 });
+  check(names(UI.sortCards([e(none), e(cheap), e(dear), e(mid)], 'price')) === 'Doubling Season, Counterspell, Grizzly Bears, Ponder',
+    'the deck list by price: the same', names(UI.sortCards([e(none), e(cheap), e(dear), e(mid)], 'price')));
+
+  // the sections, in every order
+  const fireball = priced('Fireball', 0.3), citadel = priced('Darksteel Citadel', 2.6), arbor = priced('Dryad Arbor', 3.6), forest = priced('Forest', null);
+  const ring = priced('Sol Ring', 1.5), atraxa = priced("Atraxa, Praetors' Voice", 28);
+  const list = [e(fireball), e(citadel), e(arbor), e(forest, 30), e(cheap), e(dear), e(none), e(mid), e(ring), e(atraxa)];
+  const secs = (mode) => UI.deckSections(list, mode).map(sec => sec.label + ': ' + names(sec.items)).join(' | ');
+  check(secs('type') === "Creatures: Grizzly Bears, Atraxa, Praetors' Voice | Instants: Counterspell | Sorceries: Ponder, Fireball | Artifacts: Sol Ring | Enchantments: Doubling Season | Lands: Darksteel Citadel, Dryad Arbor, Forest",
+    'by type, as it always was: an artifact land and Dryad Arbor with the lands, X last among the sorceries', secs('type'));
+  check(UI.deckSections(list, 'nonsense').map(x => x.label).join() === UI.deckSections(list, 'type').map(x => x.label).join(), 'an unknown order is by type');
+  check(secs('mv') === "1 mana: Ponder, Sol Ring | 2 mana: Counterspell, Grizzly Bears | 4 mana: Atraxa, Praetors' Voice | 5 mana: Doubling Season | X costs: Fireball | Lands: Darksteel Citadel, Dryad Arbor, Forest",
+    'by mana value: a section each, X costs after them, the lands together last', secs('mv'));
+  check(secs('color') === "Blue: Ponder, Counterspell | Red: Fireball | Green: Grizzly Bears, Doubling Season | Multicolour: Atraxa, Praetors' Voice | Colourless: Sol Ring | Lands: Darksteel Citadel, Dryad Arbor, Forest",
+    'by colour: the five, then several colours, then none, the lands last', secs('color'));
+  check(secs('price') === "Nonland cards: Doubling Season, Atraxa, Praetors' Voice, Counterspell, Sol Ring, Fireball, Grizzly Bears, Ponder | Lands: Dryad Arbor, Darksteel Citadel, Forest",
+    'by price: dearest first, no price last, and the lands by price after them', secs('price'));
+  check(secs('name') === "Nonland cards: Atraxa, Praetors' Voice, Counterspell, Doubling Season, Fireball, Grizzly Bears, Ponder, Sol Ring | Lands: Darksteel Citadel, Dryad Arbor, Forest",
+    'by name', secs('name'));
+  check(/^Mythic: Atraxa/.test(secs('rarity')) && /Lands: /.test(secs('rarity')), 'by rarity: rarest first', secs('rarity'));
+  check(UI.deckSections(list, 'mv').every(x => x.type === undefined || x.type === 'Land') && UI.deckSections(list, 'type').every(x => !!x.type),
+    'only a section of one card type marks its cards');
+
+  // the builder: the order chosen is the order shown, and remembered
+  const deck = { id: 'sorts', name: 'Sorts', format: 'standard', main: list.map(x => ({ card: x.card, qty: x.qty })), sideboard: [], commanders: [], companion: null };
+  P.setSetting('showCardPrices', false);
+  P.setSetting('deckListSort', 'type');
+  UI.deckBuilder(deck, {});
+  await tick();
+  const b = () => doc.querySelectorAll('.modal').find(m => m.classList.contains('deck-modal'));
+  const heads = () => b().querySelectorAll('.deck-list .section-title').map(n => n.textContent);
+  check(heads()[0] === 'Creatures · 2', 'the list opens by type', heads().join(' | '));
+  const sel = b().querySelector('.deck-list .deck-sort');
+  check(!!sel && sel.querySelectorAll('option').map(o => o.textContent).join(', ') === 'Sort: Type, Sort: Mana value, Sort: Name, Sort: Colour, Sort: Rarity, Sort: Price',
+    'the Sort list over the deck', sel && sel.querySelectorAll('option').map(o => o.textContent).join(', '));
+  sel.value = 'price';
+  sel.dispatchEvent(makeEvent('change'));
+  await tick();
+  check(P.settings.deckListSort === 'price' && heads().join(' | ') === 'Nonland cards · 7 | Lands · 32', 'sorted by price, and remembered', heads().join(' | '));
+  check(b().querySelectorAll('.deck-list .deck-entry .nm').map(n => n.textContent)[0] === 'Doubling Season', 'the dearest card first');
+  check(!b().querySelector('.deck-list .price') && !b().querySelector('.deck-total'), 'no prices until asked for');
+  const box = b().querySelector('.deck-list .deck-show-price input');
+  box.checked = true;
+  box.dispatchEvent(makeEvent('change'));
+  await tick();
+  const total = b().querySelector('.deck-list .deck-total');
+  check(P.settings.showCardPrices === true && b().querySelectorAll('.deck-list .deck-entry .price').length === 10, 'Show price: a price on every line, remembered');
+  check(!!total && /^\$74\.75 \+31 unpriced$/.test(total.textContent), 'and what the deck costs, with how many cards have no price', total && total.textContent);
+  check(heads()[0] === 'Nonland cards · 7 · $68.55', 'each section says what its cards cost', heads()[0]);
+  check(b().querySelectorAll('.card-grid .price-tag').length === 10, 'and every card in the grid has its price on it', b().querySelectorAll('.card-grid .price-tag').length);
+  // closed and opened again: the same order
+  b().querySelector('.modal-x').click(); await tick();
+  UI.deckBuilder(deck, {});
+  await tick();
+  check(heads()[0] === 'Nonland cards · 7 · $68.55', 'opened again, it is still by price with prices shown', heads()[0]);
+  b().querySelector('.modal-x').click(); await tick();
+  P.setSetting('deckListSort', 'type');
+  P.setSetting('showCardPrices', false);
+}
+
 (async () => {
   importNameChecks();
+  await sortChecks();
   await practiceChecks();
   await rulingsChecks();
   await leaveChecks();

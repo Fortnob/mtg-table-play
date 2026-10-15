@@ -649,7 +649,13 @@
         return (pa[P.set] < pb[P.set] ? -1 : pa[P.set] > pb[P.set] ? 1 : 0) || cnCompare(pa[P.collector_number], pb[P.collector_number]);
       };
       const num = (f) => (a, b) => (f(a) - f(b)) || byName(a, b);
-      const price = (pi) => { const pr = P_[pi][P.prices]; const n = pr ? parseFloat(pr[0]) : NaN; return Number.isFinite(n) ? n : Infinity; };
+      // a price in the currency asked (a foil's dollars for a card only printed foil); none is not cheap, so it goes last either way
+      const priceAt = { usd: [0, 1], eur: [2], tix: [3] }[order];
+      const price = (pi) => {
+        const pr = P_[pi][P.prices];
+        for (const k of (pr ? priceAt : [])) { const n = parseFloat(pr[k]); if (Number.isFinite(n)) return n; }
+        return null;
+      };
       let cmp, desc = dir === 'desc';
       switch (order) {
         case 'edhrec': cmp = (a, b) => { const x = r(a).edh, y = r(b).edh; return x === y ? byName(a, b) : x < y ? -1 : 1; }; break;
@@ -669,7 +675,12 @@
           cmp = (a, b) => (grp(r(a).cs[0]) - grp(r(b).cs[0])) || (mv(a) - mv(b)) || byName(a, b);
           break;
         }
-        case 'usd': cmp = num(price); break;
+        case 'usd': case 'eur': case 'tix': {
+          const sign = desc ? -1 : 1;
+          desc = false;
+          cmp = (a, b) => { const x = price(a), y = price(b); return ((x == null) - (y == null)) || sign * ((x || 0) - (y || 0)) || byName(a, b); };
+          break;
+        }
         case 'artist': cmp = (a, b) => String(P_[a][P.artist] || '').localeCompare(String(P_[b][P.artist] || '')) || byName(a, b); break;
         default: cmp = byName;
       }

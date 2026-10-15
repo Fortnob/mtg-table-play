@@ -2655,8 +2655,9 @@
   /* ---------------- the Collection ---------------- */
   // rarities: any number of them at once (none is every rarity); sort: how the cards are laid out
   // colours: any number of them too (none is every colour)
-  const colState = { set: '', rarities: [], colors: [], show: 'owned', q: '', sort: 'color' };
-  const COL_SORTS = [['color', 'Colour'], ['mv', 'Mana value'], ['name', 'Name'], ['rarity', 'Rarity'], ['copies', 'Copies owned'], ['new', 'Newest']];
+  // (the sort is remembered: MTG.settings.collectionSort)
+  const colState = { set: '', rarities: [], colors: [], show: 'owned', q: '', sort: null };
+  const COL_SORTS = [['color', 'Colour'], ['mv', 'Mana value'], ['name', 'Name'], ['rarity', 'Rarity'], ['copies', 'Copies owned'], ['new', 'Newest'], ['price', 'Price']];
   /**
    * The Collection into `host`: the cards you own, or a set's cards with
    * what you lack greyed out; four pips under each for the copies held; a
@@ -2684,9 +2685,17 @@
       colState.colors = colState.colors.includes(c) ? colState.colors.filter(x => x !== c) : colState.colors.concat(c);
       UI.renderCollection(host);
     });
+    if (!colState.sort) colState.sort = COL_SORTS.some(x => x[0] === MTG.settings.collectionSort) ? MTG.settings.collectionSort : 'color';
     const sortSel = el('select', { class: 'col-sort', 'aria-label': 'Sort by' },
       COL_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: colState.sort === v })));
-    sortSel.addEventListener('change', () => { colState.sort = sortSel.value; drawGrid(); });
+    // (the cards may still be loading: what is chosen meanwhile is drawn when they are in)
+    let drawn = null;
+    const redraw = () => { if (drawn) drawn(); };
+    sortSel.addEventListener('change', () => { colState.sort = sortSel.value; MTG.setSetting('collectionSort', colState.sort); redraw(); });
+    // each card's price on its picture (the same choice as the deck builder's)
+    const priceBox = el('input', { type: 'checkbox', checked: !!MTG.settings.showCardPrices });
+    priceBox.addEventListener('change', () => { MTG.setSetting('showCardPrices', priceBox.checked); redraw(); });
+    const priceCheck = el('label', { class: 'inline-check col-show-price', title: 'Each card\u2019s price from Scryfall' }, [priceBox, el('span', { text: 'Show price' })]);
     const grid = el('div', { class: 'col-grid' });
     const status = el('div', { class: 'col-status dim' });
     host.append(el('div', { class: 'collection' }, [
@@ -2695,7 +2704,7 @@
         el('div', { class: 'store-wallet' }, [shards(S.shards()), el('div', { class: 'wc-col' }, [el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), UI.wildcardTrack()])]),
       ]),
       el('div', { class: 'col-filters' }, [
-        setSel, search, sortSel,
+        setSel, search, sortSel, priceCheck,
         rarityChips,
         colourChips,
         colState.set ? chips([['owned', 'Owned'], ['all', 'All'], ['missing', 'Missing']], 'show') : null,
@@ -2704,7 +2713,7 @@
     ]));
     setSel.addEventListener('change', () => { colState.set = setSel.value; colState.show = setSel.value ? 'all' : 'owned'; UI.renderCollection(host); });
     let tm = null;
-    search.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { colState.q = search.value.trim(); drawGrid(); }, 200); });
+    search.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { colState.q = search.value.trim(); redraw(); }, 200); });
 
     let cards = [];
     status.textContent = 'Loading…';
@@ -2750,6 +2759,8 @@
         rarity: (a, b) => (rarityRank(a) - rarityRank(b)) || byColour(a, b) || byMv(a, b) || byName(a, b),
         copies: (a, b) => (S.owned(b.name) - S.owned(a.name)) || byColour(a, b) || byMv(a, b) || byName(a, b),
         new: (a, b) => String(b.released_at || '').localeCompare(String(a.released_at || '')) || byColour(a, b) || byMv(a, b) || byName(a, b),
+        // dearest first; a card with no price after all the priced ones
+        price: (a, b) => U.byPriceDesc(a, b) || byColour(a, b) || byMv(a, b) || byName(a, b),
       };
       list.sort(SORTS[colState.sort] || SORTS.color);
       if (colState.set) {
@@ -2763,6 +2774,7 @@
       for (const c of list.slice(0, shown)) grid.appendChild(colTile(c, host));
       if (list.length > shown) grid.appendChild(el('button', { type: 'button', class: 'btn col-more', text: `Show more (${list.length - shown})`, onclick: () => { shown += 120; drawGrid(); } }));
     };
+    drawn = drawGrid;
     drawGrid();
   };
 
@@ -2799,9 +2811,13 @@
   function colTile(c, host) {
     const S = E();
     const n = Math.min(4, S.owned(c.name));
+    // its price, while prices are shown, in the bar under it with the copies (clear of a card not owned, which is greyed)
+    const price = MTG.settings.showCardPrices ? U.priceOf(c) : undefined;
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
       cardPic(c, 'col-img'),
-      el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' }))),
+      el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' })).concat(price === undefined ? []
+        : [el('span', { class: 'col-price' + (price == null ? ' none' : ''), text: price == null ? 'No price' : U.money(price),
+          title: price == null ? 'Scryfall has no price for this card' : 'Its price on Scryfall' })])),
       UI.wishMark ? UI.wishMark(c.name) : null,
     ]);
     UI.attachPreview(t, c, 0);

@@ -1396,13 +1396,26 @@
     }));
   };
 
+  /** A card's price, as a small tag on its picture (the collection, the deck builder's grids). */
+  UI.priceTag = function (card) {
+    const p = U.priceOf(card);
+    return el('span', { class: 'price-tag' + (p == null ? ' none' : ''), text: p == null ? 'No price' : U.money(p),
+      title: p == null ? 'Scryfall has no price for this card' : 'Its price on Scryfall' });
+  };
+  // rarest first; a special or bonus printing with the mythics' neighbours
+  const RARITY_ORDER = { mythic: 0, special: 1, bonus: 1, rare: 2, uncommon: 3, common: 4 };
+  UI.rarityOrder = (card) => { const r = RARITY_ORDER[card && card.rarity]; return r == null ? 5 : r; };
   UI.sortCards = function (list, mode) {
+    // dearest first, and a card with no price after every card with one
+    const price = (card) => { const p = U.priceOf(card); return p == null ? Infinity : -p; };
     const key = {
       // X costs last: what they cost is up to you
       cmc: (o) => [MTG.mana.sortMv(o.card), o.card.name],
       name: (o) => [o.card.name],
       type: (o) => [(o.card.type_line || ''), MTG.mana.sortMv(o.card)],
       color: (o) => [(o.card.color_identity || []).join(''), MTG.mana.sortMv(o.card)],
+      rarity: (o) => [UI.rarityOrder(o.card), MTG.mana.sortMv(o.card), o.card.name],
+      price: (o) => [price(o.card), MTG.mana.sortMv(o.card), o.card.name],
     }[mode || 'cmc'] || ((o) => [o.card.name]);
     return list.slice().sort((a, b) => {
       const ka = key(a), kb = key(b);
