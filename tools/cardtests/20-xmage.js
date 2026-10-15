@@ -69198,4 +69198,100 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(thopter.name, 'Ornithopter', 'back at end of turn');
   });
+  test('Cards: Powerbalance — an opponent casts a spell: reveal the top card, cast it free if the mana values match', (mk, t) => {
+    t.auto('Powerbalance');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.bf('A', 'Powerbalance');
+    const vis = T.top('A', 'Elvish Visionary');
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.zone(vis, 'library', 'mana value 1 against 2: not cast');
+    t.eq(T.zone('A', 'library')[0], vis, 'still on top');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.zone(vis, 'battlefield', 'mana value 2 against 2: cast free');
+    // A's own spells do not count
+    T.nextTurn('A');
+    const vis2 = T.top('A', 'Elvish Visionary');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.zone(vis2, 'library', 'your own spell: nothing');
+  });
+  test('Cards: Fangs of Kalonia — a +1/+1 counter, then that creature\'s +1/+1 counters doubled; overloaded, each creature you control', (mk, t) => {
+    t.auto('Fangs of Kalonia');
+    const T = mk();
+    const bears = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const elf = T.bf('A', 'Llanowar Elves');
+    const theirs = T.bf('B', 'Hill Giant', { counters: { '+1/+1': 1 } });
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Fangs of Kalonia'), { targets: [bears] });
+    t.eq(bears.counters['+1/+1'], 4, '1 + 1, doubled');
+    t.no(elf.counters['+1/+1'], 'the Elves untouched');
+    T.mana('A', '4GG');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Fangs of Kalonia').id, { via: 'overload', auto: true }), T.g.lastError);
+    T.resolve();
+    t.eq(bears.counters['+1/+1'], 10, 'overloaded: 4 + 1, doubled');
+    t.eq(elf.counters['+1/+1'], 2, '0 + 1, doubled');
+    t.eq(theirs.counters['+1/+1'], 1, "not the opponent's");
+  });
+  test('Cards: Unbound Flourishing — a permanent spell\'s X doubled; an instant, sorcery or ability with {X} copied', (mk, t) => {
+    t.auto('Unbound Flourishing');
+    const T = mk();
+    T.bf('A', 'Unbound Flourishing');
+    const one = T.hand('A', 'Endless One');
+    T.mana('A', '3');
+    T.cast('A', one, { x: 3 });
+    t.eq(one.counters['+1/+1'], 6, 'X 3 doubled: six counters');
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Blaze'), { x: 2, targets: ['B'] });
+    t.eq(T.life('B'), 16, 'Blaze for 2, and its copy');
+    const pin = T.bf('A', 'Helix Pinnacle');
+    T.mana('A', '2');
+    const all = pin.analysis().manaAbilities.concat(pin.analysis().abilities.filter(a => a.kind === 'activated'));
+    T.activate('A', pin, all.findIndex(a => /tower counters/.test(a.text || '')), { x: 2 });
+    t.eq(pin.counters.tower, 4, 'the ability copied');
+    // without {X}: nothing
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 13, 'Lightning Bolt once');
+    T.mana('A', '1G');
+    const bears = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield');
+  });
+  test('Cards: The Chain Veil — each planeswalker one more loyalty ability this turn; 2 life at your end step if you activated none', (mk, t) => {
+    t.auto('The Chain Veil');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    const veil = T.bf('A', 'The Chain Veil');
+    const ajani = T.bf('A', 'Ajani Goldmane');
+    const plus = ajani.analysis().manaAbilities.concat(ajani.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'))
+      .findIndex(a => a.kind === 'loyalty' && /gain 2 life/.test(a.text || ''));
+    T.activate('A', ajani, plus);
+    t.eq(T.life('A'), 22);
+    t.no(g.activateAbility('A', ajani.id, plus, { auto: true }), 'one loyalty ability a turn');
+    T.mana('A', '4');
+    T.activate('A', veil, 0);
+    T.activate('A', ajani, plus);
+    t.eq(T.life('A'), 24, 'once more after The Chain Veil');
+    t.no(g.activateAbility('A', ajani.id, plus, { auto: true }), 'and no more');
+    T.nextTurn('B');
+    t.eq(T.life('A'), 24, 'a loyalty ability was activated: no life lost');
+    // a planeswalker that arrives after the Veil resolved gets nothing extra
+    T.nextTurn('A');
+    veil.tapped = false;
+    T.mana('A', '4');
+    T.activate('A', veil, 0);
+    const ajani2 = T.bf('A', 'Ajani Goldmane');
+    T.activate('A', ajani2, plus);
+    t.no(g.activateAbility('A', ajani2.id, plus, { auto: true }), 'arrived later: one only');
+    // a turn with none activated: 2 life
+    g.moveObject(ajani, 'graveyard'); g.moveObject(ajani2, 'graveyard');
+    T.nextTurn('B');
+    t.eq(T.life('A'), 26, 'activated one that turn: nothing lost');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    t.eq(T.life('A'), 24, 'no loyalty ability this turn: 2 life');
+  });
 };

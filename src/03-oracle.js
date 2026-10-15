@@ -2732,8 +2732,12 @@
         return { op: 'loseLife', who: 'target', n: k, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] };
       } },
     // Invigorating Surge: "Put a +1/+1 counter on target creature you control, then double the number of +1/+1 counters on that creature."
-    { re: /^Put (a|one|two|three) \+1\/\+1 counters? on (target creature(?: you control)?), then double the number of \+1\/\+1 counters on (?:it|that creature)\.?$/i,
-      make: (m) => [{ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: [targetSpec(m[2])] }, { op: 'doubleCounters', kind: '+1/+1', scope: 'lastTarget' }] },
+    /* (Fangs of Kalonia: "… then double the number of +1/+1 counters on each creature that had a +1/+1 counter put on it
+       this way"; overloaded, "on each creature you control" — the same creatures) */
+    { re: /^Put (a|one|two|three) \+1\/\+1 counters? on (target creature(?: you control)?|each creature you control), then double the number of \+1\/\+1 counters on (?:it|that creature|each creature that had a \+1\/\+1 counter put on it this way)\.?$/i,
+      make: (m) => (/^each/i.test(m[2])
+        ? [{ op: 'counters', kind: '+1/+1', n: num(m[1]), scope: 'yourCreatures' }, { op: 'doubleCounters', kind: '+1/+1', scope: 'yourCreatures' }]
+        : [{ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: [targetSpec(m[2])] }, { op: 'doubleCounters', kind: '+1/+1', scope: 'lastTarget' }]) },
     // Revenge of Ravens: "that creature's controller loses 1 life and you gain 1 life"
     { re: /^That creature'?s controller loses (one|two|three|\d+) life( and you gain (one|two|three|\d+) life)?\.?$/i,
       make: (m) => [{ op: 'loseLife', who: 'triggerObjController', n: num(m[1]) }].concat(m[2] ? [{ op: 'gainLife', who: 'you', n: num(m[3]) }] : []) },
@@ -9277,6 +9281,12 @@
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
     // (Magus Lucea Kane: "copy that spell or ability")
     { re: /^Copy (?:that ability|that spell or ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    /* The Chain Veil: "For each planeswalker you control, you may activate one of its loyalty abilities once this turn as
+       though none of its loyalty abilities have been activated this turn." — one more this turn for each (extraLoyalty) */
+    { re: /^For each planeswalker you control, you may activate one of its loyalty abilities once this turn as though none of its loyalty abilities have been activated this turn\.?$/i,
+      make: () => ({ op: 'extraLoyalty' }) },
+    // Unbound Flourishing: "double the value of X" — of the spell the trigger is about (doubleSpellX)
+    { re: /^Double the value of X\.?$/i, make: () => ({ op: 'doubleSpellX' }) },
     // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." — the spell the trigger is about (spellGains)
     { re: /^That spell gains (deathtouch|lifelink)(?: and (deathtouch|lifelink))?\.?$/i,
       make: (m) => ({ op: 'spellGains', keywords: [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()) }) },
@@ -11529,6 +11539,10 @@
        than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
     { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if it'?s a spell with lesser mana value\. If you don'?t cast it, put (?:it|that card) into your hand\.?$/i,
       make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, lesserMv: true, elseHand: true }] },
+    /* Powerbalance: "you may reveal the top card of your library. If you do, you may cast that card without paying its mana
+       cost if the two spells have the same mana value." — the card revealed, as the opponent's spell is (sameMv) */
+    { re: /^you may reveal the top card of your library\. If you do, you may cast (?:that card|it) without paying its mana cost if the two spells have the same mana value\.?$/i,
+      make: () => [{ op: 'may', then: [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, sameMv: true }] }] },
     /* Gollum, Scheming Guide: "look at the top two cards of your library, put them back in any order, then choose land
        or nonland. An opponent guesses whether the top card of your library is the chosen kind. Reveal that card. If they
        guessed right, remove Gollum from combat. Otherwise, you draw a card and Gollum can't be blocked this turn."
@@ -16252,6 +16266,8 @@
     [/^you attacked (?:with a creature )?this turn$/i, () => ({ kind: 'raid' })],
     // Kiora of Salt and Sand: "if you've activated a loyalty ability this turn" (loyaltyActivatedThisTurn)
     [/^you'?ve activated a loyalty ability this turn$/i, () => ({ kind: 'loyaltyActivatedThisTurn' })],
+    // The Chain Veil: "if you didn't activate a loyalty ability of a planeswalker this turn" — the same, not
+    [/^you didn'?t activate a loyalty ability(?: of a planeswalker)? this turn$/i, () => ({ kind: 'not', cond: { kind: 'loyaltyActivatedThisTurn' } })],
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
     // paid for on the way down
@@ -16633,6 +16649,13 @@
     { re: /^Whenever you cast a spell with \{X\} in its mana cost or activate an ability with \{X\} in its activation cost,? /i,
       event: 'youCastSpell', also: 'youActivateAbility', extra: { xSpell: true } },
     { re: /^Whenever you cast a spell with \{X\} in its mana cost,? /i, event: 'youCastSpell', extra: { xSpell: true } },
+    // Unbound Flourishing: "Whenever you cast a permanent spell with a mana cost that contains {X}," (xSpell)
+    { re: /^Whenever you cast an? (permanent|creature|instant or sorcery) spell with a mana cost that contains \{X\},? /i, event: 'youCastSpell',
+      extraOf: (m) => ({ xSpell: true, spellFilter: m[1].toLowerCase() }) },
+    /* Unbound Flourishing: "Whenever you cast an instant or sorcery spell or activate an ability, if that spell's mana cost
+       or that ability's activation cost contains {X}," — either, with {X} (xSpell; spellFilter for the spell only) */
+    { re: /^Whenever you cast an instant or sorcery spell or activate an ability, if that spell'?s mana cost or that ability'?s activation cost contains \{X\},? /i,
+      event: 'youCastSpell', also: 'youActivateAbility', extra: { xSpell: true, spellFilter: 'instant or sorcery' } },
     /* Namor the Sub-Mariner: "Whenever you cast a noncreature spell with one or more blue mana symbols in its mana cost"
        (symbolSpell: a symbol with that colour in it, hybrid and Phyrexian too) */
     { re: /^Whenever you cast an? (noncreature |instant or sorcery |creature )?spell with one or more (white|blue|black|red|green) mana symbols in its mana cost,? /i,

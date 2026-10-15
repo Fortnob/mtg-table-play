@@ -18204,7 +18204,7 @@
         o.toughDamageTurn = null;
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null; o.mustAttackPw = null;
         if (o.mustAttackCombat) { o.mustAttackPlayer = null; o.mustAttackCombat = false; }
-        o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
+        o.summoningSick = true; o.activatedLoyaltyThisTurn = false; o.extraLoyalty = null;
         o.noMaxHandFor = null;
         // Yarus, Roar of the Old Gods: "Whenever a face-down creature you control dies" — as it left (wasFaceDown)
         o._wasFaceDown = from === 'battlefield' && !!o.faceDown;
@@ -32957,6 +32957,8 @@
           /* Rashmi, Eternities Crafter: "if it's a spell with lesser mana value" — less than the spell the trigger is
              about; with no such spell, nothing is (lesserMv) */
           const below = e.lesserMv ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId) ? n({ triggerSpellMv: true }) : -1) : null;
+          // Powerbalance: "if the two spells have the same mana value" — as the spell the trigger is about (sameMv)
+          const sameAs = e.sameMv ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId) ? n({ triggerSpellMv: true }) : -1) : null;
           let castHere = 0;
           for (let k = 0; k < pool.length; k++) {
             if (r && r.marks[slot + 'n'] >= most) break;
@@ -32980,6 +32982,7 @@
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
             if (e.exactMv != null && ((c.card && c.card.cmc) || 0) !== n(e.exactMv)) continue;
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
+            if (sameAs != null && ((c.card && c.card.cmc) || 0) !== sameAs) continue;
             // Yennett, Cryptic Sovereign: "if its mana value is odd" (mvOdd)
             if (e.mvOdd && ((c.card && c.card.cmc) || 0) % 2 !== 1) continue;
             // Descendants' Path: "that shares a creature type with a creature you control" (sharesTypeWithYours)
@@ -36534,6 +36537,29 @@
           break;
         }
 
+        /* Unbound Flourishing: "Whenever you cast a permanent spell with a mana cost that contains {X}, double the value
+           of X." — the spell the trigger is about, still on the stack: its X twice what it was, its mana value with it */
+        /* The Chain Veil: one more loyalty activation this turn for each planeswalker you control now — not for one
+           that arrives later (extraLoyalty; _loyaltyUsedUp) */
+        case 'extraLoyalty': {
+          for (const x of this.battlefield) {
+            if (x.controller !== ctx.controller || x.phasedOut || !(x.analysis() || {}).isPlaneswalker) continue;
+            x.extraLoyalty = { turn: this.turn, n: (x.extraLoyalty && x.extraLoyalty.turn === this.turn ? x.extraLoyalty.n : 0) + 1 };
+          }
+          this.logEvent('rules', `${me.name} may activate a loyalty ability of each planeswalker they control once more this turn.`);
+          this.bumpBoard();
+          break;
+        }
+        case 'doubleSpellX': {
+          const td = ctx.triggerData || {};
+          const item = td.stackId ? this.stack.find(st => st.id === td.stackId) : null;
+          if (!item || !(item.x > 0)) break;
+          item.x *= 2;
+          if (item.obj) { item.obj.chosenX = item.x; item.obj._castMv = this._faceMv(item.obj) + this._xMv(item); }
+          this.logEvent('rules', `${item.name || (item.obj && item.obj.name) || 'The spell'}: X is now ${item.x}.`);
+          this.bumpBoard();
+          break;
+        }
         case 'doubleCounters': {
           const kind = e.kind || '+1/+1';
           const dbl = (o) => {
@@ -38093,7 +38119,9 @@
     /** Has this permanent activated all the loyalty abilities it may this turn? One (CR 606.3); Urza, Planeswalker two (loyaltyTwice). */
     _loyaltyUsedUp(o) {
       const n = Number(o && o.activatedLoyaltyThisTurn) || 0;
-      return n > 0 && n >= (this._staticOp(o, 'loyaltyTwice') ? 2 : 1);
+      // (The Chain Veil: one more this turn for each time its ability resolved — extraLoyalty)
+      const more = o && o.extraLoyalty && o.extraLoyalty.turn === this.turn ? o.extraLoyalty.n : 0;
+      return n > 0 && n >= (this._staticOp(o, 'loyaltyTwice') ? 2 : 1) + more;
     }
     /** "This creature must be blocked if able" — always, this turn, or this combat. */
     _mustBeBlocked(at) {
