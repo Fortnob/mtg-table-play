@@ -307,6 +307,8 @@
           if (this._ready()) this.send({ kind: 'yield', mode: e.shiftKey ? 'turn' : 'response' });
         } else if (e.key === 'Escape') {
           if (this.preview.classList.contains('on')) this.hidePreview();
+          // a question that only waits on a mana tap (which colour): put down, nothing tapped
+          if (this.asking && this.asking.escape) { this.asking = null; this.render(); return; }
           if (this.paying) { this.cancelPay(); return; }
           if (this.convoking) { this.convokeCancel(); return; }
           if (this.targeting && !this.targeting.legal) { this.cancelTargeting(); this.render(); return; }
@@ -2312,7 +2314,7 @@
           uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.tapMana(o, i, ab) });
         });
         // Yavimaya, Urborg: the mana a land type it was given adds (the engine's index for it)
-        if (!o.tapped) for (const m of (o.manaExtra || [])) uses.push({ label: 'Add mana', text: m.label, mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: m.i }) });
+        if (!o.tapped) for (const m of (o.manaExtra || [])) uses.push({ label: 'Add mana', text: m.label, mana: true, fn: () => this.tapMana(o, m.i, null) });
         // prepared: a copy of the spell printed with it, cast from here
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind !== 'cast' || use.via !== 'prepared') continue;
@@ -2898,10 +2900,88 @@
      * they go with the tap. @this {MTG.TableInstance}
      */
     tapMana(o, i, ab) {
-      const mix = (ab.effects || []).find(e => e && e.op === 'addManaAny' && !e.sameColor && !e.commanderIdentity &&
+      const mix = ab && (ab.effects || []).find(e => e && e.op === 'addManaAny' && !e.sameColor && !e.commanderIdentity &&
         typeof e.amount === 'number' && e.amount > 1);
       if (mix) return this._askColours(o.card.name, mix.amount, !!mix.distinct, (cols) => this.send({ kind: 'mana', objId: o.id, index: i, split: cols }), o.card);
-      this.send({ kind: 'mana', objId: o.id, index: i });
+      /* "Add {R} or {G}", "one mana of any color": which, chosen now and sent with the tap. While a spell
+         waits for mana, the one the cost still needs is taken without asking; otherwise, with more than one
+         to choose from, the person is asked (o.manaChoices: what the engine says this source offers). */
+      const opts = (((o.manaChoices || []).find(m => m.i === i)) || {}).options || [];
+      const go = (key) => this.send(Object.assign({ kind: 'mana', objId: o.id, index: i }, key ? { choice: key } : {}));
+      if (opts.length < 2) return go(null);
+      if (this.paying) return go(this._manaChoiceForPay(o, opts));
+      this._askManaChoice(o, opts, go);
+    }
+
+    /**
+     * Which of a source's options to take while a spell waits for mana (the paying banner): the one that
+     * lets what is owed be paid from the pool and the other glowing sources, else the one that pays most of
+     * the coloured part, else — any colour will do — the one the cards in hand want most. Among equals, the
+     * colour the other sources can't make. It only ever settles what the person would have had to pick
+     * anyway: whichever of equals is taken, the same is still owed. @this {MTG.TableInstance}
+     */
+    _manaChoiceForPay(o, opts) {
+      const p = this.paying;
+      /** @type {any} */
+      const me = this.me || {};
+      const cost = p && p.intent.x ? p.cost.replace(/\{X\}/g, '{' + p.intent.x + '}') : String((p && p.cost) || '');
+      const poolSrc = [];
+      for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) for (let k = 0; k < ((me.pool || {})[c] || 0); k++) poolSrc.push(c === 'C' ? '' : c);
+      // the other sources that could still pay, by the mana their card says they make
+      const others = this.manaSources().filter(x => x.id !== o.id)
+        .map(x => (((x.card || {}).produced_mana) || []).filter(c => 'WUBRG'.indexOf(c) >= 0).join(''));
+      const payable = MTG.rules && MTG.rules.Game && MTG.rules.Game.prototype._payableFrom;
+      const coversWith = (key, more) => !!payable && payable.call(null, poolSrc.concat(key.split('').map(c => (c === 'C' ? '' : c)), more), cost);
+      // how many coloured pips are still unpaid, the pool (and this) spent on them first
+      const unpaid = (have) => {
+        const left = have.slice();
+        let n = 0;
+        const pips = MTG.mana.parse(cost).map(sym => sym.split('/').filter(c => 'WUBRG'.indexOf(c) >= 0))
+          .filter(cols => cols.length).sort((a, b) => a.length - b.length);
+        for (const cols of pips) {
+          const at = left.findIndex(c => c && cols.indexOf(c) >= 0);
+          if (at >= 0) left.splice(at, 1); else n++;
+        }
+        return n;
+      };
+      const before = unpaid(poolSrc);
+      const want = {};
+      for (const h of (me.hand || [])) for (const sym of MTG.mana.parse(((h && h.card) || {}).mana_cost || '')) for (const c of 'WUBRG') if (sym.indexOf(c) >= 0) want[c] = (want[c] || 0) + 1;
+      const scarce = (key) => key.split('').reduce((k, c) => k + others.filter(s => s.indexOf(c) >= 0).length, 0);
+      const rank = (x) => [
+        coversWith(x.key, []) ? 1 : 0,                               // pays it all now
+        coversWith(x.key, others) ? 1 : 0,                           // leaves it payable with what else glows
+        before - unpaid(poolSrc.concat(x.key.split(''))),             // coloured pips it pays
+        -scarce(x.key),                                               // a colour nothing else here makes
+        x.key.split('').reduce((k, c) => k + (want[c] || 0), 0),      // what the hand wants
+      ];
+      let best = opts[0], bestR = rank(opts[0]);
+      for (const x of opts.slice(1)) {
+        const r = rank(x);
+        for (let k = 0; k < r.length; k++) { if (r[k] === bestR[k]) continue; if (r[k] > bestR[k]) { best = x; bestR = r; } break; }
+      }
+      return best.key;
+    }
+
+    /**
+     * What a source tapped by hand adds, when it lets you choose (Kibo's Banana's {R} or {G}, Birds of
+     * Paradise, a filter land's {W}{W}, {W}{U} or {U}{U}): the mana a button each, with the card's art like
+     * every other question here. One press picks it and taps; Cancel or Esc leaves it untapped.
+     * @this {MTG.TableInstance}
+     */
+    _askManaChoice(o, opts, go) {
+      const name = (o.card && o.card.name) || 'Mana';
+      const key = 'manapick:' + o.id + ':' + opts.map(x => x.key).join(',');
+      const done = (k) => { this.asking = null; this.render(); MTG.sfx('click'); go(k); };
+      this.asking = { base: key, key, escape: true, build: () => this.panel(`${escapeHtml(name)}: add which mana?`,
+        opts.length === 5 ? 'Any colour.' : 'Choose what it adds.',
+        el('div', { class: 'mana-picks', role: 'group', 'aria-label': 'Mana to add' }, opts.map((x, k) => el('button', {
+          type: 'button', class: 'mana-pick' + (x.key.length > 1 || x.mana.length > 3 ? ' wide' : ''),
+          html: MTG.mana.html(x.mana), title: 'Add ' + x.mana, 'aria-label': 'Add ' + x.mana, 'data-mana': x.key,
+          autofocus: k === 0 ? true : null, onclick: () => done(x.key),
+        }))),
+        [{ label: 'Cancel', fn: () => { this.asking = null; this.render(); } }], { card: o.card, cls: 'mana-ask' }) };
+      this.render();
     }
 
     /**
@@ -2918,7 +2998,7 @@
       const key = 'cols:' + name + ':' + total;
       const title = `${escapeHtml(name)}: ${total} mana`;
       const sub = distinct ? `Choose ${total} different colours.` : 'Choose a colour for each; the same one as often as you like.';
-      this.asking = { base: key, get key() { return key + ':' + sel.picks.join(','); }, build: () => {
+      this.asking = { base: key, escape: true, get key() { return key + ':' + sel.picks.join(','); }, build: () => {
         const pr = MTG.choice.progress(s, sel.picks);
         return this.panel(title, escapeHtml(sub) + `<br><span class="choose-status${pr.ok ? '' : ' short'}">${escapeHtml(pr.text)}</span>`,
           this.chooseBody(s, sel, {
@@ -3335,7 +3415,7 @@
         const gActs = gained.filter(g => !g.mana), gMana = gained.filter(g => g.mana);
         a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.tapMana(o, i, ab)]));
         for (const g of gMana) items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(g.ability, o), 42)}`, () => this.tapMana(o, g.i, g.ability)]);
-        for (const m of (o.manaExtra || [])) items.push([`Mana: ${truncate(m.label, 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: m.i })]);
+        for (const m of (o.manaExtra || [])) items.push([`Mana: ${truncate(m.label, 42)}`, () => this.tapMana(o, m.i, null)]);
         const actBase = o.gained ? o.gained.manaBase : a.manaAbilities.length;
         acts.concat(gActs.map(g => g.ability)).forEach((ab, k) => {
           const idx = k < acts.length ? actBase + k : gActs[k - acts.length].i;
