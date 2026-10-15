@@ -290,6 +290,37 @@ module.exports = (test) => {
     t.zone(g2, 'graveyard', 'its copy the Wurm');
   });
 
+  test('Trigger targets: a copy pointed somewhere new makes that the target of it — ward on the new one counters the copy', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    const res = T.bf('A', 'Strionic Resonator');
+    const giant = T.bf('B', 'Hill Giant'), raptor = T.bf('B', 'Hulking Raptor');
+    T.answer('pickTarget', { targets: [obj(giant)] });
+    const tr = chupacabra(T, 'A');
+    T.answer('pickTarget', { targets: [obj(raptor)] });
+    T.mana('A', '2');
+    T.activate('A', res, 0, { targets: [{ kind: 'stack', id: tr.id }], resolve: false });
+    passUntil(T, () => g.stack.some(s => s.isCopy && s.targets.some(x => x.id === raptor.id)));
+    t.ok(/ward/i.test(top(g).name), 'a ward trigger above the copy');
+    T.resolve();
+    t.zone(raptor, 'battlefield', 'no {2} to pay: the copy is countered');
+    t.zone(giant, 'graveyard', 'the trigger itself still resolves');
+  });
+
+  test('Trigger targets: the modes a trigger chose are on the stack for everyone to see', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.answer('mode', { modes: [1] });
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Charming Prince'), { resolve: false });
+    passUntil(T, () => g.stack.some(s => s.triggered));
+    const tr = g.stack.find(s => s.triggered);
+    const it = g.viewFor('B').stack.find(s => s.id === tr.id);
+    t.eq(JSON.stringify(it && it.modes), JSON.stringify(['You gain 3 life']), 'B sees "You gain 3 life" chosen');
+    T.resolve();
+    t.eq(T.life('A'), 23);
+  });
+
   test('Trigger targets: a reflexive "when you do" trigger chooses its target when it triggers — Auron, after the counter', (mk, t) => {
     t.auto('Auron, Venerated Guardian');
     const T = mk({ library: Array(20).fill('Plains') });

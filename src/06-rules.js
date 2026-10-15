@@ -2982,6 +2982,18 @@
       if (now.length === have.length && now.some((t, i) => t.kind !== have[i].kind || t.id !== have[i].id)) {
         copy.targets = now;
         this.logEvent('rules', `The copy of ${copy.name} now targets ${now.map(t => this.describeTarget(t)).join(', ')}.`);
+        /* what the copy newly targets becomes the target of it (CR 707.10c): becomesTarget, and ward (the copy of
+           a trigger at an opponent's warded creature meets a ward trigger as the trigger did) */
+        const fresh = now.filter(t => !have.some(h => h.kind === t.kind && h.id === t.id));
+        const by = copy.kind === 'spell' ? { bySpell: true } : { byAbility: true, byTrigger: !!copy.triggered };
+        for (const t of fresh) {
+          const x = t.kind === 'object' && this.obj(t.id);
+          if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, Object.assign({ source: x, object: x, playerId, stackId: copy.id, nth: this._targetedNth(x) }, by));
+          if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, Object.assign({ playerTarget: t.id, playerId, stackId: copy.id }, by));
+        }
+        const view = Object.assign({}, copy, { targets: fresh });
+        this._applyWard(view);
+        if (view.countered) copy.countered = true;
       }
       return null;
     }
@@ -34421,7 +34433,10 @@
           card: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW : s.obj.card) : null,
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
           // what a target spec may ask of it: a triggered ability or not, and the face a spell was cast as
-          triggered: !!s.triggered, face: s.obj && !secret(s.obj) ? (s.obj.face || 0) : null,
+          triggered: !!s.triggered,
+          // a triggered ability's modes, chosen as it was put on the stack (_aimTrigger)
+          modes: s.modes && s.modes.length ? s.modes.slice() : undefined,
+          face: s.obj && !secret(s.obj) ? (s.obj.face || 0) : null,
           // a spell whose words a text-changing effect changed (layer 3): what it says now
           textNow: s.kind === 'spell' && s.obj && !secret(s.obj) ? this._textNowView(s.obj) : undefined,
         })).map(s => this._namedWords(s, this._nameHint(s.objId))),

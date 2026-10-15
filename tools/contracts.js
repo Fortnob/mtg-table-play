@@ -138,6 +138,8 @@ const StackItemView = obj({
   cardId: maybe(str), card: maybe(Card), objId: maybe(id),
   targets: opt(arr(Target)), abilityText: opt(maybe(str)), countered: bool,
   triggered: opt(bool), face: opt(maybe(int)), textNow: opt(maybe(str)),
+  /* a triggered ability's modes, chosen as it went on the stack */
+  modes: opt(arr(str)),
 });
 const ManaPool = obj({ W: num, U: num, B: num, R: num, G: num, C: num });
 const PlayerView = obj({

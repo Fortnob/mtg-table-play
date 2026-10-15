@@ -1418,6 +1418,8 @@
       const targets = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
       return el('div', { class: 'stack-cap' }, [
         el('span', { class: 'who', text: who ? (who.id === this.meId ? 'You' : who.name) : '' }),
+        // (a trigger's modes, chosen as it went on the stack)
+        (s.modes || []).length ? el('span', { class: 'tg', text: s.modes.join('; ') }) : null,
         targets.length ? el('span', { class: 'tg', text: '→ ' + targets.join(', ') }) : null,
         top ? el('span', { class: 'next', text: s.countered ? 'countered' : 'resolves next' }) : null,
       ].filter(Boolean));

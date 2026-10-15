@@ -141,6 +141,8 @@ declare namespace MTG {
     countered: boolean;
     /** a triggered ability (false for a spell or an activated ability) */
     triggered?: boolean;
+    /** a triggered ability's modes, chosen as it was put on the stack (left out when it has none) */
+    modes?: string[];
     /** the face a spell was cast as; null for an ability or a face-down spell */
     face?: number | null;
     /** a spell whose words a text-changing effect changed: what it says now */
