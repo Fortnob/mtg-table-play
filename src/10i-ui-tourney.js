@@ -895,7 +895,7 @@
     if (!v || !v.over) return;
     const key = (v.game || '') + ':' + ((v.match && v.match.gameNumber) || 0);
     if (table._tourneySeen === key) return;
-    const res = T.resultFromView(v, table.meId);
+    const res = T.resultFromView(v, table.ownId || table.meId);
     if (!res) return;
     table._tourneySeen = key;
     // a match against a bot is played here, and known by the table it was set up as

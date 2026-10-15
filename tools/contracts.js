@@ -159,6 +159,8 @@ const PlayerView = obj({
   mulligansTaken: nat, keptHand: bool, mulliganBottom: nat,
   commanderDamage: opt(maybe(rec(num))), commanderCasts: opt(maybe(rec(num))),
   librarySize: nat, topCard: maybe(ObjectView), handSize: nat, draftNotes: opt(maybe(S.plainObj)),
+  /* Mindslaver: the player controlling them this turn (CR 722) */
+  controlledBy: opt(id),
   hand: arr(AnyObject), graveyard: arr(ObjectView), exile: arr(ObjectView), command: arr(ObjectView),
 });
 const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str });
@@ -280,6 +282,8 @@ const View = obj({
   pendingChoice: maybe((v, p, out) => (v.waiting ? WaitingChoice : Choice)(v, p, out)),
   stack: arr(StackItemView), battlefield: arr(ObjectView), players: arr(PlayerView, { min: 1 }),
   log: arr(LogEntry),
+  /* Mindslaver (CR 722): the seats of the players this one controls this turn, each the view that player would have */
+  controlling: opt(arr(obj({ id, name: str, view: (v, p, out) => View(v, p, out) }, { closed: true }), { min: 1 })),
 });
 
 /* ---- answers to questions (the data of a 'choice' intent) ---- */
@@ -307,7 +311,8 @@ const ANSWERS = {
 /* ---- intents: what the table (or a guest) sends ---- */
 const Declaration = obj({ attackerId: id, defenderId: id, band: opt(str), enlist: opt(maybe(id)) }, { closed: true });
 const Block = obj({ blockerId: id, attackerIds: arr(id, { min: 1 }) }, { closed: true });
-const closed = (f) => obj(Object.assign({ kind: str }, f), { closed: true });
+/* (any intent may say whom it is for — `as`, a player the sender controls this turn: Mindslaver, CR 722) */
+const closed = (f) => obj(Object.assign({ kind: str, as: opt(id) }, f), { closed: true });
 const onObj = closed({ objId: id });
 const INTENTS = {
   pass: closed({}), undo: closed({}), mulligan: closed({}), concede: closed({}),
@@ -461,9 +466,10 @@ function objectsIn(view) {
 /**
  * The view, shape and sense. `viewer` is who it was made for ('__watching'
  * for somebody with no seat); `game`, if given, lets it check what the
- * view should have hidden.
+ * view should have hidden. `seatOf` is set for a seat carried inside
+ * another player's view: the one controlling `viewer` (Mindslaver).
  */
-function checkView(view, viewer, game) {
+function checkView(view, viewer, game, seatOf) {
   const out = run(View, view, 'view').map(x => Object.assign({ rule: 'view.shape' }, x));
   if (!view || typeof view !== 'object' || !Array.isArray(view.players)) return out;
   const bad = (rule, p, msg) => out.push({ rule, path: p, msg });
@@ -496,7 +502,9 @@ function checkView(view, viewer, game) {
     if (p.id !== viewer) {
       /* unless the hand is played revealed (Telepathy; Sen Triplets: to everybody, for the turn — _handShown), or the
          viewer knows that card: it was revealed, or they looked at the hand, and it has not moved since (knownTo) */
-      const mayHand = (o) => !!game && ((game._handShown && game._handShown(p.id, viewer)) || (game._knows && game._knows(game.obj(o.id), viewer)));
+      /* (or the viewer controls that player this turn, and sees what they see: CR 722.3) */
+      const mayHand = (o) => !!game && ((game._handShown && game._handShown(p.id, viewer)) || (game._knows && game._knows(game.obj(o.id), viewer)) ||
+        (game.playerController && game.playerController(p.id) === viewer));
       for (const o of p.hand || []) if (!o.hidden && !mayHand(o)) bad('view.privacy', `${p.id}.hand ${o.id}`, `${viewer}'s view shows a card in ${p.id}'s hand (${(o.card || {}).name})`);
       // unless it is played revealed ("play with the top card of your library revealed"), or known to the viewer
       if (p.topCard && !(game && game._topCardVisible && game._topCardVisible(p.id, viewer))) bad('view.privacy', `${p.id}.topCard`, `${viewer}'s view shows the top of ${p.id}'s library`);
@@ -540,9 +548,24 @@ function checkView(view, viewer, game) {
       bad('view.sense', 'view.playable', `${what(oid)} is in another player's hand, and ${viewer} has no leave to play it`);
   }
   if ((view.playable || []).length && view.priorityPlayer !== viewer) bad('view.sense', 'view.playable', 'offers plays to somebody without priority');
+  /* Mindslaver (CR 722): a player somebody else controls decides nothing in their own view; their seat, inside
+     the view of the one controlling them, is where their decisions are made */
+  const ruledBy = game && game.playerController ? game.playerController(viewer) : null;
+  const decides = seatOf ? ruledBy === seatOf : !ruledBy;
+  if (seatOf && !decides) bad('view.privacy', 'view', `${seatOf}'s view carries ${viewer}'s seat, but ${seatOf} is not controlling ${viewer}`);
+  if (!decides && (view.playable || []).length) bad('view.sense', 'view.playable', `offers plays to ${viewer}, whom ${ruledBy} controls`);
+  for (const [i, c] of (view.controlling || []).entries()) {
+    const at = `view.controlling[${i}]`;
+    if (seatOf) { bad('view.sense', at, 'a seat inside a seat'); continue; }
+    if (!c || !c.view) continue;
+    if (c.view.you !== c.id) bad('view.sense', `${at}.view.you`, `the seat of ${show(c.id)} says it is ${show(c.view.you)}'s`);
+    if (game && !(game.playerController && game.playerController(c.id) === viewer)) { bad('view.privacy', at, `${viewer}'s view carries ${c.id}'s seat, but ${viewer} is not controlling ${c.id}`); continue; }
+    for (const x of checkView(c.view, c.id, game, viewer)) if (x.rule !== 'view.shape') out.push(Object.assign(x, { path: at + '.' + x.path }));
+  }
   const ch = view.pendingChoice;
   if (ch) {
-    if (ch.playerId === viewer && ch.waiting) bad('view.sense', 'view.pendingChoice', 'the question is for this player but arrives as "waiting"');
+    if (ch.playerId === viewer && ch.waiting && decides) bad('view.sense', 'view.pendingChoice', 'the question is for this player but arrives as "waiting"');
+    if (ch.playerId === viewer && !ch.waiting && !decides) bad('view.sense', 'view.pendingChoice', `${viewer}'s own question, but ${ruledBy} controls them and answers it`);
     if (ch.playerId !== viewer && !ch.waiting) bad('view.privacy', 'view.pendingChoice', `${viewer}'s view carries ${ch.playerId}'s whole question`);
     if (ch.playerId === viewer && !ch.waiting) for (const x of checkChoice(ch, game, { view })) out.push(x);
   }

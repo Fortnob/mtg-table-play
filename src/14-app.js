@@ -291,7 +291,7 @@
     const t = App.table;
     if (!t) return;
     if (net.online) { net.chat(App.myName, '::emote:' + id); return; }
-    UI.showEmote(t.meId, id);
+    UI.showEmote(t.ownId || t.meId, id);
     const bot = App.session && App.session.roster.find(r => r.kind === 'bot');
     const reply = { hello: 'hello', luck: 'luck', gg: 'gg', nice: 'thanks', thanks: 'nice', oops: 'wow' }[id];
     if (bot && reply && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, reply), 1100 + Math.random() * 900);
@@ -4850,13 +4850,20 @@
         return;
       }
       if (!g) return;
+      /* Mindslaver (CR 722): an intent sent for a player this seat controls (`as`) acts as that player; a controlled
+         player's own are refused, but for talking and conceding (intentActor) */
+      const sender = actorId;
+      const who = g.intentActor(actorId, intent);
+      if (who == null) { this._lastActor = null; return; }
+      actorId = who;
       /* A card in somebody else's hand is theirs: cast or played by another seat only with the game's leave (Sen
          Triplets: "You may play lands and cast spells from that player's hand this turn"). Checked before anything is
-         done, so a guest's intent naming another player's card does nothing. */
+         done, so a guest's intent naming another player's card does nothing. (A controlled player's own card, played
+         for them by the player controlling them, is theirs: actorId is theirs by now.) */
       if (intent.kind === 'cast' || intent.kind === 'playLand') {
         const o = g.obj(intent.objId);
         if (o && o.zone === 'hand' && o.owner !== actorId && !g._oppHandGrant(actorId, o)) {
-          if (actorId === 'me') UI.error("That card is in another player's hand.");
+          if (sender === 'me') UI.error("That card is in another player's hand.");
           return;
         }
       }
@@ -5243,7 +5250,7 @@
       const myId = view.you || findMe(view);
       const game = view.game || (view.config ? view.config.seed : null);
       // a new game in the match is a new table: nothing on the old one carries over
-      if (App.screen !== 'table' || !App.table || App.table.meId !== myId || App.table._game !== game) {
+      if (App.screen !== 'table' || !App.table || (App.table.ownId || App.table.meId) !== myId || App.table._game !== game) {
         showScreen('table');
         if (App.table) App.table.destroy();
         App.table = new UI.Table(screens.table, myId, (i) => net.intent(i));

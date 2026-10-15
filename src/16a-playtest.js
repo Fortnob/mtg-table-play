@@ -194,6 +194,8 @@
       if (this.busy || g.over) return false;
       const me = this.me;
       if (!me || me.hasLost) return false;
+      // (Mindslaver: a turn somebody else controls is theirs to play, CR 722)
+      if (g.playerController(this.pid)) return false;
       const was = g.stateVersion;
       this.busy = true;
       try {
@@ -211,6 +213,8 @@
           g.passPriority(this.pid);
           return g.stateVersion !== was;
         }
+        // (a player it controls, Mindslaver: decided for as any bot would)
+        if (await this._controlTick()) return g.stateVersion !== was;
       } finally { this.busy = false; }
       return false;
     }

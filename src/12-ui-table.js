@@ -174,6 +174,9 @@
     ].filter(Boolean));
   }
 
+  /* What a player controlling another (Mindslaver) still only ever does as themselves: no `as` on these (CR 722.6). */
+  const OWN_INTENTS = new Set(['chat', 'concede', 'leave', 'autoPass', 'setDeck', 'profile']);
+
   class Table {
     /**
      * @param {HTMLElement} root
@@ -182,8 +185,14 @@
      */
     constructor(root, meId, send) {
       this.root = root;
+      /* Mindslaver (CR 722): while this player controls another, the table can sit in that player's seat (_actAs):
+         meId is then theirs, the view shown is the one they would have, and what is done is sent for them (`as`).
+         ownId is always this table's own player. */
+      this.ownId = meId;
       this.meId = meId;
-      this.send = send;
+      this._actAs = null;
+      this.raw = null;               // the newest view as it came, before a seat in it was chosen
+      this.send = (intent) => send(this._actAs && intent && !OWN_INTENTS.has(intent.kind) ? Object.assign({}, intent, { as: this._actAs }) : intent);
       this.view = null;              // what is on screen
       this.live = null;              // the newest view to arrive
       this.queue = [];               // views waiting to be shown
@@ -387,10 +396,134 @@
       if (!this.live && MTG.net && MTG.net.isClient && view && !view.spectating) {
         this.send({ kind: 'autoPass', cfg: MTG.autoPassConfig() });
       }
+      // Mindslaver: the seat to show, of this player's own and those it controls (_followSeat)
+      this.raw = view;
+      const was = this._actAs;
+      this._followSeat(view);
+      view = this._seatView(view);
+      if (this._actAs !== was && this.view) { this._seatChanged(view); return; }
       this.live = view;
       this.queue.push(view);
       if (!this.view) { this._pump(); return; }
       this._pump();
+    }
+
+    /* ---- Mindslaver: acting for a player this one controls (CR 722) ----
+       The table follows whoever has the decision to make — this player, or one they control — and moves to that seat
+       when it changes hands; the bar at the top switches seats by hand in between. */
+    _followSeat(raw) {
+      const ids = ((raw && raw.controlling) || []).map(c => c.id);
+      if (this._actAs && !ids.includes(this._actAs)) this._setSeat(null);
+      if (!ids.length) { this._decider = null; return; }
+      const ch = raw.pendingChoice;
+      const decider = raw.over || raw.mulliganPhase ? null : ch ? ch.playerId : raw.priorityPlayer;
+      if (decider === this._decider) return;
+      this._decider = decider;
+      if (ids.includes(decider)) this._setSeat(decider);
+      else if (decider === this.ownId) this._setSeat(null);
+    }
+    _setSeat(pid) {
+      this._actAs = pid && pid !== this.ownId ? pid : null;
+      this.meId = this._actAs || this.ownId;
+    }
+    /** The view to show: this player's own, or the seat of the player it is acting for (with the parts they share). */
+    _seatView(raw) {
+      const c = this._actAs && ((raw && raw.controlling) || []).find(x => x.id === this._actAs);
+      if (!c) return raw;
+      return Object.assign({}, c.view, {
+        config: raw.config, log: raw.log, events: raw.events, eventSeq: raw.eventSeq, game: raw.game,
+        match: raw.match, clock: raw.clock, spectating: raw.spectating, controlling: raw.controlling, seatOf: raw.you,
+      });
+    }
+    /** Sit in another seat: a cut, not a flight, with nothing half done in the old one carried over. */
+    _seatChanged(v) {
+      this.targeting = null; this.paying = null; this.convoking = null; this.asking = null;
+      this.attackPlan = null; this.blockPlan = null; this.discardSel = []; this.sacSel = [];
+      this.focusSeat = null; this.spot = null;
+      this.closePopover();
+      this.hidePreview();
+      for (const st of this.seats.values()) st.root.remove();
+      this.seats.clear();
+      for (const n of this.els.values()) n.remove();
+      this.els.clear();
+      for (const w of this.wraps.values()) w.remove();
+      this.wraps.clear();
+      this.meHud.innerHTML = '';
+      this.meHud._built = false;
+      this.queue.length = 0;
+      this.view = v;
+      this.live = v;
+      this._noMotionOnce = true;
+      this.render();
+    }
+    /** Act for a player this one controls, or (null) as itself again. */
+    actAs(pid) {
+      if (!this.raw) return;
+      const was = this._actAs;
+      this._setSeat(pid);
+      if (this._actAs !== was) this._seatChanged(this._seatView(this.raw));
+    }
+    /** A player this one controls whose decision is the one to make now, while the table is in its own seat. */
+    _ctlDecider() {
+      const live = this.live;
+      if (this._actAs || !live || !live.controlling || live.over) return null;
+      const ch = live.pendingChoice;
+      const d = ch ? ch.playerId : live.priorityPlayer;
+      return live.controlling.find(c => c.id === d) || null;
+    }
+    /** Is this table's own player controlled by somebody else right now (and so can do nothing)? */
+    controlledNow() {
+      const v = this.view;
+      if (!v || v.seatOf) return null;
+      const me = v.players.find(p => p.id === this.ownId);
+      return me && me.controlledBy ? (v.players.find(p => p.id === me.controlledBy) || { id: me.controlledBy, name: 'Another player' }) : null;
+    }
+    /** The bar across the top while anyone at this table is being controlled by, or controlling, this player. */
+    renderControl() {
+      const v = this.view;
+      const ctl = (v && !v.over && v.controlling) || [];
+      const by = this.controlledNow();
+      let bar = this._ctlBar;
+      if (!ctl.length && !by) {
+        this.arena.classList.remove('acting-for', 'controlled');
+        if (bar) { bar.remove(); this._ctlBar = null; }
+        return;
+      }
+      if (!bar) {
+        // (on the line between the two sides of the table, clear of everybody's life and name)
+        bar = this._ctlBar = el('div', { class: 'ctl-bar', role: 'status', 'aria-live': 'polite' });
+        this.board.appendChild(bar);
+      }
+      this.arena.classList.toggle('acting-for', !!this._actAs);
+      this.arena.classList.toggle('controlled', !!by);
+      const acting = this._actAs && ctl.find(c => c.id === this._actAs);
+      const sig = by ? 'by:' + by.id : (acting ? 'as:' + acting.id : 'own') + '|' + ctl.map(c => c.id + ':' + c.name).join(',');
+      if (bar._sig === sig) return;
+      bar._sig = sig;
+      bar.innerHTML = '';
+      if (by) {
+        bar.className = 'ctl-bar controlled';
+        bar.append(el('div', { class: 'ctl-text' }, [
+          el('b', { text: `${by.name} is controlling you this turn.` }),
+          el('span', { text: ` ${by.name} makes all your decisions until the turn ends. You can still concede.` }),
+        ]));
+        return;
+      }
+      bar.className = 'ctl-bar' + (acting ? ' acting' : '');
+      const names = ctl.map(c => c.name);
+      bar.append(el('div', { class: 'ctl-text' }, acting ? [
+        el('b', { text: `You are controlling ${acting.name} this turn.` }),
+        el('span', { text: ` This is ${possessive(acting.name)} seat: what you do here, ${acting.name} does, with ${possessive(acting.name)} cards and mana.` }),
+      ] : [
+        el('b', { text: `You are controlling ${names.join(' and ')} this turn.` }),
+        el('span', { text: ' You make their decisions; the table moves to their seat when one is theirs to make.' }),
+      ]));
+      const btns = el('div', { class: 'ctl-btns' });
+      if (acting) btns.append(el('button', { type: 'button', class: 'btn sm', text: 'Your own seat', title: 'Back to your own hand and board', onclick: () => this.actAs(null) }));
+      for (const c of ctl) if (!acting || c.id !== acting.id) {
+        btns.append(el('button', { type: 'button', class: 'btn sm primary', text: `Act as ${c.name}`, title: `Sit in ${possessive(c.name)} seat: their hand, their board, their decisions`, onclick: () => this.actAs(c.id) }));
+      }
+      bar.append(btns);
     }
 
     get me() { return this.view && this.view.players.find(p => p.id === this.meId); }
@@ -478,6 +611,7 @@
       this.renderMeHud();
       this.renderDock();
       this.renderBanner();
+      this.renderControl();
       this.renderDecision();
       this.renderRail();
       if (this.drawerOpen) this.renderDrawer();
@@ -1774,6 +1908,12 @@
       if (v.over) return { label: 'Game over', disabled: true, cls: 'idle' };
       if (v.spectating || v.replay || !this.me) return { label: v.replay ? 'Replay' : 'Watching', disabled: true, cls: 'idle' };
       if (v.mulliganPhase) return { label: 'Mulligan', disabled: true, cls: 'idle', sub: 'choose your opening hand' };
+      // Mindslaver: somebody else is making your decisions this turn
+      const by = this.controlledNow();
+      if (by) return { label: 'Waiting', disabled: true, cls: 'idle wait', sub: `${by.name} is controlling you` };
+      // …or the decision is one you make for a player you control, from their seat
+      const cd = this._ctlDecider();
+      if (cd) return { label: `Act as ${cd.name}`, cls: 'go', sub: `${possessive(cd.name)} decision to make` };
       if (this.targeting) {
         const t = this.targeting;
         const upTo = (t.specs || []).some(sp => sp && sp.upTo);
@@ -1830,7 +1970,9 @@
       }
       if (ch && ch.waiting) {
         const who = v.players.find(p => p.id === ch.playerId);
-        return { label: 'Waiting', disabled: true, cls: 'idle wait', sub: `${who ? who.name : 'someone'} is deciding` };
+        // (Mindslaver: a controlled player's decisions are their controller's to make)
+        const by = who && who.controlledBy ? v.players.find(p => p.id === who.controlledBy) : null;
+        return { label: 'Waiting', disabled: true, cls: 'idle wait', sub: by ? `${by.name} is deciding for ${who.name}` : `${who ? who.name : 'someone'} is deciding` };
       }
       if (live.priorityPlayer !== this.meId) {
         const pp = v.players.find(p => p.id === live.priorityPlayer);
@@ -1862,7 +2004,9 @@
     /** @this {MTG.TableInstance} */
     primaryAction() {
       const v = this.view, live = this.live || v;
-      if (!v || v.over || v.mulliganPhase) return;
+      if (!v || v.over || v.mulliganPhase || this.controlledNow()) return;
+      const cd = this._ctlDecider();
+      if (cd) { this.actAs(cd.id); return; }
       if (this.targeting) {
         const t = this.targeting;
         if ((t.specs || []).some(sp => sp && sp.upTo) && t.chosen.length >= (t.minChosen || 0)) { this.targeting = null; t.onDone(t.chosen); this.render(); }

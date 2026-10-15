@@ -175,6 +175,8 @@ declare namespace MTG {
     botPersonality?: string | null;
     /** what the viewer noted while drafting (their own view only) */
     draftNotes?: Record<string, any> | null;
+    /** Mindslaver: the player controlling them this turn (CR 722); said only of a controlled player */
+    controlledBy?: PlayerId;
     life: number;
     poison?: number;
     energy?: number;
@@ -323,6 +325,9 @@ declare namespace MTG {
     battlefield: ObjectView[];
     players: PlayerView[];
     log: LogEntry[];
+    /** Mindslaver (CR 722): the seats of the players you control this turn, each the view that player would have
+        (without the config and log, which are this view's) */
+    controlling?: Array<{ id: PlayerId; name: string; view: View }>;
     /** added by the app, not the engine */
     spectating?: boolean;
     match?: MatchView | null;
@@ -544,7 +549,7 @@ declare namespace MTG {
     /** enlist (CR 702.154): the creature tapped for this attacker's enlist, null for none; left out, the engine asks */ enlist?: Id | null }
   interface BlockDeclaration { blockerId: Id; attackerIds: Id[] }
 
-  type Intent =
+  type Intent = (
     | { kind: 'pass' }
     | { kind: 'hold'; on: boolean }
     | { kind: 'undo' }
@@ -604,7 +609,11 @@ declare namespace MTG {
     /** the rest of what draft cards do: peek, watch, answer, brokerReveal, brokerOffer, brokerAccept (MTG.draft.Draft#act) */
     | { kind: 'draftAct'; act: string; cardId?: Id | null; which?: string; targetId?: Id; askId?: number; value?: string; yes?: boolean }
     /** Jumpstart: take one of the three half-decks offered (pick), or play the deck the two make (ready) (src/13b-ui-sealed.js) */
-    | { kind: 'jumpstart'; pick?: number; ready?: boolean };
+    | { kind: 'jumpstart'; pick?: number; ready?: boolean }
+  ) & {
+    /** Mindslaver (CR 722): the player this is done for, one the sender controls this turn */
+    as?: PlayerId;
+  };
   type IntentKind = Intent['kind'];
 
   /* ---------------- net messages ---------------- */

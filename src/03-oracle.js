@@ -2456,7 +2456,9 @@
     { re: /^Each player loses (half|a third of) their life, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'forEachPlayer', then: [{ op: 'loseLife', who: 'you', n: { halfLife: 'you', up: /up/i.test(m[2]), div: /third/i.test(m[1]) ? 3 : 2 } }] }) },
     // Blessed Wind: "Target player's life total becomes 20."
-    { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
+    // (Sorin Markov: "Target opponent's life total becomes 10.")
+    { re: /^Target (player|opponent)'?s life total becomes (\d+)\.?$/i,
+      make: (m) => ({ op: 'setLife', n: +m[2], who: 'target', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
     /* Wrathful Raptors: "it deals that much damage to any target that isn't a
        Dinosaur" — the creature that was dealt damage, passing it on
        (Black Panther, Most Dangerous: "he deals that much damage to any other target") */
@@ -5330,6 +5332,12 @@
     { re: /^Target player takes an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn', who: 'target', targets: [{ type: 'player' }] }) },
     // Time Stretch: "Target player takes two extra turns after this one."
     { re: /^Target player takes (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
+    /* Mindslaver, Worst Fears, Sorin Markov: "You control target player during that player's next turn."; Emrakul, the
+       Promised End: "you gain control of target opponent during that player's next turn." (controlPlayer; CR 722) */
+    { re: /^You (?:gain )?control (?:of )?target (player|opponent) during that player'?s next turn\.?$/i,
+      make: (m) => ({ op: 'controlPlayer', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
+    // Emrakul, the Promised End: "After that turn, that player takes an extra turn." — the turn just controlled (extraAfter)
+    { re: /^After that turn, that player takes an extra turn\.?$/i, make: () => ({ op: 'manual', controlExtraRider: true }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
     { re: /^Shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
@@ -13679,6 +13687,8 @@
     // Thrasta, Tempest's Roar: "for each other spell cast this turn" — anyone's (allSpellsThisTurn)
     if (m && /^other spells? cast this turn$/i.test(m[3].trim())) return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: { allSpellsThisTurn: true } };
     // Licia, Sanguine Tribune: "for each 1 life you gained this turn" — the life gained (playerStat)
+    // Emrakul, the Promised End: "for each card type among cards in your graveyard" (typesInGraveyards)
+    if (m && /^card type among cards in your graveyard$/i.test(m[3].trim())) return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: { typesInGraveyards: 'you', mult: 1 } };
     if (m && /^1 life you(?:'ve)? gained this turn$/i.test(m[3].trim())) {
       const a = amountOf('the amount of life you gained this turn');
       return a && typeof a === 'object' ? { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: a } : null;
@@ -14788,6 +14798,12 @@
         // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
         const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
         if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // (Emrakul, the Promised End: "After that turn, that player takes an extra turn." — the controlled turn before it)
+      if (e && e.controlExtraRider) {
+        if (prevE && prevE.op === 'controlPlayer' && !prevE.extraAfter) { prevE.extraAfter = true; continue; }
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }

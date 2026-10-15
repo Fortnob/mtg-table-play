@@ -271,7 +271,7 @@
       this.id = cfg.id || MTG.uid('p');
       this.name = cfg.name || 'Player';
       this.seat = cfg.seat || 0;
-      this.isBot = !!cfg.isBot;
+      this.isBot = !!cfg.isBot;          // the seat's own (_bot); read back, it says who decides for them (below)
       this.botDifficulty = cfg.botDifficulty || 5;
       this.botPersonality = cfg.botPersonality || null;
       this.avatarColor = cfg.avatarColor || null;
@@ -303,6 +303,16 @@
       this.ringLevel = 0;
       this.ringBearer = null;
     }
+    /* Whether a bot makes this player's decisions: the seat's own nature, unless another player controls them this
+       turn (Mindslaver, CR 722) — then whatever that player is. Everything that decides for a bot or asks a person
+       reads this, so a controlled player's questions go to whoever is in charge of them. */
+    get isBot() {
+      const g = this.game;
+      const by = g && g.playerController ? g.playerController(this.id) : null;
+      const c = by && g.player(by);
+      return c ? !!c._bot : !!this._bot;
+    }
+    set isBot(v) { this._bot = !!v; }
     get zones() { return this.game.zones[this.id]; }
     lib() { return this.game.zones[this.id].library; }
     hand() { return this.game.zones[this.id].hand; }
@@ -316,7 +326,7 @@
      what is worked out again (the _chr, _dyn, _borrow caches and the epochs they are checked against), and,
      for a player, the deck it sat down with (not game state, and large). */
   const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis|_zone$)/;
-  const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn)$/;
+  const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn|_bot)$/;
   const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring|_sacGate)$/;
   const NOT_PLAIN = Symbol('not plain data');
   /** A copy of plain data (numbers, strings, arrays, plain objects; a card is shared), or NOT_PLAIN. */
@@ -944,6 +954,8 @@
     _nextTurn() {
       if (this.over) return;
       const endingTurnOf = this.turn > 0 ? this.activePlayer : null;
+      // Mindslaver, Emrakul, the Promised End: a controlled turn is over, and Emrakul's extra turn comes next (CR 722)
+      if (endingTurnOf) this._controlTurnEnds(endingTurnOf);
       // (Medomai the Ageless: "during extra turns" — extraTurnNow)
       this.isExtraTurn = false;
       // extra turns first
@@ -1011,6 +1023,8 @@
       const ap = this.activePlayer;
       ap.landsPlayed = 0;
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
+      // Mindslaver: "during that player's next turn" — this one (_controlNextTurn)
+      this._controlTurnBegins(ap);
       // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
       if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null); for (const r of ap.noAttackOn) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
       // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" — this one (silenceOn)
@@ -2389,7 +2403,8 @@
      * is not the judge of what they can do.
      */
     _shouldAutoPass(playerId) {
-      const cfg = (this.config.autoPass || {})[playerId];
+      // (a controlled player is passed for as the one at the controls likes: Mindslaver, CR 722)
+      const cfg = (this.config.autoPass || {})[this.deciderOf(playerId)];
       const p = this.player(playerId);
       if (!p || p.isBot || p.hasLost) return false;    // bots have their own runner
       if (this.mulliganPhase || this.pendingChoice || this.over) return false;
@@ -36142,6 +36157,14 @@
           this.logEvent('rules', `${who.name} takes an extra turn.`);
           break;
         }
+        /* Mindslaver: "You control target player during that player's next turn." Emrakul, the Promised End: "…
+           After that turn, that player takes an extra turn." (extraAfter; CR 722) */
+        case 'controlPlayer': {
+          const who = firstPlayer();
+          if (!who || who.hasLost) break;
+          this._controlNextTurn(me.id, who.id, src ? src.name : null, !!e.extraAfter);
+          break;
+        }
         // "You gain hexproof until end of turn."
         case 'hexproofYou': me.hexproofTurn = this.turn; this.logEvent('keyword', `${me.name} gains hexproof until end of turn.`); break;
         /* Gift (CR 702.174): the opponent who was promised it gets it. */
@@ -37975,6 +37998,74 @@
       if (this.activePlayer.id === playerId && !this.over) this._nextTurn();
       this.checkStateBasedActions();
       this.touch();
+    }
+
+    /* ---------- controlling another player (CR 722) ----------
+       Mindslaver, Worst Fears, Sorin Markov, Emrakul, the Promised End: "you control target player during that
+       player's next turn". The controlled player is still the one acting — their spells, their mana, their cards —
+       but every choice and decision they would make is made by the player controlling them, who sees everything
+       they could see. Kept as plain data on the controlled player: controlNext, the effects waiting for their next
+       turn ({ by, src, extra }), and controlledBy, the one running now ({ by, turn, src, extra }). */
+    /** The player making this player's decisions right now, or null when they make their own. */
+    playerController(pid) {
+      const p = this.player(pid);
+      const r = p && p.controlledBy;
+      if (!r || r.turn !== this.turn || p.hasLost || this.over) return null;
+      const c = this.player(r.by);
+      // (gaining control of yourself does nothing; a controller who has left the game controls nobody: CR 800.4a)
+      if (!c || c.id === pid || c.hasLost) return null;
+      return c.id;
+    }
+    /** Who decides for this player: whoever controls them, else they themselves. */
+    deciderOf(pid) { return this.playerController(pid) || pid; }
+    /** The players this one is controlling right now. */
+    controlledPlayers(pid) { return this.players.filter(p => p.id !== pid && this.playerController(p.id) === pid).map(p => p.id); }
+    /** "You control target player during that player's next turn" — the last such effect is the one that counts. */
+    _controlNextTurn(byId, pid, src, extra) {
+      const p = this.player(pid), by = this.player(byId);
+      if (!p || !by || p.hasLost) return;
+      (p.controlNext = p.controlNext || []).push({ by: by.id, src: src || null, extra: extra ? 1 : 0 });
+      if (by.id !== p.id) this.logEvent('rules', `${by.name} will control ${p.name} during ${p.name}'s next turn.`);
+      if (extra) this.logEvent('rules', `${p.name} takes an extra turn after that one.`);
+    }
+    /* A turn begins: what was waiting for this player's next turn takes hold (the newest one; each Emrakul's extra turn
+       still counts), and a turn that ends lets go, with the extra turn Emrakul promised coming straight after it — unless
+       that player has left the game (Emrakul's ruling). */
+    _controlTurnEnds(p) {
+      const r = p && p.controlledBy;
+      if (!r) return;
+      p.controlledBy = null;
+      const by = this.player(r.by);
+      if (by && by.id !== p.id) this.logEvent('rules', `${by.name} no longer controls ${p.name}.`);
+      if (!p.hasLost) for (let k = 0; k < (r.extra || 0); k++) this.extraTurnsQueue.unshift(p.id);
+    }
+    _controlTurnBegins(p) {
+      const recs = p.controlNext;
+      if (!recs || !recs.length) return;
+      p.controlNext = null;
+      const last = recs[recs.length - 1];
+      p.controlledBy = { by: last.by, turn: this.turn, src: last.src, extra: recs.reduce((t, r) => t + (r.extra || 0), 0) };
+      const by = this.playerController(p.id);
+      if (by) this.logEvent('rules', `${this.player(by).name} controls ${p.name} during this turn${last.src ? ` (${last.src})` : ''}.`);
+    }
+    /**
+     * Who an intent from `senderId` acts as, or null when it is refused (the reason said through fail). An intent
+     * may carry `as`, the player it is made for: allowed only to the one controlling that player right now. A
+     * controlled player's own intents are refused, except to talk, to concede (CR 722.6: nobody can make them) and
+     * to say how they like to be passed for.
+     */
+    intentActor(senderId, intent) {
+      const kind = intent && intent.kind;
+      const as = intent && intent.as != null ? String(intent.as) : null;
+      if (as != null && as !== senderId) {
+        const p = this.player(as);
+        if (!p || this.playerController(as) !== senderId) return this.fail(`You are not controlling ${p ? p.name : 'that player'}.`) || null;
+        if (kind === 'concede' || kind === 'leave' || kind === 'autoPass') return this.fail(`You can't make ${p.name} do that.`) || null;
+        return as;
+      }
+      const by = this.playerController(senderId);
+      if (by && !['chat', 'concede', 'leave', 'autoPass'].includes(kind)) return this.fail(`${this.player(by).name} is controlling you this turn.`) || null;
+      return senderId;
     }
 
     /* ---------- choices ---------- */
@@ -40009,7 +40100,7 @@
         rngState: this.rng.s,   // so undoing a shuffle really rewinds it
         objs,
         players: this.players.map(p => ({
-          id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,
+          id: p.id, name: p.name, seat: p.seat, isBot: !!p._bot, botDifficulty: p.botDifficulty,
           botPersonality: p.botPersonality || null,
           avatarColor: p.avatarColor, life: p.life, poison: p.poison, energy: p.energy,
           preventShield: p.preventShield || 0,
@@ -40524,7 +40615,12 @@
           !(o.hiddenBy && (this.obj(o.hiddenBy) || {}).controller === playerId));
     }
 
-    viewFor(playerId) {
+    viewFor(playerId, opts) {
+      /* Mindslaver (CR 722): a player controlled by another decides nothing for themselves — no plays offered, their
+         questions shown as waiting — and the one controlling them is sent their seat as well (`controlling`: the
+         view that player would have, with `seat` set), from which to act for them. */
+      const seat = !!(opts && opts.seat);
+      const decides = seat || this.deciderOf(playerId) === playerId;
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
          so the card cannot be read off the wire. */
@@ -40614,7 +40710,7 @@
         // Marvin, Drana and Linvala, an Equipment's "has '{T}: …'": abilities it has beyond its printed ones, for its controller to use
         gained: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._gainedAbilitiesView(o) : null,
       };
-      return {
+      const view = {
         v: this.stateVersion,
         you: playerId,
         config: this.config,
@@ -40625,7 +40721,7 @@
         turnOrder: this.turnOrder,
         over: this.over, winners: this.winners,
         mulliganPhase: this.mulliganPhase,
-        canUndo: this.canUndo(playerId), undoLabel: this.undoLabel(),
+        canUndo: decides && this.canUndo(playerId), undoLabel: this.undoLabel(),
         holding: this.holdFor === playerId,
         /* What the table is doing on your behalf, so it can say so: full
            control on, or a yield running. */
@@ -40636,20 +40732,20 @@
            back (autoAnswer) — yours alone */
         autoAnswers: ((this.player(playerId) || {}).autoAnswers || []).filter(x => x.turn === this.turn)
           .map(x => Object.assign({ id: x.id, kind: x.kind, text: x.text }, x.batch ? { batch: x.batch } : {})),
-        playable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
+        playable: decides && (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).map(x => x.objId) : [],
         /* Split cards in hand: which halves can be cast now (0 left, 1 right),
            for the table to offer each; cast with the intent's `face`. (A
            modal double-faced card with a spell on its back, too: mdfcBack.) */
         splitFaces: (() => {
           const out = {};
-          if (!(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;
+          if (!decides || !(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;
           for (const x of this.playableNow(playerId)) if (x.kind === 'cast' && x.face != null) (out[x.objId] = out[x.objId] || []).push(x.face);
           for (const k of Object.keys(out)) out[k].sort();
           return out;
         })(),
         // split cards with fuse that can be cast with both halves now (the cast intent's `fuse`)
-        fusable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
+        fusable: decides && (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).filter(x => x.fuse).map(x => x.objId) : [],
         /* Why each card in your hand cannot be played just now, so the
            table can say so when you point at one. */
@@ -40706,7 +40802,7 @@
         castModes: (() => {
           const out = {};
           const z = this.zones[playerId];
-          if (!z || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
+          if (!z || !decides || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
           // (a card face down in exile is nobody's to read: only the ones face up, and those you may play from another's exile)
           // (Sen Triplets: and the hand of the opponent chosen this turn)
           for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId), this._oppHandCards(playerId))) {
@@ -40744,7 +40840,7 @@
         monarch: (this.players.find(p => p.monarch) || {}).id || null,
         initiative: (this.players.find(p => p.initiative) || {}).id || null,
         isDay: this.isDay === undefined ? null : this.isDay,
-        pendingChoice: this.pendingChoice && this.pendingChoice.playerId === playerId ? this.pendingChoice : (this.pendingChoice ? { type: this.pendingChoice.type, playerId: this.pendingChoice.playerId, waiting: true } : null),
+        pendingChoice: this.pendingChoice && this.pendingChoice.playerId === playerId && decides ? this.pendingChoice : (this.pendingChoice ? { type: this.pendingChoice.type, playerId: this.pendingChoice.playerId, waiting: true } : null),
         stack: this.stack.map(s => ({
           id: s.id, kind: s.kind, name: s.name, controller: s.controller,
           cardId: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW.id : s.obj.card.id) : null,
@@ -40764,6 +40860,8 @@
         players: this.players.map(p => ({
           id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,
           botPersonality: p.botPersonality || null,
+          // Mindslaver: who is controlling them this turn, for everyone to see (said only of a controlled player)
+          controlledBy: this.playerController(p.id) || undefined,
           life: p.life, poison: p.poison, energy: p.energy, experience: p.experience,
           pool: p.pool.snapshot(), landsPlayed: p.landsPlayed, maxLands: this.landAllowance(p),
           hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, lossFrom: p.lossFrom || null, connected: p.connected,
@@ -40792,7 +40890,8 @@
           /* …and a card revealed from it, or seen by a player who looked at the hand, stays face up to those who
              know it for as long as it stays there; `seenBy` says who besides its owner knows it */
           // (Sen Triplets: "plays with their hand revealed" this turn — every card of it seen by all, its owner told so)
-          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o, p.handRevealedTurn === this.turn))
+          // (and the hand of a player this one controls: CR 722.3)
+          hand: p.id === playerId || this._handShown(p.id, playerId) || this.playerController(p.id) === playerId ? this.zones[p.id].hand.map(o => known(o, p.handRevealedTurn === this.turn))
             : this.zones[p.id].hand.map(o => this._knows(o, playerId) ? known(o) : ser(o, true)),
           // Sen Triplets: "can't cast spells or activate abilities" this turn (said only of such a player)
           lockedOut: p.abilityLockTurn === this.turn && p.silencedTurn === this.turn ? true : undefined,
@@ -40808,6 +40907,15 @@
         })),
         log: this.log.slice(-200),
       };
+      // the seats of the players this one controls, without what the view around them already carries
+      const ctl = seat ? [] : this.controlledPlayers(playerId);
+      if (ctl.length) view.controlling = ctl.map(id => {
+        const sv = this.viewFor(id, { seat: true });
+        sv.config = {};
+        sv.log = [];
+        return { id, name: this.player(id).name, view: sv };
+      });
+      return view;
     }
   }
 

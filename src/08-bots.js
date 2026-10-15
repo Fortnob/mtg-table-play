@@ -1531,7 +1531,9 @@
     // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature."
     'sacrificeTargeted',
     // Sen Triplets: "that player can't cast spells … You may play lands and cast spells from that player's hand"
-    'oppHandThisTurn']);
+    'oppHandThisTurn',
+    // Mindslaver: "You control target player during that player's next turn."
+    'controlPlayer']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -2635,6 +2637,8 @@
       if (this.busy || g.over) return false;
       const me = this.me;
       if (!me || me.hasLost) return false;
+      // Mindslaver (CR 722): somebody else makes this bot's decisions this turn
+      if (g.playerController(this.pid)) return false;
       this.busy = true;
       /* "It acted" has to mean the game moved, not that it tried. A pass
          the engine refuses (there is a question on the table for somebody
@@ -2667,8 +2671,60 @@
           if (this.doPriority(move)) await this.pause();
           return moved();
         }
+        // …and the decisions of a player this bot controls this turn
+        if (await this._controlTick()) return moved();
       } finally { this.busy = false; }
       return false;
+    }
+
+    /** Mindslaver: a decision of a player this bot controls, if one is waiting (true when it acted). */
+    async _controlTick() {
+      const g = this.game;
+      for (const pid of g.controlledPlayers(this.pid)) {
+        const ch = g.pendingChoice;
+        if (ch && ch.playerId === pid) { await this.pause(); if (g.pendingChoice === ch) this._controlChoice(ch, pid); return true; }
+        if (!ch && g.priorityPlayer && g.priorityPlayer.id === pid) { g.passPriority(pid); return true; }
+      }
+      return false;
+    }
+
+    /* Mindslaver (CR 722): this bot controls another player this turn and makes their decisions — for its own good,
+       not theirs. Nothing of theirs is cast or activated (priority is passed: tick), nothing of theirs attacks that
+       need not, they give up and throw away the best they have, say no to whatever they may do or pay for, and look
+       at the worst of their library first. Anything else is answered as this bot would answer it for itself. */
+    _controlChoice(ch, pid) {
+      const g = this.game;
+      const theirs = (o) => this.permanentValue(o);
+      const best = (list, n) => list.slice().sort((x, y) => theirs(y) - theirs(x)).slice(0, n);
+      switch (ch.type) {
+        case 'declareAttackers': {
+          const must = (ch.candidates || []).map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
+            .map(o => ({ attackerId: o.id, defenderId: g._mustAttackPlayerOf(o) || ch.defenders[0].id }));
+          if (g.declareAttackers(pid, [])) return true;
+          return g.declareAttackers(pid, must);
+        }
+        case 'declareBlockers': {
+          if (g.declareBlockers(pid, [])) return true;
+          return g.declareBlockers(pid, this._mustBlockPlan(ch));
+        }
+        case 'discard': case 'discardToHandSize': {
+          const hand = g.zones[pid].hand.slice().sort((x, y) => this.cardValue(y) - this.cardValue(x));
+          return g.resolveChoice(pid, { cardIds: hand.slice(0, ch.count || 1).map(o => o.id) });
+        }
+        case 'sacrifice': {
+          const allowed = ch.candidates ? new Set(ch.candidates) : null;
+          const pool = g.battlefield.filter(o => o.controller === pid && (allowed ? allowed.has(o.id) : !ch.filter || ch.filter === 'permanent' || g._matchesCategory(o, ch.filter)));
+          if (ch.optional) return g.resolveChoice(pid, { cardIds: [] });
+          return g.resolveChoice(pid, { cardIds: best(pool, ch.count || 1).map(o => o.id) });
+        }
+        case 'confirm': return g.resolveChoice(pid, { yes: false });
+        case 'payOrDont': case 'payOrCounter': return g.resolveChoice(pid, { pay: false });
+        case 'scry': case 'surveil': {
+          const ids = (ch.cards || []).map(c => g.obj(c.id)).filter(Boolean).sort((x, y) => this.drawValue(x) - this.drawValue(y)).map(o => o.id);
+          return g.resolveChoice(pid, { top: ids, bottom: [] });
+        }
+        default: return this.doChoice(ch, null, pid);
+      }
     }
     pause() {
       const ms = (MTG.settings.botSpeed == null) ? this.thinkMs : MTG.settings.botSpeed;
@@ -2840,8 +2896,10 @@
     }
 
     /** Answer the question on the table. `plan`, when given, is an answer already worked out (a look ahead's). */
-    doChoice(ch, plan) {
+    doChoice(ch, plan, as) {
       const g = this.game;
+      // (answered for a player this bot controls, Mindslaver: in their name, judged as this bot sees it — _controlChoice)
+      const who = as || this.pid;
       switch (ch.type) {
         case 'declareAttackers': {
           /* A plan the engine refuses is worse than a bad plan: nothing
@@ -2885,7 +2943,7 @@
         }
         case 'discard': case 'discardToHandSize': {
           const ids = this.worstInHand(ch.count).map(o => o.id);
-          return g.resolveChoice(this.pid, { cardIds: ids });
+          return g.resolveChoice(who, { cardIds: ids });
         }
         case 'scry': case 'surveil': {
           // the cards the question showed, not whatever is on top by now
@@ -2895,7 +2953,7 @@
           for (const o of lib) (this.wantToDraw(o, top.length) ? top : bottom).push(o.id);
           // the best of what stays goes first
           top.sort((x, y) => this.drawValue(g.obj(y)) - this.drawValue(g.obj(x)));
-          return g.resolveChoice(this.pid, { top, bottom });
+          return g.resolveChoice(who, { top, bottom });
         }
         case 'sacrifice': {
           // give up the least valuable of what the question allows
@@ -2915,14 +2973,14 @@
           }).sort((a, b) => this.permanentValue(a) - this.permanentValue(b));
           // an optional sacrifice (exploit and friends) is only made when there is fodder
           // (Caesar, Legion's Emperor: two modes for it — a small creature is worth giving up: sacrificeForReward)
-          if (ch.optional && (!pool.length || this.permanentValue(pool[0]) > (ch.purpose === 'sacrificeForReward' ? 4.5 : 3))) return g.resolveChoice(this.pid, { cardIds: [] });
-          return g.resolveChoice(this.pid, { cardIds: pool.slice(0, ch.count).map(o => o.id) });
+          if (ch.optional && (!pool.length || this.permanentValue(pool[0]) > (ch.purpose === 'sacrificeForReward' ? 4.5 : 3))) return g.resolveChoice(who, { cardIds: [] });
+          return g.resolveChoice(who, { cardIds: pool.slice(0, ch.count).map(o => o.id) });
         }
         case 'riot': {
           // haste when it can attack into an open board or we are racing
           const opp = this.mainOpponent();
           const racing = opp && (opp.life <= 8 || this._racing(opp));
-          return g.resolveChoice(this.pid, { haste: !!racing || this.d <= 3 });
+          return g.resolveChoice(who, { haste: !!racing || this.d <= 3 });
         }
         /* The engine wants a target for something that has already started
            resolving — a trigger, or a mode that was chosen. The options come
@@ -2944,35 +3002,35 @@
             const ok = best && list.some(x => x.kind === best.kind && x.id === best.id);
             out.push(ok ? best : this._leastBad(list, e));
           });
-          return g.resolveChoice(this.pid, { targets: out });
+          return g.resolveChoice(who, { targets: out });
         }
 
-        case 'confirm': return g.resolveChoice(this.pid, { yes: this.confirmChoice(ch) });
+        case 'confirm': return g.resolveChoice(who, { yes: this.confirmChoice(ch) });
 
         case 'payOrDont': {
           /* Cumulative upkeep: pay while the permanent is worth more than
              the mana, and let it go once the counters have piled up. */
           if (ch.purpose === 'cumulativeUpkeep') {
             const o = g.obj(ch.objId);
-            if (ch.life) return g.resolveChoice(this.pid, { pay: this.me.life > ch.life + 6 && o && this.permanentValue(o) > 2 });
-            if (ch.energy) return g.resolveChoice(this.pid, { pay: (this.me.energy || 0) >= ch.energy });
+            if (ch.life) return g.resolveChoice(who, { pay: this.me.life > ch.life + 6 && o && this.permanentValue(o) > 2 });
+            if (ch.energy) return g.resolveChoice(who, { pay: (this.me.energy || 0) >= ch.energy });
             const cost = MTG.mana.cmc(ch.cost || '');
             const worth = o ? this.permanentValue(o) * 1.2 : 0;
             const affordable = g.couldPay(this.pid, ch.cost || '', this.manaSources());
-            return g.resolveChoice(this.pid, { pay: affordable && cost <= Math.max(1, worth) });
+            return g.resolveChoice(who, { pay: affordable && cost <= Math.max(1, worth) });
           }
-          return g.resolveChoice(this.pid, { pay: this.payChoice(ch) });
+          return g.resolveChoice(who, { pay: this.payChoice(ch) });
         }
 
-        case 'mode': return g.resolveChoice(this.pid, { modes: this.chooseModes(ch) });
+        case 'mode': return g.resolveChoice(who, { modes: this.chooseModes(ch) });
 
         case 'arrange': {
           // best first is the order you want to draw them in
           const ids = (ch.cards || []).slice().sort((x, y) => this.drawValue(g.obj(y.id)) - this.drawValue(g.obj(x.id))).map(c => c.id);
-          return g.resolveChoice(this.pid, { top: ids });
+          return g.resolveChoice(who, { top: ids });
         }
 
-        case 'pickCard': return g.resolveChoice(this.pid, { cardIds: this.pickCards(ch) });
+        case 'pickCard': return g.resolveChoice(who, { cardIds: this.pickCards(ch) });
 
         case 'vote': {
           /* Everyone at the table voting for whatever was printed first is
@@ -2980,26 +3038,26 @@
              otherwise picks one rather than following the card's order. */
           const opts = ch.options || [];
           const pick = opts.length ? opts[Math.floor(this.rand() * opts.length)] : null;
-          return g.resolveChoice(this.pid, { choice: pick });
+          return g.resolveChoice(who, { choice: pick });
         }
         case 'payOrCounter': {
           // pay to keep a spell that matters, if the mana is there
           const item = g.stack.find(st => st.id === ch.stackId);
           const worth = item && item.obj ? this.rating(item.obj) >= 3 : true;
           const can = g.couldPay(this.pid, ch.cost || '', this.manaSources());
-          return g.resolveChoice(this.pid, { pay: can && (worth || this.d <= 3) });
+          return g.resolveChoice(who, { pay: can && (worth || this.d <= 3) });
         }
-        case 'orderTriggers': return g.resolveChoice(this.pid, {});
+        case 'orderTriggers': return g.resolveChoice(who, {});
         /* The generic question: whatever it is for, a scored answer that
            keeps to its rules; and if that is refused, the first legal one,
            so a bot never leaves the table waiting. */
         case 'choose': {
           let ans = null;
           try { ans = this.chooseGeneric(ch); } catch (e) { console.warn('[bot] choose', e); }
-          if (ans && g.resolveChoice(this.pid, ans)) return true;
-          return g.resolveChoice(this.pid, MTG.choice.solve(ch, { hooks: this._chooseHooks() }) || { picks: [] });
+          if (ans && g.resolveChoice(who, ans)) return true;
+          return g.resolveChoice(who, MTG.choice.solve(ch, { hooks: this._chooseHooks() }) || { picks: [] });
         }
-        default: return g.resolveChoice(this.pid, {});
+        default: return g.resolveChoice(who, {});
       }
     }
 
@@ -5943,8 +6001,10 @@
       if (this.stopped || g.over || g.mulliganPhase) { this._stuck = null; return; }
       if (this._running || this.busy()) { setTimeout(() => { if (!this.stopped) this.kick(); }, 120); return; }
       const ch = g.pendingChoice;
-      const waiting = ch ? (this.bots.has(ch.playerId) ? ch.playerId : null)
-        : (g.priorityPlayer && this.bots.has(g.priorityPlayer.id) ? g.priorityPlayer.id : null);
+      // (one of ours deciding for a player it controls counts as ours: Mindslaver; a bot somebody else controls does not)
+      const ours = (pid) => this.bots.has(g.deciderOf(pid));
+      const waiting = ch ? (ours(ch.playerId) ? ch.playerId : null)
+        : (g.priorityPlayer && ours(g.priorityPlayer.id) ? g.priorityPlayer.id : null);
       if (!waiting) { this._stuck = null; return; }
       const v = g.stateVersion;
       if (!this._stuck || this._stuck.version !== v) this._stuck = { version: v, tries: 0 };
