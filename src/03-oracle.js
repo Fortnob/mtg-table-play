@@ -3494,6 +3494,11 @@
     // Nyla, Shirshu Sleuth: "return target card exiled with Nyla to its owner's hand" (exiledWithSource)
     { re: /^Return target card exiled with CARDNAME to its owner'?s hand\.?$/i,
       make: () => ({ op: 'regrowth', targets: [{ type: 'card', filter: 'card', zone: 'exile', exiledWithSource: true }] }) },
+    /* Volatile Stormdrake: "If you do, you get {E}{E}{E}{E}, then sacrifice that creature unless you pay an amount of {E}
+       equal to its mana value." — only if control was exchanged; "that creature" the one gained (exchanged, ofExchanged) */
+    { re: /^If you do, you get ((?:\{E\})+), then sacrifice that creature unless you pay an amount of \{E\} equal to its mana value\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'exchanged' }, then: [{ op: 'energy', n: (m[1].match(/\{E\}/g) || []).length },
+        { op: 'unlessPays', who: 'you', energyMv: true, ofExchanged: true, then: [{ op: 'sacrificeThat', ofExchanged: true }] }] }) },
     { re: /^If you do, .*$/i, make: (m) => ({ op: 'manual', text: m[0] }) },
     /* Restrictions that belong to the ability above them, and that the
        engine can actually keep: a window in the turn, or something you
@@ -4621,6 +4626,10 @@
     // Spider-Woman, Secret Agent: "That creature can't become untapped for as long as you control Spider-Woman." — by anything (cantBecomeUntapped)
     { re: /^(?:It|That creature|That permanent) can'?t become untapped for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'flagWhile', flag: 'cantBecomeUntapped', scope: 'lastTarget', whileControl: true }) },
+    // There and Back Again: "Up to one target creature can't block for as long as you control this Saga." (flagWhile whileControl)
+    { re: /^(up to one )?target creature can'?t (block|attack|attack or block) for as long as you control (?:this Saga|this enchantment|this creature|this artifact|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'flagWhile', flag: /or/i.test(m[2]) ? 'cantAttackOrBlock' : /attack/i.test(m[2]) ? 'cantAttack' : 'cantBlock', whileControl: true,
+        targets: [Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield' }, m[1] ? { upTo: true } : {})] }) },
     // Flowstone Armor: "Target creature gets +1/-1 for as long as CARDNAME remains tapped."
     { re: /^(Target [a-z ]+?) gets ([+-]\d+)\/([+-]\d+) for as long as (?:CARDNAME|this creature|this artifact) remains tapped\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'flagWhile', pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, targets: [t], whileTapped: true } : null; } },
@@ -5344,6 +5353,8 @@
     { re: /^You may play an additional land(?: on each of your turns)?\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
     { re: /^You may play (two|three) additional lands(?: on each of your turns| this turn)?\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
     { re: /^Take an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn' }) },
+    // Teferi, Master of Time: "Take two extra turns after this one."
+    { re: /^Take (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]) }) },
     // Kang the Conqueror: "During that turn, power-up abilities can't be activated." — on the extra turn just taken (noPowerUp)
     { re: /^During that turn, power-up abilities can'?t be activated\.?$/i, make: () => ({ op: 'manual', noPowerUpRider: true }) },
     // Final Fortune: "At the beginning of that turn's end step, you lose the game."
@@ -11884,6 +11895,11 @@
        way." */
     { re: /^Search your library for a card, exile it face down, then shuffle\. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell'?s mana value is (\d+) or less\. Put the exiled card into your hand if it wasn'?t cast this way\.$/i,
       make: (m) => [{ op: 'beseech', maxMv: +m[1] }] },
+    /* Forge of Heroes: "Choose target commander that entered this turn. Put a +1/+1 counter on it if it's a creature and a
+       loyalty counter on it if it's a planeswalker." — each counter for what it is as this resolves (countersByType) */
+    { re: /^Choose target commander that entered this turn\. Put a \+1\/\+1 counter on it if it'?s a creature and a loyalty counter on it if it'?s a planeswalker\.?$/i,
+      make: () => [{ op: 'countersByType', byType: { creature: '+1/+1', planeswalker: 'loyalty' },
+        targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent', commander: true, enteredThisTurn: true }] }] },
     /* The Eternal Wanderer: "For each player, choose a creature that player controls. Each player sacrifices all creatures
        they control not chosen this way." — you choose for everybody (chooser you, perPlayer) */
     { re: /^For each player, choose a creature that player controls\. Each player sacrifices all creatures they control not chosen this way\.?$/i,
@@ -17327,6 +17343,8 @@
     { re: /^Whenever you attack with a creature an opponent owns,? /i, event: 'permAttacks', filt: () => ({ who: 'you', words: 'creature', notOwned: true }) },
     // Jocasta, Automaton Avenger: "Whenever you attack with your commander" — one of your attackers is your commander (attackersCommander)
     { re: /^Whenever you attack with your commander,? /i, event: 'youAttack', extra: { attackersCommander: true } },
+    // Ainok Strike Leader: "Whenever you attack with this creature and/or your commander" — either among the attackers (attackersCommander, orSelf)
+    { re: /^Whenever you attack with (?:this creature|CARDNAME) and\/or your commander,? /i, event: 'youAttack', extra: { attackersCommander: true, orSelf: true } },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Harbin, Vanguard Aviator: "Whenever you attack with five or more Soldiers" (attackersOfTypeMin)
@@ -19845,6 +19863,8 @@
       if (/^unblockable$/i.test(w) || IMPLEMENTED_LOWER.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return true;
       const pm = w.match(/^protection from (.+)$/i);
       if (/^hexproof from (?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*$/i.test(w)) return true;
+      // Volatile Stormdrake: "hexproof from activated and triggered abilities" — no ability an opponent controls targets it
+      if (/^hexproof from activated and triggered abilities$/i.test(w)) return true;
       if (pm) return PROT_Q.test(pm[1].trim()) || pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
       return false;
     };
@@ -23072,6 +23092,9 @@
       // Teferi, Temporal Archmage's emblem: loyalty abilities at instant speed, on anyone's turn
       { re: /^You may activate loyalty abilities of planeswalkers you control on any player'?s turn any time you could cast an instant\.?$/i,
         eff: { op: 'instantLoyalty' }, auto: true },
+      // Teferi, Master of Time: "You may activate loyalty abilities of Teferi on any player's turn any time you could cast an instant." (instantLoyaltySelf)
+      { re: /^You may activate loyalty abilities of CARDNAME on any player'?s turn any time you could cast an instant\.?$/i,
+        eff: { op: 'instantLoyaltySelf' }, auto: true },
       // Moraug, Fury of Akoum: "Each creature you control gets +1/+0 for each time it has attacked this turn."
       { re: /^Each creature you control gets \+(\d+)\/\+(\d+) for each time it has attacked this turn\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' },
@@ -23251,11 +23274,12 @@
       // Nevinyrral, Urborg Tyrant: "Hexproof from artifacts, creatures, and enchantments" (hexproofFromList)
       { re: /^Hexproof from ((?:artifacts|creatures|enchantments|planeswalkers)(?:, (?:artifacts|creatures|enchantments|planeswalkers))*,? and (?:artifacts|creatures|enchantments|planeswalkers))$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and |, /) }), auto: true },
-      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*)$/i,
+      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries|activated and triggered abilities)(?:,? and from (?:white|blue|black|red|green))*)$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },
       /* Elenda, Saint of Dusk: "Lifelink, hexproof from instants"; Sporeweb Weaver: "Reach, hexproof from blue" — the
-         keywords before it come from the card's keyword list */
-      { re: /^((?:[A-Z][a-z]+(?: [a-z]+)?, )+)hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*)$/,
+         keywords before it come from the card's keyword list
+         (Volatile Stormdrake: "Flying, hexproof from activated and triggered abilities") */
+      { re: /^((?:[A-Z][a-z]+(?: [a-z]+)?, )+)hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries|activated and triggered abilities)(?:,? and from (?:white|blue|black|red|green))*)$/,
         make: (m) => (m[1].split(/,\s*/).filter(Boolean).every(k => kwKnown(k)) ? { op: 'hexproofFrom', q: m[2].toLowerCase().split(/,? and from /) } : null), auto: true },
       // Dragonfire Blade: "Equipped creature gets +2/+2 and has hexproof from monocolored."
       { re: /^(Equipped|Enchanted) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has hexproof from (white|blue|black|red|green|monocolored|multicolored)\.?$/i,

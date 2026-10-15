@@ -1760,7 +1760,7 @@
           if (c.untap && !o.tapped) return false;
           if (c.life && p.life <= c.life) return false;
           if (c.energy && (p.energy || 0) < c.energy) return false;
-          if (x.sorcerySpeed && !this._equipAnyTime(playerId, x) && !(this.isMain && this.stackEmpty &&
+          if (x.sorcerySpeed && !this._equipAnyTime(playerId, x, o) && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
           if (x.kind === 'loyalty' && this._loyaltyUsedUp(o)) return false;
           if (!this.couldPay(playerId, this._abilityMana(o, x), purse) && !(c.waterbend && this._waterbendPlan(playerId, o, x, this._abilityMana(o, x)))) return false;
@@ -2569,6 +2569,7 @@
       this._lastCopy = null;
       this._lastPut = null; this._lastSearched = null; this._putThisWay = null; this._revealedHand = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
+      this._exchangeGot = null;
       this._exileUntil = null; this._exiledChosen = null;
       this._chosenCard = null; this._attachedAnyTo = null;
       this.passedInSuccession.clear();
@@ -3834,7 +3835,7 @@
       }
       return (e.q || []).some(q => this._matchesProtection(q, source));
     }
-    _hexproofFromHit(o, source) {
+    _hexproofFromHit(o, source, isAbility) {
       if (!o || !source) return false;
       const qs = [];
       const e = this._staticOp(o, 'hexproofFrom');
@@ -3850,7 +3851,10 @@
       if (!qs.length) return false;
       const sa = source.analysis() || {};
       const n = (sa.colors || []).length;
-      return qs.some(q => (q === 'monocolored' ? n === 1 : q === 'multicolored' ? n > 1 : q === 'colorless' ? n === 0
+      /* Volatile Stormdrake: "hexproof from activated and triggered abilities" — an ability, said so (isAbility), or one whose
+         source isn't a spell being cast or on the stack */
+      const ability = isAbility != null ? !!isAbility : source.zone !== 'stack' && source.zone !== 'hand';
+      return qs.some(q => (q === 'activated and triggered abilities' ? ability : q === 'monocolored' ? n === 1 : q === 'multicolored' ? n > 1 : q === 'colorless' ? n === 0
         : q === 'artifacts' ? !!sa.isArtifact : this._matchesProtection(q, source)));
     }
     /** Worship, Angel's Grace: is damage kept from taking this player below 1 life? */
@@ -3999,7 +4003,7 @@
         }
         if (o.zone === 'battlefield') {
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
-          if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
+          if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj, item.kind !== 'spell')) return false;
           if (item.obj && this._untargetableHit(o, item.obj, item.controller)) return false;
           if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
           if (this._shroudFor(o, item.controller)) return false;
@@ -10007,8 +10011,8 @@
         return this.fail('A spell with split second is on the stack.');
       if (!isMana && (!this.priorityPlayer || this.priorityPlayer.id !== playerId))
         return this.fail('You do not have priority.');
-      if ((ab.sorcerySpeed && !this._equipAnyTime(playerId, ab)) || ab.kind === 'loyalty') {
-        if (!this._equipAnyTime(playerId, ab) && (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty))
+      if ((ab.sorcerySpeed && !this._equipAnyTime(playerId, ab, o)) || ab.kind === 'loyalty') {
+        if (!this._equipAnyTime(playerId, ab, o) && (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty))
           return this.fail('That ability is sorcery speed only.');
         if (ab.kind === 'loyalty' && this._loyaltyUsedUp(o)) return this.fail(this._staticOp(o, 'loyaltyTwice') ? 'Two loyalty abilities per turn.' : 'One loyalty ability per turn.');
         // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
@@ -11437,10 +11441,11 @@
     }
 
     /** Leonin Shikari, Forge Anew: equip at instant speed (during your turn, for Forge Anew). */
-    _equipAnyTime(playerId, ab) {
+    _equipAnyTime(playerId, ab, o) {
       // Teferi, Temporal Archmage's emblem: "You may activate loyalty abilities of planeswalkers you control on any
       // player's turn any time you could cast an instant." (instantLoyalty)
-      if (ab && ab.kind === 'loyalty') return !!this._anyStaticOf(playerId, 'instantLoyalty');
+      // (Teferi, Master of Time: "… loyalty abilities of Teferi …" — its own only: instantLoyaltySelf)
+      if (ab && ab.kind === 'loyalty') return !!this._anyStaticOf(playerId, 'instantLoyalty') || !!(o && o.zone === 'battlefield' && this._staticOp(o, 'instantLoyaltySelf'));
       if (!ab || !/^Equip\b/i.test(ab.text || '')) return false;
       const s = this._anyStaticOf(playerId, 'instantEquip');
       if (!s) return false;
@@ -15490,6 +15495,8 @@
         case 'noLifeLostThisWay': return !((this._lastLifeLost || 0) > 0);
         // Cases: "To solve" only while the Case isn't solved
         case 'caseUnsolved': return !!src && !src.solved;
+        // Volatile Stormdrake: "If you do" — control was exchanged as this resolved
+        case 'exchanged': return !!this._exchangeGot;
         case 'levelRange': {
           if (!src) return false;
           const lv = Number(src.counters.level) || 0;
@@ -19053,8 +19060,9 @@
           if (ab.attackersKw && ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id);
             return x && x.controller === o.controller && this.hasKw(x, ab.attackersKw); }).length < (ab.attackersKwMin || 1)) continue;
           // Jocasta, Automaton Avenger: "attack with your commander" — one of the attackers is a commander this player owns (attackersCommander)
+          // (Ainok Strike Leader: "this creature and/or your commander" — itself attacking will do too: orSelf)
           if (ab.attackersCommander && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
-            return x && x.isCommander && x.owner === o.controller && x.controller === o.controller; })) continue;
+            return x && ((x.isCommander && x.owner === o.controller && x.controller === o.controller) || (ab.orSelf && x === o)); })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
           if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
           // Donna Noble: itself, or the creature it is paired with (selfOrPaired)
@@ -24663,6 +24671,8 @@
           y.effects.push({ control: cx, until, ts });
           this._refreshControl();
           this.logEvent('control', `${x.name} and ${y.name} change hands.`);
+          // (Volatile Stormdrake: "If you do, … sacrifice that creature" — the one that came to this ability's controller: _exchangeGot)
+          this._exchangeGot = cx === ctx.controller ? y.id : cy === ctx.controller ? x.id : null;
           break;
         }
         case 'untapHaste': {
@@ -26164,7 +26174,8 @@
           /* Satya, Aetherflux Genius: "unless you pay an amount of {E} equal to its mana value" — the token's, as it is
              now; gone, nothing to sacrifice; a mana value of 0 is paid with nothing (energyMv) */
           if (e.energyMv) {
-            const it = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+            // (Volatile Stormdrake: "its mana value" — the creature gained by the exchange: ofExchanged)
+            const it = e.ofExchanged ? this._exchangeGot && this.obj(this._exchangeGot) : ctx.obj || (ctx.objId && this.obj(ctx.objId));
             if (!it || it.zone !== 'battlefield') break;
             const k = (it.card && it.card.cmc) || 0;
             if (!k) break;
@@ -28396,6 +28407,19 @@
         }
         case 'nextSpellKeyword': me.nextSpellKeyword = Object.assign({ turn: this.turn, keyword: e.keyword, words: e.words || null }, e.affinityFor ? { affinityFor: e.affinityFor } : {}); break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
+        // Forge of Heroes: "a +1/+1 counter on it if it's a creature and a loyalty counter on it if it's a planeswalker" (byType)
+        case 'countersByType': {
+          for (const t of targets) {
+            const x = t.kind === 'object' && this.obj(t.id);
+            if (!x || x.zone !== 'battlefield') continue;
+            const c = this.characteristics(x) || {};
+            for (const [type, kind] of Object.entries(e.byType || {})) {
+              const is = type === 'creature' ? c.isCreature : type === 'planeswalker' ? !!(x.analysis() || {}).isPlaneswalker : this._cardFitsWords(x, type);
+              if (is) this.addCounters(x, kind, 1);
+            }
+          }
+          break;
+        }
         case 'copyTokensEnteredThisTurn': {
           // (Renewed Solidarity: "of the chosen type" — its source's chosen creature type: chosenType)
           const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn &&
@@ -28439,7 +28463,7 @@
           break;
         }
         case 'sacrificeThat': {
-          const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          const x = e.ofExchanged ? this._exchangeGot && this.obj(this._exchangeGot) : ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone === 'battlefield' && this._canSacrifice(x)) {
             this.moveObject(x, 'graveyard');
             this.logEvent('sacrifice', `${x.name} is sacrificed.`);

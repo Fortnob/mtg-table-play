@@ -67142,4 +67142,131 @@ module.exports = (test) => {
     t.eq(U.life('B'), 18);
     t.no(U.bfOf('A').some(o => o.isToken), 'Quartzwood Crasher: the Bears alone make nothing');
   });
+
+  test('Cards: There and Back Again — chapter I: a creature can\'t block while you control the Saga', (mk, t) => {
+    t.auto('There and Back Again');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const bears = T.bf('B', 'Grizzly Bears');
+    T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bears.id }] });
+    const saga = T.bf('A', 'There and Back Again', { etb: true });
+    T.resolve();
+    t.eq(saga.counters.lore, 1);
+    const atk = T.bf('A', 'Craw Wurm');
+    t.no(g.couldBlock(bears, atk, 'B'), "There and Back Again: the Bears can't block");
+    t.ok(g.couldBlock(T.bfOf('B').find(o => o.name === 'Hill Giant'), atk, 'B'), 'There and Back Again: the Giant still can');
+    g.moveObject(saga, 'graveyard');
+    g.checkStateBasedActions();
+    t.ok(g.couldBlock(bears, atk, 'B'), 'There and Back Again: the Saga gone, the Bears can block again');
+  });
+
+  test('Cards: Volatile Stormdrake — swapped for an opponent\'s creature, four energy, keep it for its mana value; hexproof from abilities', (mk, t) => {
+    t.auto('Volatile Stormdrake');
+    for (const pay of [true, false]) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const giant = T.bf('B', 'Hill Giant');
+      T.answer('payOrDont', { pay });
+      const sd = T.bf('A', 'Volatile Stormdrake', { etb: true });
+      T.resolve();
+      t.eq(sd.controller, 'B', 'Stormdrake: B gets the Stormdrake');
+      if (pay) {
+        t.eq(giant.controller, 'A', 'Stormdrake: A gets the Hill Giant');
+        t.zone(giant, 'battlefield', 'Stormdrake: paid {E}{E}{E}{E}, the Giant kept');
+        t.eq(T.player('A').energy, 0, 'Stormdrake: four energy, four paid (its mana value)');
+      } else {
+        t.zone(giant, 'graveyard', 'Stormdrake: not paid, the Giant sacrificed');
+        t.eq(T.player('A').energy, 4);
+      }
+    }
+    // nothing to exchange with: no energy
+    const U = mk({ library: Array(20).fill('Island') });
+    U.bf('A', 'Volatile Stormdrake', { etb: true });
+    U.resolve();
+    t.no(U.player('A').energy, 'Stormdrake: no exchange, no energy');
+    // hexproof from activated and triggered abilities: an opponent's ability can't target it, a spell can
+    const V = mk({ library: Array(20).fill('Island') });
+    const sd2 = V.bf('A', 'Volatile Stormdrake');
+    const pyro = V.bf('B', 'Prodigal Pyromancer');
+    const spec = pyro.analysis().abilities.find(a => a.kind === 'activated').effects[0].targets[0];
+    t.no(V.g._legalTargetsFor(spec, 'B', pyro.id).some(x => x.id === sd2.id), "Stormdrake: B's Pyromancer can't target it");
+    const shock = V.hand('B', 'Shock');
+    const sspec = shock.analysis().abilities.find(a => a.kind === 'spell').effects[0].targets[0];
+    t.ok(V.g._legalTargetsFor(sspec, 'B', shock.id).some(x => x.id === sd2.id), "Stormdrake: B's Shock can");
+  });
+
+  test('Cards: Ainok Strike Leader — attacking with it or your commander makes a Goblin attacking each opponent', (mk, t) => {
+    t.auto('Ainok Strike Leader');
+    const run = (who) => {
+      const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+      const ainok = T.bf('A', 'Ainok Strike Leader');
+      const cmd = T.bf('A', 'Grizzly Bears');
+      cmd.isCommander = true;
+      const other = T.bf('A', 'Hill Giant');
+      const att = who === 'ainok' ? ainok : who === 'commander' ? cmd : other;
+      T.answer('declareAttackers', () => [{ attackerId: att.id, defenderId: 'B' }]);
+      T.toMain('A', 'combatDamage');
+      return { T, gobs: T.bfOf('A').filter(o => o.name === 'Goblin'), ainok };
+    };
+    let r = run('ainok');
+    t.eq(r.gobs.length, 2, 'Ainok: a Goblin for each opponent');
+    t.eq(r.gobs.map(o => o.attacking).sort().join(), 'B,C', 'Ainok: each attacking its player');
+    t.ok(r.gobs.every(o => o.tapped), 'Ainok: tapped');
+    t.eq(run('commander').gobs.length, 2, 'Ainok: the commander attacking too');
+    t.eq(run('other').gobs.length, 0, 'Ainok: another creature alone makes nothing');
+    // sacrificed: creature tokens indestructible until end of turn
+    const T = r.T;
+    T.activate('A', r.ainok, 0);
+    t.zone(r.ainok, 'graveyard');
+    t.ok(r.gobs.every(o => T.g.hasKw(o, 'indestructible')), 'Ainok: the tokens are indestructible');
+  });
+
+  test('Cards: Teferi, Master of Time — loyalty abilities at instant speed on any turn; −10 two extra turns', (mk, t) => {
+    t.auto('Teferi, Master of Time');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const tf = T.bf('A', 'Teferi, Master of Time');
+    const jace = T.bf('A', 'Jace Beleren');
+    T.nextTurn('B');
+    T.toMain('B');
+    g.passPriority('B', true);
+    t.eq(g.priorityPlayer && g.priorityPlayer.id, 'A');
+    T.answer('discard', (ch, gg) => ({ cardIds: [gg.zones.A.hand[0].id] }));
+    t.ok(g.activateAbility('A', tf.id, 0, { auto: true, targets: [] }), "Teferi: +1 in B's turn: " + g.lastError);
+    T.resolve();
+    t.eq(tf.counters.loyalty, 4);
+    t.no(g.activateAbility('A', tf.id, 0, { auto: true, targets: [] }), 'Teferi: still once a turn');
+    // another planeswalker of A's isn't helped
+    g.passPriority('B', true);
+    t.no(g.activateAbility('A', jace.id, 0, { auto: true, targets: [] }), "Teferi: not Jace's abilities in B's turn");
+    t.ok(/sorcery speed/.test(g.lastError), 'Teferi: Jace refused as sorcery speed: ' + g.lastError);
+    // −10: two extra turns
+    const U = mk({ library: Array(20).fill('Island') });
+    const tf2 = U.bf('A', 'Teferi, Master of Time', { counters: { loyalty: 10 } });
+    U.activate('A', tf2, 2);
+    t.eq(U.g.extraTurnsQueue.length, 2, 'Teferi −10: two extra turns queued');
+  });
+
+  test('Cards: Forge of Heroes — a commander that entered this turn gets a +1/+1 or a loyalty counter', (mk, t) => {
+    t.auto('Forge of Heroes');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const forge = T.bf('A', 'Forge of Heroes');
+    const old = T.bf('A', 'Hill Giant');
+    old.isCommander = true;
+    const bears = T.bf('A', 'Grizzly Bears', { etb: true });
+    bears.isCommander = true;
+    const jace = T.bf('B', 'Jace Beleren', { etb: true });
+    jace.isCommander = true;
+    const spec = forge.analysis().abilities.find(a => a.kind === 'activated').effects[0].targets[0];
+    const legal = g._legalTargetsFor(spec, 'A', forge.id).map(x => x.id);
+    t.eq(legal.sort().join(), [bears.id, jace.id].sort().join(), 'Forge of Heroes: only commanders that entered this turn');
+    T.activate('A', forge, 1, { targets: [bears] });
+    t.eq(bears.counters['+1/+1'], 1, 'Forge of Heroes: a +1/+1 counter on the creature');
+    forge.tapped = false;
+    const before = jace.counters.loyalty;
+    T.activate('A', forge, 1, { targets: [jace] });
+    t.eq(jace.counters.loyalty, before + 1, 'Forge of Heroes: a loyalty counter on the planeswalker');
+    t.no(jace.counters['+1/+1'], 'Forge of Heroes: not a +1/+1 counter on it');
+  });
 };
