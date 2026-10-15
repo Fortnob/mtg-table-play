@@ -4339,6 +4339,8 @@
         const ex = ((this.zones[pid] || {}).exile || []).filter(o => o.owner === pid && Number((o.counters || {})[v.counter]) > 0 && this._cardFitsWords(o, v.exileMvDistinct));
         return new Set(ex.map(o => (o.card && o.card.cmc) || 0)).size * mult;
       }
+      // Hapatra, the Desert Fang: the greatest mana value among cards in your graveyard (greatestMvGrave)
+      if (v.greatestMvGrave) return ((this.zones[pid] || {}).graveyard || []).reduce((b, c) => Math.max(b, (c.card && c.card.cmc) || 0), 0) * mult;
       // Ulamog, the Defiler: the greatest mana value among cards in exile, anyone's; face down, none (greatestMvExile)
       if (v.greatestMvExile) {
         let best = 0;
@@ -15526,6 +15528,7 @@
         }
         // Brimaz, Blight of Oreskos: "a Phyrexian died under your control this turn"
         case 'diedTypeYours': { const dt = ((((this.turnHistory || {}).diedTypes) || {})[me ? me.id : '']) || []; return dt.includes('*') || dt.includes(cond.type); }
+        case 'landToGyYours': return !!((((this.turnHistory || {}).landToGyBy) || {})[me ? me.id : '']);
         case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
         case 'moreLifeThanAnOpponent': return !!me && this.opponentsOf(me.id).some(p => !p.hasLost && p.life < me.life);
         case 'greatestPowerYours': {
@@ -17143,6 +17146,8 @@
         h.permanentsLeft++;
         // void (Alpharael, Stonechosen): "if a nonland permanent left the battlefield this turn"
         if (!(wasA && wasA.isLand)) h.nonlandLeft = (h.nonlandLeft || 0) + 1;
+        // The Lady of Otaria: "a land you controlled was put into a graveyard from the battlefield this turn" (landToGyBy)
+        if (wasA && wasA.isLand && toZone === 'graveyard') { h.landToGyBy = h.landToGyBy || {}; h.landToGyBy[o.controller] = true; }
         if (wasA && wasA.isCreature && toZone === 'graveyard') {
           h.creaturesDied++;
           // Gadrak, the Crown-Scourge: "each nontoken creature that died this turn"
@@ -20417,7 +20422,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
-        if (v && typeof v === 'object' && (v.totalMvOf || v.attackedCreatures || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -30186,7 +30191,8 @@
         case 'attachThat': {
           const eq = e.op === 'attachMade' ? this.obj((this._madeThisResolution || []).slice(-1)[0])
             : (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
-          const host = firstObj();
+          // (U.S.Agent, John Walker: "Attach it to U.S.Agent." — itself: toSelf)
+          const host = e.toSelf ? src : firstObj();
           if (!eq || eq.zone !== 'battlefield' || !host || host.zone !== 'battlefield' || eq === host) break;
           if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
           eq.attachedTo = host.id;
@@ -34472,22 +34478,29 @@
         }
         /* Wishclaw Talisman: an opponent gains control of it */
         case 'giveSelfToOpponent': {
-          if (!src || src.zone !== 'battlefield') break;
+          // (Rohgahh of Kher Keep: "and all creatures named Kobolds of Kher Keep", tapped first — alsoNamed, tapFirst)
+          const named = e.alsoNamed ? this.battlefield.filter(x => x !== src && !x.phasedOut && x.name === e.alsoNamed && !!(this.characteristics(x) || {}).isCreature) : [];
+          if (e.tapFirst) for (const x of (src && src.zone === 'battlefield' ? [src] : []).concat(named)) this._markTapped(x);
+          if ((!src || src.zone !== 'battlefield') && !named.length) break;
           const opps = this.opponentsOf(ctx.controller).filter(x => !x.hasLost);
           if (!opps.length) break;
           let to = opps[0];
           if (opps.length > 1 && !me.isBot) {
             const picked = this._ask({ type: 'pickTarget', playerId: ctx.controller, specs: [{ type: 'player', opponent: true }],
               options: [opps.map(x => ({ kind: 'player', id: x.id, name: x.name }))], count: 1,
-              prompt: `Which opponent gains control of ${src.name}?` }, 'give');
+              prompt: `Which opponent gains control of ${named.length ? 'them' : src.name}?` }, 'give');
             if (picked === SUSPEND) return SUSPEND;
             to = this.player(((picked || [])[0] || {}).id) || to;
           } else if (opps.length > 1) to = opps.slice().sort((x, y) => x.life - y.life)[0];
-          const was = src.controller;
-          src.controller = to.id;
-          src._chr = null; this.bumpBoard();
-          this.logEvent('rules', `${to.name} gains control of ${src.name}.`);
-          this._controlTaken(src, was, to.id);
+          for (const x of (src && src.zone === 'battlefield' ? [src] : []).concat(named)) {
+            if (x.controller === to.id) continue;
+            const was = x.controller;
+            x.controller = to.id;
+            x._chr = null;
+            this.logEvent('rules', `${to.name} gains control of ${x.name}.`);
+            this._controlTaken(x, was, to.id);
+          }
+          this.bumpBoard();
           break;
         }
         /* Valakut Awakening: any number of cards to the bottom, then that many plus one */

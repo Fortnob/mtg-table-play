@@ -64711,4 +64711,96 @@ module.exports = (test) => {
     t.no(T2.asked.some(c => c.type === 'choose' && c.purpose === 'revealFromHand'), 'Klaw: one card in hand — no question to reveal');
     t.zone(only, 'graveyard', 'Klaw: the only card discarded');
   });
+  test('Commanders: The Lady of Otaria — cast by tapping three Dwarves; each end step after a land of yours hit the graveyard, Dwarves from the top four', (mk, t) => {
+    t.auto('The Lady of Otaria');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const lady = T.hand('A', 'The Lady of Otaria');
+    const dw = [0, 1, 2].map(() => T.bf('A', 'Dwarven Soldier'));
+    const use = g.altUsesFor('A', lady.id).find(u => u.alt && u.alt.tapCreatures);
+    t.ok(use && use.alt.tapCreatures.filter === 'dwarf', 'Lady of Otaria: three Dwarves tapped instead of her mana cost');
+    T.cast('A', lady, { via: use.via });
+    t.zone(lady, 'battlefield', 'Lady of Otaria: cast for no mana');
+    t.ok(dw.every(d => d.tapped), 'Lady of Otaria: the Dwarves tapped');
+    // no land went to the graveyard: nothing at the end step
+    const h0 = T.zone('A', 'hand').length;
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0, 'Lady of Otaria: no land lost — nothing');
+    // a land of hers destroyed: Dwarves from the top four
+    T.nextTurn('B');
+    const forest = T.bf('A', 'Forest');
+    g.moveObject(forest, 'graveyard');
+    const tops = ['Island', 'Dwarven Soldier', 'Island', 'Dwarven Soldier'].map(n => T.top('A', n));
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [tops[1].id, tops[3].id] }; });
+    T.toMain('B', 'end'); T.resolve();
+    t.ok(q && q.optional, 'Lady of Otaria: any number, none too');
+    t.zone(tops[1], 'hand', 'Lady of Otaria: a Dwarf to hand');
+    t.zone(tops[3], 'hand', 'Lady of Otaria: the other Dwarf to hand');
+    const lib = T.zone('A', 'library');
+    t.ok(lib.indexOf(tops[0]) >= lib.length - 2 && lib.indexOf(tops[2]) >= lib.length - 2, 'Lady of Otaria: the rest on the bottom');
+  });
+  test('Commanders: Hapatra, the Desert Fang — enters: for each opponent, X -1/-1 counters on up to one of their creatures, X the greatest mana value in your graveyard', (mk, t) => {
+    t.auto('Hapatra, the Desert Fang');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Swamp') });
+    T.toMain('A');
+    T.grave('A', 'Shock'); T.grave('A', 'Gray Ogre'); T.grave('B', 'Craw Wurm');
+    const giantB = T.bf('B', 'Craw Wurm'), bearsB = T.bf('B', 'Grizzly Bears');
+    const wurmC = T.bf('C', 'Craw Wurm'), elvesC = T.bf('C', 'Llanowar Elves');
+    const mine = T.bf('A', 'Hill Giant');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [ch.items.find(it => it.id === giantB.id) ? giantB.id : wurmC.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [ch.items.find(it => it.id === giantB.id) ? giantB.id : wurmC.id] }; });
+    T.bf('A', 'Hapatra, the Desert Fang', { etb: true }); T.resolve();
+    t.eq(asked.length, 2, 'Hapatra: one choice for each opponent');
+    t.no(asked.some(ch => ch.items.some(it => it.id === mine.id)), "Hapatra: not A's own creatures");
+    t.eq(giantB.counters['-1/-1'], 3, "Hapatra: three -1/-1 counters on B's Wurm (Gray Ogre's mana value 3, not B's Craw Wurm in B's graveyard)");
+    t.eq(wurmC.counters['-1/-1'], 3, "Hapatra: three on C's Wurm");
+    t.no(bearsB.counters['-1/-1'], 'Hapatra: up to one each');
+    t.no(elvesC.counters['-1/-1']);
+  });
+  test('Commanders: U.S.Agent, John Walker — enters: a Sturdy Shield Equipment token, attached to him', (mk, t) => {
+    t.auto('U.S.Agent, John Walker');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const us = T.bf('A', 'U.S.Agent, John Walker', { etb: true }); T.resolve();
+    const sh = g.battlefield.find(o => o.name === 'Sturdy Shield');
+    t.ok(sh && sh.isToken && sh.controller === 'A', 'U.S.Agent: a Sturdy Shield token');
+    t.ok((sh.analysis() || {}).isEquipment && !(sh.card.colors || []).length, 'U.S.Agent: a colorless Equipment');
+    t.eq(sh.attachedTo, us.id, 'U.S.Agent: attached to him');
+    t.eq(g.powerOf(us) + '/' + g.toughnessOf(us), '4/4', 'U.S.Agent: +1/+2');
+    // equip {2} moves it
+    T.mana('A', '2');
+    T.activate('A', sh, 0, { targets: [bears] });
+    t.eq(sh.attachedTo, bears.id, 'U.S.Agent: equip {2}');
+    t.eq(g.powerOf(bears) + '/' + g.toughnessOf(bears), '3/4');
+  });
+  test('Commanders: Rohgahh of Kher Keep — upkeep: pay {R}{R}{R}, or it and the Kobolds are tapped and go to an opponent; Kobolds get +2/+2', (mk, t) => {
+    t.auto('Rohgahh of Kher Keep');
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    T.toMain('A');
+    const ro = T.bf('A', 'Rohgahh of Kher Keep');
+    const kob = [T.bf('A', 'Kobolds of Kher Keep'), T.bf('A', 'Kobolds of Kher Keep')];
+    const bears = T.bf('A', 'Grizzly Bears');
+    t.eq(g.powerOf(kob[0]) + '/' + g.toughnessOf(kob[0]), '2/3', 'Rohgahh: Kobolds get +2/+2');
+    // paid: nothing changes
+    ['Mountain', 'Mountain', 'Mountain'].forEach(n => T.bf('A', n));
+    T.answer('mode', (ch) => ({ modes: [ch.options.findIndex(o => /^Pay/i.test(o.label))] }));
+    T.answer('yesNo', { yes: true });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ro.controller, 'A', 'Rohgahh: paid — still A\'s');
+    t.no(ro.tapped, 'Rohgahh: not tapped');
+    // not paid: tapped, and B gains control of them all
+    for (const o of g.battlefield.filter(x => x.name === 'Mountain')) g.moveObject(o, 'graveyard');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ro.controller, 'B', 'Rohgahh: not paid — B gains control of it');
+    t.ok(kob.every(k => k.controller === 'B' && k.tapped), 'Rohgahh: and of the Kobolds, tapped');
+    t.ok(ro.tapped, 'Rohgahh: tapped');
+    t.eq(bears.controller, 'A', 'Rohgahh: not other creatures');
+    t.eq(g.powerOf(kob[0]), 2, "Rohgahh: B's Rohgahh still pumps B's Kobolds");
+  });
 };

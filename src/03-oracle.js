@@ -893,6 +893,8 @@
         if (e.op === 'attachSelf' && e.attachIt && made) e.op = 'attachMade';
         if (e.op === 'attachSelf' && e.attachIt && aboutOther) e.op = 'attachThat';
         delete e.attachIt;
+        // (Thieving Skydiver: "attach it to Thieving Skydiver" with no token made — the artifact taken, if an Equipment)
+        if (e.op === 'attachMade' && e.toSelf && !made) { e.op = 'attachTargetToSelf'; e.onlyEquipment = true; delete e.toSelf; }
         const own = (e.targets || []).some(t => t && t.type !== 'player');
         if (!aboutOther && (targeted || own)) {
           // Hunter's Bow: "That creature deals damage equal to its power" is the creature just equipped
@@ -4865,6 +4867,9 @@
       make: () => ({ op: 'damage', each: 'creature', n: countSpec('creatures', 1, 'any') }) },
     /* Wishclaw Talisman */
     { re: /^An opponent gains control of (?:this artifact|CARDNAME|this permanent)\.?$/i, make: () => ({ op: 'giveSelfToOpponent' }) },
+    // Rohgahh of Kher Keep: "tap Rohgahh and all creatures named Kobolds of Kher Keep, then an opponent gains control of them" (alsoNamed, tapFirst)
+    { re: /^Tap CARDNAME and all creatures named ([A-Z][^,.]+), then an opponent gains control of them\.?$/,
+      make: (m) => ({ op: 'giveSelfToOpponent', alsoNamed: m[1], tapFirst: true }) },
     /* Valakut Awakening */
     { re: /^Put any number of cards from your hand on the bottom of your library, then draw that many cards plus (one|two|three|\d+)\.?$/i,
       make: (m) => ({ op: 'bottomThenDraw', plus: num(m[1]) }) },
@@ -7173,6 +7178,10 @@
     { re: /^(?:Put any number of ([a-z]+ )?cards from among them|You may put any number of them) into your hand and the rest into your graveyard\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'graveyard',
         prompt: `Choose any number of ${(m[1] || '').trim().toLowerCase() || 'the'} cards to put into your hand. The rest go into your graveyard.` }) },
+    // The Lady of Otaria: "You may put any number of Dwarf cards from among them into your hand." — the rest stay for the next words
+    { re: /^You may put any number of ([A-Za-z]+) cards from among them into your hand\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), to: 'hand', optional: true, rest: 'keep',
+        prompt: `Choose any number of ${m[1]} cards to put into your hand.` }) },
     /* Torsten, Founder of Benalia: "Put any number of creature and/or land cards from among them into your hand and the
        rest on the bottom of your library in a random order." */
     { re: /^Put any number of ([a-z]+(?: (?:and\/)?or [a-z]+)?) cards from among them into your hand and the rest on the bottom of your library in a random order\.?$/i,
@@ -7263,6 +7272,8 @@
       make: (m) => ({ op: 'chooseFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any' }) },
     { re: /^That player discards that card\.?$/i, make: () => ({ op: 'discardChosen' }) },
     { re: /^Exile that card\.?$/i, make: () => ({ op: 'exileChosen' }) },
+    // U.S.Agent, John Walker: "create … an Equipment artifact token named Sturdy Shield … Attach it to U.S.Agent." (attachMade, toSelf)
+    { re: /^Attach it to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachMade', toSelf: true }) },
     /* Embercleave: "attach it to target creature you control" — a creature
        chosen as the trigger goes on the stack */
     { re: /^Attach it to target creature you control\.?$/i,
@@ -9860,6 +9871,8 @@
       return done({ countersOnSelf: m[1].toLowerCase(), mult: 1 });
     // Amzu, Swarm's Hunger: "the greatest mana value among those cards" — the lot the trigger is about (batchMaxMv)
     if (/^the greatest mana value among those cards$/i.test(p)) return done({ batchMaxMv: true, mult: 1 });
+    // Hapatra, the Desert Fang: "the greatest mana value among cards in your graveyard" (greatestMvGrave)
+    if (/^the greatest mana value among cards in your graveyard$/i.test(p)) return done({ greatestMvGrave: true, mult: 1 });
     // Ulamog, the Defiler: "the greatest mana value among cards in exile" — everyone's exile (greatestMvExile)
     if (/^the greatest mana value among cards in exile$/i.test(p)) return done({ greatestMvExile: true, mult: 1 });
     // Tetsuo, Imperial Champion: "the greatest mana value among Equipment attached to it" (attachedOf, maxMv)
@@ -13304,7 +13317,8 @@
       /* Sephara, Lashknife: "tap four untapped creatures you control with
          flying", "tap an untapped creature you control" */
       else if ((k = part.match(/^tap (a|an|one|two|three|four|five|\d+) untapped ([a-z]+?)s? you control(?: with (flying|first strike|vigilance))?$/i)))
-        alt.tapCreatures = Object.assign({ n: num(k[1]), filter: k[2].toLowerCase() }, k[3] ? { keyword: k[3].toLowerCase() } : {});
+        // (The Lady of Otaria: "three untapped Dwarves" — a Dwarf each)
+        alt.tapCreatures = Object.assign({ n: num(k[1]), filter: k[2].toLowerCase().replace(/ve$/, 'f') }, k[3] ? { keyword: k[3].toLowerCase() } : {});
       else if ((k = part.match(/^return (a|an|one|two) ([A-Za-z ]+?) you control to (?:its|their) owner'?s'? hands?$/i)))
         alt.returnOwn = { n: num(k[1]), filter: k[2].trim().toLowerCase().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') };
       else return null;
@@ -15368,6 +15382,8 @@
     [/^you'?ve cast another spell this turn$/i, () => ({ kind: 'castAnotherSpell' })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
+    // The Lady of Otaria: "if a land you controlled was put into a graveyard from the battlefield this turn" (landToGyYours)
+    [/^a land you controlled was put into a graveyard from the battlefield this turn$/i, () => ({ kind: 'landToGyYours' })],
     // Gimli, Mournful Avenger: "two or more creatures died under your control this turn"
     [/^(two|three|four|five) or more creatures died under your control this turn$/i, (m) => ({ kind: 'diedYoursThisTurn', n: num(m[1].toLowerCase()) })],
     // Brimaz, Blight of Oreskos: "a Phyrexian died under your control this turn" (diedTypeYours)
