@@ -12533,8 +12533,9 @@
       const breq = this._staticOp(blocker, 'blockRequires');
       if (breq && breq.moreThanAttacker && !(this._countOfKind(blocker.controller, breq.moreThanAttacker) > this._countOfKind(attacker.controller, breq.moreThanAttacker))) return false;
       // Bouncing Beebles: unblockable while the defending player controls an artifact
-      if (ev && ev.defenderControls && this.battlefield.some(x => x.controller === blocker.controller && !x.phasedOut &&
-        this._cardFitsWords(x, ev.defenderControls))) return false;
+      // (Ayesha Tanaka, Armorer: "three or more artifacts" — defenderControlsN)
+      if (ev && ev.defenderControls && this.battlefield.filter(x => x.controller === blocker.controller && !x.phasedOut &&
+        this._cardFitsWords(x, ev.defenderControls)).length >= (ev.defenderControlsN || 1)) return false;
       /* Delney: "creatures you control with power 2 or less can't be
          blocked by creatures with power 3 or greater"; Champion of Lambholt:
          "creatures with power less than this creature's power can't block
@@ -14807,6 +14808,14 @@
           const had = cond.from === 'treasure' ? (x.manaFromTreasure || 0) : cond.from === 'artifact' ? (x.manaFromArtifact || 0)
             : cond.fromCreatures ? (x.manaFromCreatures || 0) : cond.color ? ((x.manaSpentBy || {})[cond.color] || 0) : (x.manaSpent || 0);
           return had >= (cond.n || 0);
+        }
+        // Tokka & Rahzar, Terrible Twos: "the amount of mana spent to cast it was less than its mana value" — X and all
+        case 'manaSpentBelowMv': {
+          const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
+          if (!x) return false;
+          const mv = x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0);
+          // (Phyrexian mana paid with 2 life each is no mana spent — _phyLife)
+          return (x.manaSpent || 0) - Math.floor((x._phyLife || 0) / 2) < mv;
         }
         // Sneak: "if this creature's sneak cost was paid" — this turn, as it came in
         case 'sneaked': return !!src && src.sneaked === this.turn;

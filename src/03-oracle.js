@@ -859,8 +859,8 @@
       else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
       // Thespian's Stage, Irma, Part-Time Mutant: "it has this ability", "she has this ability"
       else if ((c = ex.match(/^(?:it|she|he) has this ability/i))) e.keepThis = true;
-      // Kimahri, Valiant Guardian: "it has vigilance and this ability"
-      else if ((c = ex.match(/^it has (flying|haste|trample|vigilance|deathtouch|lifelink|first strike|menace|reach) and this ability/i))) {
+      // Kimahri, Valiant Guardian: "it has vigilance and this ability" (Hulkling, Young Avenger: "he has flying and this ability")
+      else if ((c = ex.match(/^(?:it|he|she) has (flying|haste|trample|vigilance|deathtouch|lifelink|first strike|menace|reach) and this ability/i))) {
         (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
         e.keepThis = true;
       }
@@ -5637,11 +5637,11 @@
     // Teysa, Opulent Oligarch: "investigate for each opponent who lost life this turn"
     { re: /^Investigate (?:once )?for each (.+?)\.?$/i, make: (m) => { const c = countOf(m[1]); return c && !c.unread ? { op: 'createNamedToken', n: c, token: 'Clue' } : null; } },
     // Mindwhip Sliver, Hymn to Tourach: "Target player discards a card at random", "each opponent"
-    // (Bottomless Pit's "that player" is read from its XMage line)
-    { re: /^(Target player|Target opponent|Each opponent|Each player) discards (a|one|two|three|\d+) cards? at random\.?$/i,
+    // (Bottomless Pit, Urgoros, the Empty One: "that player" — the player the trigger is about)
+    { re: /^(Target player|Target opponent|Each opponent|Each player|That player) discards (a|one|two|three|\d+) cards? at random\.?$/i,
       make: (m) => {
         const w = m[1].toLowerCase();
-        const who = /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : 'each';
+        const who = /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : w === 'that player' ? 'triggerPlayer' : 'each';
         return Object.assign({ op: 'discard', n: num(m[2]), who, random: true },
           who === 'target' ? { targets: [/opponent/.test(w) ? { type: 'player', opponent: true } : { type: 'player' }] } : {});
       } },
@@ -5694,7 +5694,8 @@
        discards a card", those whose hands were empty (couldNot) */
     { re: /^Each (opponent|player) who can'?t loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[2], who: 'couldNot', couldNotOf: /^opp/i.test(m[1]) ? 'opponents' : 'players' }) },
     // Wasitora, Nekoru Queen: "that player sacrifices a creature of their choice. If the player can't, you create …" (couldNot)
-    { re: /^If the player can'?t, you (create .+?)\.?$/i,
+    // (Urgoros, the Empty One: "that player discards a card at random. If the player can't, you draw a card.")
+    { re: /^If the player can'?t, you (create .+?|draw a card)\.?$/i,
       make: (m) => {
         const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1);
         return inner && inner.op !== 'manual' && !hasManualStep(inner) ? { op: 'ifCond', cond: { kind: 'someoneCouldNot' }, then: [inner] } : null;
@@ -6900,6 +6901,10 @@
     { re: /^(?:Then )?put any number of (land|creature|artifact|permanent) cards from among them onto the battlefield( tapped)? and the rest into your graveyard\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[2], optional: true, rest: 'graveyard',
         prompt: `Put any number of ${m[1].toLowerCase()} cards from among them onto the battlefield${m[2] ? ' tapped' : ''}. The rest go into your graveyard.` }) },
+    /* Ayesha Tanaka, Armorer: "You may put any number of artifact cards with mana value less than or equal to Ayesha
+       Tanaka's power from among them onto the battlefield tapped." — her power as it resolves (maxMv ofSelf) */
+    { re: /^You may put any number of (artifact|creature|permanent) cards with mana value less than or equal to CARDNAME'?s power from among them onto the battlefield( tapped)?\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), maxMv: { ofSelf: 'power' }, to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }) },
     // Malevolent Rumble: "You may put a permanent card from among them into your hand."
     { re: /^You may put an? ([-a-z ]*?)card from among them into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'keep' }) },
@@ -14835,6 +14840,8 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Tokka & Rahzar, Terrible Twos: "if the amount of mana spent to cast it was less than its mana value" (manaSpentBelowMv)
+    [/^the amount of mana spent to cast (that spell|it) was less than its mana value$/i, (m) => ({ kind: 'manaSpentBelowMv', of: spentOf(m[1]) })],
     // Inga and Esika: "if three or more mana from creatures was spent to cast it" (manaFromCreatures)
     [/^(\w+) or more mana from creatures was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[2]), fromCreatures: true } : null)],
@@ -22130,6 +22137,9 @@
         make: (m) => ({ op: 'blockPowerLimit', min: +m[1] }), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as defending player controls an? ([A-Za-z][A-Za-z' -]*?)\.?$/i,
         make: (m) => ({ op: 'evasion', defenderControls: m[1].trim().toLowerCase() }), auto: true },
+      // Ayesha Tanaka, Armorer: "can't be blocked as long as defending player controls three or more artifacts" (defenderControlsN)
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as defending player controls (two|three|four|five) or more (artifacts|creatures|enchantments|lands)\.?$/i,
+        make: (m) => ({ op: 'evasion', defenderControls: m[2].toLowerCase().replace(/s$/, ''), defenderControlsN: num(m[1]) }), auto: true },
       // Suq'Ata Firewalker: "can't be the target of red spells or abilities from red sources" — anyone's
       { re: /^(?:CARDNAME|This creature) can'?t be the target of (white|blue|black|red|green) spells or abilities from (white|blue|black|red|green) sources\.?$/i,
         make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'untargetableBy', q: [m[1].toLowerCase()] } : null), auto: true },

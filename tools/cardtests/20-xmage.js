@@ -211,8 +211,9 @@ module.exports = (test) => {
     t.eq(small.counters['+1/+1'], 2);
   });
 
-  test('XMage: Bottomless Pit makes the player whose upkeep it is discard', (mk, t) => {
-    generated(t, 'Bottomless Pit');
+  // the parser reads "that player discards a card at random" itself now (Urgoros, the Empty One)
+  test('Bottomless Pit makes the player whose upkeep it is discard', (mk, t) => {
+    t.auto('Bottomless Pit');
     const T = mk();
     T.bf('A', 'Bottomless Pit');
     T.hand('B', 'Island');
@@ -61988,5 +61989,101 @@ module.exports = (test) => {
     t.zone(bear, 'hand', "The Spot: Grizzly Bears back to its owner's hand");
     t.zone(dead, 'hand', "The Spot: Hill Giant back to its owner's hand");
     t.eq(T.manualLines().length, 0);
+  });
+  test('Commanders: Tokka & Rahzar, Terrible Twos — a spell cast for less mana than its mana value: 3 damage to its caster', (mk, t) => {
+    t.auto('Tokka & Rahzar, Terrible Twos');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Tokka & Rahzar, Terrible Twos');
+    T.toMain('B');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.eq(T.life('B'), 20, 'Tokka & Rahzar: paid in full — nothing');
+    // Mutagenic Growth: {G/P} paid with 2 life — no mana spent, mana value 1
+    const bear = T.bfOf('B').find(o => o.name === 'Grizzly Bears');
+    T.cast('B', T.hand('B', 'Mutagenic Growth'), { targets: [bear] });
+    t.eq(T.life('B'), 20 - 2 - 3, 'Tokka & Rahzar: Phyrexian mana paid with life — 3 damage to the caster');
+    t.eq(T.life('A'), 20, 'Tokka & Rahzar: not to its controller');
+    // their own: the same
+    T.nextTurn('A'); T.toMain('A');
+    const mine = T.bf('A', 'Grizzly Bears');
+    T.cast('A', T.hand('A', 'Mutagenic Growth'), { targets: [mine] });
+    t.eq(T.life('A'), 20 - 2 - 3, 'Tokka & Rahzar: any player, its controller too');
+  });
+  test('Commanders: Urgoros, the Empty One — combat damage to a player: a card discarded at random, or you draw if they had none', (mk, t) => {
+    t.auto('Urgoros, the Empty One');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ug = T.bf('A', 'Urgoros, the Empty One');
+    T.zone('B', 'hand').slice().forEach(c => g.moveObject(c, 'library'));
+    const h1 = T.hand('B', 'Grizzly Bears');
+    T.toMain('A');
+    const handA = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ug.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.zone(h1, 'graveyard', 'Urgoros: the only card in hand discarded');
+    t.eq(T.zone('A', 'hand').length, handA, 'Urgoros: B could discard — no card drawn');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.zone('B', 'hand').slice().forEach(c => g.moveObject(c, 'library'));
+    T.toMain('A');
+    const handA2 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ug.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, handA2 + 1, "Urgoros: B's hand empty — you draw a card");
+  });
+  test('Commanders: Hulkling, Young Avenger — a noncreature spell: a copy of another creature until end of turn, named Hulkling, 4/4, flying, with this ability', (mk, t) => {
+    t.auto('Hulkling, Young Avenger');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const hk = T.bf('A', 'Hulkling, Young Avenger');
+    const wurm = T.bf('B', 'Craw Wurm'), bear = T.bf('B', 'Grizzly Bears');
+    T.toMain('A');
+    let opts = null;
+    T.answer('pickTarget', (ch) => { opts = (ch.options[0] || []).map(x => x.id); return { targets: [{ kind: 'object', id: wurm.id }] }; });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.ok(opts && opts.includes(wurm.id) && !opts.includes(hk.id), 'Hulkling: another creature, not himself');
+    t.eq(hk.name, 'Hulkling, Young Avenger', 'Hulkling: keeps his name');
+    t.ok(g._hasCreatureType(hk, 'Wurm') && !g._hasCreatureType(hk, 'Skrull'), 'Hulkling: a Wurm now');
+    t.eq(g.powerOf(hk) + '/' + g.toughnessOf(hk), '4/4', 'Hulkling: 4/4');
+    t.ok(g.hasKw(hk, 'flying'), 'Hulkling: flying');
+    // he still has the ability: the next noncreature spell, another copy
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.ok(g._hasCreatureType(hk, 'Bear'), 'Hulkling: with this ability — a Bear now');
+    t.eq(g.powerOf(hk) + '/' + g.toughnessOf(hk), '4/4', 'Hulkling: still 4/4');
+    // a creature spell: nothing
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.ok(g._hasCreatureType(hk, 'Bear'), 'Hulkling: a creature spell — no trigger');
+    T.nextTurn('B');
+    t.ok(g._hasCreatureType(hk, 'Skrull') && !g._hasCreatureType(hk, 'Bear'), 'Hulkling: himself again next turn');
+  });
+  test('Commanders: Ayesha Tanaka, Armorer — attacks: artifacts with mana value up to her power from the top four, tapped; unblockable against three artifacts', (mk, t) => {
+    t.auto('Ayesha Tanaka, Armorer');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ay = T.bf('A', 'Ayesha Tanaka, Armorer');
+    T.toMain('A');
+    // the top four: Sol Ring (1), Mind Stone (2), Solemn Simulacrum (4), Grizzly Bears
+    for (const nm of ['Grizzly Bears', 'Solemn Simulacrum', 'Mind Stone', 'Sol Ring']) T.top('A', nm);
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = (ch.cards || []).map(c => c.name); return { cardIds: (ch.cards || []).map(c => c.id) }; });
+    T.answer('choose', (ch) => { offered = (ch.items || []).map(it => g.obj(it.id).name); return { picks: (ch.items || []).map(it => it.id) }; });
+    T.answer('declareAttackers', () => [{ attackerId: ay.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.ok(offered && offered.includes('Sol Ring') && offered.includes('Mind Stone') && !offered.includes('Solemn Simulacrum') && !offered.includes('Grizzly Bears'),
+      'Ayesha: artifacts with mana value 2 or less');
+    const sr = T.bfOf('A').find(o => o.name === 'Sol Ring'), ms = T.bfOf('A').find(o => o.name === 'Mind Stone');
+    t.ok(sr && sr.tapped && ms && ms.tapped, 'Ayesha: onto the battlefield tapped');
+    const lib = T.zone('A', 'library');
+    t.ok(lib.slice(-2).map(o => o.name).sort().join(',') === 'Grizzly Bears,Solemn Simulacrum', 'Ayesha: the rest on the bottom');
+    // can't be blocked while the defending player controls three or more artifacts
+    const blk = T.bf('B', 'Wall of Stone');
+    T.bf('B', 'Sol Ring'); T.bf('B', 'Mind Stone');
+    t.ok(g.canBlock(blk, ay), 'Ayesha: two artifacts — can be blocked');
+    T.bf('B', 'Ornithopter');
+    t.no(g.canBlock(blk, ay), 'Ayesha: three artifacts — unblockable');
   });
 };
