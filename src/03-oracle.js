@@ -12609,6 +12609,11 @@
        words a sentence later giving it one (as "with" in the same sentence would) */
     { re: /^(Create (?:a|an) (?![\dX*]+\/)[^.]*?creature token)\. It has "([^"]+?)"\.?$/,
       make: (m) => { const e = parseTokenSentence(m[1] + ' with "' + m[2] + '"'); return e ? [e] : null; } },
+    /* Seize the Spotlight: "Each opponent chooses fame or fortune. For each player who chose fame, gain control of a creature
+       that player controls until end of turn. Untap those creatures and they gain haste until end of turn. For each player who
+       chose fortune, you draw a card and create a Treasure token." (fameOrFortune) */
+    { re: /^Each opponent chooses fame or fortune\. For each player who chose fame, gain control of a creature that player controls until end of turn\. Untap those creatures and they gain haste until end of turn\. For each player who chose fortune, you draw a card and create a Treasure token\.?$/i,
+      make: () => [{ op: 'fameOrFortune' }] },
     /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed. For
        each fellowship vote, the voter chooses a creature they control. You gain control of each creature chosen this way,
        and they gain "This creature can't attack its owner." Then for each aid vote, put a +1/+1 counter on each creature
@@ -18332,6 +18337,10 @@
            halves have to be read together rather than one at a time. */
         // (Lucy MacLean, Positively Armed: "you may have …, then you draw a card if an opponent created a token this way" —
         // a "this way" inside the one sentence asked about links nothing)
+        /* Forgotten Cellar: "you may cast spells from your graveyard this turn, and if a card would be put into your
+           graveyard from anywhere this turn, exile it instead." — a permission, as Yawgmoth's Will words it, not a "may" */
+        const permit = body.match(/^you may (play lands and cast spells|cast spells|play lands) from your graveyard this turn, and (if a card would be put into your graveyard from anywhere this turn, exile (?:it|that card) instead\.?)$/i);
+        if (permit) body = `Until end of turn, you may ${permit[1]} from your graveyard. ${permit[2].charAt(0).toUpperCase()}${permit[2].slice(1)}`;
         const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) ||
           /\bthis way\b/i.test(/^you may /i.test(body) ? body.replace(/^[^.]*\./, '') : body);
         /* Sephiroth, Fallen Hero: "you may put a cell counter on target creature. Until end of turn, each modified
@@ -22005,6 +22014,9 @@
       // Pariah, Empyrial Archangel, Pariah's Shield: "All damage that would be dealt to you is dealt to this creature instead."
       { re: /^All damage that would be dealt to you is dealt to (this creature|CARDNAME|enchanted creature|equipped creature) instead\.?$/i,
         make: (m) => ({ op: 'redirectYourDamage', to: /enchanted|equipped/i.test(m[1]) ? 'attached' : 'self' }), auto: true },
+      // Extraplanar Lens: "Whenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced." (sameNameExiled)
+      { re: /^Whenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced\.?$/i,
+        eff: { op: 'extraManaOnTap', filter: 'land', sameType: true, sameNameExiled: true }, auto: true },
       // Mana Flare, Heartbeat of Spring: every player's lands, for whoever taps them
       { re: /^Whenever a player taps an? (land|basic land|Forest|Island|Swamp|Mountain|Plains) for mana, that player adds (?:an additional )?(\{[^}]+\}|one mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', filter: m[1].toLowerCase() },
@@ -22067,6 +22079,9 @@
       // (Vision, Spectral Synthezoid: "a noncreature or Robot spell")
       { re: /^Once during each of your turns, you may cast an? (instant or sorcery|creature|noncreature|artifact|enchantment|noncreature or [A-Z][a-z]+) spell from your hand without paying its mana cost\.?$/i,
         make: (m) => ({ op: 'freeFromHandOnce', filter: m[1].toLowerCase() }), auto: true },
+      // One with the Multiverse: "Once during each of your turns, you may cast a spell from your hand or the top of your library without paying its mana cost." (orTop)
+      { re: /^Once during each of your turns, you may cast a spell from your hand or the top of your library without paying its mana cost\.?$/i,
+        eff: { op: 'freeFromHandOnce', filter: 'card', orTop: true }, auto: true },
       // Maralen of the Mornsong: "Players can't draw cards." (noDraws)
       { re: /^Players can'?t draw cards\.?$/i, eff: { op: 'noDraws', who: 'each' }, auto: true },
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
@@ -22969,6 +22984,10 @@
       { re: /^Counters remain on CARDNAME as it moves to any zone other than a player'?s hand or library\.?$/i, make: () => ({ op: 'keepCounters' }), auto: true },
       // Yurlok of Scorch Thrash: "A player losing unspent mana causes that player to lose that much life." (manaBurn)
       { re: /^A player losing unspent mana causes that player to lose that much life\.?$/i, make: () => ({ op: 'manaBurn' }), auto: true },
+      /* As Foretold: "Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value X or
+         less, where X is the number of time counters on this enchantment." (grantAltZeroOnce) */
+      { re: /^Once each turn, you may pay \{0\} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of ([a-z]+) counters on (?:this enchantment|this artifact|CARDNAME)\.?$/i,
+        make: (m) => ({ op: 'grantAltZeroOnce', counter: m[1].toLowerCase() }), auto: true },
       // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
       { re: /^You may pay \{0\} rather than pay the mana cost for ((?:[A-Z][a-z]+ )?(?:creature |artifact |enchantment )?)spells you cast\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: (m[1] || 'card').trim().toLowerCase() || 'card' }), auto: true },

@@ -5062,7 +5062,8 @@
       }
       // (Valgavoth, Terror Eater: cards exiled with it, too)
       const leave = (o.zone === 'library' || o.zone === 'graveyard' || o.zone === 'exile') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
-      if (o.zone === 'library' && !leave && opts !== 'resolution') return { ok: false, reason: 'Not castable from library.' };
+      // (One with the Multiverse: its free cast from the top is leave enough — freeHandOnce orTop)
+      if (o.zone === 'library' && !leave && opts !== 'resolution' && opts !== 'freeHandOnce') return { ok: false, reason: 'Not castable from library.' };
       if (o.zone === 'graveyard' && leave && this._anyStatic('cageGraveyards'))
         return { ok: false, reason: "A cage stops spells cast from graveyards." };
       if ((o.zone === 'graveyard' || o.zone === 'exile') && !leave) {
@@ -6269,6 +6270,14 @@
           const tax = this._commanderTax(o).mana;
           out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
         }
+        /* As Foretold: once each turn, {0} for a spell with mana value no more than its time counters — a card with no
+           mana cost too (grantAltZeroOnce, _altZeroTurn) */
+        const az = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && s0._altZeroTurn !== this.turn &&
+          this._staticOp(s0, 'grantAltZeroOnce') && ((o.card && o.card.cmc) || 0) <= (Number((s0.counters || {})[this._staticOp(s0, 'grantAltZeroOnce').counter]) || 0));
+        if (az) {
+          const tax = this._commanderTax(o).mana;
+          out.push({ kind: 'cast', via: 'grantZero', cost: tax ? this._addGeneric('', tax) : '', srcId: az.id, alt: { mana: '', label: 'Pay {0}' }, label: `Pay {0} instead (${az.name})` });
+        }
         /* Nissa, Worldsoul Speaker: "You may pay eight {E} rather than pay the mana cost for permanent spells you cast."
            — energy for the price, offered while there is that much (grantAltCost energy) */
         const ge = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && (this._staticOp(s0, 'grantAltCost') || {}).energy);
@@ -6318,9 +6327,12 @@
       }
       /* Zaffai and the Tempests: "Once during each of your turns, you may cast an instant or sorcery spell from your hand
          without paying its mana cost." — a way to cast it, once each turn for each one that grants it (freeFromHandOnce) */
-      if (o.zone === 'hand' && !a.isLand && this.activePlayer && this.activePlayer.id === playerId) {
+      // (One with the Multiverse: "from your hand or the top of your library" — orTop)
+      const topOwn = o.zone === 'library' && o.owner === playerId && ((this.zones[playerId] || {}).library || [])[0] === o;
+      if ((o.zone === 'hand' || topOwn) && !a.isLand && this.activePlayer && this.activePlayer.id === playerId) {
         const zt = this.battlefield.find(s => s.controller === playerId && !s.phasedOut && s._freeHandOnceTurn !== this.turn &&
-          this._staticOp(s, 'freeFromHandOnce') && this._cardFitsWords(o, this._staticOp(s, 'freeFromHandOnce').filter || 'card'));
+          this._staticOp(s, 'freeFromHandOnce') && (o.zone === 'hand' || this._staticOp(s, 'freeFromHandOnce').orTop) &&
+          this._cardFitsWords(o, this._staticOp(s, 'freeFromHandOnce').filter || 'card'));
         if (zt) out.push({ kind: 'cast', via: 'freeHandOnce', cost: '', srcId: zt.id, label: `Cast it without paying its mana cost (${zt.name})` });
       }
       if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand) {
@@ -7725,6 +7737,8 @@
         if (via && via.via === 'exiledWithFree') { const mx = this.obj(via.srcId); if (mx) mx._castExiledTurn = this.turn; }
         // Zaffai and the Tempests: "Once during each of your turns" — used up (freeHandOnce)
         if (via && via.via === 'freeHandOnce') { const zx = this.obj(via.srcId); if (zx) zx._freeHandOnceTurn = this.turn; }
+        // As Foretold: "Once each turn" — used up (grantAltZeroOnce)
+        if (via && via.via === 'grantZero') { const fx = this.obj(via.srcId); if (fx) fx._altZeroTurn = this.turn; }
         // Kotis, Sibsig Champion: "Once during each of your turns" — used up (graveCastExile)
         if (via && via.via === 'graveExile') { const kx = this.obj(via.srcId); if (kx) kx._graveExileTurn = this.turn; }
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
@@ -12243,6 +12257,8 @@
         if (e.ifMade && !(made[e.ifMade] > 0)) continue;
         // Caged Sun: only when it made mana of the chosen colour
         if (e.ifMadeChosen && !(src.chosenColor && made[src.chosenColor] > 0)) continue;
+        // Extraplanar Lens: a land with the same name as a card exiled with it (sameNameExiled)
+        if (e.sameNameExiled && !this.players.some(q => ((this.zones[q.id] || {}).exile || []).some(c => c.exiledWithId === src.id && c.name === o.name))) continue;
         let syms = e.symbols || [];
         if (e.chosen) syms = src.chosenColor ? [src.chosenColor] : [];
         if (e.sameType) {
@@ -33329,6 +33345,52 @@
           }
           const aid = votes.filter(v => v.pick === 1).length;
           if (aid) this._spliceNext(Array.from({ length: aid }, () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: 'yourCreatures' })));
+          break;
+        }
+        /* Seize the Spotlight: each opponent chooses fame or fortune; a creature of each fame chooser's, picked by the
+           caster, untapped, theirs with haste until end of turn; a card and a Treasure for each fortune (fameOrFortune) */
+        case 'fameOrFortune': {
+          const opps = this._turnOrderFrom(ctx.controller).filter(q => !q.hasLost && q.id !== ctx.controller);
+          const opts = [{ i: 0, label: 'Fame' }, { i: 1, label: 'Fortune' }];
+          const picks = [];
+          for (const q of opps) {
+            const v = this._choose({ playerId: q.id, purpose: 'fameOrFortune', kind: 'options', min: 1, max: 1, options: opts, forPlayer: ctx.controller,
+              prompt: `${src ? src.name + ': ' : ''}choose fame or fortune. Fame: ${me.name} gains control of a creature you control until end of turn. Fortune: ${me.name} draws a card and creates a Treasure token.` }, 'ff' + q.id);
+            if (v === SUSPEND) return SUSPEND;
+            picks.push({ pid: q.id, pick: v && v.picks.length ? v.picks[0] : 1 });
+          }
+          if (!this._doneHere('ffTold')) for (const v of picks) this.logEvent('rules', `${(this.player(v.pid) || {}).name} chooses ${v.pick === 0 ? 'fame' : 'fortune'}.`);
+          const took = [];
+          for (let k = 0; k < picks.length; k++) {
+            if (picks[k].pick !== 0) continue;
+            const q = this.player(picks[k].pid);
+            const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+            if (!pool.length) continue;
+            let id = pool[0].id;
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'fameCreature', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+                min: 1, max: 1, prompt: `${src ? src.name + ': ' : ''}gain control of which creature of ${q.name}'s until end of turn?` }, 'ffc' + k);
+              if (got === SUSPEND) return SUSPEND;
+              id = ((got && got.picks) || []).find(x => pool.some(o => o.id === x)) || id;
+            }
+            took.push(id);
+          }
+          if (!this._doneHere('ffGain')) {
+            const ts = this._stampNew();
+            for (const id of took) {
+              const x = this.obj(id);
+              if (!x || x.zone !== 'battlefield') continue;
+              x.effects.push({ control: ctx.controller, until: 'eot', ts });
+              this._markUntapped(x);
+              x.effects.push({ keywords: ['Haste'], until: 'eot' });
+              x._chr = null;
+              this.logEvent('control', `${me.name} gains control of ${x.name} until end of turn; it untaps and gains haste.`);
+            }
+            this._refreshControl();
+            this.bumpBoard();
+          }
+          const fortune = picks.filter(v => v.pick === 1).length;
+          if (fortune) this._spliceNext([].concat(...Array.from({ length: fortune }, () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'createNamedToken', n: 1, token: 'Treasure' }])));
           break;
         }
         /* Círdan the Shipwright: "each player secretly votes for a player, then those votes are revealed" — nobody's vote

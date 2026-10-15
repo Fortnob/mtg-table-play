@@ -2190,6 +2190,18 @@
       const theirs = g.battlefield.filter(o => o.controller === s.forPlayer && (g.characteristics(o) || {}).isCreature).length;
       return { picks: [!mine || theirs >= 3 ? 0 : 1] };
     },
+    /* Seize the Spotlight: fame when it costs us nothing (no creature, or none worth stealing), else fortune */
+    fameOrFortune(s) {
+      const g = this.game;
+      const mine = g.battlefield.filter(o => o.controller === this.pid && !o.phasedOut && (g.characteristics(o) || {}).isCreature);
+      return { picks: [!mine.length || mine.every(o => g.powerOf(o) <= 1) ? 0 : 1] };
+    },
+    /* Seize the Spotlight: their best creature, for a swing with it */
+    fameCreature(s) {
+      const g = this.game;
+      const items = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => g.powerOf(b) - g.powerOf(a) || this.permanentValue(b) - this.permanentValue(a));
+      return items.length ? { picks: [items[0].id] } : null;
+    },
     /* Gollum, Scheming Guide: land or nonland — either, so the guess can't be read off us */
     guessKindPick() { return { picks: [this.rand() < 0.5 ? 0 : 1] }; },
     /* The Ring tempts you: the Ring-bearer kept, or the strongest (offered first) — unless something of ours wants
