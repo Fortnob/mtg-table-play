@@ -2493,7 +2493,10 @@
             if (item.via === 'bestow') o.bestowed = true;
           }
         }
+        // (Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." — known as it enters)
+        o._escaping = item.via === 'escape';
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
+        o._escaping = false;
         // (sent somewhere else as it would have entered: attached to nothing)
         if (o.zone !== 'battlefield' && o.attachedTo) {
           const h1 = this.obj(o.attachedTo);
@@ -8295,7 +8298,8 @@
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
-        const raw = a.entersWithCounters.n;
+        // (Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." — escapeN)
+        const raw = o._escaping && a.entersWithCounters.escapeN != null ? a.entersWithCounters.escapeN : a.entersWithCounters.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
           // Banquet Guests: "twice X"
           : (raw && typeof raw === 'object' && raw.xTimes) ? (o.chosenX || 0) * raw.xTimes
@@ -14651,6 +14655,17 @@
           return 0;
         }
       }
+      /* Polukranos, Unchained: "If damage would be dealt to Polukranos while it has a +1/+1 counter on it, prevent that
+         damage and remove that many +1/+1 counters from it." — all of it prevented, as many as there are removed; damage
+         that can't be prevented is dealt, and the counters still come off (damageEatsCounters) */
+      const eat = o.zone === 'battlefield' && (Number(o.counters['+1/+1']) || 0) > 0 && this._staticOp(o, 'damageEatsCounters');
+      if (eat) {
+        const off = Math.min(amount, Number(o.counters['+1/+1']) || 0);
+        const prevent = !this._noPrevention(isCombat);
+        this.addCounters(o, '+1/+1', -off);
+        this.logEvent('damage', `${prevent ? amount + ' damage to ' + o.name + ' is prevented, and ' : ''}${off === 1 ? 'a +1/+1 counter comes' : off + ' +1/+1 counters come'} off ${o.name}.`);
+        if (prevent) return 0;
+      }
       /* Khârn the Betrayer: "If damage would be dealt to Khârn, prevent that damage and an opponent of your choice
          gains control of it." — the control change is part of the replacement, so it happens even where the damage
          can't be prevented (CR 615.12) (damageGivesControl) */
@@ -18177,7 +18192,8 @@
           return o ? (v.ofTarget === 'power' ? this.powerOf(o) : v.ofTarget === 'toughness' ? this.toughnessOf(o) : ((o.card && o.card.cmc) || 0)) : 0;
         }
         // Fountain of Cho: "for each storage counter removed this way"
-        if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
+        // (Ashling the Pilgrim: "that much" — what this resolution removed, never an X: thisWay)
+        if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null && !v.thisWay ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
         // Thousand-Year Storm: spells of that kind cast this turn before the one copied
         if (v && typeof v === 'object' && v.castBefore) {
           const list = (me && me.spellObjsThisTurn) || [];
@@ -26876,7 +26892,9 @@
             break;
           }
           if (!pool.length && e.op === 'restToBottom' && this._exileUntil) {
-            const rest = this._exileUntil.ids.map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
+            // (Codie, Vociferous Codex: "each other card exiled this way" — the one it stopped at stays: exceptHit)
+            const hit = e.exceptHit ? this._exileUntil.hits : [];
+            const rest = this._exileUntil.ids.filter(id => !hit.includes(id)).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
             this._exileUntil = null;
             if (!rest.length) break;
             for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });

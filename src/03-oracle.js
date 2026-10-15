@@ -2055,6 +2055,10 @@
     // Shiko, Paragon of the Way: "exile target nonland card with mana value 3 or less from your graveyard"
     { re: /^Exile (target [a-z, ]+? card with mana value \d+ or less) from your graveyard\.?$/i,
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown && t.maxMv != null ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Ashling the Pilgrim: "remove all +1/+1 counters from Ashling, and it deals that much damage to each creature and each player"
+    { re: /^remove all \+1\/\+1 counters from CARDNAME, and it deals that much damage to each creature and each player\.?$/i,
+      make: () => ({ op: 'sequence', list: [{ op: 'removeAllButCounters', kind: '+1/+1', keep: 0 },
+        { op: 'damage', n: { removedCounters: true, mult: 1, thisWay: true }, each: 'creature and each player' }] }) },
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
     { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
       make: () => ({ op: 'exileNamedEverywhere' }) },
@@ -4514,6 +4518,9 @@
     // Gríma, Saruman's Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order." (exileUntil)
     { re: /^Then (?:that player puts|put) the exiled cards that weren'?t cast this way on the bottom of (?:their|that|your) library in a random order\.?$/i,
       make: () => ({ op: 'restToBottom', random: true }) },
+    // Codie, Vociferous Codex: "Put each other card exiled this way on the bottom of your library in a random order." — not the one it stopped at (exceptHit)
+    { re: /^Put each other card exiled this way on the bottom of your library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true, exceptHit: true }) },
     /* Plargg and Nassari: "An opponent chooses a nonland card exiled this way. You may cast up to two spells from
        among the other cards exiled this way without paying their mana costs." (exceptChosen) */
     { re: /^An opponent chooses a nonland card exiled this way\.?$/i, make: () => ({ op: 'opponentChoosesExiled', filter: 'nonland' }) },
@@ -7335,6 +7342,8 @@
     { re: /^Tap that creature and goad it\.?$/i, make: () => [{ op: 'tap', scope: 'triggerObject' }, { op: 'goad', scope: 'triggerObject' }] },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
+    // Kitt Kanto, Mayhem Diva: "Goad that creature." — the one just targeted
+    { re: /^Goad that creature\.?$/i, make: () => ({ op: 'goad', scope: 'lastTarget' }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // (Kefnet's Monument: "target creature an opponent controls")
@@ -9329,6 +9338,16 @@
         return again;
       }
     }
+    /* Kitt Kanto, Mayhem Diva: "target creature that player controls gets +2/+2 and gains trample until end of turn" — the
+       same as "Target creature …", of the player the trigger is about */
+    if (!depth && /^Target creature that player controls /.test(s)) {
+      const again = parseEffectSentence(s.replace(/^Target creature that player controls /, 'Target creature '), 1);
+      if (again && again.op !== 'manual') {
+        const mark = (e) => { if (!e || typeof e !== 'object') return; (e.targets || []).forEach(t => { if (t && t.type === 'creature') Object.assign(t, { controller: 'triggerPlayer', filter: 'creature that player controls' }); }); (e.list || []).forEach(mark); };
+        (Array.isArray(again) ? again : [again]).forEach(mark);
+        return again;
+      }
+    }
     /* "You create a Treasure token" is "Create a Treasure token" said by
        somebody: read it without the subject. */
     if (!depth && /^You (?:create|draw|put|exile|return|sacrifice|search|scry|surveil|mill|look|reveal|discard|untap|tap|proliferate|investigate|amass|shuffle|choose|destroy|counter|copy|attach)\b/.test(s)) {
@@ -9842,6 +9861,14 @@
         const md = parseModal(m[2].charAt(0).toUpperCase() + m[2].slice(1));
         if (!md || !md.auto) return null;
         return [{ op: 'mayPay', pay: { mana: m[1] }, then: md.effects }];
+      } },
+    /* Kitt Kanto, Mayhem Diva: "you may tap two untapped creatures you control. When you do, target creature that player
+       controls gets +2/+2 and gains trample until end of turn. Goad that creature." — the goad the reflexive trigger's too */
+    { re: /^you may (tap (?:two|three|an?) untapped [a-z]+ you control)\. (When you do, (target creature that player controls [^.]+)\. Goad that creature\.)$/i,
+      make: (m) => {
+        const pay = asCost(m[1]);
+        const tp = parseSentenceList([m[3].charAt(0).toUpperCase() + m[3].slice(1) + '.', 'Goad that creature.']);
+        return pay && tp.auto ? [{ op: 'mayPay', pay, then: tp.effects, text: m[0] }] : null;
       } },
     /* Caesar, Legion's Emperor: "you may sacrifice another creature. When you do, choose two — …" — the sacrifice
        is the only question until it is made (an optional sacThen); the modes follow it */
@@ -14703,6 +14730,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
     { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },
+    // Kitt Kanto, Mayhem Diva: "At the beginning of combat on each player's turn," — "that player" whose turn it is
+    { re: /^At the beginning of combat on each player's turn,? /i, event: 'eachCombatBegin' },
     { re: /^When(?:ever)? you(?:'re| are) dealt damage,? /i, event: 'playerDealtDamage', extra: { youOnly: true } },
     { re: /^When(?:ever)? you lose life,? /i, event: 'youLoseLife' },
     { re: /^At the beginning of each player's (?:first|precombat) main phase,? /i, event: 'eachMain1' },
@@ -17033,6 +17062,9 @@
     if (/enters with twice X \+1\/\+1 counters/i.test(noReminder) && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: { xTimes: 2 } };
     let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
+    // Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." (escapeN)
+    const escN = out.entersWithCounters && noReminder.match(/\. It escapes with (\w+) \+1\/\+1 counters on it instead\./i);
+    if (escN && out.entersWithCounters.kind === '+1/+1' && typeof num(escN[1]) === 'number') out.entersWithCounters.escapeN = num(escN[1]);
     // (Loch Mare, Moonlit Lamenter: "-1/-1 counters" as well as named ones)
     // (Astral Cornucopia, Lightning Serpent: "X charge counters", "X +1/+0 counters" — the X paid)
     etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (-1\/-1|\+1\/\+0|[a-z ]+?) counters?/i);
@@ -19948,6 +19980,9 @@
         make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || (countOf(m[1]) || {}).spellsCastWords || (countOf(m[1]) || {}).commanderCasts || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
+      // Polukranos, Unchained: "… It escapes with twelve +1/+1 counters on it instead." (escapeN, with the card-level scan)
+      { re: /^CARDNAME enters with (?:six|seven|eight|nine|ten|\d+) \+1\/\+1 counters on it\. It escapes with (?:\w+) \+1\/\+1 counters on it instead\.?$/i,
+        eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read
       { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
@@ -20122,6 +20157,9 @@
       // Khârn the Betrayer: "If damage would be dealt to CARDNAME, prevent that damage and an opponent of your choice gains control of it."
       { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage and an opponent of your choice gains control of (?:it|him|her)\.?$/i,
         eff: { op: 'damageGivesControl' }, auto: true },
+      // Polukranos, Unchained: "If damage would be dealt to CARDNAME while it has a +1/+1 counter on it, prevent that damage and remove that many +1/+1 counters from it."
+      { re: /^If damage would be dealt to CARDNAME while it has a \+1\/\+1 counter on it, prevent that damage and remove that many \+1\/\+1 counters from it\.?$/i,
+        eff: { op: 'damageEatsCounters' }, auto: true },
       /* Anti-Venom: "If damage would be dealt to CARDNAME, prevent that damage and put that many +1/+1
          counters on him"; Phytohydra: "… put that many +1/+1 counters on it instead"; Jared Carthalion:
          "… while you're the monarch, …" (damageToCounters) */
@@ -20305,7 +20343,8 @@
       // Llawan, Cephalid Empress: "Your opponents can't cast blue creature spells." (opponentsCantCastKind)
       { re: /^Your opponents can'?t cast ((?:white|blue|black|red|green) (?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase(), who: 'opponents' }), auto: true },
-      { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
+      // (Codie, Vociferous Codex: "You can't cast permanent spells.")
+      { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker|permanent)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
       { re: /^Players can cast spells only during their own turns\.?$/i, eff: { op: 'castOnlyOwnTurn' }, auto: true },
