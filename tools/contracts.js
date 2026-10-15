@@ -856,7 +856,8 @@ function watch(g, MTG, opts) {
         else {
           const where = firstDiff(bare(JSON.parse(JSON.stringify(v))), bare(arrived), 'view');
           if (where) note([{ rule: 'net.loopback', path: msg.t, msg: `the view the guest rebuilt is not the view the host sent (first difference: ${where})` }], { viewer: pid });
-          note(checkView(arrived, pid, null).filter(x => x.rule !== 'view.sense' || !corrupt).map(x => Object.assign(x, { path: 'guest ' + x.path })), { viewer: pid, via: 'net' });
+          // judged by the same game as the host's view: what a player may see depends on what they know (knownTo)
+          note(checkView(arrived, pid, g).filter(x => x.rule !== 'view.sense' || !corrupt).map(x => Object.assign(x, { path: 'guest ' + x.path })), { viewer: pid, via: 'net' });
         }
       }
     }
