@@ -14250,6 +14250,29 @@
       if (p.isBot) { const got = this._decideChoose(p.id, spec); this._exileGraveForCounters(o, (got && got.picks) || [], spec); return; }
       this.queueChoice(spec);
     }
+    /* Dralnu, Lich Lord: "sacrifice that many permanents instead" — its controller chooses which, Dralnu among them;
+       all of them when there are no more than that (damageSacrifice) */
+    _damageSacrifice(o, k) {
+      const p = this.player(o.controller);
+      const perms = p ? this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && this._canSacrifice(x)) : [];
+      if (!perms.length || k <= 0) return;
+      if (perms.length <= k) { this._damageSacrificeThese(o, perms.map(x => x.id), k); return; }
+      const spec = MTG.choice.normalize({ playerId: p.id, purpose: 'damageSacrifice', kind: 'objects', zone: 'battlefield', harmful: true,
+        items: this._chooseItems(perms), min: k, max: k, objId: o.id, n: k,
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card, confirmLabel: 'Sacrifice',
+        prompt: `${o.name}: sacrifice ${MTG.oracle.nounCount(k, 'permanent')} instead of being dealt that damage.` });
+      if (p.isBot) { const got = this._decideChoose(p.id, spec); this._damageSacrificeThese(o, (got && got.picks) || [], k); return; }
+      this.queueChoice(spec);
+    }
+    _damageSacrificeThese(o, ids, k) {
+      const list = (ids || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.controller === o.controller).slice(0, k);
+      for (const x of list) {
+        this.moveObject(x, 'graveyard');
+        this.logEvent('sacrifice', `${(this.player(o.controller) || {}).name} sacrifices ${x.name}.`);
+        this._fire('youSacrifice', o.controller, { count: 1, object: x, objController: o.controller });
+      }
+      this.checkStateBasedActions();
+    }
     _exileGraveForCounters(o, ids, spec) {
       o._enteringPending = false;
       const list = (ids || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard' && c.owner === o.controller).slice(0, spec.max);
@@ -16276,6 +16299,13 @@
       /* Khârn the Betrayer: "If damage would be dealt to Khârn, prevent that damage and an opponent of your choice
          gains control of it." — the control change is part of the replacement, so it happens even where the damage
          can't be prevented (CR 615.12) (damageGivesControl) */
+      /* Dralnu, Lich Lord: "If damage would be dealt to Dralnu, sacrifice that many permanents instead." — a
+         replacement: no damage is dealt, prevention or not (damageSacrifices) */
+      if (o.zone === 'battlefield' && this._staticOp(o, 'damageSacrifices')) {
+        this.logEvent('damage', `Instead of ${amount} damage to ${o.name}, ${(this.player(o.controller) || {}).name} sacrifices ${MTG.oracle.nounCount(amount, 'permanent')}.`);
+        this._damageSacrifice(o, amount);
+        return 0;
+      }
       if (o.zone === 'battlefield' && this._staticOp(o, 'damageGivesControl')) {
         const prevent = !this._noPrevention(isCombat);
         if (prevent) this.logEvent('damage', `${amount} damage to ${o.name} is prevented.`);
@@ -18646,15 +18676,18 @@
           }
           if (m.optional || m.distinctPlayers) {
             // Shadrix Silverquill: "Each mode must target a different player" — that many players to target
-            if (m.distinctPlayers && this._legalTargetsFor({ type: 'player' }, pid, src ? src.id : null).length < want) {
+            const nPl = m.distinctPlayers ? this._legalTargetsFor({ type: 'player' }, pid, src ? src.id : null).length : 99;
+            if (m.distinctPlayers && nPl < want) {
               if (!m.optional) return gone(`can't target a different player with each of ${want} modes`);
               picks = [];
             } else {
               picks = usable.slice(0, want);
+              // Donnie & April, Adorkable Duo: "choose one or both" — up to as many players as there are to target (most)
+              const upTo = Math.max(want, Math.min(most, nPl, usable.length));
               if (m.optional || usable.length > want) {
-                const got = this._choose({ playerId: pid, purpose: 'modes', kind: 'options', min: want, max: want, optional: !!m.optional, stackId: item.id, remember: 'mode',
+                const got = this._choose({ playerId: pid, purpose: 'modes', kind: 'options', min: want, max: upTo, optional: !!m.optional, stackId: item.id, remember: 'mode',
                   options: usable.map(i => ({ i, label: label(i) })),
-                  prompt: `${name}: ${m.optional ? 'you may choose' : 'choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${m.optional ? ', or none' : ''}.${m.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
+                  prompt: `${name}: ${m.optional ? 'you may choose' : 'choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${upTo > want ? (upTo === 2 ? ' or both' : ` to ${upTo}`) : ''}${m.optional ? ', or none' : ''}.${m.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
                 if (got === SUSPEND) return SUSPEND;
                 picks = ((got && got.picks) || []).map(k => usable[k]).filter(i => i != null).sort((x, y) => x - y);
               }
@@ -21232,7 +21265,9 @@
            target: chosen as it resolves, from what is there by then */
         case 'graveyardPick': {
           // Skullwinder: "That player returns a card from their graveyard to their hand" — the chosen opponent, from theirs (gyPickOwner)
-          const gyOwner = e.who === 'triggerPlayer' ? (triggerPlayer() || firstPlayer() || me) : me;
+          // (Donnie & April, Adorkable Duo: "Target player returns … from their graveyard" — that player, choosing — who: target)
+          const gyOwner = e.who === 'triggerPlayer' ? (triggerPlayer() || firstPlayer() || me) : e.who === 'target' ? firstPlayer() : me;
+          if (!gyOwner) break;
           // Soul of Windgrace: "from a graveyard … under your control" — any player's (putFromGraveyard)
           const yard = e.anyGraveyard ? this.players.reduce((acc, q) => acc.concat((this.zones[q.id] || {}).graveyard || []), [])
             : (this.zones[gyOwner.id] || {}).graveyard || [];
@@ -25324,15 +25359,18 @@
           /* Shadrix Silverquill: "you may choose two. Each mode must target a different player." Two modes or none, in
              one question; with fewer players it could target than modes to choose, none can be (distinctPlayers) */
           if (e.optional || e.distinctPlayers) {
-            if (e.distinctPlayers && this._legalTargetsFor({ type: 'player' }, ctx.controller, src ? src.id : null).length < want) {
+            const nPl = e.distinctPlayers ? this._legalTargetsFor({ type: 'player' }, ctx.controller, src ? src.id : null).length : 99;
+            if (e.distinctPlayers && nPl < want) {
               this.logEvent('rules', `${ctx.name || 'Effect'}: there are not enough players to choose ${want === 1 ? 'a mode' : want + ' modes'}.`);
               break;
             }
             let chosenO = usable.slice(0, want);
+            // (Donnie & April, Adorkable Duo: "choose one or both" — most)
+            const upTo = Math.max(want, Math.min(most, nPl, usable.length));
             if (e.optional || usable.length > want) {
-              const got = this._choose({ playerId: ctx.controller, purpose: 'modes', kind: 'options', min: want, max: want, optional: !!e.optional,
+              const got = this._choose({ playerId: ctx.controller, purpose: 'modes', kind: 'options', min: want, max: upTo, optional: !!e.optional,
                 options: usable.map(i => ({ i, label: truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90) })),
-                prompt: `${e.optional ? 'You may choose' : 'Choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${e.optional ? ', or none' : ''}.${e.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
+                prompt: `${e.optional ? 'You may choose' : 'Choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${upTo > want ? (upTo === 2 ? ' or both' : ` to ${upTo}`) : ''}${e.optional ? ', or none' : ''}.${e.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
               if (got === SUSPEND) return SUSPEND;
               chosenO = ((got && got.picks) || []).map(k => usable[k]).filter(i => i != null).sort((x, y) => x - y);
             }
@@ -29673,7 +29711,9 @@
           // Yedora, Grave Gardener: "face down … It's a Forest land." — it enters as one, landfall and all (faceDownLand)
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           // (Vraska, the Silencer: "It's a Treasure artifact …" — what it is as it enters: enterEff)
-          this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+          // (Lim-Dûl the Necromancer: "If it's a creature, it's a Zombie …" — enterEffIfCreature)
+          const eff0 = e.enterEff && (!e.enterEffIfCreature || (x.analysis() || {}).isCreature) ? e.enterEff : null;
+          this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner }, eff0 ? { enterEffects: [eff0] } : {}));
           if (x.zone !== 'battlefield') break;
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           // (Yarus: "then turn it face up" — entered face down, a 2/2 with no enters abilities; turned up, "when turned face up" sees it)
@@ -36906,6 +36946,8 @@
           if (ch.purpose === 'discardForKwCounters') { const o = this.obj(ch.objId); if (o) this._kwCountersFromDiscard(o, got.picks, ch.keywords); break; }
           if (ch.purpose === 'exileGraveForCounters') { const o = this.obj(ch.objId); if (o) this._exileGraveForCounters(o, got.picks, ch); break; }
           if (ch.purpose === 'giveControl') { this._giveControl(this.obj(ch.objId), got.picks[0]); this.checkStateBasedActions(); break; }
+          // Dralnu, Lich Lord: the permanents sacrificed instead of the damage
+          if (ch.purpose === 'damageSacrifice') { this._damageSacrificeThese(this.obj(ch.objId) || { controller: playerId }, got.picks, ch.n || 1); break; }
           // Ruxa, Patient Professor: the ones that deal their damage as though unblocked, then the damage (asUnblocked)
           if (ch.purpose === 'asUnblocked') {
             for (const id of got.picks || []) { const x = this.obj(id); if (x) x._asUnblockedAt = ch.key; }

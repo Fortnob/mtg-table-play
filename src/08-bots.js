@@ -2339,7 +2339,10 @@
         const v = gift(opts[i].list, this.pid) - gift(opts[j].list, foe ? foe.id : null);
         if (!best || v > best.v) best = { v, picks: [opts[i].k, opts[j].k] };
       }
-      return { picks: best && best.v > 0 ? best.picks : [] };
+      if (best && best.v > 0) return { picks: best.picks };
+      // Donnie & April, Adorkable Duo: "choose one or both" — one at least, the best alone
+      if (s.min > 0 && !s.optional) return { picks: [opts.map(o => ({ k: o.k, v: this._modeWorth(effs(s.options[o.k], o.k)) })).sort((x, y) => y.v - x.v)[0].k] };
+      return { picks: [] };
     },
     /* Mari, the Killing Quill: a hit counter off is a card and two Treasures — always */
     removeExiledCounter(s) { return { picks: (s.items || []).slice(0, 1).map(x => x.id) }; },

@@ -9174,6 +9174,9 @@
     // Skullwinder: "That player returns a card from their graveyard to their hand." — they choose
     { re: /^That player returns (a|an) ([a-z ]*?)card from their graveyard to their hand\.?$/i,
       make: (m) => ({ op: 'graveyardPick', who: 'triggerPlayer', n: 1, upTo: false, filter: m[2].trim().toLowerCase() || 'card', to: 'hand' }) },
+    // Donnie & April, Adorkable Duo: "Target player returns an artifact, instant, or sorcery card from their graveyard to their hand." — they choose
+    { re: /^Target player returns (a|an) ([a-z, ]*?)card from their graveyard to their hand\.?$/i,
+      make: (m) => ({ op: 'graveyardPick', who: 'target', targets: [{ type: 'player' }], n: 1, upTo: false, filter: m[2].trim().toLowerCase() || 'card', to: 'hand' }) },
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")
@@ -10730,6 +10733,11 @@
     { re: /^you may pay life equal to its mana value\. If you do, put it onto the battlefield under your control\. It'?s an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => [{ op: 'mayPay', pay: { life: { ofTrigger: 'mv' } }, text: m[0],
         then: [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, fromGrave: true, enterEff: { addSubtypes: [m[1]] } }] }] },
+    /* Lim-Dûl the Necromancer: "you may pay {1}{B}. If you do, return that card to the battlefield under your control. If
+       it's a creature, it's a Zombie in addition to its other creature types." — the card that died (enterEffIfCreature) */
+    { re: /^you may pay ((?:\{[0-9WUBRGC]\})+)\. If you do, return that card to the battlefield under your control\. If it'?s a creature, it'?s an? ([A-Z][a-z]+) in addition to its other creature types\.?$/,
+      make: (m) => [{ op: 'mayPay', pay: { mana: m[1] }, text: m[0],
+        then: [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, fromGrave: true, enterEff: { addSubtypes: [m[2]] }, enterEffIfCreature: true }] }] },
     /* The Beamtown Bullies: "Target opponent whose turn it is puts target nonlegendary creature card from your graveyard
        onto the battlefield under their control. It gains haste. Goad it. At the beginning of the next end step, exile
        it." — only on an opponent's turn, that player (activeOnly); goaded by you (toPlayerTarget) */
@@ -16201,6 +16209,9 @@
     // Hawkeye, Avenging Archer: "Whenever a creature an opponent controls dies, if Hawkeye dealt damage to it this turn," (damagedByMe)
     { re: /^Whenever a creature an opponent controls dies, if (?:this creature|CARDNAME) dealt damage to it this turn,? /i, event: 'permDies',
       filt: () => ({ words: 'creature', who: 'opponent' }), extra: { damagedByMe: true } },
+    // Yomiji, Who Bars the Way: "Whenever a legendary permanent other than Yomiji is put into a graveyard from the battlefield" — another
+    { re: /^Whenever an? ([a-z]+ [a-z]+|[a-z]+) other than CARDNAME (?:dies|is put into a graveyard from the battlefield),? /i,
+      event: 'permDies', filt: (m) => subjectFilter('another ' + m[1].toLowerCase()) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     // Dour Port-Mage: "leave the battlefield without dying"; Soulherder: "is exiled from the battlefield"
@@ -22269,6 +22280,9 @@
       // Khârn the Betrayer: "If damage would be dealt to CARDNAME, prevent that damage and an opponent of your choice gains control of it."
       { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage and an opponent of your choice gains control of (?:it|him|her)\.?$/i,
         eff: { op: 'damageGivesControl' }, auto: true },
+      // Dralnu, Lich Lord: "If damage would be dealt to Dralnu, sacrifice that many permanents instead." (damageSacrifices)
+      { re: /^If damage would be dealt to CARDNAME, sacrifice that many permanents instead\.?$/i,
+        eff: { op: 'damageSacrifices' }, auto: true },
       // Polukranos, Unchained: "If damage would be dealt to CARDNAME while it has a +1/+1 counter on it, prevent that damage and remove that many +1/+1 counters from it."
       { re: /^If damage would be dealt to CARDNAME while it has a \+1\/\+1 counter on it, prevent that damage and remove that many \+1\/\+1 counters from it\.?$/i,
         eff: { op: 'damageEatsCounters' }, auto: true },
