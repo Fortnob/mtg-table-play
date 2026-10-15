@@ -55815,4 +55815,165 @@ module.exports = (test) => {
     t.zone(elf, 'graveyard', 'the Elves dealt 1');
     t.eq(T.life('B'), 18, 'B dealt 2');
   });
+  test('Commanders: Jocasta, Automaton Avenger — your commander hits a player: +1/+1 counter; attack with your commander: back from the graveyard attacking', (mk, t) => {
+    t.auto('Jocasta, Automaton Avenger');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const cmd = T.bf('A', 'Hill Giant'); cmd.isCommander = true;
+    const jo = T.bf('A', 'Jocasta, Automaton Avenger');
+    const bears = T.bf('A', 'Grizzly Bears');
+    // a creature that isn't your commander hits: nothing
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(jo.counters['+1/+1'] || 0, 0, 'not your commander: no counter');
+    // your commander hits: a counter
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(jo.counters['+1/+1'] || 0, 1, 'your commander hits B: a +1/+1 counter');
+    // in the graveyard: attacking with a creature that isn't your commander does nothing
+    g.moveObject(jo, 'graveyard');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(jo, 'graveyard', 'not your commander: Jocasta stays');
+    // "you may": declined, she stays
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }]);
+    T.answer('confirm', { yes: false });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(jo, 'graveyard', 'declined: Jocasta stays');
+    // attacking with your commander: she may come back tapped and attacking
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(jo, 'battlefield', 'back with your commander');
+    t.ok(jo.tapped && jo.attacking === 'B', 'tapped and attacking B');
+    t.ok(g.combat.attackers.includes(jo.id), 'an attacker');
+    // on the battlefield it does nothing (only from the graveyard)
+    T.nextTurn('A');
+    const n0 = g.battlefield.length;
+    T.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(g.battlefield.length, n0, 'on the battlefield: nothing');
+  });
+  test('Commanders: Bolg of the North — enters: sacrifice another creature, its power to another creature, excess amassed as Goblins', (mk, t) => {
+    t.auto('Bolg of the North');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const wurm = T.bf('A', 'Craw Wurm'), bears = T.bf('A', 'Grizzly Bears');
+    const elves = T.bf('B', 'Llanowar Elves'), giant = T.bf('B', 'Hill Giant');
+    let tq = null;
+    T.answer('sacrifice', { cardIds: [wurm.id] });
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: elves.id }] }; });
+    const bolg = T.put('A', 'Bolg of the North', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(wurm, 'graveyard', 'the Wurm sacrificed');
+    t.no(tq && tq.options[0].some(x => x.id === bolg.id), 'another target creature: not Bolg');
+    t.zone(elves, 'graveyard', '6 damage to the Elves');
+    const army = g.battlefield.find(o => o.controller === 'A' && o.isToken && (o.card.type_line || '').includes('Army'));
+    t.ok(army, 'an Army');
+    t.eq(army && army.counters['+1/+1'], 5, 'amass 5: the excess');
+    t.ok(army && g._hasCreatureType(army, 'Goblin'), 'a Goblin Army');
+    // no excess: no amass
+    T.answer('sacrifice', { cardIds: [bears.id] });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    T.put('A', 'Bolg of the North', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(giant.damage, 2, '2 damage to the Giant');
+    t.eq(army.counters['+1/+1'], 5, 'no excess: no more counters');
+    // none sacrificed: nothing
+    T.answer('sacrifice', { cardIds: [] });
+    const n0 = T.asked.length;
+    T.put('A', 'Bolg of the North', 'battlefield', { etb: true });
+    T.resolve();
+    t.no(T.asked.slice(n0).some(ch => ch.type === 'pickTarget'), 'none sacrificed: no damage');
+  });
+  test('Commanders: Brigid, Hero of Kinsbaile — {T}: 2 damage to each attacking or blocking creature target player controls', (mk, t) => {
+    t.auto('Brigid, Hero of Kinsbaile');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const br = T.bf('A', 'Brigid, Hero of Kinsbaile');
+    const wall = T.bf('A', 'Grizzly Bears');
+    const bears = T.bf('B', 'Grizzly Bears'), elves = T.bf('B', 'Llanowar Elves'), home = T.bf('B', 'Hill Giant');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'A' }, { attackerId: elves.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [bears.id] }]);
+    T.toMain('B', 'declareBlockers');
+    if (g.priorityPlayer.id === 'B') g.passPriority('B', true);
+    T.activate('A', br, 0, { targets: ['B'] });
+    t.zone(bears, 'graveyard', 'the attacking Bears take 2');
+    t.zone(elves, 'graveyard', 'the attacking Elves take 2');
+    t.eq(home.damage || 0, 0, 'the Giant at home: not attacking or blocking');
+    t.eq(wall.damage || 0, 0, 'your own blocker: not the target player\'s');
+    // outside combat: nothing to hit
+    T.nextTurn('A');
+    T.activate('A', br, 0, { targets: ['B'] });
+    t.eq(home.damage || 0, 0, 'not in combat: no damage');
+  });
+  test('Commanders: Nazahn, Revered Bladesmith — enters: an Equipment, Hammer of Nazahn onto the battlefield; equipped attacker taps a creature', (mk, t) => {
+    t.auto('Nazahn, Revered Bladesmith');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ham = T.top('A', 'Hammer of Nazahn'), bone = T.top('A', 'Bonesplitter');
+    T.answer('pickCard', (ch) => ({ cardIds: [ham.id] }));
+    T.put('A', 'Nazahn, Revered Bladesmith', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(ham, 'battlefield', 'Hammer of Nazahn onto the battlefield');
+    T.answer('pickCard', (ch) => ({ cardIds: [bone.id] }));
+    T.put('A', 'Nazahn, Revered Bladesmith', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(bone, 'hand', 'another Equipment: into your hand');
+    t.ok((bone.knownTo || []).includes('*'), 'revealed: known to everybody in your hand');
+    // an equipped creature attacks: tap a creature defending player controls
+    const T2 = mk({ library: Array(20).fill('Island') });
+    const g2 = T2.g;
+    T2.bf('A', 'Nazahn, Revered Bladesmith');
+    const bears = T2.bf('A', 'Grizzly Bears'), elves = T2.bf('A', 'Llanowar Elves');
+    const sword = T2.bf('A', 'Bonesplitter'); sword.attachedTo = bears.id; bears.attachments = [sword.id]; g2.bumpBoard();
+    const giant = T2.bf('B', 'Hill Giant'), wurm = T2.bf('B', 'Craw Wurm');
+    T2.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }, { attackerId: elves.id, defenderId: 'B' }]);
+    T2.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    T2.toMain('A', 'declareBlockers');
+    T2.resolve();
+    t.ok(giant.tapped && !wurm.tapped, 'one tap, for the one equipped attacker');
+  });
+  test('Commanders: Volrath, the Shapestealer — combat: a -1/-1 counter; {1}: a 7/5 copy of a creature with a counter, until your next turn', (mk, t) => {
+    t.auto('Volrath, the Shapestealer');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const vol = T.bf('A', 'Volrath, the Shapestealer');
+    const giant = T.bf('B', 'Hill Giant'), wurm = T.bf('B', 'Craw Wurm');
+    // beginning of combat: up to one target creature gets a -1/-1 counter
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: wurm.id }] });
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    t.eq(wurm.counters['-1/-1'], 1, 'a -1/-1 counter on the Wurm');
+    T.toMain('B');
+    T.nextTurn('A');
+    t.no(g.activateAbility('A', vol.id, 0, { auto: true, targets: [{ kind: 'object', id: giant.id }] }), 'no counter on the Giant: not a target');
+    T.mana('A', '1');
+    T.activate('A', vol, 0, { targets: [wurm.id] });
+    t.eq(vol.name, 'Craw Wurm', 'a copy of the Wurm');
+    t.eq(g.powerOf(vol) + '/' + g.toughnessOf(vol), '7/5', 'except 7/5');
+    t.no(vol.counters['-1/-1'], 'the counter stays on the Wurm');
+    // it has this ability: again, at the Wurm's copy
+    giant.counters['+1/+1'] = 1;
+    T.mana('A', '1');
+    T.activate('A', vol, 0, { targets: [giant.id] });
+    t.eq(vol.name, 'Hill Giant', 'with this ability: a copy of the Giant now');
+    t.eq(g.powerOf(vol) + '/' + g.toughnessOf(vol), '7/5', 'still 7/5');
+    T.nextTurn('B');
+    t.eq(vol.name, 'Hill Giant', "through the opponent's turn");
+    T.nextTurn('A');
+    t.eq(vol.name, 'Volrath, the Shapestealer', 'Volrath again on your next turn');
+  });
 };

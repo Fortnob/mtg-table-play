@@ -804,8 +804,9 @@
         if (c[5]) (e.addText = e.addText || []).push(c[5][0].toUpperCase() + c[5].slice(1));
       }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
-      // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1" — that size, and the keyword with its number
-      else if ((c = ex.match(/^it'?s (\d+)\/(\d+)(?=,? and |$)/))) e.setPt = c[1] + '/' + c[2];
+      // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1"; Volrath, the Shapestealer: "it's 7/5" — that size
+      // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
+      else if ((c = ex.match(/^(?:it|he|she)'?s (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
       else if ((c = ex.match(/^(?:it )?has (toxic|afflict|bushido|rampage|annihilator) (\d+)(?=,? and |$)/i))) (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1).toLowerCase() + ' ' + c[2]);
       // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — those types and no others (setTypeLine)
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (legendary )?((?:[A-Z][a-z]+ )+)creature(?! in addition)/))) {
@@ -1834,9 +1835,11 @@
     // Counterflux: "Counter target spell you don't control."
     { re: /^Counter target spell you don'?t control\.?$/i, make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'opponent' }] }) },
     // Ashling's Command: "2 damage to each creature target player controls"
-    // (Rowan Kenrith: "deals 3 damage to each tapped creature target player controls")
-    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each (tapped )?creature target (player|opponent) controls\.?$/i,
-      make: (m) => ({ op: 'damage', n: num(m[1]), scope: Object.assign({ who: 'target', what: 'creature' }, m[2] ? { tapped: true } : {}), targets: [{ type: 'player', opponent: /opponent/i.test(m[3]) }] }) },
+    // (Rowan Kenrith: "deals 3 damage to each tapped creature target player controls"; Brigid, Hero of Kinsbaile: "to each
+    // attacking or blocking creature target player controls" — inCombat)
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each (tapped |attacking or blocking )?creature target (player|opponent) controls\.?$/i,
+      make: (m) => ({ op: 'damage', n: num(m[1]), scope: Object.assign({ who: 'target', what: 'creature' }, /tapped/i.test(m[2] || '') ? { tapped: true } : m[2] ? { inCombat: true } : {}),
+        targets: [{ type: 'player', opponent: /opponent/i.test(m[3]) }] }) },
     // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able." (attackNextTurn)
     { re: /^During target player'?s next turn, each creature that player controls attacks if able\.?$/i,
       make: () => ({ op: 'attackNextTurn', targets: [{ type: 'player' }] }) },
@@ -2350,6 +2353,8 @@
     // Hydra Omnivore: "it deals that much damage to each other opponent"
     { re: /^(?:It|CARDNAME|This creature) deals that much damage to each other opponent\.?$/i,
       make: () => ({ op: 'damage', n: 'triggerAmount', eachOtherOpponent: true }) },
+    // Jocasta, Automaton Avenger: "if this card is in your graveyard, you may return it to the battlefield tapped and attacking"
+    { re: /^Return it to the battlefield tapped and attacking\.?$/i, make: () => ({ op: 'returnSelfFromGrave', tapped: true, attacking: true }) },
     // Warcry Phoenix: "return this card from your graveyard to the battlefield tapped and attacking"
     { re: /^Return (?:this card|CARDNAME) from your graveyard to the battlefield tapped and attacking\.?$/i,
       make: () => ({ op: 'returnSelfFromGrave', tapped: true, attacking: true }) },
@@ -5917,7 +5922,7 @@
         if (!k) return null;
         return { op: /gain/i.test(m[1]) ? 'gainLife' : 'loseLife', n: k, who: 'you' };
       } },
-    { re: /^(CARDNAME|This creature|It|That creature|Target creature you control) deals damage equal to (.+?) to (any target|any other target|target [a-z' ]+?|each opponent|each other creature|each creature|each other creature and each opponent)\.?$/i,
+    { re: /^(CARDNAME|This creature|It|That creature|Target creature you control) deals damage equal to (.+?) to (any target|any other target|(?:another )?target [a-z' ]+?|each opponent|each other creature|each creature|each other creature and each opponent)\.?$/i,
       make: (m) => {
         // (Spider-Man 2099: "deals damage equal to his power" — his own, as "its")
         if (/^CARDNAME$/.test(m[1])) m[2] = m[2].replace(/^(?:his|her) (power|toughness)\b/i, 'its $1');
@@ -6792,6 +6797,16 @@
         const e = { op: 'becomeCopy', untilNextTurn: true,
           targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, orGraveyardCard: true }] };
         if (m[1] && (!copyExceptions(m[1], e) || e.keepOwn)) return null;
+        return e;
+      } },
+    /* Volrath, the Shapestealer: "Until your next turn, Volrath becomes a copy of target creature with a counter on it,
+       except it's 7/5 and it has this ability." (untilNextTurn) */
+    { re: /^[Uu]ntil your next turn, CARDNAME becomes a copy of (target [a-z ]+?)(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const spec = targetSpec(m[1]);
+        if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
+        const e = { op: 'becomeCopy', untilNextTurn: true, targets: [spec] };
+        if (m[2] && (!copyExceptions(m[2], e) || e.keepOwn)) return null;
         return e;
       } },
     /* Niko, Light of Hope: "Exile target nonlegendary creature you control. Shards you control become copies of it
@@ -10518,6 +10533,10 @@
         const rest = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1)));
         return rest.auto ? [{ op: 'blinkTransformed', ownerControl: true }, { op: 'ifCond', cond: { kind: 'selfTransformed' }, then: rest.effects }] : null;
       } },
+    /* Nazahn, Revered Bladesmith: "search your library for an Equipment card and reveal it. If you reveal a card named
+       Hammer of Nazahn this way, put it onto the battlefield. Otherwise, put that card into your hand." (namedField) */
+    { re: /^Search your library for an Equipment card and reveal it\. If you reveal a card named Hammer of CARDNAME this way, put it onto the battlefield\. Otherwise, put that card into your hand\. Then shuffle\.$/i,
+      make: () => [{ op: 'tutor', n: 1, filter: 'equipment', to: 'namedField', fieldNamed: 'Hammer of Nazahn', reveal: true, prompt: 'Search your library for an Equipment card.' }] },
     /* Stonehewer Giant: "Search your library for an Equipment card, put it
        onto the battlefield, attach it to a creature you control, then shuffle." */
     { re: /^Search your library for an? (Equipment|Aura) card, put it onto the battlefield, attach it to a creature you control, then shuffle\.$/i,
@@ -12907,8 +12926,9 @@
         sacrificedIsThat(tp.effects);
         const usesX = JSON.stringify(tp.effects).includes('"X"');
         /* Megatron, Destructive Force: "When you do, … to target creature. If excess damage would be dealt to that
-           creature this way, instead …" — the damage's own rider, part of what "when you do" does */
-        const rider = /^If excess damage would be dealt to that creature this way, /i.test(sentences[i + 2] || '') ? parseSentenceList([sentences[i + 2]]) : null;
+           creature this way, instead …" — the damage's own rider, part of what "when you do" does
+           (Bolg of the North: "If excess damage was dealt this way, amass Goblins X, where X is that excess damage.") */
+        const rider = /^If excess damage (?:would be dealt to that creature|was dealt) this way, /i.test(sentences[i + 2] || '') ? parseSentenceList([sentences[i + 2]]) : null;
         if (tp.auto && (!usesX || xv) && (!rider || rider.auto)) {
           swapX(tp.effects);
           if (rider) tp.effects.push(...rider.effects);
@@ -15055,6 +15075,8 @@
        (commanderDies), or into the graveyard when it stays there */
     { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', also: 'permDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
     { re: /^Whenever your commander attacks,? /i, event: 'permAttacks', filt: () => ({ commander: true }) },
+    // Jocasta, Automaton Avenger: "Whenever your commander deals combat damage to a player"
+    { re: /^Whenever your commander deals combat damage to a player,? /i, event: 'permCombatDamage', filt: () => ({ commander: true }) },
     { re: /^Whenever your commander enters,? /i, event: 'permEnters', filt: () => ({ commander: true }) },
     // The Blue Spirit: "Whenever a nontoken creature you control enters during combat" (duringCombat)
     { re: /^Whenever (an? (?:nontoken )?creature you control) enters during combat,? /i, event: 'permEnters',
@@ -15654,6 +15676,8 @@
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
     // (Legion's Landing: "When you attack with three or more creatures")
     { re: /^When(?:ever)? you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    // Jocasta, Automaton Avenger: "Whenever you attack with your commander" — one of your attackers is your commander (attackersCommander)
+    { re: /^Whenever you attack with your commander,? /i, event: 'youAttack', extra: { attackersCommander: true } },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Harbin, Vanguard Aviator: "Whenever you attack with five or more Soldiers" (attackersOfTypeMin)

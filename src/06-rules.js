@@ -17315,6 +17315,9 @@
           // Akiri, Fearless Voyager: one of this player's attackers is equipped (and attacking a player) (attackersFit)
           if (ab.attackersFit && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
             return x && x.controller === o.controller && (!ab.attackPlayerOnly || !!this.player(x.attacking)) && this._cardFitsWords(x, ab.attackersFit); })) continue;
+          // Jocasta, Automaton Avenger: "attack with your commander" — one of the attackers is a commander this player owns (attackersCommander)
+          if (ab.attackersCommander && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
+            return x && x.isCommander && x.owner === o.controller && x.controller === o.controller; })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
           if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
           // Donna Noble: itself, or the creature it is paired with (selfOrPaired)
@@ -22757,7 +22760,9 @@
             if (c.zone === 'graveyard' && e.alsoGraveyard) { this.moveObject(c, dest === 'battlefield' ? 'battlefield' : 'hand', { controller: seeker.id }); continue; }
             const where = dest === 'handGrave' || dest === 'handOrGrave' ? (toField.has('grave:' + c.id) ? 'graveyard' : 'hand')
               : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
-              : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand') : dest;
+              : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand')
+              // Nazahn, Revered Bladesmith: "If you reveal a card named Hammer of Nazahn …, put it onto the battlefield. Otherwise, … into your hand" (namedField)
+              : dest === 'namedField' ? (c.name === e.fieldNamed ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
             if (where === 'battlefield') {
               this.moveObject(c, 'battlefield', { controller: seeker.id, tapped: !!(tapped) }); if (tapped) c.tapped = true; this._lastPut = c.id;
@@ -33381,6 +33386,8 @@
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
       if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;
+      // Brigid, Hero of Kinsbaile: "each attacking or blocking creature" (inCombat)
+      if (sc.inCombat && !(o.attacking || (o.blocking || []).length)) return false;
       if (sc.withCounter && !(Number(o.counters[sc.withCounter]) >= (sc.withCounterMin || 1))) return false;
       if (sc.withAnyCounter && !Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
       if (sc.noCounters && Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
