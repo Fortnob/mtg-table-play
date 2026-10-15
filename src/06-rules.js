@@ -2646,7 +2646,9 @@
       // target legality check (CR 608.2b): fizzle if all targets are illegal
       if (item.targets && item.targets.length) {
         const legal = item.targets.filter((t, i) => this._targetStillLegal(t, item, i));
-        if (!legal.length) {
+        // Gilded Drake: "This ability still resolves if its target becomes illegal." (stillResolves)
+        if (!legal.length && (item.effects || []).some(x => x && x.stillResolves)) item.resolvedTargets = [];
+        else if (!legal.length) {
           this.logEvent('stack', `${item.name} is countered on resolution (no legal targets).`);
           item._fizzled = true;
           this._afterResolve(item);
@@ -4539,6 +4541,8 @@
       if (v.playersLostLife) return this.players.filter(q => !q.hasLost && (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Rakdos, Lord of Riots: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
       if (v.opponentsLifeLost) return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0) * mult;
+      // Chandra's Incinerator: "the total amount of noncombat damage dealt to your opponents this turn" (ncDamage)
+      if (v.opponentsNoncombatDamage) return this.opponentsOf(pid).reduce((k, q) => k + (q.ncDamage && q.ncDamage.turn === this.turn ? q.ncDamage.n : 0), 0) * mult;
       // Indoraptor, the Perfect Hybrid: "Bloodthirst X" — the damage dealt to your opponents this turn (opponentsDamaged)
       if (v.opponentsDamaged) return this.opponentsOf(pid).reduce((k, q) => k + (q.damageTaken && q.damageTaken.turn === this.turn ? q.damageTaken.n : 0), 0) * mult;
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
@@ -9268,6 +9272,45 @@
       if (!ok && hit.zone === 'exile') this.moveObject(hit, 'library', { toBottom: true });
     }
 
+    /** Firebender Ascension: a copy of one attack keyword trigger of this attacking creature, done once more (kwCopy). */
+    _attackKwOnce(o, kw, pid) {
+      if (!o || o.zone !== 'battlefield') return;
+      const attackers = this.battlefield.filter(x => x.attacking && !x.phasedOut);
+      if (kw === 'battle cry') { for (const x of attackers) if (x !== o) x.effects.push({ p: 1, t: 0, until: 'eot' }); this.bumpBoard(); }
+      else if (kw === 'dethrone' || kw === 'training') this.addCounters(o, '+1/+1', 1);
+      else if (kw === 'melee') {
+        const k = new Set(attackers.filter(x => x.controller === o.controller).map(x => this._defPid(x.attacking)).filter(Boolean)).size;
+        if (k) { o.effects.push({ p: k, t: k, until: 'eot' }); this.bumpBoard(); }
+      } else if (kw === 'mentor') {
+        const pupils = attackers.filter(x => x !== o && x.controller === o.controller && this.powerOf(x) < this.powerOf(o)).sort((x, y) => this.powerOf(y) - this.powerOf(x));
+        if (pupils.length) this.addCounters(pupils[0], '+1/+1', 1);
+      } else if (kw === 'mobilize') {
+        const mob = this._kwArg(o, 'mobilize');
+        if (mob) {
+          this._createToken(o.controller, { n: mob, pt: '1/1', subtypes: 'Warrior', colorWords: ['red'], keywords: [], tapped: true, attacking: true,
+            attackingId: this.player(o.attacking) ? o.attacking : null });
+          for (const id of (this._lastTokenGroup || []).slice()) {
+            this.scheduleDelayed({ event: 'eachEndStep', controller: o.controller, objId: id,
+              name: 'Sacrifice them at the beginning of the next end step', effects: [{ op: 'sacrificeThat' }] });
+          }
+        }
+      } else if (kw === 'firebending') {
+        let fire = this._kwArg(o, 'firebending');
+        const fx = this._staticOp(o, 'firebendingX');
+        if (fx && fx.n) fire += Math.max(0, fx.n.ofSelf === 'power' ? this.powerOf(o) : fx.n.ofSelf === 'toughness' ? this.toughnessOf(o) : this._countValue(fx.n, o.controller, o));
+        const p = this.player(pid || o.controller);
+        if (p && fire) { for (let i = 0; i < fire; i++) p.pool.add('R'); if (this.phase && this.phase.id === 'combat') p.poolKeepUntil = 'combat'; }
+      } else if (kw === 'annihilator') {
+        let ann = this._kwArg(o, 'annihilator');
+        const ax = this._staticOp(o, 'annihilatorX');
+        if (ax && ax.n) ann += Math.max(0, this._countValue(ax.n, o.controller, o));
+        const dpid = this._defPid(o.attacking);
+        if (ann && dpid) this._queueUnlessSettled({ type: 'sacrifice', playerId: dpid, count: ann, filter: 'permanent',
+          prompt: `${o.name}'s annihilator ${ann}, copied \u2014 sacrifice ${ann} permanent${ann === 1 ? '' : 's'}.` });
+      }
+      this.logEvent('copy', `${o.name}'s ${kw} is copied.`);
+    }
+
     /** Everything the attack declaration triggers (CR 508.1). */
     _attackKeywords(attackers) {
       if (!attackers.length) return;
@@ -9292,11 +9335,16 @@
         /* these keywords are triggered abilities of an attacking creature: Isshin, Two Heavens as One and Wulfgar
            of Icewind Dale have them trigger an additional time (twice) */
         const twice = 1 + this._extraTriggers(o, 'attacks', { attacker: o, source: o });
+        /* Firebender Ascension: each of these keyword triggers of an attacking creature, done here at once, is one it sees
+           (kwCopy: which, for a copy of it to do it once more: _attackKwOnce) */
+        const kwFired = [];
+        const kwTrig = (kw, k) => { for (let i = 0; i < (k || 1); i++) kwFired.push(kw); };
         // battle cry pumps the *other* attackers
         const bc = this._kwCount(o, 'battle cry') * twice;
         if (bc) {
           for (const x of attackers) if (x !== o) x.effects.push({ p: bc, t: 0, until: 'eot' });
           this.logEvent('keyword', `${o.name}'s battle cry pumps the rest of the team.`);
+          kwTrig('battle cry', bc);
         }
         /* dethrone (CR 702.105): attacking the player with the most life,
            or tied for it, puts a +1/+1 counter on it */
@@ -9306,6 +9354,7 @@
           if (def && def.life >= most) {
             this.addCounters(o, '+1/+1', twice);
             this.logEvent('keyword', `${o.name} gets ${twice > 1 ? twice + ' +1/+1 counters' : 'a +1/+1 counter'} from dethrone.`);
+            kwTrig('dethrone', twice);
           }
         }
         // melee: +1/+1 per opponent you attacked
@@ -9313,6 +9362,7 @@
           const m = defenders.size * twice;
           o.effects.push({ p: m, t: m, until: 'eot' });
           this.logEvent('keyword', `${o.name} gets +${m}/+${m} from melee.`);
+          kwTrig('melee', twice);
         }
         // mentor: a +1/+1 counter on a weaker attacker
         if (a.keywordSet.has('mentor')) {
@@ -9322,6 +9372,7 @@
             pupils.sort((x, y) => this.powerOf(y) - this.powerOf(x));
             this.addCounters(pupils[0], '+1/+1', 1);
             this.logEvent('keyword', `${o.name} mentors ${pupils[0].name}.`);
+            kwTrig('mentor');
           }
         }
         // training: a counter when attacking alongside something bigger
@@ -9330,6 +9381,7 @@
           if (attackers.some(x => x !== o && this.powerOf(x) > power)) {
             this.addCounters(o, '+1/+1', twice);
             this.logEvent('keyword', `${o.name} trains.`);
+            kwTrig('training', twice);
           }
         }
         /* The Ring, level 2: the Ring-bearer's attack rummages. */
@@ -9353,6 +9405,7 @@
               name: 'Sacrifice them at the beginning of the next end step', effects: [{ op: 'sacrificeThat' }] });
           }
           this.logEvent('keyword', `${o.name} mobilizes ${mob}.`);
+          kwTrig('mobilize', twice);
         }
         /* Firebending N: red mana for the attack, and it stays through
            combat rather than draining away between steps. */
@@ -9365,6 +9418,7 @@
           if (p) { for (let i = 0; i < fire; i++) p.pool.add('R'); p.poolKeepUntil = 'combat'; }
           this.logEvent('keyword', `${o.name} firebends for ${fire} red mana.`);
           if (p) this._noteBend(p.id, 'fire');
+          kwTrig('firebending');
         }
         // annihilator: the defending player sacrifices permanents
         let ann = this._kwArg(o, 'annihilator');
@@ -9380,7 +9434,9 @@
               prompt: `${o.name} has annihilator ${ann} \u2014 sacrifice ${ann} permanent${ann === 1 ? '' : 's'}.`,
             });
           }
+          kwTrig('annihilator');
         }
+        for (const kw of kwFired) this._fire('yourAttackerTriggers', o.controller, { object: o, objController: o.controller, kwCopy: kw });
       }
       this._fire('youAttack', pid, { attackers });
       this._fire('anyPlayerAttacks', null, { attackers, playerId: pid });
@@ -17415,6 +17471,8 @@
       // Bloodthirst (CR 702.54): the damage a player has been dealt this turn, infect or not (damageTaken)
       if (!p.damageTaken || p.damageTaken.turn !== this.turn) p.damageTaken = { turn: this.turn, n: 0 };
       p.damageTaken.n += amount;
+      // Chandra's Incinerator: the noncombat damage this player has been dealt this turn (ncDamage)
+      if (!combat) { if (!p.ncDamage || p.ncDamage.turn !== this.turn) p.ncDamage = { turn: this.turn, n: 0 }; p.ncDamage.n += amount; }
       this._noteNoncombatDamage(source, amount, combat);
       this._lifelinkFrom(source, amount, combat);
       // Chandra, Roaring Flame: "Each player dealt damage this way" — the players the resolving spell or ability hit (dealtThisWay)
@@ -18151,6 +18209,12 @@
         }
         if (opts && opts.enterEffects) o._chr = null;
         this.battlefield.push(o);
+        /* Ninjutsu: put onto the battlefield attacking — attacking as it enters, for "if it's attacking" (Thousand-Faced
+           Shadow) to see (attacking) */
+        if (opts && opts.attacking && this.combat && this.phase && this.phase.id === 'combat') {
+          o.attacking = opts.attacking;
+          if (!(this.combat.attackers || []).includes(o.id)) (this.combat.attackers = this.combat.attackers || []).push(o.id);
+        }
         const a = o.analysis();
         if (a) {
           if (a.entersTapped || a.abilities.some(x => (x.effects || []).some(e => e.op === 'etbTapped'))) o.tapped = true;
@@ -18810,6 +18874,8 @@
         player: data.player, playerId: data.playerId,
         /* the spell that set this off, for "copy that spell" */
         stackId: data.stackId, objectId: data.object && data.object.id,
+        // Firebender Ascension: an attack keyword's trigger that set this off (kwCopy)
+        kwCopy: data.kwCopy,
         amount: data.amount,
         // Riku of Many Paths: how many times a mode was chosen for the spell cast
         modesChosen: data.modesChosen,
@@ -19102,6 +19168,8 @@
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
           // Phyrexian Dragon Engine: only when it came straight from the graveyard
           if (ab.fromGraveyardEnter && !(data.object && data.object.enteredFrom === 'graveyard')) continue;
+          // Thousand-Faced Shadow: "enters from your hand" (fromHandEnter)
+          if (ab.fromHandEnter && !(data.object && data.object.enteredFrom === 'hand')) continue;
           // Faldorn, Dread Wolf Herald: "enters from exile" (enteredFromExile)
           if (ab.fromExileEnter && !(data.object && data.object.enteredFrom === 'exile')) continue;
           // Pain Distributor: the caster's first spell this turn
@@ -19524,6 +19592,13 @@
         this.logEvent('trigger', `Triggered: ${t.name}`);
         // (one with modes or targets to choose is told once it has them: _aimTrigger)
         if (this.resolving || !this._aimNeeded(t)) this.emit('stack:add', t);
+        /* Firebender Ascension: "a creature you control attacking causes a triggered ability of that creature to trigger"
+           — its own "whenever this creature attacks", or "whenever a creature you control attacks" set off by itself; the
+           trigger this sets off goes on the stack above it (yourAttackerTriggers) */
+        const atd = t.triggerData || {};
+        const att = t.kind === 'ability' && !t.delayed && t.obj && t.obj.zone === 'battlefield' && t.obj.attacking &&
+          (atd.event === 'attacks' || (atd.event === 'permAttacks' && atd.objectId === t.obj.id)) ? t.obj : null;
+        if (att && (this.characteristics(att) || {}).isCreature) this._fire('yourAttackerTriggers', att.controller, { object: att, objController: att.controller, stackId: t.id });
       }
       this._batchTriggers(order);
       /* Several of your own triggers at once is a decision the rules give
@@ -24015,6 +24090,11 @@
           break;
         }
         case 'copyThatSpell': {
+          // (Firebender Ascension: an attack keyword's trigger, done at once — copied by doing it once more: kwCopy)
+          if (ctx.triggerData && ctx.triggerData.kwCopy && !ctx.triggerData.stackId) {
+            if (!this._doneHere('kwCopy')) this._attackKwOnce(this.obj(ctx.triggerData.objectId), ctx.triggerData.kwCopy, ctx.controller);
+            break;
+          }
           const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
           const r = this.resolving;
           const slot = r ? r.index + ':copies' : null;
@@ -25017,6 +25097,8 @@
           if (pair.length !== 2 || pair[0].controller === pair[1].controller ||
             (e.shareCardType && !this._cardTypesOf(pair[1]).some(k => this._cardTypesOf(pair[0]).includes(k)))) {
             this.logEvent('control', 'Nothing changes hands.');
+            // Gilded Drake: "If you don't or can't make an exchange, sacrifice this creature." (sacIfNot)
+            if (e.sacIfNot && src && src.zone === 'battlefield' && src.controller === ctx.controller) this._sacrificeNow(ctx.controller, [src], null);
             break;
           }
           const [x, y] = pair;
@@ -36177,9 +36259,10 @@
         case 'ninjaIn': {
           // (commanderNinjutsu: or from the command zone)
           if (!src || !(src.zone === 'hand' || (src.zone === 'command' && src.isCommander))) break;
-          this.moveObject(src, 'battlefield', { controller: ctx.controller });
+          const inCombat = this.phase && this.phase.id === 'combat' && e.defender && src.zone !== 'battlefield';
+          this.moveObject(src, 'battlefield', Object.assign({ controller: ctx.controller }, inCombat ? { attacking: e.defender } : {}));
           src.tapped = true;
-          if (this.phase && this.phase.id === 'combat' && e.defender) {
+          if (inCombat && src.zone === 'battlefield' && !src.attacking) {
             src.attacking = e.defender;
             this.combat.attackers.push(src.id);
           }

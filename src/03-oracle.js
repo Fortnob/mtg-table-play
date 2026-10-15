@@ -2059,6 +2059,9 @@
     { re: /^CARDNAME'?s owner shuffles (?:him|her|it) into their library\.?$/, make: () => ({ op: 'selfToLibrary', shuffle: true, fromBf: true }) },
     /* Etrata, the Silencer: "exile target creature that player controls and put a hit counter on that card. That player
        loses the game if they own three or more exiled cards with hit counters on them." (loseIfExiledCounters) */
+    // Chandra's Incinerator: "this creature deals that much damage to target creature or planeswalker that player controls"
+    { re: /^(?:It|CARDNAME|this creature) deals that much damage to target creature or planeswalker that player controls\.?$/i,
+      make: () => ({ op: 'damage', n: 'triggerAmount', targets: [{ type: 'creature or planeswalker', filter: 'creature or planeswalker that player controls', zone: 'battlefield', controller: 'triggerPlayer' }] }) },
     { re: /^Exile target creature that player controls and put an? ([a-z]+) counter on that card\.?$/i,
       make: (m) => ({ op: 'exile', counter: m[1].toLowerCase(), targets: [{ type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'triggerPlayer' }] }) },
     { re: /^That player loses the game if they own (two|three|four|five|\d+) or more exiled cards with ([a-z]+) counters on them\.?$/i,
@@ -2620,6 +2623,10 @@
     { re: /^Time travel(?: (two|three|four|five) times)?\.?$/i, make: (m) => ({ op: 'timeTravel', n: m[1] ? num(m[1]) : 1 }) },
     // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." — folded into the return (extraCounterIf)
     { re: /^If an? ([A-Z][a-z]+) enters this way, it enters with an additional \+1\/\+1 counter on it\.?$/, make: (m) => ({ op: 'manual', extraCounterIfRider: m[1].toLowerCase() }) },
+    // Gilded Drake: "If you don't or can't make an exchange, sacrifice this creature." — folded into the exchange (sacIfNot)
+    { re: /^If you don'?t or can'?t make an exchange, sacrifice (?:this creature|CARDNAME)\.?$/i, make: () => ({ op: 'manual', exchangeSacRider: true }) },
+    // Gilded Drake: "This ability still resolves if its target becomes illegal." — on the effect aimed before it (stillResolves)
+    { re: /^This ability still resolves if its target becomes illegal\.?$/i, make: () => ({ op: 'manual', stillResolvesRider: true }) },
     // Turntimber Symbiosis: "If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it." — folded into the pick (enterCountersMaxMv)
     { re: /^If that card has mana value (\d+) or less, it enters with (an?|one|two|three|four|five) additional \+1\/\+1 counters? on it\.?$/i,
       make: (m) => ({ op: 'manual', enterCountersMvRider: { maxMv: +m[1], n: /^an?$/i.test(m[2]) ? 1 : num(m[2]) } }) },
@@ -3075,7 +3082,8 @@
        any type can be spent to cast a spell this way." (anyManaRider) — riders on the leave before them */
     { re: /^If you cast a spell this way, (?:you )?pay life equal to its mana value rather than pay(?:ing)? its mana cost\.?$/i,
       make: () => ({ op: 'noop', payLifeRider: true }) },
-    { re: /^Mana of any type can be spent to cast (?:a spell|spells) this way\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
+    // (Bloodsoaked Insight: "If you cast a spell this way, mana of any type can be spent to cast it.")
+    { re: /^(?:Mana of any type can be spent to cast (?:a spell|spells) this way|If you cast a spell this way, mana of any type can be spent to cast it)\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
     // Durnan of the Yawning Portal: "That spell has undaunted." — on the leave before it (undauntedRider)
     { re: /^That spell has undaunted\.?$/i, make: () => ({ op: 'noop', undauntedRider: true }) },
     // Oubliette: "Tap that creature as it phases in this way."
@@ -10145,6 +10153,8 @@
     if (/^the amount of unspent mana you have$/i.test(p)) return done({ unspentMana: '*' });
     // Florian, Voldaren Scion: "the total amount of life your opponents lost this turn" (opponentsLifeLost)
     if (/^the total amount of life your opponents (?:have )?lost this turn$/i.test(p)) return done({ opponentsLifeLost: true, mult: 1 });
+    // Chandra's Incinerator: "the total amount of noncombat damage dealt to your opponents this turn" (opponentsNoncombatDamage)
+    if (/^the total amount of noncombat damage dealt to your opponents this turn$/i.test(p)) return done({ opponentsNoncombatDamage: true, mult: 1 });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     // The Mycotyrant: "the number of times you descended this turn"
     if (/^the number of times you descended this turn$/i.test(p)) return done({ playerStat: 'descendedThisTurn' });
@@ -15175,6 +15185,19 @@
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
+      // Gilded Drake: "If you don't or can't make an exchange, sacrifice this creature." (sacIfNot)
+      if (e && e.exchangeSacRider) {
+        if (prevE && prevE.op === 'exchangeControl' && prevE.withSelf && !prevE.sacIfNot) { prevE.sacIfNot = true; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // Gilded Drake: "This ability still resolves if its target becomes illegal." (stillResolves)
+      if (e && e.stillResolvesRider) {
+        const aimed = out.find(x => x && (x.targets || []).length);
+        if (aimed && !aimed.stillResolves) { aimed.stillResolves = true; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
       // Turntimber Symbiosis: "If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it." (enterCountersMaxMv)
       if (e && e.enterCountersMvRider) {
         if (prevE && prevE.op === 'takeFromLooked' && prevE.to === 'battlefield' && !prevE.enterCountersMaxMv) { prevE.enterCountersMaxMv = e.enterCountersMvRider; continue; }
@@ -17234,6 +17257,12 @@
     { re: /^When(?:ever)? a player casts their first spell during each of your turns(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true, yourTurnOnly: true } },
     // Phyrexian Dragon Engine: "When this creature enters from your graveyard"
     { re: /^When(?:ever)? (?:this creature|CARDNAME) enters from your graveyard,? /i, event: 'etb', self: true, extra: { fromGraveyardEnter: true } },
+    /* Firebender Ascension: "Whenever a creature you control attacking causes a triggered ability of that creature to
+       trigger" — that ability on the stack (stackId), or a keyword's done at once (kwCopy) (yourAttackerTriggers) */
+    { re: /^Whenever a creature you control attacking causes a triggered ability of that creature to trigger,? /i, event: 'yourAttackerTriggers' },
+    // Thousand-Faced Shadow: "When this creature enters from your hand, if it's attacking," (fromHandEnter; selfAttacking, checked again as it resolves)
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) enters from your hand, if it'?s attacking,? /i, event: 'etb', self: true,
+      extra: { fromHandEnter: true, condition: { kind: 'selfAttacking' }, intervening: true } },
     // Punishing Fire: "Whenever an opponent gains life"
     { re: /^Whenever an opponent gains life,? /i, event: 'opponentGainsLife' },
     // Pain Distributor: "Whenever a player casts their first spell each turn"
