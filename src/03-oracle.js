@@ -7637,7 +7637,9 @@
           text: 'Whenever a creature dies, each creature other than the one that made this gets -' + m[1] + '/-' + m[2] + ' until end of turn.',
           effects: [{ op: 'pump', p: -(+m[1]), t: -(+m[2]), duration: 'eot', scope: { who: 'all', what: 'creature', exceptId: '$src' } }] }] }) },
     // one sentence of a longer text: "Whenever a creature dies this turn, …"
-    { re: /^(?:Until end of turn|This turn|Until your next turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
+    // (Najal, the Storm Runner: "If you do, when you next cast an instant or sorcery spell this turn, copy it." — the paid-for half)
+    { re: /^(?:Until end of turn|This turn|Until your next turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$|^When you next cast [^,"]+? this turn, .+$|^When you cast your next [^,"]+? this turn, .+$/i,
+      make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
     { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
       make: (m) => ({ op: 'exile', targets: [Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].toLowerCase()), { owner: 'you' })] }) },
@@ -9519,6 +9521,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Vislor Turlough: "you may have an opponent gain control of it. If you do, it's goaded for as long as they control it."
+       — the opponent chosen (or the one there is), the goad held by that control effect (giveSelfGoaded) */
+    { re: /^You may have an opponent gain control of (?:it|CARDNAME|this creature)\. If you do, it'?s goaded for as long as they control it\.?$/i,
+      make: () => [{ op: 'giveSelfGoaded' }] },
     // Rex, Cyber-Hound: "Choose target creature card in a graveyard. Exile it with a brain counter on it."
     { re: /^Choose (target [a-z ]+? card) in a graveyard\. Exile it with an? ([a-z]+) counter on it\.(?: Activate only as a sorcery\.)?$/i,
       make: (m) => {
@@ -12342,6 +12348,9 @@
           while (/^(?:The token|That token|It) /.test(sentences[i + 2 + more] || '') ||
             // (Cadric, Soul Kindler: "Sacrifice it …" — declined, nothing of yours is sacrificed)
             /^(?:Exile|Sacrifice) (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+        } else if (/^When you (?:next cast|cast your next) /i.test(thenText)) {
+          // Najal, the Storm Runner: "… copy it. You may choose new targets for the copy." — the copy's own words
+          while (/^You may choose new targets for the cop(?:y|ies)\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
         } else if (/\btarget creature'?s?\b/i.test(thenText)) {
           /* Neyith of the Dire Hunt: "If you do, double target creature's power until end of turn. That creature must
              be blocked this combat if able." — what is said of that creature only happens if it was paid for */

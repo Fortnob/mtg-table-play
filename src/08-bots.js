@@ -1560,6 +1560,14 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Vislor Turlough: lent out goaded — to the opponent with the least life (it draws, then loses life for its hand),
+       only with another opponent for it to attack */
+    giveSelfGoaded(s) {
+      const g = this.game;
+      if (g.opponentsOf(this.pid).filter(q => !q.hasLost).length < 2) return { picks: [] };
+      const ps = (s.items || []).map(it => g.player(it.id)).filter(Boolean).sort((a, b) => a.life - b.life);
+      return { picks: ps.length ? [ps[0].id] : [] };
+    },
     /* Augusta, Order Returned: "each player exiles a card from their graveyard" — counters for each nonland card: ours the
        least nonland card, an opponent's the least land (or the least card) */
     eachExileGraveCard(s) {

@@ -10792,6 +10792,8 @@
       if (o.goadedBy != null) out.push(o.goadedBy);
       // (Rendmaw, Creaking Nest: "goaded for the rest of the game")
       if (o.goadForever != null && !out.includes(o.goadForever)) out.push(o.goadForever);
+      // (Vislor Turlough: "goaded for as long as they control it" — the control effect that carries the goad, while it holds)
+      for (const e of (o.effects || [])) if (e && e.goadBy != null && e.control === o.controller && !out.includes(e.goadBy)) out.push(e.goadBy);
       if ((o.zone !== 'battlefield' && !leaving) || !(this.characteristics(o) || {}).isCreature) return out;
       for (const s of this.battlefield) {
         if (s.phasedOut || s.controller === o.controller || out.includes(s.controller)) continue;
@@ -29304,6 +29306,33 @@
           const h = src && src.attachedTo && this.obj(src.attachedTo);
           if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
           if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
+          this.bumpBoard();
+          break;
+        }
+        /* Vislor Turlough: "you may have an opponent gain control of it. If you do, it's goaded for as long as they control it."
+           — one question: which opponent (or whether, with only one); goaded by you while that control lasts (goadBy) */
+        case 'giveSelfGoaded': {
+          if (!src || src.zone !== 'battlefield' || src.controller !== ctx.controller) break;
+          const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+          if (!opps.length) break;
+          let to = null;
+          if (opps.length === 1) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'lendSelf',
+              prompt: `${src.name}: Have ${opps[0].name} gain control of ${src.name}? It's goaded for as long as they control it.` }, 'q');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) to = opps[0];
+          } else {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'giveSelfGoaded', kind: 'players', items: this._choosePlayers(opps),
+              min: 0, max: 1, optional: true,
+              prompt: `${src.name}: You may have an opponent gain control of ${src.name}. It's goaded for as long as they control it.` }, 'q');
+            if (got === SUSPEND) return SUSPEND;
+            to = this.player(got && got.picks && got.picks[0]);
+            if (to && !opps.includes(to)) to = null;
+          }
+          if (!to) { this.logEvent('rules', `${me.name} keeps ${src.name}.`); break; }
+          src.effects.push({ control: to.id, until: null, ts: this._stampNew(), goadBy: ctx.controller });
+          this._refreshControl();
+          this.logEvent('control', `${to.name} gains control of ${src.name}; it's goaded for as long as they control it.`);
           this.bumpBoard();
           break;
         }
