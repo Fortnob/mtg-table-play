@@ -3273,6 +3273,9 @@
     /* "Target creature deals damage to itself equal to its power." */
     { re: /^Target creature deals damage to itself equal to its power\.?$/i,
       make: () => ({ op: 'selfBite', targets: [{ type: 'creature' }] }) },
+    // Asmoranomardicadaistinaculdacar: "Target creature deals 6 damage to itself."
+    { re: /^Target creature deals (\d+) damage to itself\.?$/i,
+      make: (m) => ({ op: 'selfBite', n: +m[1], targets: [{ type: 'creature' }] }) },
 
     /* A one-sided fight: it hits, and nothing hits it back. */
     /* Rabid Bite; Fall of the Hammer's "another target creature" (any
@@ -4539,6 +4542,9 @@
       make: (m) => ({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }) },
     { re: /^Each player exiles cards from the top of their library until they exile a nonland card\.?$/i,
       make: () => ({ op: 'exileTop', who: 'each', untilNonland: true }) },
+    // Krang & Shredder: "each opponent exiles cards from the top of their library until they exile a nonland card"
+    { re: /^Each opponent exiles cards from the top of their library until they exile a nonland card\.?$/i,
+      make: () => ({ op: 'exileTop', who: 'opponents', untilNonland: true }) },
     { re: /^Exile cards from the top of your library until you exile a nonland card\.?$/i,
       make: () => ({ op: 'exileTop', who: 'you', untilNonland: true }) },
     { re: /^Exile cards from the top of your library until you exile cards with total mana value (\d+) or greater\.?$/i,
@@ -7725,6 +7731,11 @@
     // Obscuring Haze: "Prevent all damage that would be dealt this turn by creatures your opponents control."
     { re: /^Prevent all damage that would be dealt this turn by creatures your opponents control\.?$/i,
       make: () => ({ op: 'preventDamage', fromOpponentCreatures: true }) },
+    /* Tatsunari, Toad Rider: "Tatsunari and target Frog you control can't be blocked this turn except by creatures with
+       flying or reach." (exceptByFlyingReach) */
+    { re: /^CARDNAME and target ([A-Z][a-z]+|creature) you control can'?t be blocked this turn except by creatures with flying or reach\.?$/,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'restrict', flag: 'exceptByFlyingReach', scope: 'self' },
+        { op: 'restrict', flag: 'exceptByFlyingReach', targets: [targetSpec('target ' + m[1] + ' you control')] }] }) },
     // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
     { re: /^(CARDNAME|This creature|Target creature(?: you control)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
       make: (m) => Object.assign({ op: 'restrict', flag: /haste/i.test(m[2]) ? 'exceptByHaste' : 'exceptByFlying' },
@@ -8001,6 +8012,10 @@
       make: () => ({ op: 'exileBottomEach', who: 'each', faceDown: true, top: true }) },
     /* Lobelia, Defender of Bag End: "Until end of turn, you may play a card exiled with Lobelia without paying its mana
        cost." — one of them, and then none of the rest (mayPlayExiled exiledWith, oneOf) */
+    /* Krang & Shredder: "you may cast a card exiled with Krang & Shredder without paying its mana cost" — any of them,
+       one picked or none (exiledWith, pickOne) */
+    { re: /^(?:You may )?cast a card exiled with CARDNAME without paying its mana cost\.?$/i,
+      make: () => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true }) },
     { re: /^Until end of turn, you may play a card exiled with CARDNAME without paying its mana cost\.?$/i,
       make: () => ({ op: 'mayPlayExiled', exiledWith: true, oneOf: true, free: true, duration: 'eot' }) },
     { re: /^Exile the bottom card of each opponent'?s library( face down)?\.?$/i,
@@ -11787,6 +11802,11 @@
       if (!cond) return null;
       s = m[1];
     }
+    // Asmoranomardicadaistinaculdacar: "As long as you've discarded a card this turn, you may pay {B/R} to cast this spell."
+    if ((m = s.match(/^As long as (.+?), you may pay ((?:\{[^}]+\})+) to cast (?:this spell|CARDNAME)$/i))) {
+      cond = altCond(m[1]);
+      return cond ? { cond, mana: m[2], label: 'Pay the alternative cost: pay ' + m[2] } : null;
+    }
     const alt = { cond };
     if (/^You may cast (?:this spell|CARDNAME) without paying its mana cost$/i.test(s)) {
       alt.mana = ''; alt.label = 'Cast without paying its mana cost';
@@ -11820,6 +11840,14 @@
     if (alt.mana == null) alt.mana = '';
     alt.label = 'Pay the alternative cost: ' + m[1].replace(/^./, (c) => c.toLowerCase());
     return alt;
+  }
+  /* Scavenge (CR 702.97): "[Cost], Exile this card from your graveyard: Put a number of +1/+1 counters equal to this
+     card's power on target creature. Activate only as a sorcery." — its own, or one Varolz, the Scar-Striped gives */
+  function scavengeAbility(mana, power, text) {
+    const cost = parseCost(mana);
+    cost.exile = { what: 'self', fromGraveyard: true };
+    return { kind: 'activated', cost, text, sorcerySpeed: true, auto: true, fromGraveyard: true,
+      effects: [{ op: 'counters', kind: '+1/+1', n: power, targets: [targetSpec('target creature')] }] };
   }
   /* The few conditions an alternative cost hangs on. */
   function altCond(phrase) {
@@ -13885,6 +13913,8 @@
     [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
     // Tinybones, Trinket Thief: "if an opponent discarded a card this turn"
     [/^an opponent discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn', who: 'opponent' })],
+    // Asmoranomardicadaistinaculdacar: "As long as you've discarded a card this turn"
+    [/^you'?ve discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn', who: 'you' })],
     // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
     [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],
@@ -16115,7 +16145,8 @@
         autoLines++;
         continue;
       }
-      const ex = line.match(/^(If (?:this creature|CARDNAME) hasn'?t been exerted this turn, )?[Yy]ou may exert (?:this creature|CARDNAME|it) as it attacks\. When you do, ([\s\S]+)$/);
+      // (Themberchaud: "You may exert Themberchaud as he attacks.")
+      const ex = line.match(/^(If (?:this creature|CARDNAME) hasn'?t been exerted this turn, )?[Yy]ou may exert (?:this creature|CARDNAME|it) as (?:it|he|she|they) attacks?\. When you do, ([\s\S]+)$/);
       if (ex) {
         const parsed = parseEffects(ex[2].replace(/^(\w)/, (c) => c.toUpperCase()));
         itIsTheTrigger(parsed.effects, 'self');
@@ -16696,10 +16727,7 @@
           /* Scavenge (CR 702.97): exiled from the graveyard as a sorcery,
              it leaves its power behind as +1/+1 counters. */
           if (lower === 'scavenge' && k.arg && /^\d+$/.test(String(out.power))) {
-            const cost = parseCost(k.arg);
-            cost.exile = { what: 'self', fromGraveyard: true };
-            out.abilities.push({ kind: 'activated', cost, text: k.text, sorcerySpeed: true, auto: true, fromGraveyard: true,
-              effects: [{ op: 'counters', kind: '+1/+1', n: +out.power, targets: [targetSpec('target creature')] }] });
+            out.abilities.push(scavengeAbility(k.arg, +out.power, k.text));
             autoLines += 1 / kws.length;
             continue;
           }
@@ -16763,7 +16791,7 @@
       }
       /* Another way to pay for it: offered by the engine as a way to cast
          the card, like flashback or evoke. */
-      if (/rather than pay|without paying its mana cost/i.test(line) && !/^When|^Whenever|^At /i.test(line)) {
+      if ((/rather than pay|without paying its mana cost/i.test(line) || /^As long as .+, you may pay (?:\{[^}]+\})+ to cast (?:this spell|CARDNAME)\.?$/i.test(line)) && !/^When|^Whenever|^At /i.test(line)) {
         const alt = parseAltCost(line);
         if (alt) {
           (out.altCosts = out.altCosts || []).push(alt);
@@ -20615,6 +20643,8 @@
         eff: { op: 'blitzLess', perCommanderCast: true }, auto: true },
       // Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana cost." (grantEmerge)
       { re: /^Each creature spell you cast has emerge\. The emerge cost is equal to its mana cost\.?$/i, eff: { op: 'grantEmerge' }, auto: true },
+      // Varolz, the Scar-Striped: "Each creature card in your graveyard has scavenge. The scavenge cost is equal to its mana cost." (grantScavenge)
+      { re: /^Each creature card in your graveyard has scavenge\. The scavenge cost is equal to its mana cost\.?$/i, eff: { op: 'grantScavenge' }, auto: true },
       // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
       { re: /^Each ([a-z]+) card in your graveyard has unearth ((?:\{[^}]+\})+)\.?$/i,
         make: (m) => ({ op: 'grantUnearth', words: m[1].toLowerCase(), cost: m[2] }), auto: true },
@@ -21647,6 +21677,7 @@
     // what a ward asks, for the table that takes it
     wardPrice,
     parseCost,
+    scavengeAbility,
     parseEffects,
     parseEffectSentence,
     stripReminder,

@@ -46,6 +46,7 @@
     attackDespiteDefender: "can attack this turn as though it didn't have defender",
     exceptByHaste: "can't be blocked this turn except by creatures with haste",
     exceptByFlying: "can't be blocked this turn except by creatures with flying",
+    exceptByFlyingReach: "can't be blocked this turn except by creatures with flying or reach",
     noDamage: 'deals no combat damage this turn',
     noDamageAll: 'deals no damage this turn',
     unsacrificable: "can't be sacrificed this turn",
@@ -130,6 +131,8 @@
          Mountain, a creature Humility has taken everything from. The game
          works that out, layer by layer (CR 613). */
       if (base && this.zone === 'battlefield' && this.game) return this.game._layeredAnalysis(this, base);
+      // Varolz, the Scar-Striped: a creature card in a graveyard can have an ability given to it there (grantScavenge)
+      if (base && this.zone === 'graveyard' && this.game && base.isCreature) return this.game._graveAnalysis(this, base);
       return base;
     }
     /** What this card really is, whichever side is showing. */
@@ -166,6 +169,8 @@
   const EMPTY_SET = new Set();
   // Aeve, Progenitor Ooze: each analysis without its "Legendary", by the one with it (notLegendaryIfToken)
   const NOT_LEGENDARY = new WeakMap();
+  // Varolz, the Scar-Striped: each analysis with the scavenge it is given, by the one without (grantScavenge)
+  const GRAVE_SCAVENGE = new WeakMap();
 
   /* The dungeons (CR 309), room by room as their cards print them: each
      room's ability, and the rooms it leads to. Undercity is entered only
@@ -3084,7 +3089,7 @@
       /* Minn, Wily Illusionist: "you may put a permanent card … from your hand onto the battlefield" — one pick that
          may be left empty, not a yes or no and then the pick (ownPick) */
       // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj'))) && !once;
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || (only.from === 'exiledWith' && only.pickOne)))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -3391,6 +3396,25 @@
     _oppAbilityCantTarget(o, source, controllerId) {
       return !!(o && source && controllerId != null && controllerId !== o.controller && source.zone === 'battlefield' && source !== o &&
         this._staticOp(o, 'untargetableByOppAbilities'));
+    }
+    /* Varolz, the Scar-Striped: "Each creature card in your graveyard has scavenge. The scavenge cost is equal to its
+       mana cost." — one more scavenge, beside any of its own; {X} is 0, and no mana cost is no scavenge (CR 118.6).
+       Its power as printed. Who holds one is worked out once for each state of the board (grantScavenge). */
+    _graveAnalysis(o, base) {
+      if (!base.manaCost) return base;
+      if (!this._grantGraveMemo || this._grantGraveMemo.key !== this._boardKey) {
+        // (empty while it is worked out: the board's own analyses look at graveyards too)
+        this._grantGraveMemo = { key: this._boardKey, scav: [] };
+        this._grantGraveMemo.scav = this.battlefield.filter(x => !x.phasedOut && this._staticOp(x, 'grantScavenge')).map(x => x.controller);
+      }
+      if (!this._grantGraveMemo.scav.includes(o.owner)) return base;
+      let out = GRAVE_SCAVENGE.get(base);
+      if (!out) {
+        const mana = base.manaCost.replace(/\{X\}/g, '') || '{0}';
+        out = Object.assign({}, base, { abilities: base.abilities.concat([O.scavengeAbility(mana, parseInt(base.power, 10) || 0, 'Scavenge ' + mana)]) });
+        GRAVE_SCAVENGE.set(base, out);
+      }
+      return out;
     }
     /** Tomik, Distinguished Advokist: does an opponent of this player control a permanent with this standing rule? */
     _tomikAgainst(pid, op) {
@@ -4730,6 +4754,10 @@
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       if (!opts && this.battlefield.some(s => s.controller === playerId && !s.phasedOut &&
         (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
+      /* Asmoranomardicadaistinaculdacar: no mana cost is a cost that can't be paid (CR 118.6) — cast it only
+         the way its own words offer (altCosts), or for free */
+      if (!opts && !a.manaCost && a.altCosts && a.altCosts.length && !(o.card && o.card.mana_cost))
+        return { ok: false, reason: `${o.name} has no mana cost: it can be cast only another way.` };
       const base = this.castCost(o, opts, playerId);
       const gTax = /^\{\d+\}$/.test(flashTax) ? parseInt(flashTax.slice(1), 10) : 0;
       const plainCost = gTax ? this._addGeneric(base, gTax) : base + flashTax;
@@ -5689,7 +5717,9 @@
           if (alt.exileFromHand && this._discardPool(playerId, alt.exileFromHand, o).length < (alt.exileFromHand.n || 1)) return;
           const me = this.player(playerId);
           if (alt.life && (!me || me.life < alt.life || this._lifeFrozen(me) || this._lifeSacCostBan())) return;
-          out.push({ kind: 'cast', via: 'alt' + i, cost: alt.mana || '', alt, label: alt.label });
+          // (from the command zone, the commander tax on top — CR 903.8: Asmoranomardicadaistinaculdacar's {B/R})
+          const tax = this._commanderTax(o).mana;
+          out.push({ kind: 'cast', via: 'alt' + i, cost: tax ? this._addGeneric(alt.mana || '', tax) : alt.mana || '', alt, label: alt.label });
         });
       }
       /* Fist of Suns, Jodah: "You may pay {W}{U}{B}{R}{G} rather than pay the
@@ -11438,6 +11468,8 @@
       // Gingerbrute: "can't be blocked this turn except by creatures with haste"
       if (this._hasFlag(attacker, 'exceptByHaste') && !B('haste')) return false;
       if (this._hasFlag(attacker, 'exceptByFlying') && !B('flying')) return false;
+      // Tatsunari, Toad Rider: "except by creatures with flying or reach"
+      if (this._hasFlag(attacker, 'exceptByFlyingReach') && !B('flying') && !B('reach')) return false;
       if (A('flying') && !(B('flying') || B('reach'))) return false;
       if (A('shadow') && !B('shadow')) return false;
       if (!A('shadow') && B('shadow')) return false;
@@ -21216,7 +21248,8 @@
             if (t.kind !== 'object') continue;
             const x = this.obj(t.id);
             if (!x) continue;
-            const amount = this.powerOf(x);
+            // (Asmoranomardicadaistinaculdacar: "deals 6 damage to itself" — n)
+            const amount = e.n != null ? n(e.n) : this.powerOf(x);
             this.dealDamageToObject(x, amount, x);
             this.logEvent('damage', `${x.name} deals ${amount} damage to itself.`);
           }
