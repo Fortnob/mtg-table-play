@@ -2746,7 +2746,7 @@
           if (plan.length) this._did('attack', null, `attacks with ${plan.length}`);
           if (g.declareAttackers(this.pid, plan)) return true;
           const compelled = ch.candidates.map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
-            .map(o => ({ attackerId: o.id, defenderId: o.mustAttackPlayer || (plan[0] || {}).defenderId || ch.defenders[0].id }));
+            .map(o => ({ attackerId: o.id, defenderId: g._mustAttackPlayerOf(o) || (plan[0] || {}).defenderId || ch.defenders[0].id }));
           if (g.declareAttackers(this.pid, compelled)) return true;
           const everything = ch.candidates
             .map(id => g.obj(id)).filter(o => o && g.canAttack(o))
@@ -4917,7 +4917,7 @@
          engine will accept, so they go in whatever else is decided. */
       const compelled = myAttackers.filter(o => g.mustAttack(o) && g.canAttack(o));
       const finish = (list, toWalker) => {
-        const out = list.map(o => ({ attackerId: o.id, defenderId: o.mustAttackPlayer && legalDef.has(o.mustAttackPlayer) ? o.mustAttackPlayer : defenderId }));
+        const out = list.map(o => { const mp = g._mustAttackPlayerOf(o); return { attackerId: o.id, defenderId: mp && legalDef.has(mp) ? mp : defenderId }; });
         if (toWalker && walker && out.length) {
           // just enough of the attack goes at the walker to kill it
           let need = walker.counters.loyalty || 0;
@@ -5394,7 +5394,7 @@
       const opp = this.mainOpponent();
       const main = first.length ? first[0].defenderId : (opp && legal.has(opp.id) ? opp.id : ch.defenders[0].id);
       const make = (list, def) => {
-        const plan = list.map(o => ({ attackerId: o.id, defenderId: o.mustAttackPlayer && legal.has(o.mustAttackPlayer) ? o.mustAttackPlayer : def }));
+        const plan = list.map(o => { const mp = g._mustAttackPlayerOf(o); return { attackerId: o.id, defenderId: mp && legal.has(mp) ? mp : def }; });
         for (const o of compelled) if (!plan.some(d => d.attackerId === o.id)) plan.push({ attackerId: o.id, defenderId: def });
         return plan;
       };

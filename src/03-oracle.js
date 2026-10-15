@@ -1101,8 +1101,10 @@
        permanent's mana value. That player puts the rest of the revealed cards on the bottom …" (loseMv) */
     if (w !== 'reveal' && /^You put that card onto the battlefield under your control and lose life equal to that permanent'?s mana value\. That player puts the rest of the revealed cards on the bottom of their library in a random order\.?$/i.test(rest))
       return Object.assign(e, { dest: 'battlefield', tapped: false, rest: 'bottom', loseMv: true });
-    const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
+    const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library|, then shuffle)\.?$/i);
     if (!put) return null;
+    // Dack Fayden, Helping Hand: "Put those creature cards onto the battlefield" — what follows speaks of them (group)
+    if (/^(?:Put|(?:The|That) player puts?) those /i.test(rest)) e.group = true;
     e.dest = /hand/i.test(put[1]) ? 'hand' : 'battlefield';
     e.tapped = /tapped/i.test(put[1]);
     // Raph & Mikey, Troublemakers: "Put that card onto the battlefield tapped and attacking"
@@ -3465,6 +3467,10 @@
     // (Empress Galina: "Gain control of target legendary permanent.")
     { re: /^Gain control of target ((?:legendary )?(?:creature|permanent|artifact)|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
+    /* Silver Surfer, Galactus's Herald: "until the end of your next turn, target creature attacks that player each combat
+       if able" — the player dealt the damage (mustAttackThatPlayer) */
+    { re: /^until the end of your next turn, (target creature) attacks that player each combat if able\.?$/i,
+      make: (m) => ({ op: 'mustAttackThatPlayer', until: 'endNextTurn', targets: [targetSpec(m[1])] }) },
     /* Treasure Nabber: "gain control of that artifact until the end of your next turn" — what the trigger
        is about; Power of Persuasion: "Gain control of it …" — the target (endNextTurn) */
     { re: /^Gain control of (that (?:artifact|creature|permanent|land)|it|target (?:creature|permanent|artifact)(?: an opponent controls| you don'?t control)?) until the end of your next turn\.?$/i,
@@ -4275,6 +4281,9 @@
     { re: /^at end of combat, exile (?:it|CARDNAME) and up to one creature that saddled it this turn, then return those cards to the battlefield under their owner'?s'? control\.?$/i,
       make: () => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Exile it and a creature that saddled it, then return them',
         effects: [{ op: 'blinkSaddled', sinceNow: true }] }) },
+    // Ultra Magnus, Tactician: "convert Ultra Magnus at end of combat"
+    { re: /^(?:convert|transform) (?:CARDNAME|it) at end of combat\.?$/i,
+      make: () => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Convert it at end of combat', effects: [{ op: 'transformSelf' }] }) },
     // Clockwork Dragon: "remove a +1/+1 counter from it at end of combat"
     { re: /^Remove an? ([+\-]\d+\/[+\-]\d+) counter from (?:it|CARDNAME|this creature) at end of combat\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Remove a counter at end of combat',
@@ -8365,6 +8374,10 @@
     { re: /^(You may )?search your library and\/or graveyard for (?:a card named ([^.]+?)|an? ([-a-zA-Z ]+?) card)(?:, reveal it,)? and (?:then )?put it (into your hand|onto the battlefield)\.?$/i,
       make: (m) => Object.assign({ op: 'tutor', n: 1, filter: m[2] ? 'card' : m[3].toLowerCase(), to: /hand/i.test(m[4]) ? 'hand' : 'battlefield', alsoGraveyard: true },
         m[2] ? { named: m[2] } : {}, /reveal it/i.test(m[0]) ? { reveal: true } : {}) },
+    // Silver Surfer, Galactus's Herald: "you may search your library for a card named Galactus, Devourer of Worlds, reveal it, put it into your hand, then shuffle"
+    { re: /^(You may )?search your library for a card named ([^.]+?), reveal it, (?:and )?put it into your hand, then shuffle\.?$/i,
+      make: (m) => Object.assign({ op: 'tutor', n: 1, filter: 'card', named: m[2], to: 'hand', reveal: true,
+        prompt: `Search your library for a card named ${m[2]}.` }, m[1] ? { optional: true } : {}) },
     // Kassandra, Eagle Bearer: "search your graveyard, hand, and library for a card named The Spear of Leonidas, put it onto the battlefield, then shuffle" (alsoHand)
     // (Shaun & Rebecca, Agents: "… for a card named The Animus and put it onto the battlefield, then shuffle")
     { re: /^Search your graveyard, hand, and library for a card named ([^.]+?),? (?:and )?put it onto the battlefield, then shuffle\.?$/i,
@@ -8851,6 +8864,9 @@
       make: (m) => ({ op: 'counterSpell', ifColor: COLOR_WORD[m[1].toLowerCase()], targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }) },
     { re: /^Destroy target permanent if it'?s (white|blue|black|red|green)\.?$/i,
       make: (m) => ({ op: 'destroy', ifColor: COLOR_WORD[m[1].toLowerCase()], targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent' }] }) },
+    // Glissa Sunseeker: "Destroy target artifact if its mana value is equal to the amount of unspent mana you have." (ifMv)
+    { re: /^Destroy (target (?:artifact|creature|enchantment|permanent|nonland permanent)) if its mana value is equal to (the amount of unspent mana you have)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k ? { op: 'destroy', ifMv: k, targets: [targetSpec(m[1])] } : null; } },
     { re: /^Your opponents can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents' }) },
     // Orim's Chant: "Target player can't cast spells this turn."
     { re: /^Target (player|opponent) can'?t cast spells this turn\.?$/i, make: (m) => ({ op: 'silence', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -9218,7 +9234,8 @@
       const a = countOf(m[1]), b = countOf(m[2]);
       if (a && b) return { sum: [a, b], mult: k };
     }
-    if (/^opponent you have$/i.test(p)) return { opponents: true, mult: k };
+    // (Dack Fayden, Helping Hand: "the number of opponents you have")
+    if (/^opponents? you have$/i.test(p)) return { opponents: true, mult: k };
     // Strefan, Maurer Progenitor: "for each player who lost life this turn" (playersLostLife)
     if (/^player who lost life this turn$/i.test(p)) return { playersLostLife: true, mult: k };
     // Rakdos, Lord of Riots, Bloodsoaked Insight: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
@@ -9365,6 +9382,8 @@
     if (/^the amount of life you(?:'ve)? gained this turn$/i.test(p)) return done({ playerStat: 'lifeGainedThisTurn' });
     // Greven, Predator Captain: "the amount of life you've lost this turn" (lifeLostYou)
     if (/^the amount of life you(?:'ve)? lost this turn$/i.test(p)) return done({ playerStat: 'lifeLostThisTurn' });
+    // Glissa Sunseeker: "the amount of unspent mana you have" (unspentMana)
+    if (/^the amount of unspent mana you have$/i.test(p)) return done({ unspentMana: '*' });
     // Florian, Voldaren Scion: "the total amount of life your opponents lost this turn" (opponentsLifeLost)
     if (/^the total amount of life your opponents (?:have )?lost this turn$/i.test(p)) return done({ opponentsLifeLost: true, mult: 1 });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
@@ -12048,6 +12067,11 @@
         const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
         return pre.auto ? [...pre.effects, { op: 'ifCond', cond, then: [e] }] : null;
       } },
+    /* Dack Fayden, Helping Hand: "They're goaded for the rest of the game. For each of those permanents, choose a
+       different opponent. Each opponent gains control of the permanent for which they were chosen." — the ones just put
+       (lastGroup), goaded by you for good, then one to each opponent (giveGroupToOpponents) */
+    { re: /^They'?re goaded for the rest of the game\. For each of those permanents, choose a different opponent\. Each opponent gains control of the permanent for which they were chosen\.?$/i,
+      make: () => [{ op: 'goad', scope: 'lastGroup', forever: true }, { op: 'giveGroupToOpponents' }] },
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the
        bottom of your library in a random order." Dig until one fits (or
@@ -12059,7 +12083,8 @@
         if (!e) return null;
         // what comes before (Polymorph's "Destroy target creature.") and after (Skyserpent Seeker's counter)
         const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
-        const post = m[3] && m[3].trim() ? parseSentenceList(splitSentences(m[3].trim())) : { effects: [], auto: true };
+        // (Dack Fayden, Helping Hand: what follows may be read whole — parseEffects)
+        const post = m[3] && m[3].trim() ? parseEffects(m[3].trim()) : { effects: [], auto: true };
         if (!pre.auto || !post.auto) return null;
         return [...pre.effects, e, ...post.effects];
       } },
@@ -13579,6 +13604,17 @@
         } else {
           const innerText = U.titleCase(may[1].charAt(0)) + may[1].slice(1) + '.';
           const inner = parseSentenceList(splitSentences(innerText));
+          /* Ultra Magnus, Tactician: "you may put an artifact creature card from your hand onto the battlefield … If you
+             do, convert Ultra Magnus …" — the pick is the choice; what follows only once a card was put (then) */
+          const put1 = inner.effects.length === 1 && inner.effects[0];
+          if (put1 && put1.op === 'permanentFromHand' && put1.who === 'you' && !put1.from && (put1.n == null || put1.n === 1) && !(sentences[i + 2] || '').match(/^If you don'?t\b/i)) {
+            const o = Object.assign({}, put1, { then: thenPart.effects, text: s + ' ' + next });
+            delete o.optional;
+            effects.push(o);
+            if (!inner.auto || !thenPart.auto) auto = false;
+            i++;
+            continue;
+          }
           effects.push({ op: 'may', then: inner.effects.concat(thenPart.effects), text: s + ' ' + next });
           if (!inner.auto || !thenPart.auto) auto = false;
           // Slicer, Hired Muscle: "… If you do, untap Slicer, …. If you don't, convert it."
@@ -14904,6 +14940,8 @@
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
     // Battle Cry Goblin: "you attacked with creatures with total power 6 or greater this combat"
     [/^you attacked with creatures with total power (\d+) or greater this combat$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],
+    // (Ultra Magnus, Armored Carrier: "If those creatures have total power 8 or greater" — the attacking creatures you control)
+    [/^those creatures have total power (\d+) or greater$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],
     // Zurgo Stormrender: "it was attacking"
     [/^it was attacking$/i, () => ({ kind: 'itWasAttacking' })],
     // Crown of Gondor: "there is no monarch"
@@ -22409,6 +22447,9 @@
       // Quicksilver, Speedster: "As long as Quicksilver is tapped, you may cast spells as though they had flash." (whileTapped)
       { re: /^As long as CARDNAME is tapped, you may cast spells as though they had flash\.?$/i,
         eff: { op: 'flashGrant', filter: null, whileTapped: true }, auto: true },
+      // Captain Mar-Vell, Space-Born: "As long as an opponent has cast a spell this turn, you may cast spells as though they had flash." (oppCastThisTurn)
+      { re: /^As long as an opponent has cast a spell this turn, you may cast spells as though they had flash\.?$/i,
+        eff: { op: 'flashGrant', filter: null, oppCastThisTurn: true }, auto: true },
       /* Leyline of Anticipation, Vedalken Orrery, Sigarda's Aid */
       { re: /^You may cast (spells|((?:[A-Za-z]+ )+?)spells(?: and ((?:[A-Za-z]+ )+?)spells)?) as though they had flash\.?$/i,
         make: (m) => ({ op: 'flashGrant', filter: m[2] ? [m[2], m[3]].filter(Boolean).map(x => x.trim().toLowerCase().replace(/ and /g, ' or ')).join(' or ') : null }), auto: true },

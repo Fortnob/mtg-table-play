@@ -5485,6 +5485,8 @@
           if (e.selfPowerParity && (Math.abs(this.powerOf(src)) % 2 === 0) !== (e.selfPowerParity === 'even')) continue;
           // Quicksilver, Speedster: "As long as Quicksilver is tapped" (whileTapped)
           if (e.whileTapped && !src.tapped) continue;
+          // Captain Mar-Vell, Space-Born: "As long as an opponent has cast a spell this turn" (oppCastThisTurn)
+          if (e.oppCastThisTurn && !this.opponentsOf(src.controller).some(q => (q.spellsCastThisTurn || 0) > 0)) continue;
           if (!e.filter || this._cardFitsWords(o, e.filter)) return true;
         }
       }
@@ -11931,6 +11933,15 @@
       const top = Math.max(...opps.map(p => p.life));
       return opps.filter(p => p.life === top).map(p => p.id);
     }
+    /** The player this creature must attack if able: an encore token's (mustAttackPlayer), or Silver Surfer, Galactus's
+        Herald's "target creature attacks that player each combat if able" (mustAttackP) — not its own controller. */
+    _mustAttackPlayerOf(o) {
+      if (!o) return null;
+      if (o.mustAttackPlayer != null) return o.mustAttackPlayer;
+      const e = (o.effects || []).slice().reverse().find(x => x && x.mustAttackP);
+      const p = e && this.player(e.mustAttackP);
+      return p && !p.hasLost && p.id !== o.controller ? p.id : null;
+    }
     /** Gideon, Battle-Forged: the planeswalker this creature attacks this turn if able, while it can be attacked (mustAttackPw); else null. */
     _mustAttackPwNow(o) {
       const r = o && o.mustAttackPw;
@@ -11949,7 +11960,7 @@
       return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack' && !this._mustAttackExcused(o, e))) ||
         // (Alexios, Deimos of Kosmos: one of three standing rules on a line)
         (!!this._staticOp(o, 'mustAttack') && !this._mustAttackExcused(o, this._staticOp(o, 'mustAttack'))) ||
-        this._hasFlag(o, 'mustAttackEot') || this._goaders(o).length > 0 || o.mustAttackPlayer != null ||
+        this._hasFlag(o, 'mustAttackEot') || this._goaders(o).length > 0 || this._mustAttackPlayerOf(o) != null ||
         // Psychic Impetus: an Aura that keeps it goaded
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
     }
@@ -12097,10 +12108,12 @@
             }
           }
           /* An encore token was made to go after one player in particular. */
-          if (o && o.mustAttackPlayer != null) {
+          // (Silver Surfer, Galactus's Herald: "attacks that player each combat if able" — _mustAttackPlayerOf)
+          const mustP = this._mustAttackPlayerOf(o);
+          if (o && mustP != null) {
             const d = declarations.find(x => x.attackerId === id);
-            if (d && d.defenderId !== o.mustAttackPlayer && this.player(o.mustAttackPlayer))
-              return this.fail(`${o.name} must attack ${this.player(o.mustAttackPlayer).name}.`);
+            if (d && d.defenderId !== mustP && this.player(mustP) && ch.defenders.some(x => x.id === mustP))
+              return this.fail(`${o.name} must attack ${this.player(mustP).name}.`);
           }
         }
       }
@@ -19866,6 +19879,8 @@
         // Aclazotz: "for each opponent who can't" discard (couldNot)
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
+        // Glissa Sunseeker: "the amount of unspent mana you have" (unspentMana)
+        if (v && typeof v === 'object' && v.unspentMana) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
@@ -20761,6 +20776,8 @@
             if (!o) continue;
             const a = o.analysis();
             if (e.ifColor && !((a && a.colors) || []).includes(e.ifColor)) continue;
+            // Glissa Sunseeker: "if its mana value is equal to the amount of unspent mana you have" (ifMv)
+            if (e.ifMv != null && ((o.card && o.card.cmc) || 0) !== n(e.ifMv)) { this.logEvent('rules', `${o.name} has another mana value.`); continue; }
             if (this.hasKw(o, 'indestructible')) { this.logEvent('rules', `${o.name} is indestructible.`); continue; }
             if (this._totemArmor(o)) continue;
             // "It can't be regenerated."
@@ -22848,6 +22865,7 @@
           const want = Math.max(1, n(e.n == null ? 1 : e.n) || 0);
           // Old Stickfingers cast for X = 0: until no creature card is revealed — none
           if (e.n === 'X' && !(n(e.n) > 0)) break;
+          if (e.group) this._lastGroup = [];
           for (const p of who) {
             const lib = this.zones[p.id].library;
             const found = [];
@@ -22894,6 +22912,8 @@
                   if (def) { c.attacking = def; this.combat.attackers.push(c.id); }
                 }
                 this._lastPut = c.id;
+                // Dack Fayden, Helping Hand: "Put those creature cards onto the battlefield" — they, after (group)
+                if (e.group && c.zone === 'battlefield') (this._lastGroup = this._lastGroup || []).push(c.id);
                 // Jhoira, Weatherlight Corsair: "and lose life equal to that permanent's mana value" (loseMv)
                 if (e.loseMv && c.zone === 'battlefield' && me) { const mv = (c.card && c.card.cmc) || 0; if (mv > 0) this.changeLife(me, -mv); }
               }
@@ -28443,6 +28463,7 @@
           const who = e.who === 'each' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && (!e.pids || e.pids.includes(p.id))) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
           // Kynaios and Tiro of Meletis: who put one, kept across the questions (notePut)
           const putBy = e.notePut && this.resolving ? ((this.resolving.marks = this.resolving.marks || {}).putBy = this.resolving.marks.putBy || []) : null;
+          const lastPut0 = this._lastPut;
           for (const p of who) {
             // Anticausal Vestige: "with mana value less than or equal to the number of lands you control"
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
@@ -28525,9 +28546,11 @@
               this._lastPut = o.id;
             }
           }
+          // Ultra Magnus, Tactician: "If you do, convert Ultra Magnus at end of combat." — only once a card was put (then)
+          if ((e.then || []).length && this._lastPut !== lastPut0 && (this.obj(this._lastPut) || {}).zone === 'battlefield') this._spliceNext(e.then);
           break;
         }
-        // Kynaios and Tiro of Meletis: "then each opponent who didn't draws a card"
+        // Kynaios and Tiro of Meletis: "then each opponent who didn't draws a card""
         case 'drawUnlessPut': {
           const putBy = ((this.resolving || {}).marks || {}).putBy || [];
           for (const q of this._turnOrderFrom(ctx.controller)) {
@@ -30104,6 +30127,17 @@
         }
         /* Gideon, Battle-Forged: "Up to one target creature an opponent controls attacks Gideon during its controller's
            next turn if able." (mustAttackPw) */
+        /* Silver Surfer, Galactus's Herald: "until the end of your next turn, target creature attacks that player each
+           combat if able" — the player the trigger is about (mustAttackP, untilEndTurn) */
+        case 'mustAttackThatPlayer': {
+          const p = triggerPlayer();
+          const x = firstObj();
+          if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
+          x.effects.push({ mustAttackP: p.id, untilEndTurn: this._endOfNextTurnOf(ctx.controller) });
+          this.bumpBoard();
+          this.logEvent('rules', `${x.name} attacks ${p.name} each combat if able, until the end of ${me.name}'s next turn.`);
+          break;
+        }
         // Ruhan of the Fomori: "Ruhan attacks that player this combat if able." — gone as combat ends (mustAttackCombat)
         case 'mustAttackChosen': {
           const p = ctx.chosenPlayer && this.player(ctx.chosenPlayer);
@@ -31997,6 +32031,27 @@
           if (e.self) this._noteLastAffected([{ kind: 'object', id: x.id }]);
           // Stiltzkin, Moogle Merchant: "If they do, you draw a card."
           if (e.then && x.controller === p.id) this._spliceNext(e.then);
+          break;
+        }
+        /* Dack Fayden, Helping Hand: "For each of those permanents, choose a different opponent. Each opponent gains
+           control of the permanent for which they were chosen." — the ones just put (lastGroup), in turn */
+        case 'giveGroupToOpponents': {
+          let foes = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          const group = (this._lastGroup || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield');
+          for (let k = 0; k < group.length && foes.length; k++) {
+            const x = group[k];
+            let p = foes[0];
+            if (foes.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'opponent', kind: 'options', min: 1, max: 1, targetId: x.id,
+                options: foes.map((f, i) => ({ i, label: f.name })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose an opponent to gain control of ${x.name}.` }, 'ggo' + k);
+              if (got === SUSPEND) return SUSPEND;
+              p = foes[(got && got.picks && got.picks[0]) || 0] || foes[0];
+            }
+            foes = foes.filter(f => f !== p);
+            x.effects.push({ control: p.id, until: null, ts: this._stampNew() });
+            this._refreshControl();
+            this.logEvent('control', `${p.name} gains control of ${x.name}.`);
+          }
           break;
         }
         /* Blim, Comedic Genius: "each player loses life and discards cards equal to the number of permanents they control
