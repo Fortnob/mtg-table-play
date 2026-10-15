@@ -16620,11 +16620,16 @@
      * Triggers that are the same ability of the same source, with the same targets and modes, set off by
      * the same thing (Panharmonicon's second Wall of Omens trigger), are interchangeable: the order they go
      * on the stack in can't matter, so it is not asked (CR 603.3b gives a choice there is nothing to choose
-     * between). Mixed with others, the order is still asked, with each set of the same ones put in as one
-     * (`ids`, all of them, side by side).
+     * between). What set it off counts only where the words could reach back to it ("it", "that creature",
+     * "that much"): Soul Warden's "you gain 1 life" is the same for each creature that entered. Mixed with
+     * others, the order is still asked, with each set of the same ones put in as one (`ids`, all of them,
+     * side by side).
      */
     _trigIdentity(t) {
-      try { return JSON.stringify([t.objId || (t.obj && t.obj.id) || null, t.abilityIndex, t.abilityText || t.name || '', t.targets || [], t.modes || [], t.triggerData || null, t.x || null]); }
+      const words = String(t.abilityText || '');
+      const what = words.replace(/^(?:when|whenever|at)\b[^,]*,\s*/i, '');
+      const about = !words || /\b(?:it|its|it's|that|those|they|them|their|this way|equal|much|many|x)\b/i.test(what);
+      try { return JSON.stringify([t.objId || (t.obj && t.obj.id) || null, t.abilityIndex, words || t.name || '', t.targets || [], t.modes || [], about ? t.triggerData || null : null, t.x || null]); }
       catch (e) { return t.id; }
     }
     _orderAsk(q) {

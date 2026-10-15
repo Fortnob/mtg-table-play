@@ -198,6 +198,27 @@ module.exports = (test) => {
     t.eq(names, q.cards[1].name.startsWith('Soul') ? 'SSWW' : 'WWSS', 'in the order asked');
   });
 
+  test('Batches: what set a trigger off counts for its order only where its words reach back to it', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    g.setAutoPass('A', { orderTriggers: true });
+    T.bf('A', 'Soul Warden');
+    enterAll(T, 'A', Array(3).fill('Grizzly Bears'));
+    goOnStack(T);
+    t.no(T.asked.some(c => c.type === 'orderTriggers'), 'Soul Warden for three creatures: "you gain 1 life" three times, not ordered');
+    T.resolve();
+    t.eq(T.life('A'), 23, 'all three resolve');
+    const U = mk({ library: Array(20).fill('Mountain') });
+    U.g.setAutoPass('A', { orderTriggers: true });
+    U.bf('A', 'Warstorm Surge');
+    U.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }], remember: 'batch' });
+    enterAll(U, 'A', ['Grizzly Bears', 'Hill Giant', 'Grizzly Bears']);
+    goOnStack(U);
+    t.ok(U.asked.some(c => c.type === 'orderTriggers'), 'Warstorm Surge: "it deals damage equal to its power" — each is about its own creature, so the order is asked');
+    U.resolve();
+    t.eq(U.life('B'), 13, 'every one dealt its creature\'s power to B');
+  });
+
   test('Remembered: "Yes to all this turn" answers that ability\'s "you may" for the turn, and is asked again next turn', (mk, t) => {
     const T = mk({ library: Array(30).fill('Plains') });
     const g = T.g;
