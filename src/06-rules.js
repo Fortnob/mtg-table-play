@@ -6360,8 +6360,10 @@
         }
         /* As Foretold: once each turn, {0} for a spell with mana value no more than its time counters — a card with no
            mana cost too (grantAltZeroOnce, _altZeroTurn) */
-        const az = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && s0._altZeroTurn !== this.turn &&
-          this._staticOp(s0, 'grantAltZeroOnce') && ((o.card && o.card.cmc) || 0) <= (Number((s0.counters || {})[this._staticOp(s0, 'grantAltZeroOnce').counter]) || 0));
+        // (Darksteel Monolith: "for a colorless spell you cast from your hand" — words, fromHand; no counters to compare)
+        const azOk = (s0) => { const z0 = this._staticOp(s0, 'grantAltZeroOnce'); return !!z0 && (!z0.fromHand || o.zone === 'hand') &&
+          (!z0.words || this._cardFitsWords(o, z0.words)) && (!z0.counter || ((o.card && o.card.cmc) || 0) <= (Number((s0.counters || {})[z0.counter]) || 0)); };
+        const az = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && s0._altZeroTurn !== this.turn && azOk(s0));
         if (az) {
           const tax = this._commanderTax(o).mana;
           out.push({ kind: 'cast', via: 'grantZero', cost: tax ? this._addGeneric('', tax) : '', srcId: az.id, alt: { mana: '', label: 'Pay {0}' }, label: `Pay {0} instead (${az.name})` });
@@ -34237,6 +34239,22 @@
         }
         // Rona, Tolarian Obliterator: "If it's a land card, you may put it onto the battlefield under your control."
         case 'putExiledLand': {
+          /* Oblivion Sower: "you may put any number of land cards that player owns from exile onto the battlefield under
+             your control" — any of theirs in exile, not only the ones just exiled; one pick, none for "no" (ownedBy) */
+          if (e.ownedBy) {
+            const owner = firstPlayer() || triggerPlayer();
+            if (!owner) break;
+            const pool = this.players.flatMap(q => (this.zones[q.id] || {}).exile || []).filter(c => c.owner === owner.id && !c.faceDown && (c.analysis() || {}).isLand);
+            if (!pool.length) break;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'putExiledLands', kind: 'objects', zone: 'exile',
+              items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+              prompt: `You may put any number of land cards ${owner.id === ctx.controller ? 'you own' : owner.name + ' owns'} from exile onto the battlefield under your control.` }, 'pel');
+            if (got === SUSPEND) return SUSPEND;
+            const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && pool.includes(c));
+            for (const c of picked) this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            if (picked.length) this.logEvent('rules', `${me.name} puts ${picked.map(c => c.name).join(', ')} onto the battlefield.`);
+            break;
+          }
           const c = this._lastExiled && this.obj(this._lastExiled);
           if (!c || c.zone !== 'exile' || !(c.analysis() || {}).isLand) break;
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Put ${c.name} onto the battlefield under your control?` }, 'pel');

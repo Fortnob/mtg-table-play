@@ -2587,8 +2587,9 @@
     { re: /^They lose (one|two|\d+) life for each spell they'?ve cast this turn\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: { triggerPlayerSpells: true, mult: num(m[1]) } }) },
     // Hydra Omnivore: "it deals that much damage to each other opponent"
+    // (Super State: "it" is the enchanted creature the trigger is about, the one that deals it — fromTrigger)
     { re: /^(?:It|CARDNAME|This creature) deals that much damage to each other opponent\.?$/i,
-      make: () => ({ op: 'damage', n: 'triggerAmount', eachOtherOpponent: true }) },
+      make: () => ({ op: 'damage', n: 'triggerAmount', eachOtherOpponent: true, fromTrigger: true }) },
     // Jocasta, Automaton Avenger: "if this card is in your graveyard, you may return it to the battlefield tapped and attacking"
     { re: /^Return it to the battlefield tapped and attacking\.?$/i, make: () => ({ op: 'returnSelfFromGrave', tapped: true, attacking: true }) },
     // Warcry Phoenix: "return this card from your graveyard to the battlefield tapped and attacking"
@@ -4169,6 +4170,9 @@
        mana cost." — that card, put or cast as this resolves (CR 608.2g) */
     { re: /^That source'?s controller exiles a card from their hand at random\.?$/i, make: () => ({ op: 'exileRandomFromHand', who: 'triggerPlayer' }) },
     { re: /^If it'?s a land card, you may put it onto the battlefield under your control\.?$/i, make: () => ({ op: 'putExiledLand' }) },
+    // Oblivion Sower: "you may put any number of land cards that player owns from exile onto the battlefield under your control"
+    { re: /^(?:Then )?you may put any number of land cards that player owns from exile onto the battlefield under your control\.?$/i,
+      make: () => ({ op: 'putExiledLand', ownedBy: 'thatPlayer' }) },
     { re: /^Otherwise, you may cast it without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
     /* Sunforger: "Search your library for a red or white instant card with mana value 4 or less and cast that card without
        paying its mana cost." — one picked from the library (none, if none is found), cast as this resolves (from library) */
@@ -9991,6 +9995,11 @@
    * effect happens. Returns the shape n() reads, or null for anything this
    * does not know how to count.
    */
+  /* The X of "…, where X is <phrase>". Pact of the Serpent: "Target player draws X cards and loses X life, where X is
+     the number of creatures they control of the chosen type" — "they" is the target player */
+  function whereXAmount(lead, phrase) {
+    return amountOf(/^Target (?:player|opponent)\b/i.test(lead) ? phrase.replace(/ they control\b/i, ' target player controls') : phrase);
+  }
   function amountOf(phrase) {
     let p = String(phrase || '').trim().replace(/\.$/, '');
     // Elvish Mariner, Elrond: "the number of cards looked at while scrying this way" — what the trigger saw (countedTargets)
@@ -10961,7 +10970,7 @@
     // (Imskir Iron-Eater: "where X is half the number of artifacts you control, rounded down" — whereXRounded)
     const wx = !depth && s.match(/^(.+?), where X is ([^,]+?(?:, rounded (?:up|down))?)\.?$/);
     if (wx && !/\bwhere X\b/.test(wx[1])) {
-      const k = amountOf(wx[2]);
+      const k = whereXAmount(wx[1], wx[2]);
       const inner = k && parseEffectSentence(wx[1] + '.', 0);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) { inner.text = s; return inner; }
     }
@@ -11372,6 +11381,8 @@
        — only when it did turn over (then) */
     { re: /^convert (?:CARDNAME|it)\. If you do, there is an additional beginning phase after this phase\.?$/i,
       make: () => [{ op: 'transformSelf', then: [{ op: 'extraBeginningPhase' }] }] },
+    // Sphinx of the Second Sun: "there is an additional beginning phase after this phase"
+    { re: /^There is an additional beginning phase after this phase\.?$/i, make: () => [{ op: 'extraBeginningPhase' }] },
     /* Soundwave, Superior Captain: "convert Soundwave. If you do, create Ravage, …" — only when it does turn over, not if
        it has since the trigger (CR 701.28f; sinceTrigger, then) */
     { re: /^convert (?:CARDNAME|it)\. If you do, (create [^.]+)\.?$/i,
@@ -14119,7 +14130,7 @@
       return q ? [q[0], q[1] + q[2], q[3]] : null;
     })();
     if (wx && !/\bwhere X\b/.test(wx[1])) {
-      const k = amountOf(wx[2]);
+      const k = whereXAmount(wx[1], wx[2]);
       /* Arahbo, Perrie: "… gains trample and gets +X/+X until end of turn,
          where X is …" — one sentence the vocabulary reads whole */
       const whole = k && parseEffectSentence(tidy(wx[1]));
@@ -17078,6 +17089,8 @@
     { re: /^When(?:ever)? a land enters under your control(?:,| )/i, event: 'landfall' },
     // (Beamtown Beatstick: "to a player or battle")
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals combat damage to a player(?: or (?:planeswalker|battle))?(?:,| )/i, event: 'equippedCombatDamage' },
+    // Super State: "Whenever enchanted creature deals combat damage to an opponent" (toOpponent)
+    { re: /^When(?:ever)? (?:equipped|enchanted) creature deals combat damage to an opponent(?:,| )/i, event: 'equippedCombatDamage', extra: { toOpponent: true } },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals damage to (a player|an opponent)(?:,| )/i, event: 'equippedDealsDamage',
       extraOf: (m) => (/opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks(?:,| )/i, event: 'permAttacks', filt: () => ({ words: 'creature', equipped: true }) },
@@ -23329,6 +23342,9 @@
          less, where X is the number of time counters on this enchantment." (grantAltZeroOnce) */
       { re: /^Once each turn, you may pay \{0\} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of ([a-z]+) counters on (?:this enchantment|this artifact|CARDNAME)\.?$/i,
         make: (m) => ({ op: 'grantAltZeroOnce', counter: m[1].toLowerCase() }), auto: true },
+      // Darksteel Monolith: "Once each turn, you may pay {0} rather than pay the mana cost for a colorless spell you cast from your hand."
+      { re: /^Once each turn, you may pay \{0\} rather than pay the mana cost for a colorless spell you cast from your hand\.?$/i,
+        make: () => ({ op: 'grantAltZeroOnce', words: 'colorless', fromHand: true }), auto: true },
       // Semblance Anvil: "Spells you cast that share a card type with the exiled card cost {2} less to cast." (shareTypeImprinted)
       { re: /^Spells you cast that share a card type with the exiled card cost \{(\d+)\} less to cast\.?$/i,
         make: (m) => ({ op: 'costMod', who: 'you', words: 'spell', chosenType: false, amount: -(+m[1]), shareTypeImprinted: true }), auto: true },

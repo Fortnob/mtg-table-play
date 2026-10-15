@@ -1942,6 +1942,8 @@
     },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    // Oblivion Sower: every land card of theirs from exile, ours
+    putExiledLands(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
     // Augusta, Dean of Order: the attackers tapped (+1/+0 tapped), the rest kept up to block (+0/+1 untapped)

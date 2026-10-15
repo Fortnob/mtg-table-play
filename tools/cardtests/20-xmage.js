@@ -68123,4 +68123,109 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1, 'IV: one opponent (C) with power 4 or greater');
     t.zone(yo, 'graveyard', 'sacrificed after IV');
   });
+  test('Cards: Pact of the Serpent — choose a type; target player draws and loses life for each creature of it they control', (mk, t) => {
+    t.auto('Pact of the Serpent');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('B', 'Llanowar Elves'); T.bf('B', 'Elvish Visionary'); T.bf('B', 'Grizzly Bears');
+    T.bf('A', 'Llanowar Elves');
+    const h = T.zone('B', 'hand').length;
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => o.label === 'Elf')] }; });
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Pact of the Serpent'), { targets: ['B'] });
+    t.ok(q && q.purpose === 'creatureType', 'a creature type asked');
+    t.eq(T.zone('B', 'hand').length - h, 2, 'B draws two (two Elves of theirs, not A\'s)');
+    t.eq(T.life('B'), 18, 'and loses 2 life');
+    t.eq(T.life('A'), 20);
+    // a type they have none of: nothing
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.label === 'Bear')] }));
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Pact of the Serpent'), { targets: ['A'] });
+    t.eq(T.life('A'), 20, 'A has no Bear: no life lost');
+  });
+  test('Cards: Super State — a 9/9 with evasion; combat damage to an opponent is dealt again to each other opponent', (mk, t) => {
+    t.auto('Super State');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Grizzly Bears');
+    const ss = T.hand('A', 'Super State');
+    T.mana('A', '7');
+    T.cast('A', ss, { targets: [bear] });
+    t.eq(ss.attachedTo, bear.id, 'on the Bears');
+    t.eq(g.powerOf(bear), 9); t.eq(g.toughnessOf(bear), 9);
+    t.ok(g.hasKw(bear, 'flying') && g.hasKw(bear, 'trample') && g.hasKw(bear, 'first strike') && g.hasKw(bear, 'haste'), 'flying, trample, first strike, haste');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(T.life('B'), 11, 'B takes 9');
+    t.eq(T.life('C'), 11, 'C takes that much too');
+    t.eq(T.life('A'), 20, 'not you');
+  });
+  test('Cards: Sphinx of the Second Sun — after your second main phase, a whole beginning phase again', (mk, t) => {
+    t.auto('Sphinx of the Second Sun');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.nextTurn('B'); T.nextTurn('A');
+    T.bf('A', 'Sphinx of the Second Sun');
+    const land = T.bf('A', 'Island');
+    land.tapped = true;
+    const turn = g.turn, hand0 = T.zone('A', 'hand').length;
+    for (let i = 0; i < 60 && g.phase.id !== 'postcombat'; i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    const seen = [];
+    for (let i = 0; i < 60 && g.phase.id !== 'ending'; i++) { T.settle(); seen.push(g.phase.id + ':' + g.step); g.passPriority(g.priorityPlayer.id, true); }
+    t.eq(g.turn, turn, 'the same turn');
+    t.ok(seen.includes('beginning:upkeep') && seen.includes('beginning:draw'), 'an upkeep and a draw step after the second main phase');
+    t.no(land.tapped, 'untapped in the extra untap step');
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'a card drawn in the extra draw step');
+    t.eq(g.phase.id, 'ending', 'then the end phase, not another main phase');
+    // on an opponent's turn: nothing
+    T.nextTurn('B');
+    const h1 = T.zone('A', 'hand').length;
+    for (let i = 0; i < 80 && g.activePlayer.id === 'B'; i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    t.eq(T.zone('A', 'hand').length, h1, "nothing on B's turn");
+  });
+  test('Cards: Oblivion Sower — cast: the opponent exiles four; any land cards they own in exile become yours', (mk, t) => {
+    t.auto('Oblivion Sower');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    for (const n of ['Forest', 'Grizzly Bears', 'Mountain', 'Lightning Bolt']) T.top('B', n);
+    const old = T.put('B', 'Plains', 'exile');
+    const mine = T.put('A', 'Swamp', 'exile');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: ch.items.filter(x => x.name !== 'Mountain').map(x => x.id) }; });
+    T.mana('A', '6');
+    const sower = T.hand('A', 'Oblivion Sower');
+    T.cast('A', sower);
+    t.zone(sower, 'battlefield');
+    t.ok(q && q.purpose === 'putExiledLands', 'asked which');
+    t.eq(q.items.length, 3, 'Forest, Mountain and the Plains exiled before; not the Bears, nor A\'s own Swamp');
+    const fo = T.bfOf('A').find(o => o.name === 'Forest');
+    t.ok(fo && fo.owner === 'B', 'the Forest, B\'s, under A\'s control');
+    t.zone(old, 'battlefield', 'the Plains exiled earlier too');
+    t.eq(old.controller, 'A');
+    t.ok(T.zone('B', 'exile').some(o => o.name === 'Mountain'), 'the Mountain left in exile');
+    t.zone(mine, 'exile');
+    t.eq(g.zones.B.library.filter(o => o.name === 'Grizzly Bears').length, 0, 'the Bears exiled');
+  });
+  test('Cards: Darksteel Monolith — {0} once each turn for a colorless spell from your hand', (mk, t) => {
+    t.auto('Darksteel Monolith');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Darksteel Monolith');
+    const bear = T.hand('A', 'Grizzly Bears');
+    const wurm = T.hand('A', 'Wurmcoil Engine');
+    t.eq(g.altUsesFor('A', bear.id).filter(x => x.via === 'grantZero').length, 0, 'not a green spell');
+    const use = g.altUsesFor('A', wurm.id).find(x => x.via === 'grantZero');
+    t.eq(use && use.label, 'Pay {0} instead (Darksteel Monolith)');
+    T.cast('A', wurm, { via: 'grantZero' });
+    t.zone(wurm, 'battlefield', 'Wurmcoil Engine for nothing');
+    const ring = T.hand('A', 'Sol Ring');
+    t.eq(g.altUsesFor('A', ring.id).filter(x => x.via === 'grantZero').length, 0, 'once each turn');
+    T.nextTurn('B');
+    t.eq(g.altUsesFor('A', ring.id).filter(x => x.via === 'grantZero').length, 1, 'again the next turn');
+    const gy = T.grave('A', 'Ornithopter');
+    t.eq(g.altUsesFor('A', gy.id).filter(x => x.via === 'grantZero').length, 0, 'not from the graveyard');
+  });
 };
