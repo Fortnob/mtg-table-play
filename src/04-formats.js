@@ -715,6 +715,11 @@
       hint: 'Off means you play only what you drafted or opened.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,
       hint: 'Best of how many games. One, the default, is a single game.' },
+    /* Planechase (CR 901; src/06f-planechase.js): a planar deck beside each deck, and the planar die. A deck brings
+       its own (the deck builder's Planar deck); one with none, or one the rules don't allow, is made up to ten with
+       planes dealt at random (MTG.planes.complete) */
+    { key: 'planechase', label: 'Planechase', type: 'bool', when: builds,
+      hint: 'Each player brings a planar deck of planes and phenomena, the game travels from plane to plane, and the planar die is rolled. A deck with no planar deck, or one the rules don\u2019t allow, plays with planes dealt at random to make ten.' },
     // one of a few set values (type 'choice'); the clock itself is src/06e-clock.js
     { key: 'clock', label: 'Clock', type: 'choice',
       options: [[0, 'Off'], [10, '10 minutes a player'], [20, '20 minutes a player'], [30, '30 minutes a player']],
@@ -734,6 +739,7 @@
     if (key === 'collector') return false;
     if (key === 'bracket') return 0;
     if (key === 'clock') return 0;
+    if (key === 'planechase') return false;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;
