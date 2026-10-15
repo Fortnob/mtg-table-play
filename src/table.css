@@ -536,8 +536,9 @@
   background: #1a1d24; box-shadow: 0 0 0 1.5px rgba(156,199,255,.55), 0 4px 10px rgba(0,0,0,.6);
   animation: histIn .35s cubic-bezier(.3,.7,.3,1); }
 .hist-item.mine { box-shadow: 0 0 0 1.5px rgba(246,220,140,.6), 0 4px 10px rgba(0,0,0,.6); }
-.hist-item:nth-child(n+6) { opacity: .75; }
-.hist-item:nth-child(n+9) { opacity: .5; }
+/* what happened before this turn, faded */
+.hist-item.old { opacity: .45; filter: saturate(.6); }
+.hist-item.old:hover { opacity: 1; filter: none; }
 .hi-art { position: absolute; inset: 0; border-radius: inherit; background: center / cover no-repeat; }
 .hi-icon { position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%;
   display: grid; place-items: center; font-size: 10.5px; line-height: 1; color: #fff; background: #2a3140; border: 1px solid rgba(255,255,255,.3); }

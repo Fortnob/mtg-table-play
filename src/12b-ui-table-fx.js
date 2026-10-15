@@ -937,6 +937,7 @@
     pushHistory(e) {
       if (!e || !e.kind || e.kind === 'noblock') return;
       e.key = 'h' + (++this._histN || (this._histN = 1));
+      if (e.turn == null && this.view) e.turn = this.view.turn;     // (older turns are drawn fainter: renderRail)
       this.history.unshift(e);
       if (this.history.length > 16) this.history.length = 16;
       this.renderRail();
@@ -945,25 +946,33 @@
     /** The last few things that happened, down the left edge, newest on top. */
     renderRail() {
       const host = this.rail;
+      const turnNow = this.view ? this.view.turn : null;
+      const isOld = (h) => h.turn != null && turnNow != null && h.turn < turnNow;
       const sig = this.history.map(h => h.key).join(',');
-      if (host._sig === sig) return;
+      if (host._sig === sig) {
+        // a new turn: the ones before it fade, without coming in again
+        for (const n of host.querySelectorAll('.hist-item')) { const h = this.history.find(x => x.key === n._key); if (h) n.classList.toggle('old', isOld(h)); }
+        return;
+      }
       host._sig = sig;
       host.innerHTML = '';
       host.appendChild(el('button', { type: 'button', class: 'rail-log', title: 'Game log (L)', 'aria-label': 'Open the game log',
         onclick: () => this.toggleDrawer() }, [el('span', { text: 'Log' })]));
       const ICON = { cast: '✦', ability: '⚙', trigger: '↯', attack: '⚔', block: '⛨', died: '☠',
         left: '⇢', land: '▲', token: '✦', enter: '⬇', countered: '⊘', lost: '⚑' };
-      for (const h of this.history.slice(0, 10)) {
+      // the last six, quieter than they were: anything from before this turn faded (each says it all when pointed at)
+      for (const h of this.history.slice(0, 6)) {
         const url = h.card ? (MTG.scry.imageUrl(h.card, 'art_crop', 0) ||
           ((h.card._isToken || h.card.layout === 'token') ? (Table.helpers.tokenArtUrl(h.card) || '') : '')) : '';
         const mine = h.who === this.meId;
-        host.appendChild(el('div', {
-          class: 'hist-item k-' + h.kind + (mine ? ' mine' : ' theirs') + (url ? '' : ' no-art'),
+        const item = host.appendChild(el('div', {
+          class: 'hist-item k-' + h.kind + (mine ? ' mine' : ' theirs') + (url ? '' : ' no-art') + (isOld(h) ? ' old' : ''),
           title: h.text || '', dataset: h.card ? { preview: h.key } : {},
         }, [
           el('div', { class: 'hi-art', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
           el('span', { class: 'hi-icon', text: ICON[h.kind] || '•' }),
         ]));
+        item._key = h.key;
       }
     },
 

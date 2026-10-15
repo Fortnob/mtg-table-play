@@ -646,6 +646,8 @@
       this.chaseArrows();
       // a spell waiting for mana goes once the lands you tapped have paid for it
       this._payReady();
+      // the history down the side fades what came before this turn (renderRail; nothing redrawn when nothing changed)
+      if (this.rail && this.renderRail) this.renderRail();
       // the walkthrough, if one is running, follows what is on the table
       if (this.coach) this.coach.onRender();
     }
