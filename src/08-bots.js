@@ -1560,6 +1560,15 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Augusta, Order Returned: "each player exiles a card from their graveyard" — counters for each nonland card: ours the
+       least nonland card, an opponent's the least land (or the least card) */
+    eachExileGraveCard(s) {
+      const mine = s.forPlayer === this.pid;
+      const items = (s.items || []).map(it => ({ it, v: it.card ? rateCard(it.card, { prior: 0 }) : 0, land: /\bLand\b/.test((it.card || {}).type_line || '') }));
+      const pref = items.filter(x => x.land !== mine);
+      const pool = (pref.length ? pref : items).sort((a, b) => a.v - b.v);
+      return pool.length ? { picks: [pool[0].it.id] } : null;
+    },
     /* Winter, Cynical Opportunist: the best permanent card first, then the least of the rest that bring a card type the
        picks haven't got, until there are enough types among them */
     exileGraveTypes(s) {

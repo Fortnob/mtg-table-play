@@ -15590,6 +15590,7 @@
         /* Valgavoth, Terror Eater: back again it is a new object (CR 400.7), and the cards exiled
            with the old one are no longer its to play; Lurrus, Muldrotha: nor is the leave it used up */
         // (Gisa, Glorious Resurrector: a trigger of the old one still knows them — _exiledWithGone, _leftSeq)
+        o._leftPrev = o._leftSeq || null;
         o._leftSeq = this._uid('lv');
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
         o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null;
@@ -15929,8 +15930,9 @@
         if (d.eventController != null && d.event === event && controllerId !== d.eventController) { keep.push(d); continue; }
         // (Kelsien, the Plague: "this turn" over, gone; only that creature dying, as the one it was — watchObj)
         if (d.untilTurn != null && this.turn !== d.untilTurn) continue;
+        // (Mysterio: leaving as the permanent it was when the note was left — watchLeaving, _leftPrev)
         if (d.watchObj && !(d.event === event && data && data.object && data.object.id === d.watchObj &&
-          (data.object._leftSeq || null) === d.watchLeftSeq)) { keep.push(d); continue; }
+          ((d.watchLeaving ? data.object._leftPrev : data.object._leftSeq) || null) === d.watchLeftSeq)) { keep.push(d); continue; }
         const mine = d.event === event &&
           (d.controller == null || d.forPlayer == null || d.forPlayer === activePlayerId) &&
           // "your next end step" must not be the one we are already in
@@ -23684,6 +23686,19 @@
           break;
         }
         // Thrasios: the top card, onto the battlefield if it is a land; otherwise a card drawn
+        /* Grenzo, Dungeon Warden: "Put the bottom card of your library into your graveyard. If it's a creature card with
+           power less than or equal to Grenzo's power, put it onto the battlefield." — Grenzo as it last was, if gone */
+        case 'bottomToGraveReanimate': {
+          const lib = this.zones[ctx.controller].library;
+          const bot = lib[lib.length - 1];
+          if (!bot) break;
+          this.moveObject(bot, 'graveyard');
+          this.logEvent('rules', `${me.name} puts ${bot.name} from the bottom of their library into their graveyard.`);
+          if (bot.zone !== 'graveyard' || !(bot.analysis() || {}).isCreature) break;
+          const mine = !src ? 0 : src.zone === 'battlefield' ? this.powerOf(src) : (src._lastPower != null ? src._lastPower : 0);
+          if ((parseInt((bot.card || {}).power, 10) || 0) <= mine) this.moveObject(bot, 'battlefield', { controller: ctx.controller });
+          break;
+        }
         case 'topLandOrDraw': {
           /* Jadzi, Oracle of Arcavios: "If it's a land card, put it onto the battlefield." — the card already revealed,
              still in the library; nothing drawn otherwise (revealedOnly) */
@@ -25330,10 +25345,13 @@
           // Thorin, Mountain-king: "When one or more Equipment become attached to that creature this way" — "that creature" is the host
           const attachedTo = e.ifAttached ? ((this._attachedAnyTo || {}).n ? this._attachedAnyTo.host : null) : null;
           if (e.ifAttached && !attachedTo) break;
+          // Augusta, Order Returned: "When one or more nonland cards are exiled this way, put that many …" (ifExiledNonland)
+          const exN = e.ifExiledNonland ? (this._exiledNonlandN || 0) : 0;
+          if (e.ifExiledNonland && !exN) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
-            effects: e.effects || [], auto: true, abilityText: rText, optional: false,
+            effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {}) });
           break;
         }
@@ -25739,6 +25757,36 @@
             const def = (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
             if (def && !this.combat.attackers.includes(cp.id)) { cp.attacking = def; this.combat.attackers.push(cp.id); }
           }
+          break;
+        }
+        /* Augusta, Order Returned: "each player exiles a card from their graveyard" — each chooses, in turn order; then
+           "When one or more nonland cards are exiled this way, put that many +1/+1 counters on target attacking creature." */
+        case 'eachExileGraveCard': {
+          const picks = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            if (p.hasLost) continue;
+            const gy = this.zones[p.id].graveyard.slice();
+            if (!gy.length) continue;
+            let c = gy[0];
+            if (gy.length > 1) {
+              const got = this._choose({ playerId: p.id, purpose: 'eachExileGraveCard', kind: 'objects', zone: 'graveyard', forPlayer: ctx.controller,
+                items: this._chooseItems(gy), min: 1, max: 1, prompt: `Exile a card from your graveyard (${src ? src.name : me.name}).` }, 'eg:' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              const x = this.obj(got && got.picks && got.picks[0]);
+              if (x && gy.includes(x)) c = x;
+            }
+            picks.push(c);
+          }
+          let k = 0;
+          for (const c of picks) {
+            if (c.zone !== 'graveyard') continue;
+            const nonland = !(c.analysis() || {}).isLand;
+            this.moveObject(c, 'exile');
+            if (c.zone !== 'exile') continue;
+            this.logEvent('exile', `${this.player(c.owner).name} exiles ${c.name} from their graveyard.`);
+            if (nonland) k++;
+          }
+          this._exiledNonlandN = k;
           break;
         }
         case 'exileFromGraveyard': {
@@ -29197,6 +29245,19 @@
             if (x && x.zone === 'battlefield') x.effects.push({ keywords: e.keywords, until: e.until || null });
           }
           this.bumpBoard();
+          break;
+        }
+        /* Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." — one delayed trigger,
+           watching this permanent as it is now; gone already, it never triggers (ruling) */
+        case 'exileMadeWhenSelfLeaves': {
+          const ids = (this._madeThisResolution || []).filter(id => { const x = this.obj(id); return x && x.zone === 'battlefield'; });
+          if (!src || src.zone !== 'battlefield' || !ids.length) break;
+          this.scheduleDelayed({ event: 'ltb', once: true, controller: ctx.controller, objId: src.id, watchObj: src.id, watchLeaving: true, watchLeftSeq: src._leftSeq || null,
+            name: `Exile those tokens (${src.name} left the battlefield)`, effects: [{ op: 'exileListed', ids }] });
+          break;
+        }
+        case 'exileListed': {
+          for (const id of e.ids || []) { const x = this.obj(id); if (x && x.zone === 'battlefield') { this.moveObject(x, 'exile'); this.logEvent('rules', `${x.name} is exiled.`); } }
           break;
         }
         case 'exileMadeEoc': {

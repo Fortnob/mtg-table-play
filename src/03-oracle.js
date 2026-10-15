@@ -2496,6 +2496,8 @@
         effects: [{ op: 'destroyThat' }] }) },
     // Geist of Saint Traft: "Exile that token at end of combat."
     { re: /^Exile (?:that token|it|them|those tokens) at end of combat\.?$/i, make: () => ({ op: 'exileMadeEoc' }) },
+    // Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." (exileMadeWhenSelfLeaves)
+    { re: /^Exile (?:that token|those tokens) when (?:CARDNAME|this creature) leaves the battlefield\.?$/i, make: () => ({ op: 'exileMadeWhenSelfLeaves' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
     { re: /^Its owner gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'targetOwner' }) },
@@ -5094,6 +5096,13 @@
 
     /* ===== graveyards ===== */
     { re: /^Each player exiles their graveyard\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
+    /* Augusta, Order Returned: "each player exiles a card from their graveyard." — each chooses (eachExileGraveCard); "When one
+       or more nonland cards are exiled this way, put that many +1/+1 counters on target attacking creature." — a reflexive
+       trigger, the count kept as the cards go (ifExiledNonland) */
+    { re: /^Each player exiles a card from their graveyard\.?$/i, make: () => ({ op: 'eachExileGraveCard' }) },
+    { re: /^When one or more nonland cards are exiled this way, put that many (\+1\/\+1) counters on (target [a-z ]+?)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[2]); return sp && !sp.unknown ? { op: 'reflexive', ifExiledNonland: true, text: m[0],
+        effects: [{ op: 'counters', kind: m[1], n: 1, targets: [sp], scope: null }] } : null; } },
     { re: /^Target player exiles (a|one|two|\d+) cards? from their graveyard\.?$/i,
       make: (m) => ({ op: 'exileFromGraveyard', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     /* "Exile target card from a graveyard": the card is chosen as a
@@ -5242,6 +5251,17 @@
         const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Legendary Artifact — Equipment', oracle_text: text, keywords: [], layout: 'token' });
         if (!probe || !probe.fullyAutomated) return null;
         return { op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Legendary Artifact — Equipment', text } };
+      } },
+    /* (Icingdeath, Frost Tyrant: "create Icingdeath, Frost Tongue, a legendary white Equipment artifact token with "Equipped
+       creature gets +2/+0," "Whenever equipped creature attacks, …," and equip {2}" — a color, several quoted abilities) */
+    { re: /^(?:You )?[Cc]reate ([A-Z][A-Za-z' ,-]*?), a legendary (colorless|white|blue|black|red|green) Equipment artifact token with ((?:"[^"]+" )+)and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
+      make: (m) => {
+        const quoted = (m[3].match(/"[^"]+"/g) || []).map(q => q.slice(1, -1).replace(/,$/, '').replace(/([^."])$/, '$1.'));
+        const text = quoted.join('\n') + '\nEquip ' + m[4];
+        const colors = { white: ['W'], blue: ['U'], black: ['B'], red: ['R'], green: ['G'] }[m[2].toLowerCase()] || [];
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Legendary Artifact — Equipment', oracle_text: text, colors, keywords: [], layout: 'token' });
+        if (!probe || !probe.fullyAutomated) return null;
+        return { op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Legendary Artifact — Equipment', text, colors } };
       } },
     /* Volo, Itinerant Scholar: "create Volo's Journal, a legendary colorless Book artifact token with hexproof and
        "Whenever you cast a creature spell, note one of its creature types that hasn't been noted for Volo's Journal."" —
@@ -6618,7 +6638,8 @@
         return e;
       } },
     // Thancred Waters: "another target legendary permanent you control gains indestructible for as long as you control Thancred Waters"
-    { re: /^((?:another )?target [a-z ]+? you control) gains (indestructible|hexproof|shroud|flying|vigilance|trample|lifelink|first strike|deathtouch|haste) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
+    // (Kyodai, Soul of Kamigawa: "another target permanent gains indestructible for as long as you control Kyodai" — anyone's)
+    { re: /^((?:another )?target [a-z ]+?(?: you control)?) gains (indestructible|hexproof|shroud|flying|vigilance|trample|lifelink|first strike|deathtouch|haste) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'grantKeyword', keywords: [U.titleCase(m[2].toLowerCase())], duration: 'whileControl', targets: [sp] } : null; } },
     // Quicksmith Spy: "target artifact you control gains '{T}: Draw a card' for as long as you control this creature"
     { re: /^(target [a-z ]+?) gains "([^"]+)" for as long as you control (?:this creature|CARDNAME|this artifact|this enchantment|this permanent)\.?$/i,
@@ -9574,6 +9595,10 @@
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
     { re: /^choose target opponent\. Until end of turn, that player can'?t cast spells, you may look at the top card of their library any time, you may play the top card of their library, and you may spend mana as though it were mana of any color to cast spells this way\.?$/i,
       make: () => [{ op: 'oppTopThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target' }] },
+    /* Grenzo, Dungeon Warden: "Put the bottom card of your library into your graveyard. If it's a creature card with power
+       less than or equal to Grenzo's power, put it onto the battlefield." (bottomToGraveReanimate) */
+    { re: /^Put the bottom card of your library into your graveyard\. If it'?s a creature card with power less than or equal to (?:CARDNAME|this creature)'?s power, put it onto the battlefield\.?$/i,
+      make: () => [{ op: 'bottomToGraveReanimate' }] },
     /* Sapling of Colfenor: "reveal the top card of your library. If it's a creature card, you gain life equal to that
        card's toughness, lose life equal to its power, then put it into your hand." (topCreatureLife) */
     { re: /^reveal the top card of your library\. If it'?s a creature card, you gain life equal to that card'?s toughness, lose life equal to its power, then put it into your hand\.?$/i,
