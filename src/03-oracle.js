@@ -3392,6 +3392,10 @@
     // Abigale, Eloquent First-Year: "up to one other target creature loses all abilities." — for good
     { re: /^((?:up to one )?(?:other |another )?target creature) loses all abilities\.?$/i,
       make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { loseAll: true }, targets: [targetSpec(m[1])] }) },
+    /* Loki, Lord of Misrule: "Each creature you control other than the chosen creature becomes a copy of that creature
+       until end of turn, except it isn't legendary." — the one "Choose target creature you control" chose (yours) */
+    { re: /^Each creature you control other than the chosen creature becomes a copy of that creature until end of turn, except it isn'?t legendary\.?$/i,
+      make: () => ({ op: 'becomeCopyAll', duration: 'eot', yours: true, nonLegendary: true }) },
     /* Mirrorweave: a copy effect on every other creature, for the turn */
     { re: /^Each other creature becomes a copy of (target [a-z ]+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeCopyAll', duration: 'eot', targets: [targetSpec(m[1])] }) },
@@ -7390,6 +7394,8 @@
     // Humble Defector: "Target opponent gains control of this creature."
     { re: /^Target (opponent|player) gains control of (?:this creature|CARDNAME|this artifact|this permanent)\.?$/i,
       make: (m) => ({ op: 'giveSelf', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Sengir, the Dark Baron: "you gain life equal to that player's life total as the turn began" (gainTurnStartLife)
+    { re: /^You gain life equal to that player'?s life total as the turn began\.?$/i, make: () => ({ op: 'gainTurnStartLife' }) },
     // Suture Priest: "you may have that player lose 1 life" — the controller of the creature that entered
     { re: /^Have (?:that player|its controller) lose (one|two|three|\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerObjController', n: num(m[1]) }) },
@@ -8372,6 +8378,8 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Alrund, God of the Cosmos: "each foretold card you own in exile" (foretoldOwned)
+    if (/^foretold card you own in exile$/i.test(p)) return { foretoldOwned: true, mult: k };
     // Umbris, Fear Manifest: "for each card your opponents own in exile" (oppExileCards)
     if (/^card your opponents own in exile$/i.test(p)) return { oppExileCards: true, mult: k };
     // Wight of Precinct Six: "for each creature card in your opponents' graveyards"
@@ -9538,6 +9546,11 @@
           text: 'You may exile CARDNAME. If you do, return him to the battlefield transformed under his owner\'s control.',
           prompt: 'Exile CARDNAME and return him to the battlefield transformed?', then: [{ op: 'blinkTransformed', ownerControl: true }] }] }];
       } },
+    /* Alrund, God of the Cosmos: "choose a card type, then reveal the top two cards of your library. Put all cards of the
+       chosen type revealed this way into your hand and the rest on the bottom of your library in any order." (ofChosenCardType) */
+    { re: /^Choose a card type, then reveal the top (two|three|four|\d+) cards of your library\. Put all cards of the chosen type revealed this way into your hand and the rest on the bottom of your library in any order\.?$/i,
+      make: (m) => [{ op: 'chooseCardTypeNow', types: ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'], forLibrary: true },
+        { op: 'lookAt', n: num(m[1]), reveal: true }, { op: 'takeFromLooked', all: true, n: num(m[1]), filter: 'card', ofChosenCardType: true, to: 'hand' }, { op: 'restToBottom' }] },
     /* Obzedat, Ghost Council: "you may exile Obzedat. If you do, return it to the battlefield under its owner's control
        at the beginning of your next upkeep. It gains haste." — back only if it is still that card in exile (whileExiled) */
     { re: /^You may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield under (?:its|his|her) owner'?s control at the beginning of your next upkeep\. (?:It|He|She) gains haste\.?$/i,
@@ -14493,6 +14506,8 @@
     { re: /^When(?:ever)? the chosen creature leaves the battlefield,? /i, event: 'permLeaves', extra: { chosenObjOnly: true } },
     // Ramses, Assassin Lord: "Whenever a player loses the game" (playerLoses)
     { re: /^Whenever a player loses the game,? /i, event: 'playerLoses' },
+    // Sengir, the Dark Baron: "Whenever another player loses the game," — not you (otherPlayer)
+    { re: /^Whenever another player loses the game,? /i, event: 'playerLoses', extra: { otherPlayer: true } },
     // Shinryu, Transcendent Rival: "When the chosen player loses the game, you win the game." (chosenPlayerLoses)
     { re: /^When(?:ever)? the chosen player loses the game,? /i, event: 'chosenPlayerLoses' },
     /* Khârn the Betrayer: "When you lose control of Khârn the Betrayer, draw two cards." — it leaves, or another player
@@ -19100,6 +19115,9 @@
       // Astor, Bearer of Blades: "Equipment you control have equip {1}." — one more equip ability on each
       { re: /^Equipment you control have equip (\{[1-9]\})\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', subtypes: ['equipment'] }, grantText: 'Equip ' + m[1] }), auto: true },
+      // Syr Gwyn, Hero of Ashvale: "Equipment you control have equip Knight {0}." — one more, onto a Knight only
+      { re: /^Equipment you control have equip ([A-Z][a-z]+) (\{\d+\})\.?$/,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', subtypes: ['equipment'] }, grantText: 'Equip ' + m[1] + ' ' + m[2] }), auto: true },
       // Puresteel Paladin: "Equipment you control have equip {0} as long as you control three or more artifacts."
       { re: /^Equipment you control have equip \{0\}(?: as long as (.+?))?\.?$/i,
         make: (m) => {
@@ -20482,6 +20500,14 @@
           if (filter && !/^(?:(?:permanent|creature|artifact|enchantment|instant|sorcery|Aura|Equipment|[A-Z][a-z]+|or) ?)+$/.test(filter)) return null;
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {}, /enters tapped/.test(m[0]) ? { enterTapped: true } : {});
+        }, auto: true },
+      /* Arcade Gannon: "Once during each of your turns, you may cast an artifact or Human spell from your graveyard with
+         mana value less than or equal to the number of quest counters on Arcade Gannon." — counted as it is cast (maxMvCounters) */
+      { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell from your graveyard with mana value less than or equal to the number of ([a-z]+) counters on CARDNAME\.$/,
+        make: (m) => {
+          const filter = (m[1] || '').trim();
+          if (filter && !/^(?:(?:permanent|creature|artifact|enchantment|instant|sorcery|[A-Z][a-z]+|or) ?)+$/.test(filter)) return null;
+          return { op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null, maxMvCounters: m[2].toLowerCase() };
         }, auto: true },
       /* Kotis, Sibsig Champion: "Once during each of your turns, you may cast a creature spell from your graveyard by
          exiling three other cards from your graveyard in addition to paying its other costs." (graveCastExile) */

@@ -965,7 +965,7 @@
       /* What happened last turn, for the cards that ask (the werewolves). */
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
-      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; p.descendedThisTurn = 0; }
+      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; p.descendedThisTurn = 0; p.lifeAtTurnStart = p.life; }
       for (const o of this.battlefield) o._afflicted = false;
       this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
@@ -3822,6 +3822,12 @@
         for (const q of this.opponentsOf(pid)) for (const c of ((this.zones[q.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInOpponentGraveyards)) k++;
         return k * mult;
       }
+      // Alrund, God of the Cosmos: "each foretold card you own in exile" (foretoldOwned)
+      if (v.foretoldOwned) {
+        let k = 0;
+        for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.owner === pid && c.foretold) k++;
+        return k * mult;
+      }
       // Umbris, Fear Manifest: "for each card your opponents own in exile" — face up or down (oppExileCards)
       if (v.oppExileCards) {
         const opp = new Set(this.opponentsOf(pid).map(q => q.id));
@@ -4953,6 +4959,8 @@
             // Kagha, Shadow Archdruid: "that were put there from your library this turn"
             if (ef.fromLibThisTurn && o._toGraveFromLib !== this.turn) continue;
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
+            // Arcade Gannon: "less than or equal to the number of quest counters on Arcade Gannon" (maxMvCounters)
+            if (ef.maxMvCounters && ((o.card && o.card.cmc) || 0) > (Number((src.counters || {})[ef.maxMvCounters]) || 0)) continue;
             // Banon, the Returners' Leader: "cards … that were put there from anywhere other than the battlefield this turn"
             if (ef.notFromBfThisTurn && o._gyNotBfTurn !== this.turn) continue;
             // Errant and Giada: "spells with flash or flying"
@@ -15949,6 +15957,8 @@
           if (ab.notFromBattlefield && data.fromZone === 'battlefield') continue;
           // Crawling Infestation: "during your turn"
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
+          // Sengir, the Dark Baron: "another player" (otherPlayer)
+          if (ab.otherPlayer && data.player === o.controller) continue;
           // Rhoda, Geist Avenger: "if it isn't being declared as an attacker" (notAsAttacker)
           if (ab.notAsAttacker && data.asAttacker) continue;
           if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
@@ -23162,14 +23172,19 @@
           const types = e.types || [];
           if (!src || !types.length) break;
           let pick = types[0];
-          if (me.isBot) {
+          // Alrund, God of the Cosmos: for the top of the library — the type most of its library is (forLibrary)
+          if (me.isBot && e.forLibrary) {
+            const lib = this.zones[me.id].library;
+            const count = (t) => lib.filter(o => this._cardTypesOf(o).includes(t)).length;
+            pick = types.slice().sort((a, b) => count(b) - count(a))[0];
+          } else if (me.isBot) {
             // the type that costs the opponents most and this player least
             const score = (t) => this.battlefield.filter(o => !o.phasedOut && (o.analysis() || {}).types && o.analysis().types.includes(t))
               .reduce((k, o) => k + (o.controller === me.id ? -1 : 1), 0);
             pick = types.slice().sort((a, b) => score(b) - score(a))[0];
           } else if (types.length > 1) {
             const got = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'chooseCardType',
-              options: types.map((label, i) => ({ i, label })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${types.join(' or ').toLowerCase()}.` }, 'cct');
+              options: types.map((label, i) => ({ i, label })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${e.forLibrary ? 'a card type' : types.join(' or ').toLowerCase()}.` }, 'cct');
             if (got === SUSPEND) return SUSPEND;
             const idx = Array.isArray(got) ? got[0] : got;
             pick = types[idx == null ? 0 : idx] || types[0];
@@ -24279,6 +24294,8 @@
             if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
             // Icon of Ancestry: "of the chosen type" — the type chosen for this permanent
             if (e.ofChosenType && !(src && src.chosenType && this._hasCreatureType(o, src.chosenType))) return false;
+            // Alrund, God of the Cosmos: "all cards of the chosen type" — the card type just chosen (ofChosenCardType)
+            if (e.ofChosenCardType && !(src && src.chosenCardType && this._cardTypesOf(o).includes(src.chosenCardType))) return false;
             // Radagast the Brown: "a creature card that doesn't share a creature type with a creature you control" (noSharedType)
             if (e.noSharedType) {
               const oa = o.analysis() || {};
@@ -28364,6 +28381,13 @@
           this.bumpBoard();
           break;
         }
+        // Sengir, the Dark Baron: "you gain life equal to that player's life total as the turn began" (gainTurnStartLife)
+        case 'gainTurnStartLife': {
+          const p = triggerPlayer();
+          const k = p ? (p.lifeAtTurnStart == null ? p.life : p.lifeAtTurnStart) : 0;
+          if (k > 0) this.changeLife(me, k);
+          break;
+        }
         // Beacon of Immortality
         case 'doubleLife': {
           // Revival: "your life total"; Celestial Mantle: the enchanted creature's controller's
@@ -30109,8 +30133,11 @@
             if (model && model.zone !== 'exile') model = null;
           } else model = firstObj();
           if (!model || (model.zone !== 'battlefield' && e.of !== 'exiledTarget')) break;
-          const card = this._copiable(model.card), face = model.face || 0;
+          // (Loki, Lord of Misrule: "except it isn't legendary" — nonLegendary)
+          const card = e.nonLegendary ? this._copyExcept(model.card, model.card, { nonLegendary: true }) : this._copiable(model.card), face = model.face || 0;
           const others = e.of === 'chosenToken' ? yourTokens().filter(o => o !== model)
+            // (Loki: "Each creature you control other than the chosen creature" — yours)
+            : e.yours ? this.battlefield.filter(o => o !== model && !o.phasedOut && o.controller === ctx.controller && (o.analysis() || {}).isCreature)
             : e.of === 'exiledTarget' ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && this._cardFitsWords(o, e.words || 'permanent'))
             : this.battlefield.filter(o => o !== model && !o.phasedOut && (o.analysis() || {}).isCreature);
           for (const o of others) {
@@ -33175,6 +33202,8 @@
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
           attackedWithTokenTurn: p.attackedWithTokenTurn == null ? null : p.attackedWithTokenTurn,
           attackedWithCommanderTurn: p.attackedWithCommanderTurn == null ? null : p.attackedWithCommanderTurn,
+          // (Sengir, the Dark Baron: "that player's life total as the turn began")
+          lifeAtTurnStart: p.lifeAtTurnStart == null ? null : p.lifeAtTurnStart,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
           companionUsed: !!p.companionUsed,
           // Urza, Planeswalker's +2: what costs less for the rest of the turn
