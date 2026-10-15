@@ -16025,12 +16025,16 @@
       /* Polukranos, Unchained: "If damage would be dealt to Polukranos while it has a +1/+1 counter on it, prevent that
          damage and remove that many +1/+1 counters from it." — all of it prevented, as many as there are removed; damage
          that can't be prevented is dealt, and the counters still come off (damageEatsCounters) */
-      const eat = o.zone === 'battlefield' && (Number(o.counters['+1/+1']) || 0) > 0 && this._staticOp(o, 'damageEatsCounters');
+      // (Sekki, Seasons' Guide: with or without counters on it, and that many 1/1 Spirits — always, spirits)
+      const eatOp = o.zone === 'battlefield' ? this._staticOp(o, 'damageEatsCounters') : null;
+      const eat = eatOp && (eatOp.always || (Number(o.counters['+1/+1']) || 0) > 0);
       if (eat) {
         const off = Math.min(amount, Number(o.counters['+1/+1']) || 0);
         const prevent = !this._noPrevention(isCombat);
-        this.addCounters(o, '+1/+1', -off);
-        this.logEvent('damage', `${prevent ? amount + ' damage to ' + o.name + ' is prevented, and ' : ''}${off === 1 ? 'a +1/+1 counter comes' : off + ' +1/+1 counters come'} off ${o.name}.`);
+        if (off) this.addCounters(o, '+1/+1', -off);
+        if (off || !eatOp.spirits) this.logEvent('damage', `${prevent ? amount + ' damage to ' + o.name + ' is prevented, and ' : ''}${off === 1 ? 'a +1/+1 counter comes' : off + ' +1/+1 counters come'} off ${o.name}.`);
+        else if (prevent) this.logEvent('damage', `${amount} damage to ${o.name} is prevented.`);
+        if (eatOp.spirits) this._createToken(o.controller, { op: 'createToken', n: amount, keywords: [], pt: '1/1', colorWords: ['colorless'], addTypes: [], subtypes: 'Spirit' });
         if (prevent) return 0;
       }
       /* Khârn the Betrayer: "If damage would be dealt to Khârn, prevent that damage and an opponent of your choice
@@ -17161,6 +17165,8 @@
           for (const t of a.subtypes || []) by['sub:' + t.toLowerCase()] = (by['sub:' + t.toLowerCase()] || 0) + 1;
           if (a.keywordSet && a.keywordSet.has('changeling')) by['sub:*'] = (by['sub:*'] || 0) + 1;
         }
+        // (Goddric, Cloaked Reveler: "As long as two or more nonland permanents entered …" — what is counted changes what is true)
+        this.bumpBoard();
       }
       this._soulbondOnEnter(o);
       this._fire('etb', o.controller, { object: o, source: o });

@@ -337,7 +337,8 @@
         cost.sacrifice = { n: WORDN(m[1].toLowerCase()) || 1, filter: m[3].replace(/s\b/g, '').trim(), another: !!m[2], upTo: true };
         continue;
       }
-      if ((m = p.match(/^Sacrifice (a|an|another|one|two|three|four|five|six|ten|\d+|X) (other )?(.+)$/i))) {
+      // (Sekki, Seasons' Guide: "Sacrifice eight Spirits")
+      if ((m = p.match(/^Sacrifice (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (other )?(.+)$/i))) {
         const word = m[1].toLowerCase();
         cost.sacrifice = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word) || 1,
           filter: m[3].replace(/\band\/or\b/g, 'or').replace(/s\b/g, '').trim(),
@@ -18482,6 +18483,10 @@
          A face has only what its own words name. */
       if (card.card_faces && card.card_faces.length > 1 && face.oracle_text != null &&
           !new RegExp('\\b' + escapeRe(k) + '\\b', 'i').test(normalizePunct(face.oracle_text))) continue;
+      /* Goddric, Cloaked Reveler: "As long as …, Goddric is a Dragon with …, flying, and …" — a keyword named only
+         where a condition gives it is not the card's own (an ability word in front of the line, "Celebration —", stays) */
+      const saidIn = String((face && face.oracle_text) || card.oracle_text || '').split('\n').filter(l => new RegExp('\\b' + escapeRe(k) + '\\b', 'i').test(l));
+      if (saidIn.length && saidIn.every(l => /^(?:[A-Z][A-Za-z' ]+ \u2014 )?As long as /.test(l) && !new RegExp('^' + escapeRe(k) + ' \u2014', 'i').test(l))) continue;
       if (!out.keywords.some(x => x.keyword.toLowerCase() === k.toLowerCase()))
         out.keywords.push({ keyword: U.titleCase(k), arg: null, text: k });
     }
@@ -21913,6 +21918,19 @@
       // Doc Ock, Sinister Scientist: "As long as there are eight or more cards in your graveyard, CARDNAME has base power and toughness 8/8." (basePtWhile)
       { re: /^As long as (.+?), (?:CARDNAME|this creature) has base power and toughness (\d+)\/(\d+)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, setPt: { p: +m[2], t: +m[3] } } : null; }, auto: true },
+      /* Goddric, Cloaked Reveler: "As long as two or more nonland permanents entered the battlefield under your control this
+         turn, Goddric is a Dragon with base power and toughness 4/4, flying, and "{R}: Dragons you control get +1/+0 until end
+         of turn." (He loses all other creature types.)" — the creature type (layer 4), the size (7b), the rest (6) */
+      { re: /^As long as (.+?), (?:CARDNAME|this creature) is an? ([A-Z][a-z]+) with base power and toughness (\d+)\/(\d+), ([a-z ]+?),? and "([^"]+)"\.?$/,
+        make: (m) => {
+          const cond = condOf(m[1]), kws = keywordList(m[5]);
+          if (!cond || !kws.length || !kws.every(kwKnown) || !grantableText(m[6])) return null;
+          const scope = { self: true, what: 'creature' };
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 4, scope, cond, setCreatureTypes: [m[2]] },
+            { op: 'continuous', layer: 7, scope: Object.assign({}, scope), cond, setPt: { p: +m[3], t: +m[4] } },
+            { op: 'continuous', layer: 6, scope: Object.assign({}, scope), cond, grant: kws, grantText: m[6] }] };
+        }, auto: true },
       // Sanwell, Avenger Ace: "As long as an artifact creature you control is attacking, prevent all damage that would be dealt to Sanwell."
       { re: /^As long as (.+?), prevent all damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'sequence', list: [
@@ -21989,6 +22007,10 @@
       // Polukranos, Unchained: "If damage would be dealt to CARDNAME while it has a +1/+1 counter on it, prevent that damage and remove that many +1/+1 counters from it."
       { re: /^If damage would be dealt to CARDNAME while it has a \+1\/\+1 counter on it, prevent that damage and remove that many \+1\/\+1 counters from it\.?$/i,
         eff: { op: 'damageEatsCounters' }, auto: true },
+      /* Sekki, Seasons' Guide: "If damage would be dealt to Sekki, prevent that damage, remove that many +1/+1 counters
+         from Sekki, and create that many 1/1 colorless Spirit creature tokens." — counters or none (always, spirits) */
+      { re: /^If damage would be dealt to CARDNAME, prevent that damage, remove that many \+1\/\+1 counters from CARDNAME, and create that many 1\/1 colorless Spirit creature tokens\.?$/i,
+        eff: { op: 'damageEatsCounters', always: true, spirits: true }, auto: true },
       /* Anti-Venom: "If damage would be dealt to CARDNAME, prevent that damage and put that many +1/+1
          counters on him"; Phytohydra: "… put that many +1/+1 counters on it instead"; Jared Carthalion:
          "… while you're the monarch, …" (damageToCounters) */

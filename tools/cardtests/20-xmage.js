@@ -61055,4 +61055,58 @@ module.exports = (test) => {
     t.no(zar.counters['+1/+1'], 'Zar: not Zar (toughness 4)');
     t.no(opp.counters['+1/+1'], "Zar: not an opponent's creature");
   });
+  test("Commanders: Sekki, Seasons' Guide — eight counters; damage prevented, that many counters off and that many Spirits; eight Spirits bring it back", (mk, t) => {
+    t.auto("Sekki, Seasons' Guide");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const sk = T.bf('A', "Sekki, Seasons' Guide", { etb: true });
+    t.eq(sk.counters['+1/+1'], 8, 'Sekki: enters with eight +1/+1 counters');
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [sk] });
+    t.eq(sk.counters['+1/+1'], 5, 'Sekki: three counters off');
+    t.eq(sk.damage || 0, 0, 'Sekki: the damage prevented');
+    const spirits = () => T.bfOf('A').filter(o => o.isToken && /Spirit/.test(((o.card && o.card.type_line) || '')));
+    t.eq(spirits().length, 3, 'Sekki: three 1/1 Spirits');
+    // more damage than counters: all of them off, a Spirit for each point; then it dies a 0/0
+    sk.counters['+1/+1'] = 2;
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [sk] });
+    t.zone(sk, 'graveyard', 'Sekki: counters gone — a 0/0 dies');
+    t.eq(spirits().length, 6, 'Sekki: three more Spirits, one for each point of damage');
+    // Sacrifice eight Spirits: back from the graveyard
+    T.nextTurn('A');
+    for (let i = 0; i < 2; i++) T.bf('A', 'Spectral Sailor');
+    t.ok(g.activateAbility('A', sk.id, 0, { auto: true, targets: [] }), 'Sekki: eight Spirits sacrificed');
+    T.resolve();
+    t.zone(sk, 'battlefield', 'Sekki: returned to the battlefield');
+    t.eq(sk.counters['+1/+1'], 8, 'Sekki: with eight +1/+1 counters again');
+    t.eq(spirits().length, 0, 'Sekki: the Spirit tokens gone');
+  });
+  test('Commanders: Goddric, Cloaked Reveler — celebration: a 4/4 flying Dragon with "{R}: Dragons you control get +1/+0"', (mk, t) => {
+    t.auto('Goddric, Cloaked Reveler');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const gd = T.bf('A', 'Goddric, Cloaked Reveler');
+    T.toMain('A');
+    T.bf('A', 'Grizzly Bears', { etb: true });
+    t.eq(g.powerOf(gd), 3, 'Goddric: one nonland permanent entered — still 3/3');
+    t.no(g.hasKw(gd, 'flying'), 'Goddric: no flying yet');
+    T.bf('A', 'Forest', { etb: true });
+    t.eq(g.powerOf(gd), 3, 'Goddric: a land does not count');
+    T.bf('A', 'Ornithopter', { etb: true });
+    t.eq(g.powerOf(gd) + '/' + g.toughnessOf(gd), '4/4', 'Goddric: two entered — base 4/4');
+    t.ok(g.hasKw(gd, 'flying'), 'Goddric: flying');
+    t.ok(g._hasCreatureType(gd, 'Dragon') && !g._hasCreatureType(gd, 'Human') && !g._hasCreatureType(gd, 'Noble'), 'Goddric: a Dragon, and no other creature type');
+    const ga = gd.analysis();
+    const k = ga.manaAbilities.concat(ga.abilities.filter(ab => ab.kind === 'activated' || ab.kind === 'loyalty')).findIndex(ab => /Dragons you control/.test(ab.text || ''));
+    t.ok(k >= 0, 'Goddric: has the {R} ability');
+    T.mana('A', 'R');
+    T.activate('A', gd, k);
+    t.eq(g.powerOf(gd), 5, 'Goddric: {R} — Dragons get +1/+0');
+    t.eq(g.powerOf(T.bfOf('A').find(o => o.name === 'Grizzly Bears')), 2, 'Goddric: not the Bears');
+    T.nextTurn('B');
+    t.eq(g.powerOf(gd) + '/' + g.toughnessOf(gd), '3/3', 'Goddric: next turn, himself again');
+    t.no(g.hasKw(gd, 'flying'), 'Goddric: no flying');
+  });
 };
