@@ -1077,6 +1077,8 @@
               this.attackPlan.defenderId = p.id;
             }
             this.setFocus(p.id, true);
+            // its portrait tapped (or any of it, on a touch screen): who that is, for a moment
+            if (MTG.isTouch() || e.target.closest('.life-orb')) this.seatTip(p.id, plate._orb);
           });
           this._plates.set(p.id, plate);
         }
