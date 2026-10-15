@@ -2052,6 +2052,9 @@
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     { re: /^Exile (target [a-z ]+?) card with mana value (\d+|X) from your graveyard\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Shiko, Paragon of the Way: "exile target nonland card with mana value 3 or less from your graveyard"
+    { re: /^Exile (target [a-z, ]+? card with mana value \d+ or less) from your graveyard\.?$/i,
+      make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown && t.maxMv != null ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
     { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
       make: () => ({ op: 'exileNamedEverywhere' }) },
@@ -6825,6 +6828,9 @@
       make: (m) => ({ op: 'voyageFromExile', counter: m[1].toLowerCase() }) },
     // Vial Smasher the Fierce: "choose an opponent at random" — "that player" afterwards is the one it falls on
     { re: /^Choose an opponent at random\.?$/i, make: () => ({ op: 'chooseOpponent', random: true }) },
+    // Zaffai, Thunder Conductor: "Zaffai deals 10 damage to an opponent chosen at random." (toRandomOpponent)
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to an opponent chosen at random\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], toRandomOpponent: true }) },
     // Vial Smasher the Fierce: "deals damage equal to that spell's mana value to that player or a planeswalker that player controls"
     { re: /^(?:CARDNAME|This creature|It) deals damage equal to (.+?) to that player or a planeswalker that player controls\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damagePlayerOrWalker', n: k } : null; } },
@@ -7906,6 +7912,8 @@
     { re: /^You may choose new targets for the copies\.?$/i, make: () => ({ op: 'noop' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // Shiko, Paragon of the Way: "Copy it, then you may cast the copy without paying its mana cost." — the card just exiled
+    { re: /^Copy it, then you may cast the copy without paying its mana cost\.?$/i, make: () => ({ op: 'castCopy', of: 'last', fromRes: true }) },
     // The Sixth Doctor: "copy it, except the copy isn't legendary" — a legendary permanent spell's copy, a token that isn't
     { re: /^Copy it, except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
     // Tawnos, the Toymaker: "copy it, except the copy is an artifact in addition to its other types"
@@ -10394,14 +10402,20 @@
     { re: /^(?:You may )?put a commander you own from the command zone onto the battlefield\. It gains haste\. Return it to the command zone at the beginning of the next end step\.$/i,
       make: () => [{ op: 'commanderVisit' }] },
     /* Containment Construct: "you may exile that card from your graveyard.
-       If you do, you may play that card this turn." */
-    { re: /^You may exile that card from your graveyard\. If you do, you may play that card this turn\.$/i,
-      make: () => [{ op: 'may', then: [{ op: 'exileTriggerCardPlayable' }] }] },
+       If you do, you may play that card this turn." — Moonstone, Harsh Mistress: "until the end of your next turn" */
+    { re: /^You may exile that card from your graveyard\. If you do, (?:you may play that card this turn|(until the end of your next turn), you may play that card)\.$/i,
+      make: (m) => [{ op: 'may', then: [Object.assign({ op: 'exileTriggerCardPlayable' }, m[1] ? { duration: 'nextTurn' } : {})] }] },
     /* Praetor's Grasp: "Search target opponent's library for a card and exile
        it face down. Then that player shuffles. You may look at and play that
        card for as long as it remains exiled." */
     { re: /^Search target opponent'?s library for a card and exile it face down\. Then that player shuffles\. You may (?:look at and )?play that card for as long as it remains exiled\.$/i,
       make: () => [{ op: 'tutor', n: 1, filter: 'any', libOf: 'target', to: 'exilePlayable', targets: [targetSpec('target opponent')], prompt: "Search their library for a card." }] },
+    /* Intet, the Dreamer: "you may pay {2}{U}. If you do, exile the top card of your library face down. You may look at
+       that card for as long as it remains exiled. You may play that card without paying its mana cost for as long as
+       Intet remains on the battlefield." — all of it only if paid (impulseLast whileHere, free) */
+    { re: /^you may pay ((?:\{[^}]+\})+)\. If you do, exile the top card of your library face down\. You may look at that card for as long as it remains exiled\. You may play that card without paying its mana cost for as long as CARDNAME remains on the battlefield\.$/i,
+      make: (m) => [{ op: 'mayPay', pay: { mana: m[1] }, then: [{ op: 'impulse', n: 1, play: false, faceDown: true, look: true },
+        { op: 'impulseLast', duration: 'whileHere', free: true }] }] },
     // Moonsilver Key: "Search your library for an artifact card with a mana ability or a basic land card, reveal it, put it into your hand, then shuffle."
     { re: /^Search your library for an artifact card with a mana ability or a basic land card, reveal it, put it into your hand, then shuffle\.$/i,
       make: () => [{ op: 'tutor', n: 1, filter: 'artifact or basic land', manaArtifactOrBasic: true, to: 'hand', prompt: 'Search your library for an artifact with a mana ability or a basic land.' }] },
@@ -13565,8 +13579,9 @@
     [/^this spell was cast from your hand$/i, () => ({ kind: 'castFromHand' })],
     [/^this spell was cast from anywhere other than your hand$/i, () => ({ kind: 'castFromHand', not: true })],
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
-    [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
-      (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // (Zaffai, Thunder Conductor: "that spell's" — a cast trigger's spell, whatever was made in between: ofTrigger)
+    [/^(?:its|that (creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
+      (m) => Object.assign({ kind: 'itMv', n: +m[2], cmp: /less/i.test(m[3]) ? 'atMost' : 'atLeast' }, /spell/i.test(m[1] || '') ? { ofTrigger: true } : {})],
     // Ozai, the Phoenix King: "you have six or more unspent mana" (unspentMana)
     [/^you have (\w+) or more unspent mana$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'unspentMana', n: num(m[1]) } : null)],
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
@@ -14481,6 +14496,9 @@
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
+    // The Beast, Deathless Prince: "Whenever a creature deals combat damage to its owner," — anyone's creature (hitItsOwner)
+    { re: /^Whenever a creature deals combat damage to its owner,? /i,
+      event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitItsOwner: true } },
     /* Puppet Master, String Puller: "Whenever one or more goaded creatures deal combat damage to one of your opponents," —
        anyone's goaded creatures, once for each opponent hit (batchPerPlayer, hitYourOpponent) */
     { re: /^Whenever one or more goaded creatures deal combat damage to one of your opponents,? /i,

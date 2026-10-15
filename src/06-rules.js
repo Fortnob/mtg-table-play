@@ -3339,7 +3339,8 @@
          transformed into Ghost-Spider it is the same creature */
       if (o.impulseWhileSrc) {
         const s0 = this.obj(o.impulseWhileSrc);
-        if (!s0 || s0.zone !== 'battlefield' || s0.controller !== playerId) return false;
+        // (Intet, the Dreamer: "for as long as Intet remains on the battlefield" — whoever controls it: impulseWhileHere)
+        if (!s0 || s0.zone !== 'battlefield' || (!o.impulseWhileHere && s0.controller !== playerId)) return false;
       }
       return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
     }
@@ -13661,7 +13662,8 @@
         case 'itMv': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && (t.kind === 'object' || t.kind === 'stack'));
           const td = (ctx && ctx.triggerData) || {};
-          let it = tg && (tg.kind === 'stack' ? (this.stack.find(x => x.id === tg.id) || {}).obj : this.obj(tg.id));
+          let it = cond.ofTrigger && td.objectId ? this.obj(td.objectId) : null;
+          if (!it) it = tg && (tg.kind === 'stack' ? (this.stack.find(x => x.id === tg.id) || {}).obj : this.obj(tg.id));
           if (!it) it = (this._lastAffected && this.obj(this._lastAffected.id)) || (td.objectId && this.obj(td.objectId)) || null;
           if (!it || !it.card) return false;
           const mv = it.card.cmc || 0;
@@ -15217,12 +15219,15 @@
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
         o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null; o.impulseUndaunted = null;
-        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null;
+        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
+      if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
       if (from === 'battlefield' && from !== toZone) {
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c.impulseWhileSrc === o.id) { c.impulseBy = null; c.impulseUntil = null; c.impulseWhileSrc = null; }
+          // (Intet, the Dreamer: "without paying its mana cost for as long as Intet remains on the battlefield")
+          if (c.freeCastWhileSrc === o.id) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; c.freeCastWhileSrc = null; }
         }
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
@@ -16428,6 +16433,8 @@
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
+          // The Beast, Deathless Prince: "deals combat damage to its owner" (hitItsOwner)
+          if (ab.hitItsOwner && !(data.player && data.object && data.object.owner === data.player)) continue;
           // Harbin, Vanguard Aviator: "with five or more Soldiers" (attackersOfTypeMin)
           if (ab.attackersOfTypeMin && ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); }).length < ab.attackersOfTypeMin) continue;
           // The Chief Warg: "while you control a creature with power 4 or greater" (attackWhile)
@@ -18962,6 +18969,13 @@
           // Inferno Elemental: "deals 3 damage to that creature" — the one the trigger is about
           // Stuffy Doll: "to the chosen player"
           if (e.toChosenPlayer) { const p = src && this.player(src.chosenPlayer); if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // Zaffai, Thunder Conductor: "to an opponent chosen at random" — nobody's choice (toRandomOpponent)
+          if (e.toRandomOpponent) {
+            const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+            const p = opps.length ? opps[this.rng.int(opps.length)] : null;
+            if (p) { this.logEvent('rules', `${p.name} is chosen at random.`); this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
+            break;
+          }
           // "deals 1 damage to itself"
           if (e.toSelf2) { if (src && src.zone === 'battlefield') this.dealDamageToObject(src, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerObject) { const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId); if (x && x.zone === 'battlefield') this.dealDamageToObject(x, cnt, dsrc); this.emit('sfx', 'damage'); break; }
@@ -22337,13 +22351,21 @@
           const ask = d1 && String(e.text || '').replace(/^(?:its|that [a-z]+'?s) controller may /i, '').replace(/\.$/, '');
           // Slicer, Hired Muscle: lending itself to the player whose upkeep it is (lendSelf, for the bots)
           const lend = (e.then || []).some(x => x && x.op === 'giveControl' && x.self);
+          /* Containment Construct, Moonstone: "you may exile that card from your graveyard" — by its name, with
+             several discarded at once; nothing to ask once it has left the graveyard */
+          let named = null;
+          if (s0 && s0.op === 'exileTriggerCardPlayable') {
+            const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            if (!x || x.zone !== 'graveyard') break;
+            named = `${nm}: ${String(e.text || '').replace(/^you may e/i, 'E').replace(/that card/i, x.name).replace(/\.(?= |$)/, '?')}`;
+          }
           const yes = this._ask({ type: 'confirm', playerId: who.id, ...(lend ? { purpose: 'lendSelf' } : {}),
             // (the same answer for the rest of the turn, or — an optional trigger's own "you may" — for the rest of a batch)
             remember: 'may', rememberBatch: !!e.optionalTrigger,
             // (Sweep Away: "Top of its library" / "Return it to hand")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             // (Ral, Obzedat: "Exile CARDNAME …?" — by its name)
-            prompt: (e.prompt && e.prompt.replace(/CARDNAME/g, U.frontName(nm))) || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
+            prompt: named || (e.prompt && e.prompt.replace(/CARDNAME/g, U.frontName(nm))) || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
               `${ctx.name || 'Effect'}: ${whole(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           // ("Do this only once each turn": a yes uses it up for the turn — mayOncePerTurn)
@@ -24637,8 +24659,10 @@
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           if (!x || x.zone !== 'graveyard') break;
           this.moveObject(x, 'exile');
-          x.impulseBy = ctx.controller; x.impulseUntil = this.turn;
-          this.logEvent('rules', `${me.name} exiles ${x.name} and may play it this turn.`);
+          // (Moonstone, Harsh Mistress: "until the end of your next turn")
+          const next = e.duration === 'nextTurn';
+          x.impulseBy = ctx.controller; x.impulseUntil = next ? this._endOfNextTurnOf(ctx.controller) : this.turn;
+          this.logEvent('rules', `${me.name} exiles ${x.name} and may play it ${next ? 'until the end of their next turn' : 'this turn'}.`);
           break;
         }
         // Cultivator Colossus: a land from hand, a card, and again — until you stop or run out
@@ -28920,21 +28944,30 @@
           const mineNow = this.activePlayer && this.activePlayer.id === ctx.controller && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
           // Gwen Stacy: "for as long as you control this creature" — till it leaves or changes hands (impulseWhileSrc)
           if (e.duration === 'whileControl' && !(src && src.zone === 'battlefield' && src.controller === ctx.controller)) break;
-          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' ? 99999
+          // Intet, the Dreamer: "for as long as Intet remains on the battlefield" — whoever controls it (whileHere)
+          const here = e.duration === 'whileHere';
+          if (here && !(src && src.zone === 'battlefield')) break;
+          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' || here ? 99999
             : e.duration === 'nextEnd' ? (mineNow ? this.turn : this._endOfNextTurnOf(ctx.controller)) : this.turn;
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
+            if (c.faceDownExile) c.lookableBy = ctx.controller;
+            // (Intet: "play that card without paying its mana cost" — a spell for free, a land simply played: freeCastWhileSrc)
+            if (e.free && !(c.analysis() || {}).isLand) {
+              c.freeCastBy = ctx.controller; c.freeCastTurn = this.turn; c.freeCastUntil = until; c.freeCastWhileSrc = here ? src.id : null;
+              continue;
+            }
             c.impulseBy = e.owners ? c.owner : ctx.controller; c.impulseUntil = until;
             /* Dragonhawk, Fate's Tempest, Inti: "until your next end step" — up to it, not through it
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             c.impulseIfAttackedToken = !!e.ifAttackedToken;
             c.impulseIfAttackedCommander = !!e.ifAttackedCommander;
-            c.impulseWhileSrc = e.duration === 'whileControl' ? src.id : null;
+            c.impulseWhileSrc = e.duration === 'whileControl' || here ? src.id : null;
+            c.impulseWhileHere = here;
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
             if (e.payLife) c.impulsePayLife = ctx.controller;
-            if (c.faceDownExile) c.lookableBy = ctx.controller;
           }
           break;
         }
