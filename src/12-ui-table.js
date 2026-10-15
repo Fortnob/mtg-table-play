@@ -1814,14 +1814,18 @@
       let body;
       if (e) {
         const w = el('div', { class: 'spot-card' });
-        w.appendChild(this.staticCard(item.card) || this._abilityChip(item));
+        const card = this.staticCard(item.card) || this._abilityChip(item);
+        w.appendChild(card);
+        const fb = card.classList.contains('cv') ? this._spotFallback(item.card) : null;
+        if (fb) w.appendChild(fb);
         body = w;
       } else {
         const w = this.wrapFor('spot', 'spot-card');
         let card;
         if (item.kind !== 'ability' && item.objId) card = this.cardEl({ id: item.objId, card: item.card, zone: 'stack' });
         else card = this.staticCard(item.card) || this._abilityChip(item);
-        this.place(w, [card]);
+        const fb = card.classList.contains('cv') ? this._spotFallback(item.card) : null;
+        this.place(w, fb ? [card, fb] : [card]);
         body = w;
       }
       const targets = (item.targets || []).map(t => this.targetName(t)).filter(Boolean);
@@ -1851,6 +1855,33 @@
       this.spotHost.classList.add('on');
       this.spotHost.classList.toggle('ghost', !!e);
       this._spotTargets = item.targets || [];
+    }
+
+    /**
+     * D1: the card held up whose picture has not arrived yet is not an empty
+     * dark frame: its words (and its art crop, if that has come) stand in
+     * for it, over it, until the picture is there, then fade. Null when the
+     * picture is ready (it was fetched as the beat was planned: _prefetchArt).
+     */
+    /** @this {MTG.TableInstance} */
+    _spotFallback(card) {
+      const url = card ? MTG.scry.imageUrl(card, 'normal', 0) : '';
+      if (!url || !UI.artReady || !UI.preloadArt || UI.artReady(url)) return null;
+      const keep = this._spotFb;
+      if (keep && keep._url === url) return keep;
+      const crop = MTG.scry.imageUrl(card, 'art_crop', 0) || '';
+      const fb = el('div', { class: 'spot-fb', 'aria-hidden': 'true' }, [
+        UI.artReady(crop) ? el('div', { class: 'spot-fb-art', style: { backgroundImage: 'url("' + crop.replace(/"/g, '%22') + '")' } }) : null,
+        UI.cardFallback(card, 0),
+      ].filter(Boolean));
+      fb._url = url;
+      this._spotFb = fb;
+      UI.preloadArt(url).then(() => {
+        if (this._spotFb === fb) this._spotFb = null;
+        fb.classList.add('gone');
+        setTimeout(() => fb.remove(), 260);
+      });
+      return fb;
     }
 
     /**

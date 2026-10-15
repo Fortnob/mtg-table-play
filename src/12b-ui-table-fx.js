@@ -226,6 +226,7 @@
         b.events.push({ kind, who: s.controller, card: s.card, name: s.name, targets,
           text: `${name(s.controller)} ${kind === 'cast' ? 'cast' + (s.controller === me ? '' : 's') : kind === 'trigger' ? '— trigger:' : 'activate' + (s.controller === me ? '' : 's')} ${s.name}${targets.length ? ' → ' + targets.join(', ') : ''}` });
         if (s.controller !== me) {
+          this._prefetchArt(s.card);
           b.spot = { stackId: s.id, objId: s.kind !== 'ability' ? s.objId : null, trigger };
           hold(s.kind === 'ability' ? 1000 : 1500);
         } else hold(160);
@@ -358,6 +359,8 @@
             b.subs.push({ kind: 'spot', e, entry, n: 1, live: liveStack.has(e.stackId), stackId: e.stackId,
               objId: kind === 'cast' ? e.objId : null, trigger: kind === 'trigger', who: e.controller,
               hold: kind === 'cast' ? 1500 : 1150 });
+            // its picture on its way now, so it is there when it is held up (D1)
+            this._prefetchArt(entry.card);
             break;
           }
           case 'resolve': hold(260); weigh(e.kind === 'spell' ? 900 : 400); break;
@@ -615,7 +618,7 @@
       }
       if (this._destroyed) return;
       // 4. what is on the stack now, one at a time; the first once what was said has been read
-      if (first) await this._hold(first.hold, 'spot');
+      if (first) { await this._artWait(first); await this._hold(first.hold, 'spot'); }
       else if (live.length && line) await this._hold(Math.max(700, beat.hold), 'line');
       for (const sp of live) {
         if (sp === first || this._destroyed) continue;
@@ -686,9 +689,32 @@
       // (heard now: a spell gone before its picture came is not heard again with its result)
       if (ghost && sp.e && MTG.feel && MTG.feel.cue) MTG.feel.cue(this, sp.e);
       this.render();
+      await this._artWait(sp);
       await this._hold(sp.hold, ghost ? 'ghost' : 'spot');
       this._spotOff();
       if (ghost) this.render();
+    },
+
+    /** A card's picture, fetched ahead of its moment in the middle of the table (D1). */
+    _prefetchArt(card) {
+      const url = card ? MTG.scry.imageUrl(card, 'normal', 0) : '';
+      if (url && UI.preloadArt) UI.preloadArt(url);
+    },
+
+    /**
+     * D1: the moment a card is held up for starts once its picture is there
+     * to be seen — at most `cap` ms later (its words stand in until then:
+     * renderSpot), so a slow picture never holds the game up.
+     */
+    _artWait(sp, cap) {
+      const v = this.view;
+      const item = sp.e ? null : (v && (v.stack || []).find(s => s.id === sp.stackId));
+      const card = sp.e ? (sp.e.card || (this.objIn(sp.e.objId, v) || {}).card) : item && item.card;
+      const url = card ? MTG.scry.imageUrl(card, 'normal', 0) : '';
+      if (!url || !UI.preloadArt || !UI.artReady || UI.artReady(url)) return Promise.resolve();
+      const wait = cap == null ? 300 : cap;
+      if (this._holdTrace) this._holdTrace('art', wait, wait);
+      return Promise.race([UI.preloadArt(url), sleep(wait)]);
     },
 
     _spotOn(sp, ghost) {

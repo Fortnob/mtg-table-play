@@ -1202,18 +1202,24 @@
   };
 
   const artStatus = new Map();   // url -> Promise<boolean>
+  const artDone = new Set();     // the urls that have arrived, decoded and ready to paint
   function artLoaded(url) {
     if (!artStatus.has(url)) {
       artStatus.set(url, new Promise((res) => {
         const probe = new Image();
         probe.decoding = 'async';
-        probe.onload = () => res(true);
+        const ok = () => { artDone.add(url); res(true); };
+        probe.onload = () => { if (probe.decode) probe.decode().then(ok, ok); else ok(); };
         probe.onerror = () => { MTG.scry.forgetArt(url); res(false); };
         probe.src = url;
       }));
     }
     return artStatus.get(url);
   }
+  /** A picture fetched ahead of being shown (the card an opponent is about to have held up): true once it is decoded. */
+  UI.preloadArt = function (url) { return url && typeof Image !== 'undefined' ? artLoaded(url) : Promise.resolve(false); };
+  /** Whether a picture fetched that way has arrived already: a look, not a request. */
+  UI.artReady = function (url) { return !!url && artDone.has(url); };
 
   /**
    * Paint a card's art onto `node` (as a background) once it has loaded.
