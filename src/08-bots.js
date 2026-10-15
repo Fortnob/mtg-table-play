@@ -1577,6 +1577,28 @@
         .sort((a, b) => ((b.controller === this.pid) - (a.controller === this.pid)) || (a.tapped - b.tapped) || ((a.attachments || []).length - (b.attachments || []).length));
       return os.length ? { picks: [os[0].id] } : null;
     },
+    /* Jinnie Fay, Jetmir's Second: as they are (option 0), Cats (1) or Dogs (2) — a creature token of 4 power and
+       toughness or more, and a Treasure while lands are short, as they are; else a hasty Cat in our own first main
+       phase, a Dog otherwise (orig: what they would be) */
+    tokenSwapAnimals(s) {
+      const g = this.game;
+      const o = s.orig || {};
+      if (o.creature && !o.copy && (o.power || 0) + (o.toughness || 0) >= 4) return { picks: [0] };
+      if (o.copy) return { picks: [0] };
+      if (o.name === 'Treasure' && this.landsInPlay() < 5) return { picks: [0] };
+      const mine = g.activePlayer && g.activePlayer.id === this.pid && g.phase && g.phase.id === 'precombat';
+      return { picks: [mine ? 1 : 2] };
+    },
+    /* Esix, Fractal Bloom: copies of the creature worth most, not a legendary one (they would die to the legend rule),
+       when it is worth more than what they would be; else as they are (none) */
+    tokenCopyFirst(s) {
+      const g = this.game;
+      const o = s.orig || {};
+      const floor = o.creature ? Math.max(1.5, ((o.power || 0) + (o.toughness || 0)) / 2) : 2.5;
+      const best = (s.items || []).map(it => g.obj(it.id)).filter(x => x && !/\bLegendary\b/.test(String((x.card || {}).type_line || '')))
+        .sort((a, b) => this.permanentValue(b) - this.permanentValue(a))[0];
+      return { picks: best && this.permanentValue(best) > floor ? [best.id] : [] };
+    },
     /* Klaw, Sonic Subjugator; Blackmail: the cards of ours to reveal, one of which the other player makes us discard —
        the ones worth least */
     revealFromHand(s) {

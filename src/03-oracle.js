@@ -23560,6 +23560,15 @@
          library face down instead." (drawExilesInstead) */
       { re: /^If you would draw a card, exile the top (card|two cards|three cards) of your library( face down)? instead\.(?: (You may play those cards this turn)\.)?$/i,
         make: (m) => ({ op: 'drawExilesInstead', n: /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1, faceDown: !!m[2], play: !!m[3] }), auto: true },
+      /* Jinnie Fay, Jetmir's Second: "If you would create one or more tokens, you may instead create that many 2/2 green
+         Cat creature tokens with haste or that many 3/1 green Dog creature tokens with vigilance." (tokenSwapAnimals) */
+      { re: /^If you would create one or more tokens, you may instead create that many 2\/2 green Cat creature tokens with haste or that many 3\/1 green Dog creature tokens with vigilance\.?$/i,
+        eff: { op: 'tokenSwapAnimals' }, auto: true },
+      /* Esix, Fractal Bloom: "The first time you would create one or more tokens during each of your turns, you may
+         instead choose a creature other than Esix and create that many tokens that are copies of that creature."
+         (tokenCopyFirst) */
+      { re: /^The first time you would create one or more tokens during each of your turns, you may instead choose a creature other than (?:CARDNAME|Esix) and create that many tokens that are copies of that creature\.?$/i,
+        eff: { op: 'tokenCopyFirst' }, auto: true },
       // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
       /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead. Put

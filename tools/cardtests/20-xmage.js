@@ -66255,4 +66255,179 @@ module.exports = (test) => {
     T.resolve();
     t.zone(g3, 'graveyard'); t.zone(b3, 'graveyard');
   });
+
+  test("Commanders: Jinnie Fay, Jetmir's Second — tokens made as Cats or Dogs, or as they are", (mk, t) => {
+    t.auto("Jinnie Fay, Jetmir's Second");
+    const T = mk();
+    const g = T.g;
+    T.bf('A', "Jinnie Fay, Jetmir's Second");
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [1] }; });
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.ok(q && q.purpose === 'tokenSwapAnimals', 'Jinnie Fay: asked');
+    t.ok(/you would create 2 1\/1 white Soldier creature tokens/.test(q.prompt), 'Jinnie Fay: says what they would be — ' + q.prompt);
+    t.eq(q.options.length, 3);
+    let mine = T.bfOf('A').filter(o => o.isToken);
+    t.eq(mine.length, 2, 'Jinnie Fay: that many');
+    t.ok(mine.every(o => o.name === 'Cat' && g.powerOf(o) === 2 && g.toughnessOf(o) === 2 && g.hasKw(o, 'haste')), 'Jinnie Fay: 2/2 Cats with haste');
+    t.ok(mine.every(o => ((o.analysis() || {}).colors || []).join() === 'G'), 'Jinnie Fay: green');
+    // a Treasure as a Dog
+    T.answer('choose', () => ({ picks: [2] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    const dog = T.bfOf('A').find(o => o.name === 'Dog');
+    t.ok(dog && g.powerOf(dog) === 3 && g.toughnessOf(dog) === 1 && g.hasKw(dog, 'vigilance'), 'Jinnie Fay: a 3/1 Dog with vigilance');
+    t.no(T.bfOf('A').some(o => o.name === 'Treasure'), 'Jinnie Fay: no Treasure');
+    // as they are
+    T.answer('choose', () => ({ picks: [0] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.ok(T.bfOf('A').some(o => o.name === 'Treasure'), 'Jinnie Fay: as it is');
+    // an opponent's tokens are theirs
+    let asked = 0;
+    T.answer('choose', () => { asked++; return { picks: [1] }; });
+    g.passPriority('A', true);
+    T.resolve();
+    T.mana('B', '2W');
+    const ra = T.hand('B', 'Raise the Alarm');
+    t.ok(g.castSpell('B', ra.id, { auto: true, targets: [] }) || true);
+    T.resolve();
+    t.eq(asked, 0, "Jinnie Fay: not B's tokens");
+  });
+
+  test("Commanders: Jinnie Fay, Jetmir's Second — tapped and attacking still, copies too, what follows waits, a bot", (mk, t) => {
+    const M = require('../harness').engine();
+    let T = mk();
+    let g = T.g;
+    T.bf('A', "Jinnie Fay, Jetmir's Second");
+    const hero = T.bf('A', 'Hero of Bladehold');
+    T.answer('declareAttackers', () => [{ attackerId: hero.id, defenderId: 'B' }]);
+    T.answer('choose', () => ({ picks: [1] }));
+    T.toMain('A', 'declareBlockers');
+    const cats = T.bfOf('A').filter(o => o.name === 'Cat');
+    t.eq(cats.length, 2, 'Hero of Bladehold: two Cats');
+    t.ok(cats.every(o => o.tapped && o.attacking === 'B'), 'Jinnie Fay: still tapped and attacking');
+    // a token copy: a Dog instead, or the copy as it is
+    T = mk();
+    g = T.g;
+    T.bf('A', "Jinnie Fay, Jetmir's Second");
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [2] }));
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Cackling Counterpart'), { targets: [bear] });
+    t.ok(T.bfOf('A').some(o => o.name === 'Dog') && !T.bfOf('A').some(o => o.isToken && o.name === 'Grizzly Bears'), 'Jinnie Fay: a Dog, not a copy');
+    T.answer('choose', () => ({ picks: [0] }));
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Cackling Counterpart'), { targets: [bear] });
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Grizzly Bears'), 'Jinnie Fay: the copy, as it is');
+    // nothing after the making happens before the answer
+    T = mk();
+    g = T.g;
+    T.bf('A', "Jinnie Fay, Jetmir's Second");
+    T.mana('A', '2W');
+    const alarm = T.hand('A', 'Raise the Alarm');
+    t.ok(g.castSpell('A', alarm.id, { auto: true, targets: [] }));
+    g.passPriority('A', true); g.passPriority('B', true);
+    t.ok(g.pendingChoice && g.pendingChoice.purpose === 'tokenSwapAnimals', 'Jinnie Fay: waiting');
+    t.ok(g.resolving && alarm.zone === 'stack', 'Jinnie Fay: the spell is still resolving');
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'Jinnie Fay: nothing made yet');
+    g.resolveChoice('A', { picks: [2] });
+    t.ok(!g.resolving && alarm.zone === 'graveyard', 'Jinnie Fay: then it finishes');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Dog').length, 2);
+    // a bot decides at once
+    T = mk();
+    g = T.g;
+    T.bf('A', "Jinnie Fay, Jetmir's Second");
+    T.player('A').isBot = true;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.no(T.asked.some(ch => ch.purpose === 'tokenSwapAnimals'), 'Jinnie Fay: a bot is not asked');
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, 'Jinnie Fay: one token, whichever it chose');
+  });
+
+  test('Commanders: Esix, Fractal Bloom — the first tokens of your turn as copies of a creature', (mk, t) => {
+    t.auto('Esix, Fractal Bloom');
+    let T = mk();
+    let g = T.g;
+    const esix = T.bf('A', 'Esix, Fractal Bloom');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [giant.id] }; });
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.ok(q && q.purpose === 'tokenCopyFirst', 'Esix: asked');
+    t.ok(!q.items.some(x => x.id === esix.id) && q.items.some(x => x.id === bear.id) && q.items.some(x => x.id === giant.id), 'Esix: any creature but Esix');
+    const made = T.bfOf('A').filter(o => o.isToken);
+    t.eq(made.length, 2, 'Esix: that many');
+    t.ok(made.every(o => o.name === 'Hill Giant'), 'Esix: copies of the Giant');
+    // the second making this turn is as it is
+    let again = 0;
+    T.answer('choose', () => { again++; return { picks: [bear.id] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.eq(again, 0, 'Esix: only the first time each turn');
+    t.ok(T.bfOf('A').some(o => o.name === 'Treasure'), 'Esix: a Treasure as it is');
+    // declined: no second chance this turn
+    T = mk();
+    g = T.g;
+    T.bf('A', 'Esix, Fractal Bloom');
+    const bear2 = T.bf('A', 'Grizzly Bears');
+    let n = 0;
+    T.answer('choose', () => { n++; return { picks: [] }; });
+    T.answer('choose', () => { n++; return { picks: [bear2.id] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.eq(n, 1); t.ok(T.bfOf('A').some(o => o.name === 'Treasure'), 'Esix: declined, a Treasure');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.eq(n, 1, 'Esix: declined, not asked again this turn');
+    // not in another player's turn
+    T.nextTurn('B');
+    T.mana('A', 'W2');
+    let k = 0;
+    T.answer('choose', () => { k++; return { picks: [bear2.id] }; });
+    g.passPriority('B', true);
+    t.eq(g.priorityPlayer && g.priorityPlayer.id, 'A');
+    t.ok(g.castSpell('A', T.hand('A', 'Raise the Alarm').id, { auto: true, targets: [] }), 'Raise the Alarm in B\'s turn: ' + g.lastError);
+    T.resolve();
+    t.eq(k, 0, "Esix: not in B's turn");
+    t.eq(T.bfOf('A').filter(o => o.name === 'Soldier').length, 2);
+  });
+
+  test('Commanders: Esix, Fractal Bloom — with Jinnie Fay; with Doubling Season; a bot', (mk, t) => {
+    const M = require('../harness').engine();
+    let T = mk();
+    let g = T.g;
+    T.bf('A', 'Esix, Fractal Bloom');
+    T.bf('A', "Jinnie Fay, Jetmir's Second");
+    const seen = [];
+    T.answer('choose', (ch) => { seen.push(ch.purpose); return { picks: [] }; });
+    T.answer('choose', (ch) => { seen.push(ch.purpose); return { picks: [1] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.eq(seen.join(), 'tokenCopyFirst,tokenSwapAnimals', 'Esix declined, then Jinnie Fay');
+    t.ok(T.bfOf('A').some(o => o.name === 'Cat'));
+    // Doubling Season: twice that many copies
+    T = mk();
+    g = T.g;
+    T.bf('A', 'Esix, Fractal Bloom');
+    T.bf('A', 'Doubling Season');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('choose', () => ({ picks: [bear.id] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears').length, 2, 'Esix: Doubling Season makes it two copies');
+    // a bot copies its best creature that isn't legendary
+    T = mk();
+    g = T.g;
+    T.bf('A', 'Esix, Fractal Bloom');
+    T.bf('A', 'Grizzly Bears');
+    const big = T.bf('B', 'Craw Wurm');
+    T.player('A').isBot = true;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Craw Wurm'), 'Esix: the bot copies the Wurm');
+  });
 };

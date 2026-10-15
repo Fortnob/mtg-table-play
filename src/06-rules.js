@@ -29,6 +29,9 @@
      only ever a return value inside one resolution, so it never needs to
      survive a snapshot. */
   const SUSPEND = Symbol('suspend');
+  /* The makers of token copies a making can call again later, by name, with plain arguments, once what replaces
+     them (Jinnie Fay, Esix) has been decided against (_copyTokenCount, _tokenMake) */
+  const TOKEN_MAKERS = new Set(['_encoreCopy', '_offspringCopy', '_myriadCopy', '_auraCopyOnto', '_copyTokenOne']);
   /* Effects that act on their targets and nothing else, which a trigger's
      "that creature" (scope triggerObject) is handed to as one. */
   const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy', 'phaseOut', 'exileUntilLeaves']);
@@ -6427,19 +6430,8 @@
       this.moveObject(o, 'exile');
       let made = 0;
       for (const foe of this.opponentsOf(playerId)) {
-        for (let k = this._copyTokenCount(playerId, 1, card.type_line); k > 0; k--) {
-          const copy = this._register(new GObj(card, playerId, 'battlefield'));
-          copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
-          copy.entered = this.turn; copy.summoningSick = false;
-          copy.effects.push({ keywords: ['Haste'], until: null });
-          copy.mustAttackPlayer = foe.id;
-          copy.sacAtEndOfTurn = this.turn;
-          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-          this.battlefield.push(copy);
-          this.bumpBoard();
-          this._onEnter(copy);
-          this._fireEnters(copy);
-          this._fire('youCreateToken', playerId, { object: copy });
+        for (let k = this._copyTokenCount(playerId, 1, card.type_line, { method: '_encoreCopy', args: [playerId, card, face, foe.id] }); k > 0; k--) {
+          this._encoreCopy(playerId, card, face, foe.id);
           made++;
         }
       }
@@ -6448,6 +6440,22 @@
       this.checkStateBasedActions();
       this._resetPriority();
       return true;
+    }
+
+    /** Encore: a copy that attacks `foeId` this turn if able, with haste, sacrificed at the end step (TOKEN_MAKERS). */
+    _encoreCopy(playerId, card, face, foeId) {
+      const copy = this._register(new GObj(card, playerId, 'battlefield'));
+      copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
+      copy.entered = this.turn; copy.summoningSick = false;
+      copy.effects.push({ keywords: ['Haste'], until: null });
+      copy.mustAttackPlayer = foeId;
+      copy.sacAtEndOfTurn = this.turn;
+      copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+      this.battlefield.push(copy);
+      this.bumpBoard();
+      this._onEnter(copy);
+      this._fireEnters(copy);
+      this._fire('youCreateToken', playerId, { object: copy });
     }
 
     /**
@@ -9380,18 +9388,8 @@
         const copies = (o._offspring ? 1 : 0) + (o._squad || 0);
         const small = !!o._offspring && !o._squad;
         o._offspring = false; o._squad = 0;
-        const madeCopies = this._copyTokenCount(o.controller, copies, o.card.type_line);
-        for (let i = 0; i < madeCopies; i++) {
-          const copy = this._register(new GObj(o.card, o.controller, 'battlefield'));
-          copy.isToken = true; copy.zone = 'battlefield';
-          copy.entered = this.turn; copy.summoningSick = true; copy.face = o.face || 0;
-          if (small) copy.effects.push({ setPt: { p: 1, t: 1 }, until: null });
-          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-          this.battlefield.push(copy);
-          this.bumpBoard();
-          this._fireEnters(copy);
-          this._fire('youCreateToken', o.controller, { object: copy });
-        }
+        const madeCopies = this._copyTokenCount(o.controller, copies, o.card.type_line, { method: '_offspringCopy', args: [o.controller, o.card, o.face || 0, small] });
+        for (let i = 0; i < madeCopies; i++) this._offspringCopy(o.controller, o.card, o.face || 0, small);
         this.logEvent('token', `${o.name} brings ${copies} copy${copies === 1 ? '' : 'ies'} along.`);
       }
 
@@ -19525,8 +19523,9 @@
       const r = this.resolving;
       if (!r) return;
       while (r.index < r.effects.length) {
-        // Tomorrow, Azami's Familiar: a draw waiting on its player's look holds up the rest of the card (_drawWait)
-        if (this._drawWait) { this._drawWait.resume = true; return; }
+        /* Tomorrow, Azami's Familiar: a draw waiting on its player's look holds up the rest of the card (_drawWait); so
+           do tokens waiting to hear what they are made as (Jinnie Fay, Esix: _tokenWait) */
+        if (this._heldUp()) return;
         const e = r.effects[r.index];
         if (e.op === 'manual') {
           // done by hand by its controller, who the rest of the card waits for (_byHand)
@@ -19574,11 +19573,18 @@
           if (grew) this._lastAddedMana = { pid: grew.q.id, before: grew.before, target: true };
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
           if (e.op !== 'spendOnly') this._lastSetAside = null; }
-        if (out === SUSPEND) { if (this._drawWait) this._drawWait.resume = true; return; }            // waiting on somebody; resume later
+        if (out === SUSPEND) { this._heldUp(); return; }            // waiting on somebody; resume later
         r.index++;
       }
-      if (this._drawWait) { this._drawWait.resume = true; return; }
+      if (this._heldUp()) return;
       this._finishResolution();
+    }
+
+    /** Is a draw or a making waiting on a player (_drawWait, _tokenWait)? Then the resolution goes on once it is done. */
+    _heldUp() {
+      let held = false;
+      for (const w of [this._drawWait, this._tokenWait]) if (w) { w.resume = true; held = true; }
+      return held;
     }
 
     /**
@@ -26412,46 +26418,14 @@
           }
           // Embalm, eternalize (CR 702.128, 702.129): "with no mana cost" — and so a mana value of 0 (noManaCost)
           if (e.noManaCost) card = Object.assign({}, card, { id: card.id + ':nocost', mana_cost: '', cmc: 0, card_faces: null });
-          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
-          for (let i = 0; i < made; i++) {
-            const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
-            copy.isToken = true;
-            copy.controller = ctx.controller;
-            copy.zone = 'battlefield';
-            copy.entered = this.turn;
-            copy.summoningSick = true;
-            copy.face = faceUp;
-            // (Hofri Ghostforge: the token's "the exiled card" is the card it was made from — holdExiled)
-            if (e.holdExiled) copy.holds = [source.id];
-            if (e.grant && e.grant.length) copy.effects.push({ keywords: e.grant, until: null });
-            // Skyclave Relic: "two tapped tokens"
-            if (e.tapped) copy.tapped = true;
-            /* Delina, Wild Mage: "a tapped and attacking token" — at whoever the creature that made it is
-               attacking (Ilharg's way), during combat; never declared, so nothing "whenever attacks" sees it */
-            if (e.attacking && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
-              const def = e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
-              if (def) { copy.attacking = def; this.combat.attackers.push(copy.id); }
-            }
-            copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-            // Stangg, Echo Warrior: "a copy of it attached to Stangg Twin" (attachToId)
-            const hostTo = e.attachToId && this.obj(e.attachToId);
-            if (hostTo && hostTo.zone === 'battlefield') { copy.attachedTo = hostTo.id; hostTo.attachments = (hostTo.attachments || []).concat(copy.id); }
-            this.battlefield.push(copy);
-            this.bumpBoard();
-            // Yenna, Redtooth Regent: a copy of an Aura chooses what it enchants as it arrives (CR 303.4f)
-            const cpa = copy.analysis();
-            if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
-            this._onEnter(copy);
-            // (Esper Terra: a copy of a Saga arrives with its lore counter too, CR 714.3a)
-            if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
-            this._fireEnters(copy);
-            // the copy is what any later sentence is talking about
-            this._lastCopy = copy;
-            (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
-            // Orthion: "They gain haste." — every copy made
-            if (made > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
-            this._fire('youCreateToken', ctx.controller, { object: copy });
-          }
+          /* what each copy is made with, as plain words, so that a copy can be made later too (Jinnie Fay, Esix:
+             _copyTokenOne) — Delina, Wild Mage: "a tapped and attacking token" — at whoever the creature that made it
+             is attacking (Ilharg's way) */
+          const how = { holds: e.holdExiled ? [source.id] : null, grant: e.grant && e.grant.length ? e.grant : null, tapped: !!e.tapped,
+            attackingDef: e.attacking ? (e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id || null) : null,
+            attachToId: e.attachToId || null };
+          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line, { method: '_copyTokenOne', args: [ctx.controller, card, faceUp, how] });
+          for (let i = 0; i < made; i++) this._copyTokenOne(ctx.controller, card, faceUp, how, i, made);
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
           break;
@@ -33277,20 +33251,7 @@
           const defPid = at ? at.controller : src.attacking;
           for (const p of this.opponentsOf(ctx.controller)) {
             if (p.hasLost || p.id === defPid) continue;
-            for (let k = this._copyTokenCount(ctx.controller, 1, src.card.type_line); k > 0; k--) {
-              const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
-              Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
-                summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
-              copy.ts = this._stampNew();
-              this.battlefield.push(copy);
-              copy.attacking = p.id;
-              this.combat.attackers.push(copy.id);
-              this.bumpBoard();
-              this._onEnter(copy);
-              this._fireEnters(copy);
-              this._fire('youCreateToken', ctx.controller, { object: copy });
-              this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
-            }
+            for (let k = this._copyTokenCount(ctx.controller, 1, src.card.type_line, { method: '_myriadCopy', args: [ctx.controller, src.id, p.id] }); k > 0; k--) this._myriadCopy(ctx.controller, src.id, p.id);
           }
           break;
         }
@@ -33657,15 +33618,8 @@
           const hosts = (this.combat.attackers || []).map(id => this.obj(id)).filter(o => o && o !== src && o.zone === 'battlefield' &&
             o.controller === ctx.controller && (this.characteristics(o) || {}).isCreature);
           for (const host of hosts) {
-            const made = this._copyTokenCount(ctx.controller, 1, card.type_line);
-            for (let i = 0; i < made; i++) {
-              if (host.zone !== 'battlefield') break;
-              const o = this._createAuraToken(ctx.controller, card, host, true);
-              if (!o) break;
-              (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
-              this.logEvent('token', `${me.name} creates a copy of ${card.name} attached to ${host.name}.`);
-              this._fire('youCreateToken', ctx.controller, { object: o });
-            }
+            const made = this._copyTokenCount(ctx.controller, 1, card.type_line, { method: '_auraCopyOnto', args: [ctx.controller, card, host.id] });
+            for (let i = 0; i < made; i++) if (!this._auraCopyOnto(ctx.controller, card, host.id)) break;
           }
           break;
         }
@@ -37159,6 +37113,8 @@
         tokenTypes: (e.noncreature ? [] : ['Creature']).concat(e.addTypes || [], [String(e.subtypes || '')]).join(' ') });
       if (ev.cancelled) return;
       n = ev.n;
+      // Jinnie Fay, Esix: made as other tokens instead, or waiting to hear which (_tokenSwap)
+      if (!e._noSwap && n > 0 && !this._tokenSwap(controller, n, { road: 'spec', e: Object.assign({}, e, { n: undefined, countBy: null }) })) { this._tokenExtras(controller, ev, n); return; }
       // Divine Visitation: whatever creature tokens they were to be, they are 4/4 Angels
       if (!e.noncreature && this._anyStaticOf(controller, 'tokensBecomeAngels')) {
         e = Object.assign({}, e, { pt: '4/4', colorWords: ['white'], subtypes: 'Angel', addTypes: [], keywords: ['Flying', 'Vigilance'],
@@ -37246,11 +37202,14 @@
     /* Parallel Lives, Doubling Season, Chatterfang: a token that's a copy (Kiki-Jiki, myriad,
        offspring, squad, encore) is a token created like any other, so what changes token-making
        applies to it too (CR 111.1). How many to make; 0 when none are. */
-    _copyTokenCount(controller, n, typeLine) {
+    /* (Jinnie Fay, Esix: `maker` is how to make one of them later, when what replaces them waits on an answer —
+       { method, args }, one of TOKEN_MAKERS called with (…args, i, n); without one, nobody waits to be asked) */
+    _copyTokenCount(controller, n, typeLine, maker) {
       const tev = this._replace({ kind: 'createToken', n, controller, tokenTypes: String(typeLine || '') });
       if (tev.cancelled || !(tev.n > 0)) return 0;
       this._tokenExtras(controller, tev, tev.n);
       (this.player(controller) || {}).tokensMadeTurn = this.turn;
+      if (!this._tokenSwap(controller, tev.n, maker ? { road: 'method', method: maker.method, args: maker.args || [] } : { road: 'none' })) return 0;
       return tev.n;
     }
 
@@ -37261,6 +37220,258 @@
         if (x.named) this._createNamedToken(controller, { token: x.named, n: k, _noRep: true });
         else if (x.spec) this._createToken(controller, Object.assign({}, x.spec, { n: k, _noRep: true }));
       }
+    }
+
+    /* ---------- tokens made as other tokens instead ----------
+       Jinnie Fay, Jetmir's Second: "If you would create one or more tokens, you may instead create that many 2/2 green
+       Cat creature tokens with haste or that many 3/1 green Dog creature tokens with vigilance." (tokenSwapAnimals);
+       Esix, Fractal Bloom: "The first time you would create one or more tokens during each of your turns, you may
+       instead choose a creature other than Esix and create that many tokens that are copies of that creature."
+       (tokenCopyFirst). Every road that makes tokens comes here once it knows how many (after Doubling Season and the
+       like). True: make them as they are. False: there is nothing for the road to make — what replaced them has been
+       made, or it waits on its controller's answer (_tokenWait), and the rest of the resolution waits with it. `recipe`
+       is how to make them as they are later: { road: 'spec' | 'named', e }, or a copy's maker { road: 'method',
+       method, args } (TOKEN_MAKERS); `ev` is the event so far ({ done: what has been offered, first: the first of the
+       turn's own }). Whatever else the making said — tapped, attacking, gone at end of combat — goes for what replaces
+       it (Jinnie Fay's ruling). */
+    _tokenSwap(controller, n, recipe, ev) {
+      const p = this.player(controller);
+      if (!p || p.hasLost || !(n > 0)) return true;
+      if (!ev) {
+        const own = !!this.activePlayer && this.activePlayer.id === controller;
+        // (Esix: "the first time … during each of your turns" — whatever made them, and whether or not it was replaced)
+        ev = { done: [], first: own && p._ownTurnTokens !== this.turn };
+        if (own) p._ownTurnTokens = this.turn;
+      }
+      const ask = this._tokenSwapQuestion(controller, n, recipe, ev);
+      if (!ask) return true;
+      if (!p.isBot) {
+        // (a maker the table can't call again later: nobody is asked)
+        if (recipe.road !== 'spec' && recipe.road !== 'named' && recipe.road !== 'method' && recipe.road !== 'copyOf') return true;
+        if (this._tokenWait) { this._tokenWait.queue.push({ controller, n, recipe, ev }); this._lastTokenGroup = []; return false; }
+        this._tokenWait = { controller, n, recipe, ev, which: ask.which, queue: [], resume: false };
+        this._lastTokenGroup = [];
+        this.queueChoice(ask.spec);
+        return false;
+      }
+      const got = this._decideChoose(controller, ask.spec);
+      return this._tokenSwapAnswer(controller, n, recipe, ev, ask.which, (got && got.picks) || []);
+    }
+    /** What may replace this making now, asked as a generic question ({ which, spec }), or null. */
+    _tokenSwapQuestion(controller, n, recipe, ev) {
+      const mine = (op) => this.battlefield.find(x => x.controller === controller && !x.phasedOut && this._staticOp(x, op));
+      const what = this._tokenRecipeWords(n, recipe);
+      const esix = ev.first && !ev.done.includes('esix') && mine('tokenCopyFirst');
+      const pool = esix ? this.battlefield.filter(x => x !== esix && !x.phasedOut && !!(this.characteristics(x) || {}).isCreature) : [];
+      if (esix && pool.length) {
+        return { which: 'esix', spec: MTG.choice.normalize({ type: 'choose', playerId: controller, purpose: 'tokenCopyFirst', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems(pool), min: 0, max: 1, optional: true, noneLabel: 'Make them as they are',
+          sourceId: esix.id, sourceName: esix.name, sourceCard: esix.card, orig: this._tokenRecipeLooks(recipe),
+          prompt: `${esix.name}: you would create ${what}. You may instead choose a creature other than ${esix.name} and create that many tokens that are copies of it.` }) };
+      }
+      const jf = !ev.done.includes('jinnie') && mine('tokenSwapAnimals');
+      if (jf) {
+        const say = (w) => (n === 1 ? 'a ' + w : O.nounCount(n, w));
+        return { which: 'jinnie', spec: MTG.choice.normalize({ type: 'choose', playerId: controller, purpose: 'tokenSwapAnimals', kind: 'options', min: 1, max: 1,
+          options: [{ label: `Create ${what}` }, { label: `Create ${say('2/2 green Cat creature token')} with haste instead` },
+            { label: `Create ${say('3/1 green Dog creature token')} with vigilance instead` }],
+          sourceId: jf.id, sourceName: jf.name, sourceCard: jf.card, orig: this._tokenRecipeLooks(recipe),
+          prompt: `${jf.name}: you would create ${what}. You may instead create that many 2/2 green Cat creature tokens with haste or that many 3/1 green Dog creature tokens with vigilance.` }) };
+      }
+      return null;
+    }
+    /** The answer to it: true when they are to be made as they are by whoever was making them. */
+    _tokenSwapAnswer(controller, n, recipe, ev, which, picks) {
+      ev.done.push(which);
+      const flags = this._tokenRecipeFlags(recipe);
+      if (which === 'esix') {
+        const x = this.obj(picks[0]);
+        if (x && x.zone === 'battlefield') {
+          this.logEvent('token', `${(this.player(controller) || {}).name} creates copies of ${x.name} instead.`);
+          const rec = { road: 'copyOf', sourceId: x.id, flags };
+          if (this._tokenSwap(controller, n, rec, ev)) this._tokenMake(controller, n, rec);
+          return false;
+        }
+      }
+      if (which === 'jinnie' && (picks[0] === 1 || picks[0] === 2)) {
+        const cat = picks[0] === 1;
+        this._createToken(controller, Object.assign({}, flags, { n, pt: cat ? '2/2' : '3/1', colorWords: ['green'], subtypes: cat ? 'Cat' : 'Dog',
+          keywords: [cat ? 'Haste' : 'Vigilance'], _noRep: true, _noSwap: true }));
+        return false;
+      }
+      // as they are: what else may replace them still may
+      return this._tokenSwap(controller, n, recipe, ev);
+    }
+    /** Make them as the recipe says, nothing replacing them any more. */
+    _tokenMake(controller, n, recipe) {
+      if (!(n > 0)) return;
+      if (recipe.road === 'spec') this._createToken(controller, Object.assign({}, recipe.e, { n, countBy: null, _noRep: true, _noSwap: true }));
+      else if (recipe.road === 'named') this._createNamedToken(controller, Object.assign({}, recipe.e, { n, _noRep: true, _noSwap: true }));
+      else if (recipe.road === 'copyOf') this._makeCopyTokens(controller, this.obj(recipe.sourceId), n, recipe.flags || {});
+      else if (recipe.road === 'method' && TOKEN_MAKERS.has(recipe.method)) for (let i = 0; i < n; i++) this[recipe.method](...(recipe.args || []), i, n);
+    }
+    /** "that many tokens that are copies of that creature" (Esix, Fractal Bloom), with whatever else the making said. */
+    _makeCopyTokens(controller, source, n, flags) {
+      if (!source || !(n > 0)) return;
+      const card = this._copiable(source.card);
+      this._lastTokenGroup = [];
+      for (let i = 0; i < n; i++) {
+        const copy = this._register(new GObj(card, controller, 'battlefield'));
+        Object.assign(copy, { isToken: true, controller, zone: 'battlefield', entered: this.turn, summoningSick: true, face: source.face || 0 });
+        if (flags.tapped) copy.tapped = true;
+        if (flags.temporary === 'combat') copy.sacAtEndOfCombat = true;
+        if (flags.goadForever) copy.goadForever = flags.goadForever;
+        if (flags.attacking && this.combat && this.combat.attackers) {
+          const def = (flags.attackingId && this.player(flags.attackingId)) || this.opponentsOf(controller)[0];
+          if (def) { copy.attacking = def.id; this.combat.attackers.push(copy.id); }
+        }
+        copy.ts = this._stampNew();
+        this.battlefield.push(copy);
+        this._lastTokenGroup.push(copy.id);
+        this._noteLastAffected([{ kind: 'object', id: copy.id }]);
+        (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
+        this.bumpBoard();
+        const cpa = copy.analysis();
+        if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
+        this._onEnter(copy);
+        if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
+        this._fireEnters(copy);
+        this._fire('youCreateToken', controller, { object: copy });
+      }
+      this.logEvent('token', `${(this.player(controller) || {}).name} creates ${n === 1 ? 'a token that is a copy' : n + ' tokens that are copies'} of ${source.name}.`);
+    }
+    /** Offspring, squad: a copy of the creature as it lands, an offspring one a 1/1 (TOKEN_MAKERS). */
+    _offspringCopy(controller, card, face, small) {
+      const copy = this._register(new GObj(card, controller, 'battlefield'));
+      copy.isToken = true; copy.zone = 'battlefield';
+      copy.entered = this.turn; copy.summoningSick = true; copy.face = face;
+      if (small) copy.effects.push({ setPt: { p: 1, t: 1 }, until: null });
+      copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+      this.battlefield.push(copy);
+      this.bumpBoard();
+      this._fireEnters(copy);
+      this._fire('youCreateToken', controller, { object: copy });
+    }
+    /** Myriad: a copy tapped and attacking another opponent, exiled as combat ends (TOKEN_MAKERS). */
+    _myriadCopy(controller, srcId, foeId) {
+      const src = this.obj(srcId), p = this.player(foeId);
+      if (!src || !p || !this.combat) return;
+      const copy = this._register(new GObj(src.card, controller, 'battlefield'));
+      Object.assign(copy, { isToken: true, controller, zone: 'battlefield', entered: this.turn,
+        summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
+      copy.ts = this._stampNew();
+      this.battlefield.push(copy);
+      copy.attacking = p.id;
+      this.combat.attackers.push(copy.id);
+      this.bumpBoard();
+      this._onEnter(copy);
+      this._fireEnters(copy);
+      this._fire('youCreateToken', controller, { object: copy });
+      this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+    }
+    /** Three Dog: a copy of the Aura attached to that creature; null when it could not be (TOKEN_MAKERS). */
+    _auraCopyOnto(controller, card, hostId) {
+      const host = this.obj(hostId);
+      if (!host || host.zone !== 'battlefield') return null;
+      const o = this._createAuraToken(controller, card, host, true);
+      if (!o) return null;
+      (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
+      this.logEvent('token', `${(this.player(controller) || {}).name} creates a copy of ${card.name} attached to ${host.name}.`);
+      this._fire('youCreateToken', controller, { object: o });
+      return o;
+    }
+    /** A token copy (copyPermanent), the `i`th of `made`, with what the making said (`how`) (TOKEN_MAKERS). */
+    _copyTokenOne(controller, card, faceUp, how, i, made) {
+      const copy = this._register(new GObj(card, controller, 'battlefield'));
+      copy.isToken = true;
+      copy.controller = controller;
+      copy.zone = 'battlefield';
+      copy.entered = this.turn;
+      copy.summoningSick = true;
+      copy.face = faceUp;
+      // (Hofri Ghostforge: the token's "the exiled card" is the card it was made from — holdExiled)
+      if (how.holds) copy.holds = how.holds.slice();
+      if (how.grant) copy.effects.push({ keywords: how.grant.slice(), until: null });
+      // Skyclave Relic: "two tapped tokens"
+      if (how.tapped) copy.tapped = true;
+      // (attacking, during combat; never declared, so nothing "whenever attacks" sees it)
+      if (how.attackingDef && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+        copy.attacking = how.attackingDef; this.combat.attackers.push(copy.id);
+      }
+      copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+      // Stangg, Echo Warrior: "a copy of it attached to Stangg Twin" (attachToId)
+      const hostTo = how.attachToId && this.obj(how.attachToId);
+      if (hostTo && hostTo.zone === 'battlefield') { copy.attachedTo = hostTo.id; hostTo.attachments = (hostTo.attachments || []).concat(copy.id); }
+      this.battlefield.push(copy);
+      this.bumpBoard();
+      // Yenna, Redtooth Regent: a copy of an Aura chooses what it enchants as it arrives (CR 303.4f)
+      const cpa = copy.analysis();
+      if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
+      this._onEnter(copy);
+      // (Esper Terra: a copy of a Saga arrives with its lore counter too, CR 714.3a)
+      if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
+      this._fireEnters(copy);
+      // the copy is what any later sentence is talking about
+      this._lastCopy = copy;
+      (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
+      // Orthion: "They gain haste." — every copy made
+      if (made > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
+      this._fire('youCreateToken', controller, { object: copy });
+    }
+    /** How a making is said in a question: "2 Treasure tokens", "a 1/1 white Soldier creature token". */
+    _tokenRecipeWords(n, recipe) {
+      const e = recipe.e || {};
+      if (recipe.road === 'named') return n === 1 ? `${/^[AEIOU]/i.test(e.token || 'artifact') ? 'an' : 'a'} ${e.token || 'artifact'} token` : O.nounCount(n, `${e.token || 'artifact'} token`);
+      if (recipe.road === 'spec') {
+        const sub = String(e.subtypes || '').replace(/\s*\bcreature\s*$/i, '').trim();
+        const words = [e.pt, (e.colorWords || []).join(' and '), e.name || sub, ...(e.addTypes || []).map(t => String(t).toLowerCase()), e.noncreature ? null : 'creature']
+          .filter(Boolean).join(' ') + ' token';
+        return n === 1 ? (/^(?:[aeiou]|8|11\/|18\/)/i.test(words) ? 'an ' : 'a ') + words : O.nounCount(n, words);
+      }
+      const src = recipe.road === 'copyOf' ? this.obj(recipe.sourceId) : null;
+      const of = src ? src.name : ((recipe.args || []).map(a => (a && a.name) || null).find(Boolean) || 'a permanent');
+      return n === 1 ? `a token that's a copy of ${of}` : `${n} tokens that are copies of ${of}`;
+    }
+    /** For the bots: what the tokens would be as they are. */
+    _tokenRecipeLooks(recipe) {
+      const e = recipe.e || {};
+      if (recipe.road === 'spec') {
+        const [pw, tg] = String(e.pt || '').split('/').map(x => parseInt(x, 10) || 0);
+        return { creature: !e.noncreature, power: pw, toughness: tg };
+      }
+      if (recipe.road === 'named') return { creature: false, name: e.token || null };
+      return { creature: true, copy: true };
+    }
+    /** What else the making said, for what is made instead. */
+    _tokenRecipeFlags(recipe) {
+      const e = recipe.e || recipe.flags || {};
+      const out = {};
+      for (const k of ['tapped', 'attacking', 'attackingId', 'temporary', 'goadForever']) if (e[k] != null && e[k] !== false) out[k] = e[k];
+      return out;
+    }
+    /** The question a making waited on has its answer: the making, then the ones that waited behind it, then the rest
+        of the resolution. */
+    _tokenAnswered(picks) {
+      const w = this._tokenWait;
+      if (!w) return;
+      this._tokenWait = null;
+      if (this.player(w.controller) && !this.player(w.controller).hasLost &&
+          this._tokenSwapAnswer(w.controller, w.n, w.recipe, w.ev, w.which, picks || [])) this._tokenMake(w.controller, w.n, w.recipe);
+      this._tokenGoOn(w);
+    }
+    _tokenGoOn(w) {
+      const queue = (w.queue || []).slice();
+      while (true) {
+        if (this._tokenWait) {
+          this._tokenWait.queue.push(...queue);
+          this._tokenWait.resume = this._tokenWait.resume || w.resume;
+          return;
+        }
+        const j = queue.shift();
+        if (!j) break;
+        if (this._tokenSwap(j.controller, j.n, j.recipe, j.ev)) this._tokenMake(j.controller, j.n, j.recipe);
+      }
+      if (w.resume && this.resolving) this._pumpResolution();
     }
 
     _createNamedToken(controller, e) {
@@ -37320,6 +37531,8 @@
       if (ev.cancelled) return;
       n = ev.n;
       this._tokenExtras(controller, ev, n);
+      // Jinnie Fay, Esix: made as other tokens instead, or waiting to hear which (_tokenSwap)
+      if (!e._noSwap && n > 0 && !this._tokenSwap(controller, n, { road: 'named', e: Object.assign({}, e, { n: undefined }) })) return;
       for (let i = 0; i < n; i++) {
         const o = this._register(new GObj(card, controller, 'battlefield'));
         o.isToken = true; o.zone = 'battlefield'; o.entered = this.turn;
@@ -37746,6 +37959,8 @@
       }
       // Tomorrow, Azami's Familiar: their look will not be answered — the draws waiting behind it go on (_drawWait)
       if (this._drawWait && this._drawWait.pid === p.id) this._drawResume();
+      // Jinnie Fay, Esix: their tokens will not be made — what waited behind them goes on (_tokenWait)
+      if (this._tokenWait && this._tokenWait.controller === p.id) { const w = this._tokenWait; this._tokenWait = null; this._tokenGoOn(w); }
       this.emit('player:lost', p);
     }
 
@@ -37872,6 +38087,14 @@
             this.pendingChoice = w.choice;
             // (refused now, something having changed: the attackers are declared again)
             if (!this.declareAttackers(playerId, w.declarations, w.opts)) { this.emit('choice', this.pendingChoice); this.touch(); }
+            return true;
+          }
+          // Jinnie Fay, Esix: what the tokens are made as — then whatever waited on them (_tokenWait)
+          if ((ch.purpose === 'tokenSwapAnimals' || ch.purpose === 'tokenCopyFirst') && this._tokenWait) {
+            this.pendingChoice = null;
+            this._tokenAnswered(got.picks);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
           }
           // Diaochan, Artful Beauty: the opponent who chooses the other target — the activation starts again (_askOtherTarget)
