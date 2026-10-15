@@ -58712,4 +58712,50 @@ module.exports = (test) => {
     T.toMain('A');
     t.eq(brutes().length, 1, 'Ginger: not the monarch — nothing');
   });
+  test("Commanders: Jackal, Genius Geneticist — a creature spell with mana value equal to his power: copied (not legendary), then a +1/+1 counter", (mk, t) => {
+    t.auto('Jackal, Genius Geneticist');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const jk = T.bf('A', 'Jackal, Genius Geneticist');
+    const count = (n) => g.battlefield.filter(o => o.name === n && o.controller === 'A').length;
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Llanowar Elves'));
+    t.eq(count('Llanowar Elves'), 2, 'Jackal: mana value 1, his power — copied');
+    t.eq(g.powerOf(jk), 2, 'Jackal: a +1/+1 counter');
+    T.mana('A', 'W'); T.cast('A', T.hand('A', 'Savannah Lions'));
+    t.eq(count('Savannah Lions'), 1, 'Jackal: mana value 1, power 2 — not copied');
+    t.eq(g.powerOf(jk), 2, 'Jackal: no counter');
+    T.mana('A', 'GG'); T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(count('Grizzly Bears'), 2, 'Jackal: mana value 2 — copied');
+    T.mana('A', 'GGG'); T.cast('A', T.hand('A', 'Mirri, Cat Warrior'));
+    g.checkStateBasedActions();
+    t.eq(count('Mirri, Cat Warrior'), 2, 'Jackal: a legendary copied — the copy is not legendary, both stay');
+    const tok = g.battlefield.find(o => o.name === 'Mirri, Cat Warrior' && o.isToken);
+    t.ok(tok && !(tok.analysis().supertypes || []).includes('Legendary'), 'Jackal: the token copy is not legendary');
+    t.eq(g.powerOf(jk), 4, 'Jackal: 4/4 now');
+  });
+  test("Commanders: Loki Laufeyson — {1}, {T}: the next instant or sorcery this turn with mana value up to his power is copied", (mk, t) => {
+    t.auto('Loki Laufeyson');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const lk = T.bf('A', 'Loki Laufeyson');
+    T.mana('A', '1');
+    T.activate('A', lk, 0);
+    t.ok(lk.tapped, 'Loki: tapped');
+    // mana value 3, Loki's power 2: not copied, and still waiting
+    const hand0 = g.zones.A.hand.length;
+    T.mana('A', 'U2'); T.cast('A', T.hand('A', 'Divination'));
+    t.eq(g.zones.A.hand.length, hand0 + 2, 'Loki: Divination (mana value 3) — not copied');
+    T.answer('*', (ch) => (ch.type === 'pickTarget' ? { targets: [{ kind: 'player', id: 'B' }] } : ch.type === 'confirm' ? { yes: false } : {}));
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 14, 'Loki: Lightning Bolt (mana value 1) copied — 6 damage');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 11, 'Loki: only the next one');
+    // gone at end of turn
+    T.nextTurn('B'); T.nextTurn('A');
+    T.toMain('A');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 8, 'Loki: a new turn — nothing waits');
+  });
 };

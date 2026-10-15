@@ -8173,6 +8173,16 @@
           objFilter: { words: 'instant or sorcery' }, targetsOneOpponentOrTheirs: true,
           text: 'Whenever you cast an instant or sorcery spell that targets only a single opponent or a single permanent an opponent controls, for each other opponent, choose that player or a permanent they control, copy that spell, and the copy targets the chosen player or permanent.',
           effects: [{ op: 'copyForOtherOpponents' }] }] }) },
+    /* Loki Laufeyson: "When you next cast an instant or sorcery spell with mana value less than or equal to Loki's power
+       this turn, copy that spell." — a turn's emblem, gone once it triggers, its power Loki's as that spell is cast
+       (mvMaxPowerOf, the permanent that made it) */
+    { re: /^When you next cast an instant or sorcery spell with mana value less than or equal to (?:CARDNAME|this creature)'?s power this turn, copy that spell\.?$/i,
+      make: () => ({ op: 'getEmblem', thisTurn: true, once: true, name: 'Next spell this turn', exceptSource: true,
+        emblemText: "Whenever you cast an instant or sorcery spell with mana value less than or equal to the power of the creature that made this emblem, copy that spell. You may choose new targets for the copy.",
+        abilities: [{ kind: 'triggered', event: 'youCastSpell', self: false, optional: false, auto: true, condition: null,
+          objFilter: { words: 'instant or sorcery', mvMaxPowerOf: '$src' },
+          text: "Whenever you cast an instant or sorcery spell with mana value less than or equal to the power of the creature that made this emblem, copy that spell. You may choose new targets for the copy.",
+          effects: [{ op: 'copyThatSpell' }] }] }) },
     // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
     { re: /^(CARDNAME|This creature|Target creature(?: you control)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
       make: (m) => Object.assign({ op: 'restrict', flag: /haste/i.test(m[2]) ? 'exceptByHaste' : 'exceptByFlying' },
@@ -8489,7 +8499,8 @@
     // Shiko, Paragon of the Way: "Copy it, then you may cast the copy without paying its mana cost." — the card just exiled
     { re: /^Copy it, then you may cast the copy without paying its mana cost\.?$/i, make: () => ({ op: 'castCopy', of: 'last', fromRes: true }) },
     // The Sixth Doctor: "copy it, except the copy isn't legendary" — a legendary permanent spell's copy, a token that isn't
-    { re: /^Copy it, except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
+    // (Jackal, Genius Geneticist: "copy that spell, except the copy isn't legendary")
+    { re: /^Copy (?:it|that spell), except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
     // Tawnos, the Toymaker: "copy it, except the copy is an artifact in addition to its other types"
     // Donal, Herald of Wings: "copy it, except the copy is a 1/1 Spirit in addition to its other types" (copyPt, addTypes)
     { re: /^Copy it, except the copy is an? (\d+)\/(\d+) ([A-Z][a-z]+) in addition to its other types\.?$/,
@@ -15172,6 +15183,9 @@
        of experience counters you have" — the spell's mana value on the stack, X and all (mvAboveExperience) */
     { re: /^Whenever you cast an instant or sorcery spell with mana value greater than the number of experience counters you have,? /,
       event: 'youCastSpell', filt: () => ({ words: 'instant or sorcery', mvAboveExperience: true }) },
+    // Jackal, Genius Geneticist: "Whenever you cast a creature spell with mana value equal to Jackal's power" (mvEqualsSelfPower)
+    { re: /^Whenever you cast a creature spell with mana value equal to (?:CARDNAME|this creature)'?s power,? /,
+      event: 'youCastSpell', filt: () => ({ words: 'creature', mvEqualsSelfPower: true }) },
     // Mr. House, President and CEO: "Whenever you roll a 4 or higher" — each die that comes up so (minRoll)
     { re: /^Whenever you roll a (\d+) or higher,? /i, event: 'youRoll', extraOf: (m) => ({ minRoll: +m[1] }) },
     // Starscream, Seeker Leader: "Whenever you become the monarch"

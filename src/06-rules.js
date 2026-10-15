@@ -36362,6 +36362,14 @@
       // Mizzix of the Izmagnus: "with mana value greater than the number of experience counters you have"
       if (f.mvAboveExperience && !((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) >
         (Number((this.player(src ? src.controller : ctrl) || {}).experience) || 0))) return false;
+      // Loki Laufeyson: "with mana value less than or equal to Loki's power" — the emblem's maker, as it last was if gone (mvMaxPowerOf)
+      if (f.mvMaxPowerOf) {
+        const mk = this.obj(f.mvMaxPowerOf);
+        const pw = !mk ? 0 : mk.zone === 'battlefield' ? this.powerOf(mk) : (mk._lastPower != null ? mk._lastPower : 0);
+        if ((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) > pw) return false;
+      }
+      // Jackal, Genius Geneticist: "with mana value equal to Jackal's power" — as the spell is cast (mvEqualsSelfPower)
+      if (f.mvEqualsSelfPower && !(src && (x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) === this.powerOf(src))) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
       // Rendmaw, Creaking Nest: "a card with two or more card types"
       if (f.minCardTypes && this._cardTypesOf(x).length < f.minCardTypes) return false;
