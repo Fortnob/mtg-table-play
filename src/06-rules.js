@@ -12724,6 +12724,10 @@
           if (x.ts > bestTs) { best = x.ef.control === 'you' ? x.src.controller : x.ef.control; bestTs = x.ts; }
         }
         // "for as long as you control this": over once it leaves or changes hands
+        // Garland, Royal Kidnapper: "for as long as they're the monarch" (whileMonarch)
+        if ((o.effects || []).some(e => e && e.control != null && e.whileMonarch)) {
+          o.effects = o.effects.filter(e => !e || e.control == null || !e.whileMonarch || !!(this.player(e.whileMonarch) || {}).monarch);
+        }
         if ((o.effects || []).some(e => e && e.control != null && e.whileSrc)) {
           o.effects = o.effects.filter(e => {
             if (!e || e.control == null || !e.whileSrc) return true;
@@ -19465,7 +19469,8 @@
           if (e.kindChoice && e.kindChoice.length > 1) {
             const kc = this._choose({ playerId: ctx.controller, purpose: 'counterKindPick', kind: 'options', min: 1, max: 1,
               options: e.kindChoice.map(k => ({ label: U.titleCase(k) + ' counter' })), kinds: e.kindChoice.slice(),
-              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a counter to put on ${src ? src.name : 'it'}.` }, 'ckind');
+              // (Owen Grady, Raptor Trainer: "on target Dinosaur" — the one targeted)
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a counter to put on ${(e.targets || []).length ? (firstObj() ? firstObj().name : 'it') : src ? src.name : 'it'}.` }, 'ckind');
             if (kc === SUSPEND) return SUSPEND;
             const ki = kc && kc.picks && kc.picks[0];
             e = Object.assign({}, e, { kind: e.kindChoice[ki] || e.kindChoice[0], kindChoice: null });
@@ -21354,7 +21359,9 @@
             x.effects.push(Object.assign({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() },
               e.until === 'endNextTurn' ? { untilEndTurn: this._endOfNextTurnOf(ctx.controller) } : {},
               // Kellogg: "for as long as you control this creature"
-              e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {}));
+              e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {},
+              // Garland, Royal Kidnapper: "for as long as they're the monarch" — the player the trigger is about (whileMonarch)
+              e.whileMonarch ? { whileMonarch: (triggerPlayer() || {}).id || '-' } : {}));
             if (e.untap) this._markUntapped(x);
             this.logEvent('control', `${me.name} gains control of ${x.name}.`);
           }
@@ -22699,6 +22706,8 @@
           }
           if (e.cond && e.cond.kind === 'controlExcept'
             ? this._scopeList(e.cond.scope, ctx.controller, src).some(o => o !== exc && o !== src)
+            // The Ghoul, Gunslinger: "If that player is you" — the player the sentence before targeted (targetIsYou)
+            : e.cond && e.cond.kind === 'targetIsYou' ? (firstPlayer() || {}).id === ctx.controller
             : this._condMet(e.cond, ctx)) this._spliceNext(e.then);
           else if (e.otherwise && e.otherwise.length) this._spliceNext(e.otherwise);
           break;
@@ -27258,14 +27267,57 @@
           break;
         }
         case 'returnAuraTo': {
-          const c = this.obj(e.auraId), host = this.obj(e.hostId);
-          if (!c || c.zone !== 'graveyard' || !host || host.zone !== 'battlefield') break;
+          // (Lynde, Cheerful Tormentor: "attached to you" — a player: hostPlayer)
+          const c = this.obj(e.auraId), host = e.hostPlayer ? null : this.obj(e.hostId), hp = e.hostPlayer ? this.player(e.hostPlayer) : null;
+          if (!c || c.zone !== 'graveyard' || (e.hostPlayer ? !hp || hp.hasLost : !host || host.zone !== 'battlefield')) break;
           this.moveObject(c, 'battlefield', { controller: c.owner });
           if (c.zone !== 'battlefield') break;
+          if (hp) {
+            c.attachedTo = hp.id;
+            this.bumpBoard();
+            this.logEvent('rules', `${c.name} returns attached to ${hp.name}.`);
+            break;
+          }
           c.attachedTo = host.id;
           host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
           this.bumpBoard();
           this.logEvent('rules', `${c.name} returns attached to ${host.name}.`);
+          break;
+        }
+        /* Lynde, Cheerful Tormentor: "Whenever a Curse is put into your graveyard from the battlefield, return it to the
+           battlefield attached to you at the beginning of the next end step." — that card, if it is still there */
+        case 'curseToYouLater': {
+          const c = this.obj((ctx.triggerData || {}).objectId);
+          if (!c || c.zone !== 'graveyard') break;
+          this.scheduleDelayed({ event: 'eachEndStep', controller: ctx.controller, forPlayer: null, notBefore: null, sameTurnOk: true,
+            objId: c.id, name: `Return ${c.name}`, effects: [{ op: 'returnAuraTo', auraId: c.id, hostPlayer: ctx.controller }] });
+          break;
+        }
+        /* Lynde, Cheerful Tormentor: "you may attach a Curse attached to you to one of your opponents. If you do, draw two
+           cards." — anybody's Curse on you, to an opponent it could enchant (CR 701.3b) */
+        case 'curseToOpponent': {
+          const opps = (x) => this.opponentsOf(ctx.controller).filter(q => !q.hasLost && this._attachableTo(x, null, q));
+          const pool = this.battlefield.filter(x => !x.phasedOut && x.attachedTo === ctx.controller && this._hasSubtype(x, 'Curse') && opps(x).length);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'curseToOpponent', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach a Curse attached to you to one of your opponents. If you do, draw two cards.` }, 'cto');
+          if (got === SUSPEND) return SUSPEND;
+          const curse = this.obj(((got && got.picks) || [])[0]);
+          if (!curse || !pool.includes(curse)) break;
+          const qs = opps(curse);
+          let to = qs[0];
+          if (qs.length > 1) {
+            const got2 = this._choose({ playerId: ctx.controller, purpose: 'curseOpponent', kind: 'players', harmful: true,
+              items: this._choosePlayers(qs), min: 1, max: 1, prompt: `Attach ${curse.name} to which opponent?` }, 'ctp');
+            if (got2 === SUSPEND) return SUSPEND;
+            to = this.player(((got2 && got2.picks) || [])[0]) || qs[0];
+          }
+          curse.attachedTo = to.id;
+          curse.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+          this.bumpBoard();
+          this.logEvent('rules', `${me.name} attaches ${curse.name} to ${to.name}.`);
+          this._spliceNext(e.then);
           break;
         }
         case 'returnTriggerCard': {
@@ -35819,6 +35871,10 @@
       this.logEvent('monarch', `${p.name} becomes the monarch${how ? ' (' + how + ')' : ''}.`);
       this.emit('sfx', 'crown');
       this._fire('becomesMonarch', playerId, { player: playerId });
+      // Garland, Royal Kidnapper: "Whenever an opponent becomes the monarch" — anyone's, told to every permanent
+      this._fire('playerBecomesMonarch', null, { player: playerId });
+      // (and what was held "for as long as they're the monarch" goes back: whileMonarch)
+      this._refreshControl();
       this.touch();
       return true;
     }

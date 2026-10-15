@@ -1904,6 +1904,9 @@
     /* Kellan, Planar Trailblazer: "If Kellan is a Scout, it becomes a Human Faerie Detective and gains "Whenever …"";
        "If Kellan is a Detective, it becomes a 3/2 Human Faerie Rogue and gains double strike." — for good, the
        creature types instead of its own (setCreatureTypes), what it gained before kept */
+    // The Ghoul, Gunslinger: "target player gets two rad counters. If that player is you, create a Treasure token." (targetIsYou)
+    { re: /^If that player is you, (.+)$/i,
+      make: (m) => { const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1)); return e && e.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'targetIsYou' }, then: [e] } : null; } },
     { re: /^If CARDNAME is an? ([A-Z][a-z]+), it becomes an? (?:(\d+)\/(\d+) )?((?:[A-Z][a-z]+ )*[A-Z][a-z]+) and gains (?:"([^"]+)"|([a-z ]+?))\.?$/,
       make: (m) => {
         if (m[5] && !grantableText(m[5])) return null;
@@ -2346,6 +2349,13 @@
       make: (m) => {
         const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
         return kinds.every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, scope: 'self' } : null;
+      } },
+    // Owen Grady, Raptor Trainer: "Put your choice of a reach, menace, trample, or haste counter on target Dinosaur." (kindChoice)
+    { re: /^Put your choice of an? ((?:[a-z]+, )+)or ([a-z]+) counter on (target [A-Za-z ]+?)\.?$/i,
+      make: (m) => {
+        const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
+        const tg = targetSpec(m[3]);
+        return tg && kinds.every(k => kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, targets: [tg] } : null;
       } },
     /* Aragorn, Company Leader: "put one of each of those kinds of counters on up to one other target creature" — the kinds
        the trigger is about (kindFromTrigger) */
@@ -4690,6 +4700,8 @@
     { re: /^If you sacrificed a (creature|permanent) this way, you may return another (creature|permanent) card from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: Object.assign({ kind: 'youSacrificedThisWay' }, /creature/i.test(m[1]) ? { what: 'Creature' } : {}),
         then: [{ op: 'may', then: [{ op: 'graveyardPick', n: 1, upTo: false, filter: m[2].toLowerCase(), to: 'battlefield', notSacrificed: true }] }] }) },
+    // Lynde, Cheerful Tormentor: "return it to the battlefield attached to you at the beginning of the next end step." — the Curse (curseToYouLater)
+    { re: /^Return it to the battlefield attached to you at the beginning of the next end step\.?$/i, make: () => ({ op: 'curseToYouLater' }) },
     // Gift of Immortality: "Return this card to the battlefield attached to that creature at the beginning of the next end step." (returnAuraLater)
     { re: /^Return this card to the battlefield attached to that creature at the beginning of the next end step\.?$/i, make: () => ({ op: 'returnSelfAttachedLater' }) },
     // Whirlpool Warrior, Whirlpool Rider: "Shuffle the cards from your hand into your library, then draw that many cards." (handShuffleYou)
@@ -6083,6 +6095,9 @@
 
     /* ===== crowns, counters and looking at your own library ===== */
     { re: /^(?:You|you) becomes? the monarch\.?$/i, make: () => ({ op: 'becomeMonarch' }) },
+    // Garland, Royal Kidnapper: "gain control of target creature that player controls for as long as they're the monarch." (whileMonarch)
+    { re: /^Gain control of target creature that player controls for as long as they'?re the monarch\.?$/i,
+      make: () => ({ op: 'gainControl', whileMonarch: true, targets: [{ type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'triggerPlayer' }] }) },
     // Starscream, Seeker Leader: "that player becomes the monarch" — the player the trigger is about
     { re: /^That player becomes the monarch\.?$/i, make: () => ({ op: 'becomeMonarch', who: 'triggerPlayer' }) },
     // Éomer, King of Rohan: "Target player becomes the monarch."
@@ -9652,6 +9667,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Lynde, Cheerful Tormentor: "you may attach a Curse attached to you to one of your opponents. If you do, draw two
+       cards." — which Curse, or none, then which opponent; the "may" in that pick (curseToOpponent) */
+    { re: /^you may attach a Curse attached to you to one of your opponents\. If you do, draw two cards\.?$/i,
+      make: () => [{ op: 'curseToOpponent', then: [{ op: 'draw', n: 2, who: 'you' }] }] },
     /* Vislor Turlough: "you may have an opponent gain control of it. If you do, it's goaded for as long as they control it."
        — the opponent chosen (or the one there is), the goad held by that control effect (giveSelfGoaded) */
     { re: /^You may have an opponent gain control of (?:it|CARDNAME|this creature)\. If you do, it'?s goaded for as long as they control it\.?$/i,
@@ -14311,6 +14330,8 @@
     { re: /^Whenever you roll a (\d+) or higher,? /i, event: 'youRoll', extraOf: (m) => ({ minRoll: +m[1] }) },
     // Starscream, Seeker Leader: "Whenever you become the monarch"
     { re: /^Whenever you become the monarch,? /i, event: 'becomesMonarch' },
+    // Garland, Royal Kidnapper: "Whenever an opponent becomes the monarch" (playerBecomesMonarch, toOpponent)
+    { re: /^Whenever an opponent becomes the monarch,? /i, event: 'playerBecomesMonarch', extra: { toOpponent: true } },
     // Brazen Dwarf: "Whenever you roll one or more dice"
     { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll' },
     // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"
@@ -18328,6 +18349,8 @@
     // Quantum Reduction: "loses all abilities"
     if (/^loses? all abilities$/.test(w)) return { op: 'continuous', layer: 6, scope, loseAll: true };
     if (/^(?:its|their) activated abilities can'?t be activated$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'cantActivate' };
+    // Garland, Royal Kidnapper: "Creatures you control but don't own get +2/+2 and can't be sacrificed."
+    if (/^can'?t be sacrificed$/.test(w)) return { op: 'continuous', layer: 6, scope, flag: 'unsacrificable' };
     return null;
   }
 
@@ -18407,7 +18430,7 @@
         return { op: 'continuous', layer: 4, scope: { attached: true }, loseAll: true, setTypes: ['Creature'], setCreatureTypes: [m[2]],
           setColors: m[1].split(' and ').map(c => CW[c]), setPt: { p: +m[3], t: +m[4] } };
       } },
-    { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able|(?:doesn'?t|don'?t) untap during [a-z' ]+ untap steps?|loses? all abilities)\.?$/i,
+    { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able|(?:doesn'?t|don'?t) untap during [a-z' ]+ untap steps?|loses? all abilities|can'?t be sacrificed)\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);
         const part = scope && restrictionPart(Object.assign({}, scope), m[4]);

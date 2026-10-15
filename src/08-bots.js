@@ -1560,6 +1560,12 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    // Lynde, Cheerful Tormentor: a Curse off us and onto an opponent, and two cards — always, the worst Curse first
+    curseToOpponent(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
+      return { picks: os.length ? [os[0].id] : [] };
+    },
     /* Vislor Turlough: lent out goaded — to the opponent with the least life (it draws, then loses life for its hand),
        only with another opponent for it to attack */
     giveSelfGoaded(s) {
