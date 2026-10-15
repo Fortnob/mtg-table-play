@@ -1265,6 +1265,23 @@ module.exports = (test) => {
     t.no(T.g._cantAttackYou(foe, 'A'), 'until a player planeswalks');
   });
 
+  test('Planes: Agyrem — a bot\'s attacker sent at a player Agyrem holds is turned back, said in the log, without a source card', (mk, t) => {
+    const T = onPlane(mk, 'Agyrem');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.player('A').isBot = true;
+    T.player('B').planarHolds = [{ kind: 'notAttacked', untilWalk: null }];
+    let threw = null, res;
+    T.answer('declareAttackers', (ch, g) => {
+      try { res = g.declareAttackers('A', [{ attackerId: bear.id, defenderId: 'B' }]); } catch (e) { threw = e; }
+      return [];
+    });
+    T.toMain('A', 'end');
+    t.eq(threw, null, 'no error (the hold has no permanent behind it)');
+    t.ok(res !== false, 'the declaration goes on without it');
+    t.ok(!bear.attacking, 'the bear does not attack');
+    t.ok(T.g.log.some(l => /Grizzly Bears can't attack .* until a player planeswalks\.$/.test(l.text)), 'said in the log');
+  });
+
   test('Planes: Eloren Wilds — chaos: target player can\'t cast spells until a player planeswalks', (mk, t) => {
     const T = onPlane(mk, 'Eloren Wilds');
     T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));

@@ -13146,11 +13146,12 @@
           const o = this.obj(d.attackerId);
           const why = this._cantAttackYou(o, d.defenderId);
           if (!why) { kept.push(d); continue; }
-          if (!(this.player(playerId) || {}).isBot) return this.fail(`${o.name} can't attack ${why.who} (${why.src.name}).`);
+          if (!(this.player(playerId) || {}).isBot) return this.fail(`${o.name} can't attack ${why.who}${why.src ? ` (${why.src.name})` : ''}.`);
           // (Alexios, Deimos of Kosmos: a bot's compelled attacker goes at someone it may attack instead)
           const elsewhere = this.mustAttack(o) && ch.defenders.find(x => !this._cantAttackYou(o, x.id));
           if (elsewhere) { kept.push(Object.assign({}, d, { defenderId: elsewhere.id })); continue; }
-          this.logEvent('rules', `${o.name} can't attack ${why.who} (${why.src.name}).`);
+          // (Agyrem's hold has no permanent behind it: src null)
+          this.logEvent('rules', `${o.name} can't attack ${why.who}${why.src ? ` (${why.src.name})` : ''}.`);
         }
         declarations = kept;
       }
