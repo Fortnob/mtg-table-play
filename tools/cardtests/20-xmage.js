@@ -70185,4 +70185,140 @@ module.exports = (test) => {
     t.eq(c0 - lib('C'), 0, 'C not chosen');
     t.eq(T.manualLines().length, 0);
   });
+  test('Cards: Repulsive Mutation — X counters, then up to one spell countered unless its controller pays the greatest power among your creatures', (mk, t) => {
+    t.auto('Repulsive Mutation');
+    for (const pay of [false, true]) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const g = T.g;
+      const bears = T.bf('A', 'Grizzly Bears');
+      T.bf('A', 'Hill Giant');
+      T.nextTurn('B');
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.mana('B', 'R');
+      T.cast('B', bolt, { targets: [bears], resolve: false });
+      g.passPriority('B', true);
+      let q = null;
+      T.answer('payOrCounter', (ch) => { q = ch; if (pay) T.mana('B', '4'); return { pay }; });
+      T.mana('A', '2GU');
+      T.cast('A', T.hand('A', 'Repulsive Mutation'), { x: 2, targets: [bears, T.stackTarget(bolt)] });
+      t.eq(bears.counters['+1/+1'], 2, 'two +1/+1 counters');
+      t.ok(q, 'B asked to pay');
+      t.eq(q && q.cost, '{4}', 'the Bears are now the greatest power: 4');
+      if (pay) { t.zone(bears, 'battlefield', 'paid: the Bolt resolves on a 4/4'); t.eq(bears.damage, 3); }
+      else t.zone(bolt, 'graveyard', 'not paid: countered');
+      t.zone(bears, 'battlefield');
+    }
+    // no spell: just the counters
+    const T = mk({ library: Array(20).fill('Island') });
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1GU');
+    T.cast('A', T.hand('A', 'Repulsive Mutation'), { x: 1, targets: [bears] });
+    t.eq(bears.counters['+1/+1'], 1, 'up to one spell: none needed');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Weathered Sentinels — attacks only players who attacked you during their last turn, +3/+3 and indestructible', (mk, t) => {
+    t.auto('Weathered Sentinels');
+    const T = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const ws = T.bf('A', 'Weathered Sentinels');
+    const bb = T.bf('B', 'Grizzly Bears');
+    t.no(g.canAttack(ws), 'nobody attacked you: defender holds');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'A' }]);
+    T.toMain('B', 'end');
+    T.nextTurn('A');
+    t.ok(g.canAttack(ws), 'B attacked you last turn');
+    t.no(g._cantAttackYou(ws, 'B'), 'B may be attacked');
+    t.ok(g._cantAttackYou(ws, 'C'), 'C may not');
+    let bad = null;
+    T.answer('declareAttackers', (ch) => { bad = g.declareAttackers('A', [{ attackerId: ws.id, defenderId: 'C' }]); return [{ attackerId: ws.id, defenderId: 'B' }]; });
+    T.toMain('A', 'declareBlockers');
+    t.no(bad, 'not at C');
+    t.eq(ws.attacking, 'B', 'at B');
+    t.eq(g.powerOf(ws), 5, '+3/+3');
+    t.ok(g.hasKw(ws, 'indestructible'), 'indestructible');
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 15);
+    t.no(ws.tapped, 'vigilance');
+    // B's next turn without attacking you: defender again
+    T.nextTurn('B'); T.nextTurn('A');
+    t.no(g.canAttack(ws), 'B did not attack you during their last turn');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Dance of the Manse — up to X artifacts and non-Aura enchantments of mana value X or less back; 4/4 creatures when X is 6 or more', (mk, t) => {
+    t.auto('Dance of the Manse');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ring = T.grave('A', 'Sol Ring'), stone = T.grave('A', 'Mind Stone'), pac = T.grave('A', 'Pacifism'), engine = T.grave('A', 'Wurmcoil Engine');
+    const dance = T.hand('A', 'Dance of the Manse');
+    T.mana('A', '2WU');
+    T.cast('A', dance, { x: 2, targets: [ring, stone] });
+    t.zone(ring, 'battlefield'); t.zone(stone, 'battlefield');
+    t.no(g.characteristics(ring).isCreature, 'X 2: not creatures');
+    t.zone(pac, 'graveyard'); t.zone(engine, 'graveyard');
+    // X 6: 4/4 creatures
+    const T2 = mk({ library: Array(20).fill('Island') });
+    const g2 = T2.g;
+    const ring2 = T2.grave('A', 'Sol Ring'), oath = T2.grave('A', 'Propaganda');
+    const pac2 = T2.grave('A', 'Pacifism');
+    T2.mana('A', '6WU');
+    T2.cast('A', T2.hand('A', 'Dance of the Manse'), { x: 6, targets: [ring2, oath] });
+    t.zone(ring2, 'battlefield');
+    t.ok(g2.characteristics(ring2).isCreature, 'X 6: a creature');
+    t.eq(g2.powerOf(ring2), 4); t.eq(g2.toughnessOf(ring2), 4);
+    t.ok(g2._cardFitsWords(ring2, 'artifact'), 'still an artifact');
+    t.zone(oath, 'battlefield'); t.ok(g2.characteristics(oath).isCreature, 'the enchantment too');
+    t.zone(pac2, 'graveyard', 'an Aura is no target');
+    t.eq(T2.manualLines().length, 0);
+  });
+  test("Cards: Lae'zel's Acrobatics — your nontoken creatures exiled; 1–9 back at the end step; 10–20 back, out again (entering twice), back at the end step", (mk, t) => {
+    t.auto("Lae'zel's Acrobatics");
+    for (const roll of [5, 15]) {
+      const T = mk({ library: Array(30).fill('Island') });
+      const g = T.g;
+      const bears = T.bf('A', 'Grizzly Bears'), vis = T.bf('A', 'Elvish Visionary');
+      const foe = T.bf('B', 'Hill Giant');
+      T.g.rng.range = () => roll;
+      const hand0 = T.zone('A', 'hand').length;
+      T.mana('A', '3W');
+      T.cast('A', T.hand('A', "Lae'zel's Acrobatics"));
+      t.zone(bears, 'exile', roll + ': exiled'); t.zone(vis, 'exile');
+      t.zone(foe, 'battlefield', "an opponent's creature stays");
+      t.eq(T.zone('A', 'hand').length, hand0 + (roll >= 10 ? 1 : 0), roll + ': Elvish Visionary entered ' + (roll >= 10 ? 'once' : 'not yet'));
+      T.toMain('B');
+      t.zone(bears, 'battlefield', roll + ': back at the end step'); t.zone(vis, 'battlefield');
+      t.eq(bears.controller, 'A');
+      t.eq(T.zone('A', 'hand').length, hand0 + (roll >= 10 ? 2 : 1), roll + ': and its draw again');
+      t.eq(T.manualLines().length, 0);
+    }
+  });
+  test('Cards: Fated Firepower — X fire counters; your sources deal that much more to opponents and their permanents', (mk, t) => {
+    t.auto('Fated Firepower');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.mana('A', '2RRR');
+    const ff = T.hand('A', 'Fated Firepower');
+    T.cast('A', ff, { x: 2 });
+    t.eq(ff.counters.fire, 2, 'two fire counters');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 15, 'Bolt deals 5 to an opponent');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [giant] });
+    t.zone(giant, 'graveyard', '2 + 2 kills a 3/3 of an opponent\'s');
+    const mine = T.bf('A', 'Craw Wurm');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [mine] });
+    t.eq(mine.damage, 2, 'your own: no more');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['A'] });
+    t.eq(T.life('A'), 18, 'you: no more');
+    // an opponent's source: no more
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] });
+    t.eq(T.life('A'), 16, "an opponent's Shock: no more");
+    t.eq(T.manualLines().length, 0);
+  });
 };

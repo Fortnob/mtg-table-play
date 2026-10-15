@@ -12913,7 +12913,7 @@
       // (Instill Energy: "can attack as though it had haste")
       if (o.summoningSick && !this.hasKw(o, 'haste') && !this._hasFlag(o, 'attackAsHaste')) return false;
       // "can attack this turn as though it didn't have defender"
-      if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender')) return false;
+      if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender') && !this._defenderAttackVs(o).length) return false;
       if (a.abilities.some(x => (x.effects || []).some(e => e.op === 'cantAttack'))) return false;
       if (this._hasFlag(o, 'cantAttack')) return false;
       // Prahv (a plane): "If you cast a spell this turn, you can't attack with creatures."
@@ -14683,6 +14683,8 @@
         case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
         // Hawkeye, Young Avenger: "that much damage plus X, where X is Hawkeye's power"
         case 'addSelfPower': ev.n = Math.max(0, (ev.n || 0) + (src.zone === 'battlefield' ? this.powerOf(src) : 0)); break;
+        // Fated Firepower: "plus an amount of damage equal to the number of fire counters on this enchantment" (addSelfCounters)
+        case 'addSelfCounters': ev.n = Math.max(0, (ev.n || 0) + (src.zone === 'battlefield' ? Number((src.counters || {})[ef.selfCounter]) || 0 : 0)); break;
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) { ev.withCounter = ef.withCounter; if (ef.withCounterN) ev.withCounterN = ef.withCounterN; }
           // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
           if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
@@ -25373,16 +25375,20 @@
             const item = this.stack.find(st => st.id === t.id);
             if (!item) continue;
             const payer = this.player(item.controller);
-            if (payer.isBot && this.payMana(item.controller, e.cost, { auto: true })) {
-              this.logEvent('counter', `${payer.name} pays ${e.cost} to keep ${item.name}.`);
+            // Repulsive Mutation: "pays mana equal to the greatest power among creatures you control" — counted now (costN); nothing to pay, nothing asked
+            const cn = e.costN != null ? Math.max(0, n(e.costN) || 0) : null;
+            if (cn === 0) { this.logEvent('counter', `${item.name} is not countered \u2014 there is nothing to pay.`); continue; }
+            const cost = cn != null ? '{' + cn + '}' : e.cost;
+            if (payer.isBot && this.payMana(item.controller, cost, { auto: true })) {
+              this.logEvent('counter', `${payer.name} pays ${cost} to keep ${item.name}.`);
             } else if (!payer.isBot) {
               this.queueChoice({
-                type: 'payOrCounter', playerId: item.controller, cost: e.cost, stackId: item.id,
-                prompt: `Pay ${e.cost} or ${item.name} is countered.`,
+                type: 'payOrCounter', playerId: item.controller, cost: cost, stackId: item.id,
+                prompt: `Pay ${cost} or ${item.name} is countered.`,
               });
             } else {
               item.countered = true;
-              this.logEvent('counter', `${item.name} is countered \u2014 ${payer.name} did not pay ${e.cost}.`);
+              this.logEvent('counter', `${item.name} is countered \u2014 ${payer.name} did not pay ${cost}.`);
               this.emit('sfx', 'counter');
             }
           }
@@ -25847,6 +25853,11 @@
         }
         case 'reanimate': {
           this._noteLastAffected(targets);
+          // Dance of the Manse: "If X is 6 or more, those permanents are 4/4 creatures …" — only for that X (enterEff minX)
+          if (e.enterEff && e.enterEff.minX != null) {
+            const { minX, ...rest } = e.enterEff;
+            e = Object.assign({}, e, { enterEff: (Number(n('X')) || 0) >= minX ? rest : null });
+          }
           /* Rat King, Verminister: "and all other cards with the same name as that card from your graveyard" — with it (sameNameToo) */
           if (e.sameNameToo) {
             const first = targets.map(t => t.kind === 'object' && this.obj(t.id)).find(x => x && x.zone === 'graveyard');
@@ -29357,11 +29368,20 @@
         }
         // Gilraen, Dúnedain Protector: "You may return that card to the battlefield under its owner's control" — the card just exiled
         case 'returnExiledNow': {
+          const back = [];
           for (const id of (this._exiledNow || []).slice()) {
             const x = this.obj(id);
             if (!x || x.zone !== 'exile') continue;
             this.moveObject(x, 'battlefield', { controller: x.owner });
             this.logEvent('zone', `${x.name} returns to the battlefield.`);
+            if (x.zone === 'battlefield') back.push(x);
+          }
+          /* Lae'zel's Acrobatics: "…, then exile them again." — those that came back, now "those cards" for what follows
+             (exileAgain: _exiledNow is what this exile leaves) */
+          if (e.exileAgain) {
+            this._exiledNow = [];
+            for (const x of back) if (x.zone === 'battlefield') this.moveObject(x, 'exile');
+            if (back.length) this.logEvent('exile', `${back.map(x => x.name).join(', ')} ${back.length === 1 ? 'is' : 'are'} exiled again.`);
           }
           break;
         }
@@ -38440,6 +38460,13 @@
     _noteFight(x, y) {
       for (const f of [x, y]) if (f && f.zone === 'battlefield') this._fire('creatureFights', f.controller, { object: f, objController: f.controller });
     }
+    /* Weathered Sentinels: "This creature can attack players who attacked you during their last turn as though it didn't
+       have defender." — the players a creature with defender may attack all the same (defenderAttackVs, attackedLastTurn) */
+    _defenderAttackVs(o) {
+      const e = o && this._staticOp(o, 'defenderAttackVs');
+      if (!e) return [];
+      return this.opponentsOf(o.controller).filter(p => !p.hasLost && (p.attackedLastTurn || []).includes(o.controller)).map(p => p.id);
+    }
     _cantAttackYou(o, defenderId) {
       if (!o) return null;
       let def = this.player(defenderId), walker = false;
@@ -38464,6 +38491,10 @@
       if (onlyWalker) return { src: pwDef, who: pwDef.name };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
+      // Weathered Sentinels: with defender, only the players it may attack anyway (defenderAttackVs)
+      if (this.hasKw(o, 'defender') && !this._hasFlag(o, 'attackDespiteDefender') && (walker || !this._defenderAttackVs(o).includes(def.id))) {
+        return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name + ', who did not attack you during their last turn' };
+      }
       const oa = o.analysis();
       if (!oa) return null;
       for (const s0 of this.battlefield) {

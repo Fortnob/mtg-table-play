@@ -2287,6 +2287,11 @@
     // Rhonas's Last Stand: "Creatures you control don't untap during your next untap step."
     { re: /^(Creatures|Lands|Permanents|Artifacts) you control don'?t untap during your next untap step\.?$/i,
       make: (m) => ({ op: 'noUntap', scope: { who: 'you', what: m[1].toLowerCase().replace(/s$/, '') } }) },
+    /* Dance of the Manse: "Return up to X target artifact and/or non-Aura enchantment cards each with mana value X or less
+       from your graveyard to the battlefield." — up to X of them, the X paid */
+    { re: /^Return up to X target (artifact|creature|enchantment)(?: and\/or | or )(non-Aura enchantment|artifact|creature|enchantment) cards each with mana value X or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => { const t = tgt('target ' + m[1] + ' or ' + m[2] + ' with mana value X or less');
+        return t ? { op: 'reanimate', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you', multi: { count: 'X', exact: false } })] } : null; } },
     // Stir the Grave: "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -2684,6 +2689,9 @@
     { re: /^It'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature(?: with ([a-z ,]+?))? in addition to its other types\.?$/,
       make: (m) => { const kws = m[4] ? keywordList(m[4]) : [];
         return kws.every(kwKnown) ? { op: 'manual', enterRider: { setPt: { p: +m[1], t: +m[2] }, addTypes: ['Creature'], addSubtypes: m[3].split(' '), keywords: kws } } : null; } },
+    // Dance of the Manse: "If X is 6 or more, those permanents are 4/4 creatures in addition to their other types." — as they enter, for that X (enterRider minX)
+    { re: /^If X is (\d+) or more, those permanents are (\d+)\/(\d+) creatures in addition to their other types\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { setPt: { p: +m[2], t: +m[3] }, addTypes: ['Creature'], minX: +m[1] } }) },
     // Hellcat, Undying Vigilante: "She loses all abilities and gains haste." — as the card returned enters (enterRider)
     { re: /^(?:It|He|She|They) lose(?:s)? all abilities and gains? haste\.?$/, make: () => ({ op: 'manual', enterRider: { loseAll: true, keywords: ['Haste'] } }) },
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
@@ -4991,6 +4999,9 @@
     { re: /^Return the exiled cards? to (?:its|their) owners?'?s?'? hands?\.?$/i, make: () => ({ op: 'returnHeld' }) },
     // Hofri Ghostforge's Spirit: "When this token leaves the battlefield, return the exiled card to its owner's graveyard."
     { re: /^Return the exiled card to its owner'?s graveyard\.?$/i, make: () => ({ op: 'returnHeld', to: 'graveyard' }) },
+    // Lae'zel's Acrobatics: "Return those cards to the battlefield under their owner's control, then exile them again." (returnExiledNow exileAgain)
+    { re: /^Return those cards to the battlefield under (?:their|its) owner'?s'? control, then exile them again\.?$/i,
+      make: () => ({ op: 'returnExiledNow', exileAgain: true }) },
     // Ghostway, Eerie Interlude: "Return those cards to the battlefield under their owner's control at the beginning of the next end step."
     // (Yorion, Sky Nomad: "Return those cards to the battlefield at the beginning of the next end step." — their owner's, as ever)
     { re: /^Return (?:those cards|the exiled cards|them) to the battlefield(?: under (?:their|its) owner'?s'? control)? at the beginning of the next end step\.?$/i,
@@ -5532,6 +5543,10 @@
     // --- counterspell variants ---
     { re: /^Counter target spell unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i,
       make: (m) => ({ op: 'counterUnless', cost: m[1], targets: [{ type: 'spell' }] }) },
+    /* Repulsive Mutation: "Then counter up to one target spell unless its controller pays mana equal to the greatest
+       power among creatures you control." — that much generic, counted as it resolves (costN) */
+    { re: /^(?:Then )?[Cc]ounter (up to one )?target spell unless its controller pays mana equal to (.+?)\.?$/,
+      make: (m) => { const a = amountOf(m[2]); return a ? { op: 'counterUnless', costN: a, targets: [Object.assign({ type: 'spell' }, m[1] ? { upTo: true } : {})] } : null; } },
     { re: /^Counter target (creature|noncreature|instant or sorcery|artifact|enchantment) spell\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', filter: m[1] }] }) },
 
@@ -21674,6 +21689,9 @@
         const cond = condOf(m[2]);
         return scope && cond ? { op: 'continuous', layer: 6, scope, cond, grant: ['Unblockable'] } : null;
       } },
+    // Weathered Sentinels: "This creature can attack players who attacked you during their last turn as though it didn't have defender." (defenderAttackVs)
+    { re: /^(?:CARDNAME|This creature) can attack players who attacked you during their last turn as though it didn'?t have defender\.?$/i,
+      make: () => ({ op: 'defenderAttackVs', attackedYouLastTurn: true }) },
     { re: /^(.+?) can attack as though (?:it|they) didn'?t have defender\.?$/i,
       make: (m) => { const scope = scopeOf(m[1]); return scope ? restrictionPart(scope, 'can attack as though it didn\'t have defender') : null; } },
     { re: /^(.+?) (?:has|have) ([a-z ,]+?) and can attack as though (?:it|they) didn'?t have defender\.?$/i,
@@ -22340,6 +22358,10 @@
        opponent controls, instead it deals that much damage plus X, where X is Hawkeye's power." (addSelfPower) */
     { re: /^If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, instead it deals that much damage plus X, where X is (?:CARDNAME|this creature)'s power\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgPlusPower', event: 'damage', who: 'you', toOpponent: true, sourceWords: null, noncombat: true, how: 'addSelfPower' }) },
+    /* Fated Firepower: "If a source you control would deal damage to an opponent or a permanent an opponent controls, it deals
+       that much damage plus an amount of damage equal to the number of fire counters on this enchantment instead." (addSelfCounters) */
+    { re: /^If a source you control would deal damage to an opponent or a permanent an opponent controls, it deals that much damage plus an amount of damage equal to the number of ([a-z+\-\d\/]+) counters on (?:CARDNAME|this (?:enchantment|artifact|creature|permanent)) instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgPlusCounters', event: 'damage', who: 'you', toOpponent: true, sourceWords: null, how: 'addSelfCounters', selfCounter: m[1].toLowerCase() }) },
     /* Rem Karolus, Stalwart Slayer: "If a spell would deal damage to you or another permanent you control, prevent that
        damage." "If a spell would deal damage to an opponent or a permanent an opponent controls, it deals that much damage
        plus 1 instead." — anyone's spell (spellSource) */
@@ -22629,7 +22651,7 @@
   }
 
   /* Ops that make sense as a permanent's standing rule rather than a one-off. */
-  const STATIC_OPS = new Set(['continuous', 'replace', 'taxSpells', 'extraLand',
+  const STATIC_OPS = new Set(['continuous', 'replace', 'taxSpells', 'extraLand', 'defenderAttackVs',
     'chooseTypeOnEnter', 'chooseColorOnEnter', 'chooseModeOnEnter', 'chooseOnEnter', 'nameLockAbilities', 'nameLockSpells',
     'colorLockSpells', 'protChosenColor', 'uncounterable', 'castRestrict', 'extraManaOnTap', 'etbTappedUnlessCond',
     'skipStep', 'etbTapped', 'cantBlock', 'cantAttack', 'mustAttack', 'mustBlock', 'noop', 'sequence',
