@@ -8208,6 +8208,8 @@
       if (p.spellsCastThisTurn === 2) this._fire('opponentSecondSpell', null, Object.assign({ except: playerId }, castData));
       // Canyon Crab: "a spell from your hand"
       o._castFromHand = item.fromZone === 'hand';
+      // (Sevinne, the Chronoclasm: "from your graveyard")
+      o._castFromGy = item.fromZone === 'graveyard';
       // Spider-Man 2099: "cast a spell this turn from anywhere other than your hand"
       if (item.fromZone !== 'hand') p.spellNotFromHandTurn = this.turn;
       // Approach of the Second Sun: the names this player has cast this game, countered or not
@@ -14471,6 +14473,8 @@
           const lot = (td.batchIds || [td.objectId]).map(id => id && this.obj(id)).filter(Boolean);
           return lot.some(x => x.enteredFrom === 'graveyard' || (x.enteredFrom === 'stack' && x.castFromZone === 'graveyard'));
         }
+        // Nael, Avizoa Aeronaut: "if there are five basic land types among lands you control"
+        case 'domainAtLeast': return !!me && this._domainOf(me.id) >= (cond.n || 0);
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
         case 'xAtLeast': return ((ctx && (ctx.x || (ctx.obj && ctx.obj.chosenX))) || (src && src.chosenX) || 0) >= (cond.n || 0);
         // Essence Channeler: "if you've lost life this turn"
@@ -17624,9 +17628,13 @@
           // a Room's door: only its own unlocking
           if (ab.door != null && data.door !== ab.door) continue;
           // Double Vision: the first spell of that kind this turn (this one not yet counted)
+          // Rose Noble: "a Doctor spell or creature spell with doctor's companion" (doctorOrCompanion)
+          if (ab.doctorOrCompanion && !(data.object && (this._cardFitsWords(data.object, 'Doctor') || (((data.object.analysis() || {}).isCreature) &&
+            ((data.object.analysis() || {}).keywords || []).some(k => /^doctor'?s companion$/i.test(k.keyword)))))) continue;
           if (ab.firstOfKindYou) {
             const mine = (this.player(o.controller) || {}).spellObjsThisTurn || [];
-            if (mine.some(x => x !== data.object && this._cardFitsWords(x, ab.spellFilter || 'spell'))) continue;
+            // (Sevinne, the Chronoclasm: "your first instant or sorcery spell from your graveyard each turn" — fromGraveyardOnly)
+            if (mine.some(x => x !== data.object && this._cardFitsWords(x, ab.spellFilter || 'spell') && (!ab.fromGraveyardOnly || x._castFromGy))) continue;
           }
           /* Alania, Divergent Storm: the first instant, the first sorcery or the first Otter spell (not one named as it is)
              this turn (firstOfKinds) */

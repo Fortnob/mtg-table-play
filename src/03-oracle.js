@@ -3292,6 +3292,14 @@
     { re: /^(?:Then )?shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
     // Scion of the Ur-Dragon: "If you do, Scion of the Ur-Dragon becomes a copy of that card until end of turn." — the card found (searched)
     { re: /^If you do, CARDNAME becomes a copy of that card until end of turn\.?$/, make: () => ({ op: 'becomeCopy', of: 'searched', eot: true }) },
+    /* Nyla, Shirshu Sleuth: "Exile up to one target creature card from your graveyard. If you do, you lose X life and create
+       X Clue tokens, where X is that card's mana value." — only if one was exiled (didThisWay), X its mana value (ofLast) */
+    { re: /^If you do, you lose X life and create X (Clue|Treasure|Food|Blood|Map) tokens, where X is that card'?s mana value\.?$/,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'didThisWay', how: 'exiled', filter: 'card' },
+        then: [{ op: 'loseLife', who: 'you', n: { ofLast: 'mv' } }, { op: 'createNamedToken', token: m[1], n: { ofLast: 'mv' } }] }) },
+    // Nyla, Shirshu Sleuth: "return target card exiled with Nyla to its owner's hand" (exiledWithSource)
+    { re: /^Return target card exiled with CARDNAME to its owner'?s hand\.?$/i,
+      make: () => ({ op: 'regrowth', targets: [{ type: 'card', filter: 'card', zone: 'exile', exiledWithSource: true }] }) },
     { re: /^If you do, .*$/i, make: (m) => ({ op: 'manual', text: m[0] }) },
     /* Restrictions that belong to the ability above them, and that the
        engine can actually keep: a window in the turn, or something you
@@ -5342,6 +5350,10 @@
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
     { re: /^Put one of them on top of your library and the rest on the bottom in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, to: 'top', rest: 'bottomRandom' }) },
+    // Nael, Avizoa Aeronaut: "Put up to one of them on top of your library and the rest on the bottom in a random order."
+    { re: /^Put up to one of them on top of your library and the rest on the bottom in a random order\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'bottomRandom',
+        prompt: 'You may put one of them on top of your library. The rest go on the bottom in a random order.' }) },
     // Sage of Days, Gutless Plunderer: "You may put one of those cards back on top of your library." — the rest wait for the next sentence
     { re: /^You may put one of (?:those cards|them) back on top of your library\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'keep', prompt: 'You may put one back on top of your library.' }) },
@@ -14815,6 +14827,8 @@
     [/^(?:its|that (creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
       (m) => Object.assign({ kind: 'itMv', n: +m[2], cmp: /less/i.test(m[3]) ? 'atMost' : 'atLeast' }, /spell/i.test(m[1] || '') ? { ofTrigger: true } : {})],
     // Ozai, the Phoenix King: "you have six or more unspent mana" (unspentMana)
+    // Nael, Avizoa Aeronaut: "if there are five basic land types among lands you control" (domainAtLeast)
+    [/^there are (\w+) basic land types among lands you control$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'domainAtLeast', n: num(m[1]) } : null)],
     [/^you have (\w+) or more unspent mana$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'unspentMana', n: num(m[1]) } : null)],
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
     [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
@@ -15435,6 +15449,9 @@
     { re: /^Whenever you activate a loyalty ability(?! of enchanted)(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
       filt: (m) => (m[1] ? { words: m[1].toLowerCase() } : { words: 'permanent' }), extra: { loyaltyOnly: true } },
     { re: /^Whenever an ability of equipped creature is activated, if it isn'?t a mana ability,? /i, event: 'anyActivateAbility', extra: { ofEnchanted: true } },
+    // Gideon the Oathless: "Whenever an opponent activates a loyalty ability" (loyaltyOnly, activatorIsOpponent)
+    { re: /^Whenever an opponent activates a loyalty ability,? /i, event: 'anyActivateAbility', filt: () => ({ words: 'permanent' }),
+      extra: { loyaltyOnly: true, activatorIsOpponent: true } },
     /* Harsh Mentor, Runic Armasaur, Burning-Tree Shaman: "Whenever an opponent
        (a player) activates an ability of an artifact, creature, or land that
        isn't a mana ability" — mana abilities never reach this, so only the
@@ -15480,6 +15497,11 @@
        the first Otter spell other than Alania you've cast this turn," — first of any of those kinds (firstOfKinds) */
     { re: /^Whenever you cast a spell, if it'?s the first ([a-z]+) spell, the first ([a-z]+) spell, or the first ([A-Za-z]+) spell( other than CARDNAME)? you'?ve cast this turn,? /i,
       event: 'youCastSpell', extraOf: (m) => Object.assign({ firstOfKinds: [m[1], m[2], m[3]].map(x => x.toLowerCase()) }, m[4] ? { firstOfKindsNotSelfName: true } : {}) },
+    // Sevinne, the Chronoclasm: "Whenever you cast your first instant or sorcery spell from your graveyard each turn" (firstOfKindYou, fromGraveyardOnly)
+    { re: /^Whenever you cast your first ([a-z ]+?) spell from your graveyard each turn,? /i, event: 'youCastSpell',
+      extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true, fromGraveyardOnly: true }) },
+    // Rose Noble: "Whenever you cast a Doctor spell or creature spell with doctor's companion" (doctorOrCompanion)
+    { re: /^Whenever you cast a Doctor spell or creature spell with doctor'?s companion,? /i, event: 'youCastSpell', extra: { doctorOrCompanion: true } },
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
       extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true }) },
