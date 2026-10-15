@@ -4514,8 +4514,12 @@
            creature (chosenBy) */
         if ((e.targets || []).some(sp => sp && sp.chosenBy)) {
           if (!isHarmful(e)) { v += base * 0.3; continue; }
+          // (as much less as our best is worth less than the best of theirs we point the other at)
           const ours = this.myCreatures().map(c => this.threatValue(c)).sort((a, b) => b - a)[0];
-          if (ours != null) v -= Math.min(base, 1 + ours * 0.4);
+          const t0 = flat.find(x => x !== e && (x.targets || []).length && !x.targets.some(sp => sp && sp.chosenBy));
+          const pick = t0 && this.pickTarget(t0.targets[0], t0, null, {});
+          const theirs = pick && pick.kind === 'object' && g.obj(pick.id) ? this.threatValue(g.obj(pick.id)) : 0;
+          if (ours != null) v -= Math.min(base, 1 + ours * 0.4) * Math.min(1, (1 + ours * 0.4) / (1 + theirs * 0.4));
           continue;
         }
         if ((e.targets || []).length) {
