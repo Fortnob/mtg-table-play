@@ -1352,14 +1352,15 @@
       }
       // "untap all permanents you control during each other player's untap step"
       const alsoUntap = [];
-      for (const src of this.battlefield) {
+      for (const src of this._withEmblems(this.battlefield)) {
         const ef = this._staticOp(src, 'untapOnEveryUntapStep');
         // Quest for Renewal: only once it has four quest counters
         if (ef && ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
-        if (ef) alsoUntap.push({ controller: src.controller, filter: ef.filter || null, selfId: ef.selfOnly ? src.id : null });
+        // (Horizon Boughs, a plane: "All permanents untap during each player's untap step." — allPlayers)
+        if (ef) alsoUntap.push({ controller: src.controller, filter: ef.filter || null, selfId: ef.selfOnly ? src.id : null, all: !!ef.allPlayers });
       }
       // Unwinding Clock untaps only artifacts, Bender's Waterskin only itself
-      const untapsAnyway = (o) => alsoUntap.some(u => u.controller === o.controller &&
+      const untapsAnyway = (o) => alsoUntap.some(u => (u.all || u.controller === o.controller) &&
         (u.selfId ? u.selfId === o.id : (!u.filter || u.filter === 'permanent' || this._matchesCategory(o, u.filter))));
       /* Winter Orb, Smoke: no more than so many of a kind untap. The ones
          worth most come up first. */
@@ -2692,7 +2693,7 @@
         else if (item.isCopy && item.obj.isCopy && item.obj.zone === 'stack' && (!a || !a.isPermanent)) item.obj.zone = null;
         else if (item.obj.zone !== 'stack' && !item.isCopy) { /* it already went somewhere as it resolved */ }
         // (Ojer Pakpatiq: rebound handed to the spell as it was cast)
-        else if (a && ((a.keywordSet && a.keywordSet.has('rebound')) || item.grantedRebound) && item.fromZone === 'hand' && !item.countered && !item.isCopy) {
+        else if (a && ((a.keywordSet && a.keywordSet.has('rebound')) || item.grantedRebound || (this.config.planechase && this._planarRebound(item))) && item.fromZone === 'hand' && !item.countered && !item.isCopy) {
           this.moveObject(item.obj, 'exile');
           item.obj.reboundBy = item.controller;
           item.obj.reboundTurn = this.turn;
@@ -4146,7 +4147,8 @@
     landAllowance(p) {
       if (!p) return 1;
       let k = p.maxLands || 1;
-      for (const o of this.battlefield) {
+      // (Naya, a plane: "You may play any number of lands on each of your turns." — from the command zone)
+      for (const o of this._withEmblems(this.battlefield)) {
         const e = this._staticOp(o, 'extraLand');
         // Rites of Flourishing gives every player the extra land
         // (Exploration Broodship: "3+ |" — only at that many charge counters: cond)
@@ -4983,9 +4985,11 @@
       }
       // Chiss-Goria, Forge Tyrant: a card it exiled "has affinity for artifacts" as it is cast from there
       if (o.impulseAffinity && o.zone === 'exile' && o.impulseBy === pid && !out.affinity) { if (out === cr) out = Object.assign({}, cr); out.affinity = o.impulseAffinity; }
-      for (const src of this.battlefield) {
-        if (src.controller !== pid || src.phasedOut) continue;
+      for (const src of this._withEmblems(this.battlefield)) {
+        if (src.phasedOut) continue;
         const g = this._staticOp(src, 'grantCastKeyword');
+        // (Ood Sphere, a plane: "Noncreature spells have convoke." — anyPlayer)
+        if (src.controller !== pid && !(g && g.anyPlayer)) continue;
         if (!g || (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter))) continue;
         // Party Thrasher: only spells cast from exile
         if (g.fromZones && !g.fromZones.includes(o.zone)) continue;
@@ -5318,6 +5322,8 @@
           (!lim.nonartifact || !(O.analyze(x.card, x.face) || {}).isArtifact)).length;
         if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : lim.nonartifact ? 'nonartifact ' : ''}spells this turn.` };
       }
+      // Eloren Wilds (a plane): "target player can't cast spells until a player planeswalks"
+      if (this.config.planechase && this._planarHeld(playerId, 'cantCast')) return { ok: false, reason: "You can't cast spells until a player planeswalks." };
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
@@ -6323,7 +6329,9 @@
          turn, …" (yourTurn) */
       const fbGrant = (op, fits) => {
         for (const x of this._withEmblems(this.battlefield)) {
-          const e = x.controller === playerId && !x.phasedOut && this._staticOp(x, op);
+          // (Otaria, a plane: "Instant and sorcery cards in graveyards have flashback" — anyPlayer)
+          const e = !x.phasedOut && this._staticOp(x, op);
+          if (e && x.controller !== playerId && !e.anyPlayer) continue;
           if (e && (!e.yourTurn || (this.activePlayer && this.activePlayer.id === playerId)) && fits(e)) return e;
         }
         return null;
@@ -6332,7 +6340,8 @@
          equal to its mana cost." — offered when the card has no blitz of its own (grantBlitz) */
       if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'blitz')) {
         const gb = fbGrant('grantBlitz', e => ((o.card && o.card.cmc) || 0) >= (e.minMv || 0));
-        if (gb) { const bc = this._blitzCost(playerId, a.manaCost); out.push({ kind: 'cast', via: 'blitz', cost: bc, label: 'Blitz ' + bc }); }
+        // (The Caldaia, a plane: "have blitz {3}" — a cost of its own)
+        if (gb) { const bc = gb.cost || this._blitzCost(playerId, a.manaCost); out.push({ kind: 'cast', via: 'blitz', cost: bc, label: 'Blitz ' + bc }); }
       }
       /* Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana
          cost." — offered when the card has no emerge of its own (grantEmerge) */
@@ -6347,7 +6356,9 @@
       // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
       if (o.zone === 'graveyard' && o.owner === playerId) {
         const gu = fbGrant('grantUnearth', e => this._cardFitsWords(o, e.words));
-        if (gu && !out.some(u => u.via === 'unearth' && u.cost === gu.cost)) out.push({ kind: 'cast', via: 'unearth', cost: gu.cost, after: null, label: 'Unearth ' + gu.cost });
+        // (Grixis, a plane: "The unearth cost is equal to the card's mana cost." — manaCost)
+        const guCost = gu && (gu.manaCost ? a.manaCost : gu.cost);
+        if (gu && guCost && !out.some(u => u.via === 'unearth' && u.cost === guCost)) out.push({ kind: 'cast', via: 'unearth', cost: guCost, after: null, label: 'Unearth ' + guCost });
       }
       /* Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value."
          — offered when the card has no encore of its own (grantEncoreMv) */
@@ -9183,7 +9194,8 @@
       let k = a.keywordSet && a.keywordSet.has('demonstrate') ? 1 : 0;
       const p = this.player(playerId) || {};
       for (const src of this._withEmblems(this.battlefield)) {
-        if (src.phasedOut || src.controller !== playerId) continue;
+        // (Strixhaven, a plane: "Instant and sorcery spells players cast have demonstrate." — anyPlayer)
+        if (src.phasedOut || (src.controller !== playerId && !((this._staticOp(src, 'grantCastKeyword') || {}).anyPlayer))) continue;
         const g = this._staticOp(src, 'grantCastKeyword');
         if (!g || g.keyword !== 'demonstrate') continue;
         if (g.firstNotFromHand && (fromZone === 'hand' || !p.notHandCastsTurn || p.notHandCastsTurn.turn !== this.turn || p.notHandCastsTurn.n !== 1)) continue;
@@ -9261,6 +9273,8 @@
         // Rain of Riches: the first spell this turn that mana from a Treasure was spent to cast (firstTreasure, _treasureCast)
         if (g.firstTreasure && (item.isCopy || item.obj._treasureCast !== this.turn ||
           ((this.player(item.controller) || {}).spellObjsThisTurn || []).some(x => x !== item.obj && x._treasureCast === this.turn))) continue;
+        // TARDIS Bay (a plane): "The first spell you cast during each of your turns with mana value 2 or greater" (firstMinMv)
+        if (g.firstMinMv && ((this.player(item.controller) || {}).spellObjsThisTurn || []).some(x => x !== item.obj && ((x.card && x.card.cmc) || 0) >= (g.minMv || 0))) continue;
         if (!g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter)) granted += g.times || 1;
       }
       // (Yidris, Maelstrom Wielder: "as you cast spells from your hand this turn, they gain cascade" — cascadeHand)
@@ -14368,9 +14382,11 @@
     }
     /** Pestilent Spirit, Soulfire Grand Master: a keyword a standing rule gives this player's spells. */
     _spellKeywordFrom(o, k) {
-      for (const src of this.battlefield) {
-        if (src.controller !== o.controller || src.phasedOut) continue;
+      for (const src of this._withEmblems(this.battlefield)) {
+        if (src.phasedOut) continue;
         const e = this._staticOp(src, 'spellKeyword');
+        // (Lake Silencio, a plane: "All spells have split second." — anyPlayer)
+        if (src.controller !== o.controller && !(e && e.anyPlayer)) continue;
         // (Shadow the Hedgehog: "if mana from an artifact was spent to cast it" — manaFromArtifact)
         // (Wort, the Raidmother: "Each red or green instant or sorcery spell you cast has conspire" — colors)
         // (Rassilon, the War President: "cast from exile" — still there as it is cast, or on the stack from there: fromExile)
@@ -15592,6 +15608,8 @@
         // Mr. House, President and CEO: "If you rolled 6 or higher" — the roll the trigger is about (rolledAtLeast)
         case 'rolledAtLeast': return Number(((ctx && ctx.triggerData) || {}).amount) >= (cond.n || 0);
         case 'cityBlessing': return !!me && !!me.cityBlessing;
+        // Unyaro (a plane, src/06f-planechase.js): "if you planeswalked to Unyaro this turn"
+        case 'planeswalkedHere': return !!src && src.planeUp && src.planeswalkedToTurn === this.turn;
         case 'enduringStory': return !!me && !!me.enduringStory;
         case 'distinctNames': return !!me && new Set(this.battlefield.filter(x => x.controller === me.id && !x.phasedOut && this._hasSubtype(x, cond.subtype)).map(x => x.name)).size >= (cond.n || 1);
         // Twenty-Toed Toad: every counter on it, of whatever kind
@@ -18712,6 +18730,8 @@
         // Miracle (CR 702.94): the first card drawn this turn may be cast for its miracle cost
         if (!silent && p.drawnThisTurn === 1) this._offerMiracle(p.id, o);
         if (!silent) {
+          // Sea of Sand (a plane): "Players reveal each card they draw."
+          if (this.config.planechase) this._planarDrawn(p, o);
           this._fire('youDraw', p.id, { object: o, nth: p.drawnThisTurn });
           // Spiteful Visions: "whenever a player draws a card"
           this._fire('anyDraw', null, { object: o, player: p.id, drawer: p.id, nth: p.drawnThisTurn });
@@ -22250,6 +22270,8 @@
           let dsrc = src;
           if (e.fromTrigger) { const id = (ctx.triggerData || {}).objectId; dsrc = (id && this.obj(id)) || earlier || src; }
           if (e.fromTarget) { const t0 = targets.find(t => t.kind === 'object'); dsrc = (t0 && this.obj(t0.id)) || src; }
+          // (The Western Cloud, a plane: "They each deal 1 damage …" — each of the tokens just made, named: fromObjId)
+          if (e.fromObjId) { const x = this.obj(e.fromObjId); if (x) dsrc = x; }
           // Pain for All: the enchanted creature deals it
           if (e.fromAttached) { const host = src && src.attachedTo && this.obj(src.attachedTo); if (!host || host.zone !== 'battlefield') break; dsrc = host; }
           if (e.toSelf) { this.dealDamageToPlayer(me, cnt, dsrc); this.emit('sfx', 'damage'); break; }
@@ -22746,8 +22768,8 @@
         }
         /* Planechase (src/06f-planechase.js): planeswalk ("Then planeswalk.", "You may planeswalk.", the planeswalking
            ability), roll the planar die (Fractured Powerstone), Chaotic Aether, Fixed Point in Time */
-        case 'planeswalk': case 'rollPlanarDie': case 'chaoticAether': case 'fixedPoint':
-          return this._planarOp(e, ctx);
+        case 'planeswalk': case 'rollPlanarDie': case 'chaoticAether': case 'fixedPoint': case 'planar':
+          return this._planarOp(e, ctx, targets);
         /* "You get an emblem with '...'": an object in your command zone
            whose abilities were written out when the card was read. */
         case 'getEmblem': {
@@ -24199,7 +24221,9 @@
             // "for each other spell you've cast before it": none, and there is nothing to copy
             const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
             if (times <= 0) break;
-            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary || e.addTypes ? { nonLegendary: !!e.nonLegendary, addTypes: e.addTypes || [], copyPt: e.copyPt || null } : null).id);
+            // (Izzet Steam Maze, a plane: "that player copies it" — the caster's copy: who triggerPlayer)
+            const copier = e.who === 'triggerPlayer' ? ((triggerPlayer() || me).id) : ctx.controller;
+            for (let k = 0; k < times + this._extraCopies(copier, item); k++) made.push(this._copyOnStack(item, copier, e.nonLegendary || e.addTypes ? { nonLegendary: !!e.nonLegendary, addTypes: e.addTypes || [], copyPt: e.copyPt || null } : null).id);
             if (r) r.marks[slot] = made;
             // (Mizzix, Replica Rider: "If the copy is a permanent spell, it gains haste and …" — the permanent it becomes keeps them)
             if (e.permGrant) for (const sid of made) {
@@ -26205,7 +26229,9 @@
           // Artist's Talent: "you may discard a card. If you do, draw a card." — with an empty hand, the same
           if (s0 && s0.op === 'rummage' && (e.then || []).length === 1 && !e.who && !((this.zones[ctx.controller] || {}).hand || []).length) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
-          const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
+          const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me)
+            // (Minamo, a plane: "that player may draw a card" — the caster: triggerPlayer)
+            : e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           // (asked of another player: the card's name and the question, "Edric, Spymaster of Trest: Draw a card?")
           const d1 = e.who === 'targetController' && (e.then || [])[0];
           const nm = (src && src.name) || ctx.name || 'Effect';
@@ -27298,8 +27324,10 @@
           const how = { holds: e.holdExiled ? [source.id] : null, grant: e.grant && e.grant.length ? e.grant : null, tapped: !!e.tapped,
             attackingDef: e.attacking ? (e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id || null) : null,
             attachToId: e.attachToId || null };
-          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line, { method: '_copyTokenOne', args: [ctx.controller, card, faceUp, how] });
-          for (let i = 0; i < made; i++) this._copyTokenOne(ctx.controller, card, faceUp, how, i, made);
+          // (Isle of Vesuva, a plane: "its controller creates a token that's a copy of that creature" — toSourceController)
+          const maker = e.toSourceController && this.player(source.controller) ? source.controller : ctx.controller;
+          const made = this._copyTokenCount(maker, cnt, card.type_line, { method: '_copyTokenOne', args: [maker, card, faceUp, how] });
+          for (let i = 0; i < made; i++) this._copyTokenOne(maker, card, faceUp, how, i, made);
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
           break;
@@ -38229,6 +38257,8 @@
       // (Xantcha, Sleeper Agent: "or planeswalkers its owner controls" — walkers)
       const ownerRule = def.id === o.owner && this._staticOp(o, 'cantAttackOwner');
       if (ownerRule && (!walker || ownerRule.walkers)) return { src: o, who: walker ? 'planeswalkers ' + def.name + ', its owner, controls' : def.name + ', its owner' };
+      // Agyrem (a plane): "creatures can't attack you until a player planeswalks" — the player, not their planeswalkers
+      if (!walker && this.config.planechase && this._planarHeld(def.id, 'notAttacked')) return { src: null, who: def.name + ' until a player planeswalks' };
       // The Second Doctor: "can't attack you or permanents you control during their next turn" (noAttackOn)
       const atkP = this.player(o.controller);
       const civil = atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id && !r.walkerType);
@@ -39211,6 +39241,8 @@
       if (this._anyStaticOf(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
       // Angel's Grace: not this turn
       if (p.cantLoseTurn === this.turn && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
+      // Celestine Reef (a plane): "until a player planeswalks, you can't lose the game"
+      if (this.config.planechase && this._planarHeld(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
       p.hasLost = true;
       p.lossReason = reason;
       p.lossFrom = from || null;

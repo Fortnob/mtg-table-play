@@ -2426,7 +2426,7 @@
     // Naya Charm: "Return target card from a graveyard to its owner's hand."
     // (Strixhaven, a plane: "return up to one target instant or sorcery card from a graveyard" — upTo)
     { re: /^Return (up to one )?target (card|creature card|artifact card|instant or sorcery card) from a graveyard to its owner'?s hand\.?$/i,
-      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec('target ' + m[2].replace(/ card$/, '')), { zone: 'graveyard' }, m[1] ? { upTo: true } : {})] }) },
+      make: (m) => { const t = Object.assign(targetSpec('target ' + m[2].replace(/ card$/, '')), { zone: 'graveyard' }, m[1] ? { upTo: true } : {}); delete t.unknown; return { op: 'regrowth', targets: [t] }; } },
     // Kenrith: "Put target creature card from a graveyard onto the battlefield under its owner's control."
     { re: /^Put target creature card from a graveyard onto the battlefield under its owner'?s control\.?$/i,
       make: () => ({ op: 'reanimate', ownerControl: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
@@ -5491,8 +5491,56 @@
 
     // --- life ---
     { re: /^Your life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1] }) },
-    // Sanctum of Serra: "you may have your life total become 20"
-    { re: /^You may have your life total become (\d+)\.?$/i, make: (m) => ({ op: 'may', then: [{ op: 'setLife', n: +m[1] }] }) },
+    // Sanctum of Serra: "you may have your life total become 20" — the "you may" read apart, then this
+    { re: /^Have your life total become (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1] }) },
+    /* Minamo, Fields of Summer: "Whenever a player casts a spell, that player may draw a card" ("… may gain 2 life") — the
+       caster's to decide (who triggerPlayer) */
+    { re: /^That player may draw a card\.?$/i, make: () => ({ op: 'may', who: 'triggerPlayer', then: [{ op: 'draw', n: 1, who: 'triggerPlayer' }] }) },
+    { re: /^That player may gain (\d+) life\.?$/i, make: (m) => ({ op: 'may', who: 'triggerPlayer', then: [{ op: 'gainLife', n: +m[1], who: 'triggerPlayer' }] }) },
+    /* Spectrox Mines, New New York: "create a Food token and a 2/2 black Human Rogue creature token" — two tokens of two
+       kinds, each read as a sentence of its own */
+    { re: /^Create (an? [A-Z][a-z]+ token) and (an? .+? tokens?(?: with [a-z ,]+)?)\.?$/,
+      make: (m) => {
+        const a = parseEffectSentence('Create ' + m[1] + '.'), b = parseEffectSentence('Create ' + m[2] + '.');
+        if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
+        return [a, b];
+      } },
+    // The Hippodrome: "you may destroy target creature if its power is 0 or less" — a creature of power 0 or less
+    { re: /^Destroy target creature if its power is 0 or less\.?$/i,
+      make: () => ({ op: 'destroy', targets: [{ type: 'creature', filter: 'creature with power 0 or less', zone: 'battlefield', maxPower: 0 }] }) },
+    // Isle of Vesuva: "Whenever a nontoken creature enters, its controller creates a token that's a copy of that creature."
+    { re: /^Its controller creates a token that'?s a copy of that creature\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, scope: 'triggerObject', grant: [], toSourceController: true }) },
+    // Orzhova, Inys Haen: "each player returns all creature (land) cards from their graveyard to the battlefield [tapped]"
+    { re: /^Each player returns all (creature|land|artifact|enchantment|permanent) cards from their graveyard to the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'massReanimate' }, /creature/i.test(m[1]) ? {} : { filter: m[1].toLowerCase() }, m[2] ? { tapped: true } : {}) },
+    // Reality Shaping: "starting with you, each player may put a permanent card from their hand onto the battlefield"
+    { re: /^Starting with you, each player may put an? ([a-z]+) card from their hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'each' }) },
+    // Sokenzan, Valor's Reach: "If it's a main phase, there is an additional combat phase after this phase, followed by an additional main phase."
+    { re: /^If it'?s a main phase, there is an additional combat phase after this phase(, followed by an additional main phase)?\.?$/i,
+      make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },
+    /* Planechase (src/06f-planechase.js): what the planes and phenomena do that nothing else does */
+    // Naya: "target red, green, or white creature you control gets +1/+1 until end of turn for each land you control"
+    { re: /^(Target (?:(?:white|blue|black|red|green), (?:white|blue|black|red|green),? or (?:white|blue|black|red|green) )?creature you control) gets \+(\d+)\/\+(\d+) until end of turn for each land you control\.?$/i,
+      make: (m) => { const t = targetSpec(m[1].replace(/^Target/, 'target')); return t && !t.unknown ? { op: 'pump', p: { scope: { who: 'you', what: 'land' }, mult: +m[2] },
+        t: { scope: { who: 'you', what: 'land' }, mult: +m[3] }, duration: 'eot', targets: [t] } : null; } },
+    // Kessig: "each creature you control gets +2/+2, gains trample, and becomes a Werewolf in addition to its other types until end of turn"
+    { re: /^Each creature you control gets \+(\d+)\/\+(\d+), gains (flying|trample|haste|vigilance|lifelink|menace|first strike|deathtouch), and becomes an? ([A-Z][a-z]+) in addition to its other types until end of turn\.?$/,
+      make: (m) => [{ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' },
+        { op: 'grantKeyword', keywords: [m[3].charAt(0).toUpperCase() + m[3].slice(1)], duration: 'eot', scope: 'yourCreatures' },
+        { op: 'addTypes', subtypes: [m[4]], duration: 'eot', scope: 'yourCreatures' }] },
+    // Time Distortion, Temple of Atropos: "reverse the game's turn order"
+    { re: /^Reverse the game'?s turn order\.?$/i, make: () => ({ op: 'planar', what: 'reverseTurnOrder' }) },
+    // Celestine Reef: "until a player planeswalks, you can't lose the game and your opponents can't win the game"
+    { re: /^Until a player planeswalks, you can'?t lose the game and your opponents can'?t win the game\.?$/i,
+      make: () => ({ op: 'planar', what: 'hold', kind: 'cantLose', who: 'you' }) },
+    // Eloren Wilds: "target player can't cast spells until a player planeswalks"
+    { re: /^Target player can'?t cast spells until a player planeswalks\.?$/i,
+      make: () => ({ op: 'planar', what: 'hold', kind: 'cantCast', who: 'target', targets: [{ type: 'player', opponent: false }] }) },
+    // Agyrem: "creatures can't attack you until a player planeswalks"
+    { re: /^Creatures can'?t attack you until a player planeswalks\.?$/i,
+      make: () => ({ op: 'planar', what: 'hold', kind: 'notAttacked', who: 'you' }) },    { re: /^You may have your life total become (\d+)\.?$/i, make: (m) => ({ op: 'may', then: [{ op: 'setLife', n: +m[1] }] }) },
     { re: /^Each opponent'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'opponents' }) },
     // Biorhythm, Shaman of Forgotten Ways: "Each player's life total becomes the number of creatures they control."
     { re: /^Each player'?s life total becomes the number of (creatures|lands|permanents|artifacts) they control\.?$/i,
@@ -13569,6 +13617,47 @@
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
+    /* Planechase (src/06f-planechase.js): the planes and phenomena whose sentences go together */
+    /* The Western Cloud: "create three tapped Treasure tokens. They each deal 1 damage to each creature and each
+       planeswalker." — each Treasure a source of its own (tokensDeal) */
+    { re: /^Create (two|three|four) (tapped )?(Treasure|Clue|Food) tokens\. They each deal (\d+) damage to each creature and each planeswalker\.?$/i,
+      make: (m) => [Object.assign({ op: 'createNamedToken', n: num(m[1]), token: U.titleCase(m[3].toLowerCase()) }, m[2] ? { tapped: true } : {}),
+        { op: 'planar', what: 'tokensDeal', count: num(m[1]), token: U.titleCase(m[3].toLowerCase()), n: +m[4], each: 'creature and each planeswalker' }] },
+    // Izzet Steam Maze: "that player copies it. The player may choose new targets for the copy." — the caster's copy
+    { re: /^That player copies it\. The player may choose new targets for the copy\.?$/i,
+      make: () => [{ op: 'copyThatSpell', who: 'triggerPlayer' }] },
+    // Unleash the Flux: "each player sacrifices a nonland permanent of their choice, then you flip a coin. If you lose the flip, repeat this process."
+    { re: /^Each player sacrifices a nonland permanent of their choice, then you flip a coin\. If you lose the flip, repeat this process\.?$/i,
+      make: () => [{ op: 'planar', what: 'flux' }] },
+    // Unyaro: "untap all creatures. They phase out until a player planeswalks."
+    { re: /^Untap all creatures\. They phase out until a player planeswalks\.?$/i,
+      make: () => [{ op: 'untapAll', scope: { who: 'all', what: 'creature' } }, { op: 'planar', what: 'phaseOutCreatures' }] },
+    // Stairs to Infinity: "reveal the top card of your planar deck. You may put it on the bottom of your planar deck."
+    { re: /^Reveal the top card of your planar deck\. You may put it on the bottom of your planar deck\.?$/i,
+      make: () => [{ op: 'planar', what: 'topMayBottom' }] },
+    /* The Fertile Lands of Saulvinia: "reveal cards from the top of your planar deck until you reveal a plane card. Chaos
+       ensues on that plane. Then put all cards revealed this way on the bottom of your planar deck in any order." */
+    { re: /^Reveal cards from the top of your planar deck until you reveal a plane card\. Chaos ensues on that plane\. Then put all cards revealed this way on the bottom of your planar deck in any order\.?$/i,
+      make: () => [{ op: 'planar', what: 'chaosFromDeck', planes: 1 }] },
+    /* Pools of Becoming: "reveal the top three cards of your planar deck. Each of the revealed cards' chaos abilities
+       triggers. Then put the revealed cards on the bottom of your planar deck in any order." */
+    { re: /^Reveal the top three cards of your planar deck\. Each of the revealed cards'? chaos abilities triggers\. Then put the revealed cards on the bottom of your planar deck in any order\.?$/i,
+      make: () => [{ op: 'planar', what: 'chaosFromDeck', top: 3 }] },
+    /* Norn's Seedcore: "reveal cards from the top of your planar deck until you reveal a plane card. Planeswalk to it,
+       except don't planeswalk away from any plane. Put the rest of the revealed cards on the bottom of your planar deck in
+       any order." */
+    { re: /^Reveal cards from the top of your planar deck until you reveal a plane card\. Planeswalk to it, except don'?t planeswalk away from any plane\. Put the rest of the revealed cards on the bottom of your planar deck in any order\.?$/i,
+      make: () => [{ op: 'planar', what: 'walkToAlso' }] },
+    /* Interplanar Tunnel: "reveal cards from the top of your planar deck until you reveal five plane cards. Put a plane card
+       from among them on top of your planar deck, then put the rest of the revealed cards on the bottom in a random order." */
+    { re: /^Reveal cards from the top of your planar deck until you reveal five plane cards\. Put a plane card from among them on top of your planar deck, then put the rest of the revealed cards on the bottom in a random order\.?(?: \(Then planeswalk away from this phenomenon\.\))?$/i,
+      make: () => [{ op: 'planar', what: 'tunnel', n: 5 }] },
+    /* Spatial Merging: "reveal cards from the top of your planar deck until you reveal two plane cards. Simultaneously
+       planeswalk to both of them. Put all other cards revealed this way on the bottom of your planar deck in any order." */
+    { re: /^Reveal cards from the top of your planar deck until you reveal two plane cards\. Simultaneously planeswalk to both of them\. Put all other cards revealed this way on the bottom of your planar deck in any order\.?$/i,
+      make: () => [{ op: 'planar', what: 'merge', n: 2 }] },
+    // Lair of the Ashen Idol: "sacrifice a creature. If you can't, planeswalk."
+    { re: /^Sacrifice a creature\. If you can'?t, planeswalk\.?$/i, make: () => [{ op: 'planar', what: 'sacOrWalk' }] },
     /* Quicksilver Sea: "reveal the top card of your library. You may play it without paying its mana cost." — cast it
        free, or play it as your land for the turn if it is one and you have a land play left (lands, revealed) */
     { re: /^Reveal the top card of your library\. You may play it without paying its mana cost\.?$/i,
@@ -15695,6 +15784,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    // Unyaro: "if you planeswalked to Unyaro this turn" — this plane, turned up this turn (planeswalkedHere)
+    [/^you planeswalked to (?:CARDNAME|this plane) this turn$/i, () => ({ kind: 'planeswalkedHere' })],
     /* Meld (CR 701.42): Gisela, the Broken Blade's "if you both own and control Gisela and a creature
        named Bruna, the Fading Light"; Titania, Voice of Gaea's with "there are four or more land cards in
        your graveyard and" before it (meldPair) */
@@ -17444,14 +17535,15 @@
        opponent's graveyard"; Sidisi: "from your library" */
     // (Disa the Restless: "from anywhere other than the battlefield" — notFromBattlefield)
     // (Dennick, Pious Apparition: "creature cards are put into graveyards from anywhere" — anyone's)
-    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your graveyard|a graveyard|an opponent'?s graveyard|graveyards) from (anywhere other than the battlefield|anywhere|your library)( during your turn)?,? /i,
+    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your graveyard|a graveyard|a player'?s graveyard|an opponent'?s graveyard|graveyards) from (anywhere other than the battlefield|anywhere|your library)( during your turn)?,? /i,
       event: 'cardToGraveyardAny',
       extraOf: (m) => Object.assign({}, /one or more/i.test(m[1]) ? { batch: true } : {}, /library/i.test(m[4]) ? { fromLibraryOnly: true } : {},
         /other than/i.test(m[4]) ? { notFromBattlefield: true } : {},
         m[5] ? { yourTurnOnly: true } : {}),
       filt: (m) => {
         const words = m[2].trim();
-        if (words && !words.split(/\s+/).every(w => SPELL_WORDS.has(w.toLowerCase()) || /^[A-Z][a-z'-]+$/.test(w))) return null;
+        // (The Dark Barony, a plane: "a nonblack card")
+        if (words && !words.split(/\s+/).every(w => SPELL_WORDS.has(w.toLowerCase()) || /^[A-Z][a-z'-]+$/.test(w) || /^non(?:white|blue|black|red|green)$/i.test(w))) return null;
         return Object.assign({ words: words.toLowerCase() || 'card' }, /^your /i.test(m[3]) ? { who: 'you' } : /opponent/i.test(m[3]) ? { who: 'opponent' } : {});
       } },
     { re: /^When(?:ever)? an opponent casts their first ([a-zA-Z ]*?)spell each turn(?:,| )/i, event: 'opponentFirstSpell',
@@ -17670,6 +17762,8 @@
     // The Watcher in the Water: "Whenever you draw a card during an opponent's turn" (drawOppTurn)
     { re: /^Whenever you draw a card during an opponent'?s turn,? /i, event: 'youDraw', extra: { notYourTurnOnly: true } },
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
+    // Sea of Sand: "Whenever a player draws a land (nonland) card"
+    { re: /^Whenever a player draws an? (land|nonland) card,? /i, event: 'anyDraw', filt: (m) => ({ words: m[1].toLowerCase() }) },
     // Spiteful Visions: "Whenever a player draws a card"
     { re: /^When(?:ever)? a player draws a card(?:,| )/i, event: 'anyDraw' },
     // the Shrines: "At the beginning of your upkeep and whenever you cast a white spell," — two moments, one ability
@@ -21806,6 +21900,11 @@
   const REPLACEMENT_RULES = [
     { re: /^If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead\.?$/i,
       make: () => ({ op: 'replace', id: 'tokDouble', event: 'createToken', who: 'you', how: 'double' }) },
+    // Selesnya Loft Gardens: anyone's tokens, anyone's counters (who 'any')
+    { re: /^If an effect would create one or more tokens, it creates twice that many of those tokens instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'tokDouble', event: 'createToken', who: 'any', how: 'double' }) },
+    { re: /^If an effect would put one or more counters on a permanent, it puts twice that many of those counters on that permanent instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntDouble', event: 'counters', who: 'any', how: 'double' }) },
     /* Innkeeper's Talent, Vorinclex: whoever puts the counters, on any
        permanent or player */
     { re: /^If you would put one or more counters on a permanent or player, put twice that many of each of those kinds of counters on that permanent or player instead\.?$/i,
@@ -21957,7 +22056,7 @@
       make: () => ({ op: 'replace', id: 'dmgToAttachedDouble', event: 'damage', who: 'any', how: 'double', toAttached: true, combatOnly: true, sourceWords: 'creature' }) },
     /* Furnace of Rath, Dictate of the Twin Gods: any source, any victim;
        Fiendish Duo: any source, to an opponent */
-    { re: /^If a source would deal damage to (a permanent or player|an opponent), it deals double that damage to that (?:permanent or player|player) instead\.?$/i,
+    { re: /^If a source would deal damage to (a permanent or player|an opponent), it deals double that damage(?: to that (?:permanent or player|player))? instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dmgdouble', event: 'damage', who: 'any', how: 'double' },
         /opponent/i.test(m[1]) ? { toOpponent: true, toPlayerOnly: true } : {}) },
     // Gisela, Blade of Goldnight: double to opponents and theirs, half (rounded down) to you and yours
@@ -23697,6 +23796,56 @@
         make: (m) => ({ op: 'bandsWithOther', words: m[2].toLowerCase().replace(/ies$/, 'y').replace(/s$/, '') }), auto: true },
       { re: /^Double team$/i, eff: { op: 'noop' }, auto: true },
       { re: /^Ascend$/i, eff: { op: 'ascend' }, auto: true },
+      /* ---- the planes (src/06f-planechase.js): rules for every player ---- */
+      // Akoum: "Players may cast enchantment spells as though they had flash."
+      { re: /^Players may cast (creature|artifact|enchantment|instant|sorcery|noncreature) spells as though they had flash\.?$/i,
+        make: (m) => ({ op: 'flashGrant', anyPlayer: true, filter: m[1].toLowerCase() }), auto: true },
+      // Onakke Catacomb: "All creatures are black and have deathtouch."
+      { re: /^All creatures are (white|blue|black|red|green) and have ([a-z ]+)\.?$/i,
+        make: (m) => {
+          const k = m[2].toLowerCase();
+          if (!kwKnown(k)) return null;
+          const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+          return { op: 'sequence', list: [{ op: 'continuous', layer: 5, scope: { who: 'all', what: 'creature' }, setColors: [COL[m[1].toLowerCase()]] },
+            { op: 'continuous', layer: 6, scope: { who: 'all', what: 'creature' }, grant: [k.charAt(0).toUpperCase() + k.slice(1)] }] };
+        }, auto: true },
+      // Lake Silencio: "All spells have split second."
+      { re: /^All spells have split second\.?$/i, eff: { op: 'spellKeyword', keyword: 'split second', words: 'spell', anyPlayer: true }, auto: true },
+      // Horizon Boughs: "All permanents untap during each player's untap step."
+      { re: /^All permanents untap during each player'?s untap step\.?$/i, eff: { op: 'untapOnEveryUntapStep', filter: 'permanent', allPlayers: true }, auto: true },
+      // Naya: "You may play any number of lands on each of your turns."
+      { re: /^You may play any number of lands on each of your turns\.?$/i, eff: { op: 'extraLand', n: 99, anyNumber: true }, auto: true },
+      // The Western Cloud: "Prevent all damage that would be dealt to creatures and planeswalkers you control."
+      { re: /^Prevent all damage that would be dealt to creatures and planeswalkers you control\.?$/i,
+        eff: { op: 'sequence', list: [
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'noDamageTaken' },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'noNoncombatTaken' },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'planeswalker' }, flag: 'noDamageTaken' },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'planeswalker' }, flag: 'noNoncombatTaken' }] }, auto: true },
+      // Kessig: "Prevent all combat damage that would be dealt by non-Werewolf creatures."
+      { re: /^Prevent all combat damage that would be dealt by (non-[A-Z][a-z]+ creatures|creatures you don'?t control|creatures your opponents control)\.?$/,
+        make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, flag: 'noDamage' } : null; }, auto: true },
+      // Trail of the Mage-Rings: "Instant and sorcery spells have rebound."
+      { re: /^Instant and sorcery spells have rebound\.?$/i, eff: { op: 'grantCastKeyword', keyword: 'rebound', filter: 'instant or sorcery', anyPlayer: true }, auto: true },
+      // Strixhaven: "Instant and sorcery spells players cast have demonstrate."
+      { re: /^Instant and sorcery spells players cast have demonstrate\.?$/i, eff: { op: 'grantCastKeyword', keyword: 'demonstrate', filter: 'instant or sorcery', anyPlayer: true }, auto: true },
+      // Ood Sphere: "Noncreature spells have convoke."
+      { re: /^(Noncreature|Creature|Artifact) spells have (convoke|improvise|delve)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].toLowerCase(), anyPlayer: true }), auto: true },
+      // Otaria: "Instant and sorcery cards in graveyards have flashback. The flashback cost is equal to the card's mana cost."
+      { re: /^Instant and sorcery cards in graveyards have flashback\. The flashback cost is equal to the card'?s mana cost\.?$/i,
+        eff: { op: 'grantFlashbackInstSorc', anyPlayer: true }, auto: true },
+      // Grixis: "Blue, black, and/or red creature cards in your graveyard have unearth. The unearth cost is equal to the card's mana cost."
+      { re: /^Blue, black, and\/or red creature cards in your graveyard have unearth\. The unearth cost is equal to the card'?s mana cost\.?$/i,
+        eff: { op: 'grantUnearth', words: 'blue creature or black creature or red creature', manaCost: true }, auto: true },
+      // The Caldaia: "Creature spells you cast from your hand have blitz {3}."
+      { re: /^Creature spells you cast from your hand have blitz ((?:\{[0-9WUBRGC]\})+)\.?$/i,
+        make: (m) => ({ op: 'grantBlitz', minMv: 0, cost: m[1] }), auto: true },
+      // TARDIS Bay: "The first spell you cast during each of your turns with mana value 2 or greater has cascade."
+      { re: /^The first spell you cast during each of your turns with mana value (\d+) or greater has cascade\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', minMv: +m[1], yourTurn: true, firstMinMv: true }), auto: true },
+      // Sea of Sand: "Players reveal each card they draw."
+      { re: /^Players reveal each card they draw\.?$/i, eff: { op: 'revealDraws' }, auto: true },
       // Tidal Barracuda: "Any player may cast spells as though they had flash."
       { re: /^Any player may cast spells as though they had flash\.?$/i, eff: { op: 'flashGrant', anyPlayer: true }, auto: true },
       // Teferi, Mage of Zhalfir: "Creature cards you own that aren't on the battlefield have flash."

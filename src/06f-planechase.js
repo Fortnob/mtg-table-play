@@ -486,7 +486,173 @@
 
   /** The effect ops (from _runEffect): planeswalk, chaos ensues, roll the planar die, Chaotic Aether, Fixed Point in Time. */
   Object.assign(Game.prototype, {
-    _planarOp(e, ctx) {
+    /* ---------- what the planes and phenomena do that nothing else does ---------- */
+    /** "until a player planeswalks" (CR 901.11): a hold of this kind on this player (Celestine Reef, Eloren Wilds, Agyrem). */
+    _planarHeld(pid, kind) {
+      const p = this.player(pid);
+      return !!(p && p.planarHolds && p.planarHolds.some(h => h.kind === kind));
+    },
+    /** Trail of the Mage-Rings: "Instant and sorcery spells have rebound." — handed out from a face-up plane. */
+    _planarRebound(item) {
+      const o = item && item.obj;
+      if (!o) return false;
+      return this.facePlanes().some(pl => {
+        const g = this._staticOp(pl, 'grantCastKeyword');
+        return !!g && g.keyword === 'rebound' && (g.anyPlayer || pl.controller === item.controller) && this._cardFitsWords(o, g.filter || 'spell');
+      });
+    },
+    /** Sea of Sand: "Players reveal each card they draw." */
+    _planarDrawn(p, o) {
+      if (!o || !this.facePlanes().some(pl => this._staticOp(pl, 'revealDraws'))) return;
+      this._know(o, '*');
+      this.logEvent('rules', `${p.name} reveals ${o.name} as they draw it.`);
+    },
+    /** The cards from the top of this player's planar deck down to the n-th plane card (fewer, if the deck runs out),
+        and the planes among them. Nothing moves: asked twice over a question, it is the same cards both times. */
+    _planarRevealUntil(pid, n) {
+      const deck = this.planarDeck(pid);
+      const seen = [], planes = [];
+      for (const o of deck) {
+        seen.push(o);
+        if (!isPhenomenonCard(o.card)) planes.push(o);
+        if (planes.length >= n) break;
+      }
+      return { seen, planes };
+    },
+    /** These cards of a planar deck, shown to everybody, then put on its bottom (in this order). */
+    _planarToBottom(pid, cards) {
+      const deck = this.planarDeck(pid);
+      for (const o of cards) { const i = deck.indexOf(o); if (i >= 0) { deck.splice(i, 1); deck.push(o); } }
+    },
+    _planarShow(pid, cards, words) {
+      for (const o of cards) this._know(o, '*');
+      if (cards.length) this.logEvent('rules', `${(this.player(pid) || {}).name} reveals ${words || ''}${cards.map(o => o.name).join(', ')}.`);
+    },
+    /** The ops of {op: 'planar', what}: see each case. */
+    _planarDo(e, ctx, targets) {
+      const pid = ctx.controller, me = this.player(pid);
+      const st = this.planar || (this.planar = { walks: 0 });
+      const SUSPEND = MTG.rules.SUSPEND;
+      switch (e.what) {
+        /* Celestine Reef ("you can't lose the game and your opponents can't win the game"), Eloren Wilds ("target player
+           can't cast spells"), Agyrem ("creatures can't attack you") — each until a player planeswalks */
+        case 'hold': {
+          const t = e.who === 'target' ? (targets || []).find(x => x && x.kind === 'player') : null;
+          const p = t ? this.player(t.id) : me;
+          if (!p) return null;
+          (p.planarHolds = p.planarHolds || []).push({ kind: e.kind, untilWalk: st.walks || 0 });
+          const say = { cantLose: `${p.name} can't lose the game, and their opponents can't win it`, cantCast: `${p.name} can't cast spells`,
+            notAttacked: `creatures can't attack ${p.name}` }[e.kind] || e.kind;
+          this.logEvent('rules', `Until a player planeswalks, ${say}.`);
+          return null;
+        }
+        // Unyaro: "They phase out until a player planeswalks." — every creature
+        case 'phaseOutCreatures': {
+          const all = this.battlefield.filter(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+          for (const o of all) {
+            o.phasedOut = true; o.phasedOutBy = 'planeswalk'; o.phasedTurn = this.turn;
+            for (const id of (o.attachments || [])) { const at = this.obj(id); if (at && !at.phasedOut) { at.phasedOut = true; at.phasedOutBy = 'planeswalk'; at.phasedTurn = this.turn; } }
+          }
+          if (all.length) this.logEvent('rules', `${all.length} creature${all.length === 1 ? '' : 's'} phase${all.length === 1 ? 's' : ''} out until a player planeswalks.`);
+          this.bumpBoard();
+          return null;
+        }
+        // Time Distortion, Temple of Atropos: "reverse the game's turn order" — the turn's player and priority stay where they are
+        case 'reverseTurnOrder': {
+          const ap = this.turnOrder[this.activeIndex], pp = this.priorityIndex != null ? this.turnOrder[this.priorityIndex] : null;
+          this.turnOrder.reverse();
+          this.activeIndex = this.turnOrder.indexOf(ap);
+          if (pp != null && this.turnOrder.includes(pp)) this.priorityIndex = this.turnOrder.indexOf(pp);
+          this.logEvent('rules', `The turn order is reversed: ${this.turnOrder.map(id => (this.player(id) || {}).name).join(' \u2192 ')}.`);
+          this.bumpBoard();
+          return null;
+        }
+        // Unleash the Flux: "each player sacrifices a nonland permanent of their choice, then you flip a coin. If you lose the flip, repeat this process."
+        case 'flux': {
+          if (!this.battlefield.some(o => !o.phasedOut && !(this.characteristics(o) || {}).isLand)) {
+            this.logEvent('rules', 'There are no nonland permanents left to sacrifice.');
+            return null;
+          }
+          this._spliceNext([{ op: 'sacrificeChoice', n: 1, who: 'each', filter: 'nonland permanent' },
+            { op: 'flipCoin', otherwise: [{ op: 'planar', what: 'flux' }] }]);
+          return null;
+        }
+        // Stairs to Infinity: "reveal the top card of your planar deck. You may put it on the bottom of your planar deck."
+        case 'topMayBottom': {
+          const top = this.planarDeck(pid)[0];
+          if (!top) return null;
+          if (!this._doneHere('pcTopShow')) this._planarShow(pid, [top], 'the top card of their planar deck: ');
+          const yes = this._ask({ type: 'confirm', playerId: pid, purpose: 'planarBottom', yesLabel: 'Bottom', noLabel: 'Keep on top',
+            prompt: `${(ctx.obj && ctx.obj.name) || 'Stairs to Infinity'}: put ${top.name} on the bottom of your planar deck?` }, 'pcBottom');
+          if (yes === SUSPEND) return yes;
+          if (yes) { this._planarToBottom(pid, [top]); this.logEvent('rules', `${me.name} puts ${top.name} on the bottom of their planar deck.`); }
+          return null;
+        }
+        /* The Fertile Lands of Saulvinia: until a plane is revealed, chaos ensues on it; Pools of Becoming: the top three,
+           each one's chaos abilities trigger — then the revealed cards go to the bottom */
+        case 'chaosFromDeck': {
+          const shown = e.top ? this.planarDeck(pid).slice(0, e.top) : this._planarRevealUntil(pid, e.planes || 1).seen;
+          this._planarShow(pid, shown, e.top ? 'the top of their planar deck: ' : '');
+          const on = e.top ? shown : shown.filter(o => !isPhenomenonCard(o.card)).slice(-1);
+          this._planarToBottom(pid, shown);
+          for (const o of on) this._chaosOn(o, pid);
+          return null;
+        }
+        // Norn's Seedcore: "Planeswalk to it, except don't planeswalk away from any plane." — the rest to the bottom
+        case 'walkToAlso': {
+          const { seen, planes } = this._planarRevealUntil(pid, 1);
+          this._planarShow(pid, seen);
+          this._planarToBottom(pid, seen.filter(o => !planes.includes(o)));
+          if (planes.length) this._walk(pid, { cards: planes, keep: true });
+          return null;
+        }
+        // Spatial Merging: "Simultaneously planeswalk to both of them." — the rest to the bottom
+        case 'merge': {
+          const { seen, planes } = this._planarRevealUntil(pid, e.n || 2);
+          this._planarShow(pid, seen);
+          this._planarToBottom(pid, seen.filter(o => !planes.includes(o)));
+          if (planes.length) this._walk(pid, { cards: planes });
+          return null;
+        }
+        /* Interplanar Tunnel: "Put a plane card from among them on top of your planar deck, then put the rest of the revealed
+           cards on the bottom in a random order." */
+        case 'tunnel': {
+          const { seen, planes } = this._planarRevealUntil(pid, e.n || 5);
+          if (!seen.length) return null;
+          if (!this._doneHere('pcTunnelShow')) this._planarShow(pid, seen);
+          let keep = planes[0] || null;
+          if (planes.length > 1) {
+            const got = this._choose({ playerId: pid, purpose: 'planarTunnel', kind: 'objects', zone: 'command', min: 1, max: 1,
+              items: this._chooseItems(planes), sourceId: ctx.obj ? ctx.obj.id : undefined, sourceName: (ctx.obj && ctx.obj.name) || 'Interplanar Tunnel',
+              prompt: `${(ctx.obj && ctx.obj.name) || 'Interplanar Tunnel'}: choose the plane to put on top of your planar deck — you planeswalk to it next.` }, 'pcTunnel');
+            if (got === SUSPEND) return got;
+            keep = planes.find(o => got && got.picks && got.picks[0] === o.id) || planes[0];
+          }
+          const rest = seen.filter(o => o !== keep);
+          this.rng.shuffle(rest);
+          const deck = this.planarDeck(pid);
+          this._planarToBottom(pid, rest);
+          if (keep) { deck.splice(deck.indexOf(keep), 1); deck.unshift(keep); this.logEvent('rules', `${me.name} puts ${keep.name} on top of their planar deck.`); }
+          return null;
+        }
+        // The Western Cloud: the tokens just made each deal the damage, a source each
+        case 'tokensDeal': {
+          const made = this.battlefield.filter(o => o.isToken && o.controller === pid && o.name === e.token).sort((x, y) => (y.ts || 0) - (x.ts || 0)).slice(0, e.count || 1);
+          this._spliceNext(made.map(o => ({ op: 'damage', n: e.n || 1, each: e.each, fromObjId: o.id })));
+          return null;
+        }
+        // Lair of the Ashen Idol: "sacrifice a creature. If you can't, planeswalk."
+        case 'sacOrWalk': {
+          const can = this.battlefield.some(o => o.controller === pid && !o.phasedOut && (this.characteristics(o) || {}).isCreature && this._canSacrifice(o));
+          if (can) { this._spliceNext([{ op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature' }]); return null; }
+          this.logEvent('rules', `${me.name} can't sacrifice a creature.`);
+          const r = this._planeswalk(pid, { ctx });
+          return r === SUSPEND ? r : null;
+        }
+        default: return null;
+      }
+    },
+    _planarOp(e, ctx, targets) {
       const pid = ctx.controller;
       const st = this.planar || (this.planar = { walks: 0 });
       if (!this.planechaseOn()) {
@@ -509,6 +675,7 @@
         case 'rollPlanarDie': this._rollPlanar(pid, { source: ctx.obj || null }); return null;
         case 'chaoticAether': st.aether = true; this.logEvent('rules', 'Until a player planeswalks away from a plane, each blank roll of the planar die is a chaos roll.'); return null;
         case 'fixedPoint': st.fixedPoint = pid; return null;
+        case 'planar': return this._planarDo(e, ctx, targets);
         default: return null;
       }
     },

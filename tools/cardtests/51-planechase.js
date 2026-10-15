@@ -956,4 +956,381 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(Number(giant.counters.time) || 0, 3, 'suspend ticks down');
   });
+  // the plane or planes face up now, by name
+  const upNames = (T) => T.g.facePlanes().map(o => o.name).sort();
+
+  test('Planes: Akoum — any player casts enchantments with flash; chaos: destroy a creature that isn\'t enchanted', (mk, t) => {
+    t.auto('Akoum');
+    const T = onPlane(mk, 'Akoum');
+    const paci = T.hand('B', 'Pacifism'), bear = T.hand('B', 'Grizzly Bears');
+    t.ok(T.g._flashFor('B', paci), 'B\'s enchantment has flash on A\'s turn');
+    t.no(T.g._flashFor('B', bear), 'a creature has not');
+    const foe = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: foe.id }] }));
+    chaos(T);
+    t.zone(foe, 'graveyard');
+  });
+
+  test('Planes: Celestine Reef — creatures without flying or islandwalk can\'t attack; chaos: you can\'t lose until a player planeswalks', (mk, t) => {
+    t.auto('Celestine Reef');
+    const T = onPlane(mk, 'Celestine Reef');
+    const bear = T.bf('A', 'Grizzly Bears'), bird = T.bf('A', 'Suntail Hawk');
+    t.no(T.g.canAttack(bear), 'the Bears can\'t attack');
+    t.ok(T.g.canAttack(bird), 'a flier can');
+    chaos(T);
+    T.player('A').life = 0;
+    T.g.checkStateBasedActions();
+    t.no(T.player('A').hasLost, 'A at 0 life has not lost');
+    walkTo(T, 'Shiv');
+    T.g.checkStateBasedActions();
+    t.ok(T.player('A').hasLost, 'once a player planeswalks, A loses');
+  });
+
+  test('Planes: Fields of Summer — a caster may gain 2 life; chaos: you may gain 10', (mk, t) => {
+    t.auto('Fields of Summer');
+    const T = onPlane(mk, 'Fields of Summer');
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    t.eq(T.life('A'), 22, 'A gains 2');
+    t.ok(T.asked.some(c => c.type === 'confirm' && c.playerId === 'A'), 'asked of the caster');
+    chaos(T);
+    t.eq(T.life('A'), 32, 'and 10');
+  });
+
+  test('Planes: Grixis — blue, black and red creature cards in your graveyard have unearth for their mana cost; chaos: reanimate any graveyard\'s', (mk, t) => {
+    t.auto('Grixis');
+    const T = onPlane(mk, 'Grixis');
+    const bat = T.grave('A', 'Vampire Nighthawk'), bear = T.grave('A', 'Grizzly Bears');
+    t.ok(T.g.altUsesFor('A', bat.id).some(u => u.via === 'unearth' && u.cost === '{1}{B}{B}'), 'Nighthawk: unearth {1}{B}{B}');
+    t.no(T.g.altUsesFor('A', bear.id).some(u => u.via === 'unearth'), 'the green Bears: none');
+    const theirs = T.grave('B', 'Hill Giant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: theirs.id }] }));
+    chaos(T);
+    t.zone(theirs, 'battlefield');
+    t.eq(theirs.controller, 'A', 'under A\'s control');
+  });
+
+  test('Planes: Horizon Boughs — all permanents untap during each player\'s untap step', (mk, t) => {
+    t.auto('Horizon Boughs');
+    const T = onPlane(mk, 'Horizon Boughs');
+    const land = T.bf('A', 'Forest', { tapped: true });
+    T.nextTurn('B');
+    t.no(land.tapped, 'A\'s Forest untaps in B\'s untap step');
+  });
+
+  test('Planes: Interplanar Tunnel — five planes revealed, one put on top, and walked to', (mk, t) => {
+    t.auto('Interplanar Tunnel');
+    const T = mk({ planechase: true, planar: { A: ['Gavony', 'Interplanar Tunnel', 'Truga Jungle', 'Shiv', 'Krosa', 'Llanowar', 'Turri Island', 'Tazeem'], B: ['Academy at Tolaria West'] } });
+    T.answer('choose', (ch) => ({ picks: [(ch.items || []).find(x => /Krosa/.test(x.label || x.name || ''))?.id || ((ch.items || [])[2] || {}).id] }));
+    walkTo(T, 'Interplanar Tunnel');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(JSON.stringify(upNames(T)), JSON.stringify(['Krosa']), 'walked on to the plane chosen');
+    t.eq(T.g.planarDeck('A').length, 7, 'the rest at the bottom');
+  });
+
+  test('Planes: Inys Haen — planeswalking away returns every land card from graveyards, tapped', (mk, t) => {
+    t.auto('Inys Haen');
+    const T = onPlane(mk, 'Inys Haen', { library: Array(8).fill('Island') });
+    const f = T.grave('A', 'Forest'), i = T.grave('B', 'Island');
+    walkTo(T, 'Shiv');
+    t.zone(f, 'battlefield'); t.zone(i, 'battlefield');
+    t.ok(f.tapped && i.tapped, 'tapped');
+    t.eq(i.controller, 'B', 'under its owner\'s control');
+  });
+
+  test('Planes: Isle of Vesuva — a nontoken creature entering makes its controller a copy', (mk, t) => {
+    t.auto('Isle of Vesuva');
+    const T = onPlane(mk, 'Isle of Vesuva');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(T.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 2, 'the Bears and a copy');
+    t.eq(tokensOf(T, 'A', 'Grizzly Bears').length, 1, 'the copy a token');
+  });
+
+  test('Planes: Izzet Steam Maze — the caster copies an instant or sorcery', (mk, t) => {
+    t.auto('Izzet Steam Maze');
+    const T = onPlane(mk, 'Izzet Steam Maze');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.life('B'), 16, 'two Shocks');
+  });
+
+  test('Planes: Lair of the Ashen Idol — upkeep: sacrifice a creature, or planeswalk', (mk, t) => {
+    t.auto('Lair of the Ashen Idol');
+    const T = onPlane(mk, 'Lair of the Ashen Idol');
+    t.eq(JSON.stringify(upNames(T)), JSON.stringify(['Truga Jungle']), 'A had no creature at the first upkeep: planeswalked on');
+    walkTo(T, 'Lair of the Ashen Idol');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B');
+    t.zone(bear, 'graveyard', 'B sacrificed the Bears');
+    t.eq(JSON.stringify(upNames(T)), JSON.stringify(['Lair of the Ashen Idol']), 'still on the Lair');
+  });
+
+  test('Planes: Lake Silencio — all spells have split second', (mk, t) => {
+    t.auto('Lake Silencio');
+    const T = onPlane(mk, 'Lake Silencio');
+    const o = T.hand('A', 'Ornithopter');
+    T.cast('A', o, { resolve: false });
+    t.ok(T.g.hasKw(o, 'split second'), 'split second on the stack');
+    const shock = T.hand('B', 'Shock');
+    T.mana('B', 'R');
+    t.no(T.g.castSpell('B', shock.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), 'B can\'t respond');
+    T.resolve();
+  });
+
+  test('Planes: Norn\'s Seedcore — on the walk, chaos: the next plane joins it', (mk, t) => {
+    t.auto('Norn\'s Seedcore');
+    const T = onPlane(mk, 'Gavony');
+    walkTo(T, 'Norn\'s Seedcore');
+    t.eq(JSON.stringify(upNames(T)), JSON.stringify(['Norn\'s Seedcore', 'Truga Jungle']), 'both face up');
+  });
+
+  test('Planes: Onakke Catacomb — all creatures are black and have deathtouch', (mk, t) => {
+    t.auto('Onakke Catacomb');
+    const T = onPlane(mk, 'Onakke Catacomb');
+    const bear = T.bf('B', 'Grizzly Bears');
+    t.ok(T.g._cardFitsWords(bear, 'black') && !T.g._cardFitsWords(bear, 'green'), 'black, and no longer green');
+    t.ok(T.g.hasKw(bear, 'deathtouch'), 'deathtouch');
+  });
+
+  test('Planes: Orzhova — planeswalking away returns every creature card from graveyards', (mk, t) => {
+    t.auto('Orzhova');
+    const T = onPlane(mk, 'Orzhova');
+    const a = T.grave('A', 'Grizzly Bears'), b = T.grave('B', 'Hill Giant'), l = T.grave('A', 'Forest');
+    walkTo(T, 'Shiv');
+    t.zone(a, 'battlefield'); t.zone(b, 'battlefield'); t.zone(l, 'graveyard', 'not the land');
+    t.eq(b.controller, 'B');
+  });
+
+  test('Planes: Otaria — instant and sorcery cards in graveyards have flashback for their mana cost', (mk, t) => {
+    t.auto('Otaria');
+    const T = onPlane(mk, 'Otaria');
+    const d = T.grave('A', 'Divination'), s = T.grave('B', 'Shock');
+    t.ok(T.g.altUsesFor('A', d.id).some(u => u.via === 'flashback' && u.cost === '{2}{U}'), 'A: Divination');
+    t.ok(T.g.altUsesFor('B', s.id).some(u => u.via === 'flashback' && u.cost === '{R}'), 'B: Shock, though A controls the plane');
+  });
+
+  test('Planes: Pools of Becoming — chaos: the top three planar cards\' chaos abilities trigger', (mk, t) => {
+    t.auto('Pools of Becoming');
+    const T = onPlane(mk, 'Pools of Becoming');
+    chaos(T);
+    t.eq(tokensOf(T, 'A', 'Dragon').length, 1, 'Shiv\'s chaos: a Dragon');
+    t.eq(JSON.stringify(deckNames(T, 'A')), JSON.stringify(['Truga Jungle', 'Shiv']), 'and they go to the bottom');
+  });
+
+  test('Planes: Reality Shaping — each player may put a permanent card from their hand onto the battlefield', (mk, t) => {
+    t.auto('Reality Shaping');
+    const T = onPlane(mk, 'Gavony');
+    const g = T.hand('A', 'Hill Giant'), h = T.hand('B', 'Grizzly Bears');
+    walkTo(T, 'Reality Shaping');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.zone(g, 'battlefield'); t.zone(h, 'battlefield');
+    t.eq(JSON.stringify(upNames(T)), JSON.stringify(['Truga Jungle']), 'and on from the phenomenon');
+  });
+
+  test('Planes: Sanctum of Serra — chaos: you may have your life total become 20', (mk, t) => {
+    t.auto('Sanctum of Serra');
+    const T = onPlane(mk, 'Sanctum of Serra');
+    T.player('A').life = 5;
+    chaos(T);
+    t.eq(T.life('A'), 20);
+  });
+
+  test('Planes: Sea of Sand — draws revealed; a land drawn gains 3, a nonland loses 3', (mk, t) => {
+    t.auto('Sea of Sand');
+    const T = onPlane(mk, 'Sea of Sand');
+    T.top('A', 'Forest');
+    T.g._drawCards(T.player('A'), 1); T.resolve();
+    t.eq(T.life('A'), 23, 'a land: +3');
+    T.top('A', 'Grizzly Bears');
+    T.g._drawCards(T.player('A'), 1); T.resolve();
+    t.eq(T.life('A'), 20, 'a nonland: -3');
+    t.ok(T.g.log.some(l => /reveals Grizzly Bears as they draw it/.test(l.text)), 'revealed');
+  });
+
+  test('Planes: Spatial Merging — planeswalk to the next two planes at once', (mk, t) => {
+    t.auto('Spatial Merging');
+    const T = onPlane(mk, 'Gavony');
+    walkTo(T, 'Spatial Merging');
+    t.eq(JSON.stringify(upNames(T)), JSON.stringify(['Shiv', 'Truga Jungle']), 'both face up');
+  });
+
+  test('Planes: Spectrox Mines — chaos: a Food and a 2/2 Human Rogue', (mk, t) => {
+    t.auto('Spectrox Mines');
+    const T = onPlane(mk, 'Spectrox Mines');
+    chaos(T);
+    t.eq(tokensOf(T, 'A', 'Food').length, 1, 'a Food');
+    t.eq(tokensOf(T, 'A').filter(o => /Rogue/.test(o.card.type_line)).length, 1, 'a Rogue');
+  });
+
+  test('Planes: Strixhaven — chaos: an instant or sorcery card from a graveyard to its owner\'s hand', (mk, t) => {
+    t.auto('Strixhaven');
+    const T = onPlane(mk, 'Strixhaven');
+    const s = T.grave('B', 'Shock');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: s.id }] }));
+    chaos(T);
+    t.zone(s, 'hand');
+    t.eq(s.owner, 'B');
+  });
+
+  test('Planes: Stronghold Furnace — damage doubled; chaos: 1 damage to any target, doubled', (mk, t) => {
+    t.auto('Stronghold Furnace');
+    const T = onPlane(mk, 'Stronghold Furnace');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    chaos(T);
+    t.eq(T.life('B'), 18);
+  });
+
+  test('Planes: TARDIS Bay — the first spell of mana value 2 or more on your turn has cascade', (mk, t) => {
+    t.auto('TARDIS Bay');
+    const T = onPlane(mk, 'TARDIS Bay');
+    T.top('A', 'Grizzly Bears');
+    T.mana('A', '3R');
+    T.cast('A', T.hand('A', 'Hill Giant'));
+    t.ok(T.bfOf('A').some(o => o.name === 'Grizzly Bears'), 'cascaded into the Bears');
+  });
+
+  test('Planes: The Caldaia — creature spells from your hand have blitz {3}', (mk, t) => {
+    t.auto('The Caldaia');
+    const T = onPlane(mk, 'The Caldaia');
+    const g = T.hand('A', 'Hill Giant');
+    t.ok(T.g.altUsesFor('A', g.id).some(u => u.via === 'blitz' && u.cost === '{3}'), 'blitz {3}');
+  });
+
+  test('Planes: The Western Cloud — damage to your creatures prevented; chaos: three Treasures deal 1 each', (mk, t) => {
+    t.auto('The Western Cloud');
+    const T = onPlane(mk, 'The Western Cloud');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Grizzly Bears');
+    chaos(T);
+    t.eq(tokensOf(T, 'A', 'Treasure').length, 3, 'three Treasures');
+    t.zone(mine, 'battlefield', 'A\'s Bears unhurt');
+    t.zone(theirs, 'graveyard', 'B\'s Bears dead');
+  });
+
+  test('Planes: Time Distortion — the turn order reversed', (mk, t) => {
+    t.auto('Time Distortion');
+    const T = mk({ planechase: true, players: ['A', 'B', 'C'], planar: { A: ['Gavony', 'Time Distortion', 'Truga Jungle'], B: ['Krosa'], C: ['Shiv'] } });
+    walkTo(T, 'Time Distortion');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(JSON.stringify(T.g.turnOrder), JSON.stringify(['C', 'B', 'A']), 'reversed');
+    t.eq(T.g.activePlayer.id, 'A', 'still A\'s turn');
+    T.nextTurn('C');
+    t.eq(T.g.turn, 2, 'C\'s turn comes next');
+  });
+
+  test('Planes: Trail of the Mage-Rings — instants and sorceries have rebound', (mk, t) => {
+    t.auto('Trail of the Mage-Rings');
+    const T = onPlane(mk, 'Trail of the Mage-Rings');
+    const s = T.hand('A', 'Shock');
+    T.mana('A', 'R');
+    T.cast('A', s, { targets: ['B'] });
+    t.zone(s, 'exile', 'exiled with rebound');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.life('B'), 16, 'cast again at the upkeep');
+  });
+
+  test('Planes: Unleash the Flux — each player sacrifices a nonland permanent, again for each lost flip', (mk, t) => {
+    t.auto('Unleash the Flux');
+    const T = onPlane(mk, 'Gavony');
+    const a = T.bf('A', 'Ornithopter'), a2 = T.bf('A', 'Ornithopter'), b = T.bf('B', 'Ornithopter');
+    const flips = [false, true];
+    T.g._flipOne = () => flips.shift();
+    walkTo(T, 'Unleash the Flux');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq([a, a2].filter(o => o.zone === 'graveyard').length, 2, 'A sacrificed twice');
+    t.zone(b, 'graveyard');
+  });
+
+  test('Planes: Unyaro — walked to this turn: at your end step every creature untaps and phases out until a player planeswalks', (mk, t) => {
+    t.auto('Unyaro');
+    const T = onPlane(mk, 'Gavony');
+    walkTo(T, 'Unyaro');
+    const bear = T.bf('A', 'Grizzly Bears', { tapped: true }), foe = T.bf('B', 'Hill Giant');
+    T.toMain('A', 'end'); T.resolve();
+    t.ok(bear.phasedOut && foe.phasedOut, 'phased out');
+    t.no(bear.tapped, 'untapped');
+    T.nextTurn('B');
+    t.ok(bear.phasedOut, 'still out at B\'s turn');
+    walkTo(T, 'Krosa');
+    t.no(bear.phasedOut || foe.phasedOut, 'back once B planeswalks');
+  });
+
+  test('Planes: Agyrem — chaos: creatures can\'t attack you until a player planeswalks', (mk, t) => {
+    t.auto('Agyrem');
+    const T = onPlane(mk, 'Agyrem');
+    const foe = T.bf('B', 'Hill Giant');
+    chaos(T);
+    t.ok(T.g._cantAttackYou(foe, 'A'), 'B\'s creatures can\'t attack A');
+    walkTo(T, 'Shiv');
+    t.no(T.g._cantAttackYou(foe, 'A'), 'until a player planeswalks');
+  });
+
+  test('Planes: Eloren Wilds — chaos: target player can\'t cast spells until a player planeswalks', (mk, t) => {
+    const T = onPlane(mk, 'Eloren Wilds');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    chaos(T);
+    const s = T.hand('B', 'Shock');
+    t.no(T.g.canCast('B', s.id).ok, 'B can\'t cast');
+    walkTo(T, 'Shiv');
+    t.ok(T.g.canCast('B', s.id).reason !== "You can't cast spells until a player planeswalks.", 'until a player planeswalks');
+  });
+
+  test('Planes: Naya — any number of lands; chaos: +1/+1 for each land you control', (mk, t) => {
+    t.auto('Naya');
+    const T = onPlane(mk, 'Naya');
+    t.ok(T.g.landAllowance(T.player('A')) > 10, 'any number of lands');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Forest');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    chaos(T);
+    t.eq(T.g.powerOf(bear), 5, 'three lands: +3/+3');
+  });
+
+  test('Planes: Kessig — non-Werewolves deal no combat damage; chaos: +2/+2, trample, and Werewolves', (mk, t) => {
+    t.auto('Kessig');
+    const T = onPlane(mk, 'Kessig');
+    const bear = T.bf('A', 'Grizzly Bears');
+    chaos(T);
+    t.eq(T.g.powerOf(bear), 4, '+2/+2');
+    t.ok(T.g.hasKw(bear, 'trample'), 'trample');
+    t.ok(T.g._hasCreatureType(bear, 'Werewolf'), 'a Werewolf');
+    const g2 = T.bf('A', 'Hill Giant');
+    g2.summoningSick = false; bear.summoningSick = false;
+    T.answer('declareAttackers', [{ attackerId: g2.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 16, 'only the Werewolf\'s 4');
+  });
+
+  test('Planes: The Dark Barony — a nonblack card put into a graveyard costs its owner 1 life', (mk, t) => {
+    const T = onPlane(mk, 'The Dark Barony');
+    const s = T.hand('B', 'Shock'), bat = T.hand('B', 'Vampire Nighthawk');
+    T.g.moveObject(s, 'graveyard'); T.resolve();
+    t.eq(T.life('B'), 19, 'Shock: 1');
+    T.g.moveObject(bat, 'graveyard'); T.resolve();
+    t.eq(T.life('B'), 19, 'a black card: nothing');
+  });
+
+  test('Planes: Selesnya Loft Gardens — tokens and counters doubled for everybody', (mk, t) => {
+    const T = onPlane(mk, 'Selesnya Loft Gardens');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.eq(tokensOf(T, 'A', 'Soldier').length, 4, 'two Soldiers made four');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1);
+    t.eq(Number(bear.counters['+1/+1']) || 0, 2, 'one counter made two, on B\'s creature too');
+  });
+
+  test('Planes: Stairs to Infinity — chaos: the top planar card revealed, and put on the bottom if you like', (mk, t) => {
+    const T = onPlane(mk, 'Stairs to Infinity');
+    chaos(T);
+    t.eq(JSON.stringify(deckNames(T, 'A')), JSON.stringify(['Shiv', 'Truga Jungle']), 'Truga Jungle to the bottom');
+    t.ok(T.g.log.some(l => /reveals the top card of their planar deck: Truga Jungle/.test(l.text)), 'revealed');
+  });
+
+  test('Planes: Minamo — a caster may draw a card', (mk, t) => {
+    const T = onPlane(mk, 'Minamo', { library: Array(8).fill('Island') });
+    const h0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'a card drawn');
+  });
 };
