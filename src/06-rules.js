@@ -13327,7 +13327,7 @@
         case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
         // Hawkeye, Young Avenger: "that much damage plus X, where X is Hawkeye's power"
         case 'addSelfPower': ev.n = Math.max(0, (ev.n || 0) + (src.zone === 'battlefield' ? this.powerOf(src) : 0)); break;
-        case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
+        case 'toZone': ev.zone = ef.zone; if (ef.withCounter) { ev.withCounter = ef.withCounter; if (ef.withCounterN) ev.withCounterN = ef.withCounterN; }
           // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
           if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
@@ -16484,7 +16484,7 @@
         if (toZone !== 'stack') o._bottomFromStack = false;
       }
       // "if a card would be put into a graveyard, exile it instead" and friends
-      let markCounter = null;
+      let markCounter = null, markCounterN = 1;
       let exiledWith = null;
       if (!opts.noReplace) {
         const ev = this._replace({ kind: 'zoneChange', object: o, from, zone: toZone,
@@ -16492,6 +16492,8 @@
         if (ev.cancelled) return o;
         toZone = ev.zone;
         markCounter = ev.withCounter || null;
+        // (Darigaaz Reincarnated: "with three egg counters on it" — withCounterN)
+        markCounterN = ev.withCounterN || 1;
         exiledWith = toZone === 'exile' ? ev.exiledWith || null : null;
         // Blightsteel Colossus, Nexus of Fate: shuffled back in, from anywhere
         if (toZone === 'graveyard') {
@@ -16925,7 +16927,7 @@
         this.logEvent('zone', `${o.name} is revealed and shuffled into its owner's library.`);
       }
       // "instead exile it with a void counter on it"
-      if (markCounter && o.zone === toZone) o.counters[markCounter] = (Number(o.counters[markCounter]) || 0) + 1;
+      if (markCounter && o.zone === toZone) o.counters[markCounter] = (Number(o.counters[markCounter]) || 0) + markCounterN;
       this.emit('zone:change', { object: o, from, to: toZone });
       return o;
     }
@@ -21476,6 +21478,8 @@
             .filter(o => o && o.zone === 'graveyard' && (e.anyOwner || o.owner === ctx.controller) &&
               (!e.filter || e.filter === 'any' || this._cardFitsWords(o, e.filter)) &&
               (!e.mvParity || (((o.card && o.card.cmc) || 0) % 2 === 0) === (e.mvParity === 'even')) &&
+              // The Fifteenth Doctor: "with mana value 2 or 3" (mvIn)
+              (!e.mvIn || e.mvIn.includes((o.card && o.card.cmc) || 0)) &&
               // Rosheen, Roaring Prophet: "a card with {X} in its mana cost" (xCost)
               (!e.xCost || /\{X\}/.test(((o.card || {}).mana_cost) || '') || (((o.card || {}).card_faces) || []).some(f => f && /\{X\}/.test(f.mana_cost || ''))));
           if (!pool.length) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
@@ -22672,6 +22676,8 @@
                   if (def) { c.attacking = def; this.combat.attackers.push(c.id); }
                 }
                 this._lastPut = c.id;
+                // Jhoira, Weatherlight Corsair: "and lose life equal to that permanent's mana value" (loseMv)
+                if (e.loseMv && c.zone === 'battlefield' && me) { const mv = (c.card && c.card.cmc) || 0; if (mv > 0) this.changeLife(me, -mv); }
               }
             }
             if (e.rest === 'graveyard') for (const c of rest) this.moveObject(c, 'graveyard');

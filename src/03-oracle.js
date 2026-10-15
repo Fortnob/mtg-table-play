@@ -1087,6 +1087,10 @@
     /* Hei Bai, Forest Guardian: "You may put that card onto the battlefield. Then shuffle." — the cards stay where they
        are if not, for the shuffle after (optional, rest stay) */
     if (/^You may put that card onto the battlefield\.?$/i.test(rest) && w === 'reveal') return Object.assign(e, { dest: 'battlefield', optional: true, rest: 'stay' });
+    /* Jhoira, Weatherlight Corsair: "You put that card onto the battlefield under your control and lose life equal to that
+       permanent's mana value. That player puts the rest of the revealed cards on the bottom …" (loseMv) */
+    if (w !== 'reveal' && /^You put that card onto the battlefield under your control and lose life equal to that permanent'?s mana value\. That player puts the rest of the revealed cards on the bottom of their library in a random order\.?$/i.test(rest))
+      return Object.assign(e, { dest: 'battlefield', tapped: false, rest: 'bottom', loseMv: true });
     const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
     if (!put) return null;
     e.dest = /hand/i.test(put[1]) ? 'hand' : 'battlefield';
@@ -6867,6 +6871,11 @@
     { re: /^You may reveal any number of ([A-Za-z]+ )?cards( of the chosen type)? from among them and put (?:the revealed cards|them) into your hand\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any',
         to: 'hand', optional: true, rest: 'keep', prompt: 'Choose any number to put into your hand.' }, m[2] ? { ofChosenType: true } : {}) },
+    /* Tazri, Beacon of Unity: "You may reveal up to two Cleric, Rogue, Warrior, Wizard, and/or Ally cards from among them
+       and put them into your hand." — any of those types */
+    { re: /^You may reveal up to (two|three|four) ((?:[A-Z][a-z]+, )+(?:and\/or|or) [A-Z][a-z]+) cards from among them and put them into your hand\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: m[2].replace(/,? (?:and\/or|or) /g, ' or ').replace(/, /g, ' or ').toLowerCase(),
+        to: 'hand', optional: true, rest: 'keep', prompt: `Choose up to ${m[1]} ${m[2]} cards to put into your hand.` }) },
     /* Radagast the Brown: "You may reveal a creature card that doesn't share a creature type with a creature you control
        from among those cards and put it into your hand." (noSharedType) */
     { re: /^You may reveal a creature card that doesn'?t share a creature type with a creature you control from among (?:them|those cards) and put it into your hand\.?$/i,
@@ -11888,6 +11897,11 @@
        the chosen player." — any player but the one who cast it (notTriggerPlayer) */
     { re: /^Choose another target player\. (?:CARDNAME|It) deals damage equal to that spell'?s mana value to the chosen player\.?$/i,
       make: () => [{ op: 'damage', n: { triggerSpellMv: true }, targets: [{ type: 'player', notTriggerPlayer: true }] }] },
+    /* Darigaaz Reincarnated: "remove an egg counter from it. Then if this card has no egg counters on it, return it to
+       the battlefield." — the exiled card itself, back under its owner's control */
+    { re: /^Remove an? ([a-z]+) counter from it\. Then if this card has no \1 counters on it, return it to the battlefield\.?$/i,
+      make: (m) => [{ op: 'counters', kind: m[1].toLowerCase(), n: -1, scope: 'self' },
+        { op: 'ifCond', cond: { kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() }, then: [{ op: 'returnSelfFromGrave', fromZone: 'exile', owner: true }] }] },
     /* Nissa, Resurgent Animist: "Then if this is the second time this ability has resolved this turn, reveal cards from
        the top of your library until you reveal an Elf or Elemental card. Put that card into your hand and the rest on
        the bottom of your library in a random order." — both sentences are what the "if" is about */
@@ -11904,7 +11918,7 @@
        bottom of your library in a random order." Dig until one fits (or
        two, or X); "Its controller reveals …" after a Polymorph. */
     // (Sméagol, Helpful Guide: "target opponent reveals cards … until they reveal a land card. Put that card onto the battlefield tapped under your control …")
-    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|You may put|The player puts|That player puts)[^.]+)?\.?)(?:\s+([\s\S]+))?$/,
+    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|You may put|The player puts|That player puts)[^.]+|\.\s+You put that card [^.]+\.\s+That player puts the rest of the revealed cards [^.]+)?\.?)(?:\s+([\s\S]+))?$/,
       make: (m) => {
         const e = revealUntilOf(m[2]);
         if (!e) return null;
@@ -12064,6 +12078,11 @@
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?put a card with \{X\} in its mana cost from among (?:them|the milled cards) into your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
         { op: 'takeFromMilled', n: 1, filter: 'any', xCost: true, optional: !!m[2], prompt: 'Choose a card with {X} in its mana cost to put into your hand.' }] },
+    // The Fifteenth Doctor: "mill three cards. You may put an artifact card with mana value 2 or 3 from among them into your hand." (mvIn)
+    { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?put an? ([a-z ]*?)card with mana value (\d+) or (\d+) from among (?:them|the milled cards) into your hand\.?$/i,
+      make: (m) => { const f = m[3].trim().toLowerCase() || 'any';
+        return [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'takeFromMilled', n: 1, filter: f, mvIn: [+m[4], +m[5]], optional: !!m[2],
+          prompt: `Choose ${f === 'any' ? 'a' : /^[aeiou]/.test(f) ? 'an ' + f : 'a ' + f} card with mana value ${m[4]} or ${m[5]} to put into your hand.` }]; } },
     /* Lluwen, Imperfect Naturalist: "mill four cards, then you may put a creature or land card from among the milled
        cards on top of your library" (takeFromMilled to the top) */
     { re: /^Mill (two|three|four|five|six|\d+) cards, then (you may )?put an? ([a-z, ]*?)card from among (?:them|the milled cards) on top of your library\.?$/i,
@@ -14408,8 +14427,10 @@
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Risona, Asari Commander: "if it doesn't have an indestructible counter on it"
     [/^(?:it|this creature|CARDNAME) doesn'?t have an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Darigaaz Reincarnated: "if this card is exiled with an egg counter on it" — a trigger that works from exile (fromExile, analyze)
+    [/^this card is exiled with an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
     // Blaster, Morale Booster: "If Blaster has no +1/+1 counters on it"
-    [/^(?:this creature|this permanent|CARDNAME) has no ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    [/^(?:this creature|this permanent|CARDNAME|this card) has no ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // Arixmethes: "CARDNAME has a slumber counter on it"; War Balloon: "this Vehicle has three or more fire counters on it"
     // (Captain America, Super-Soldier: "has a shield counter on him" — counterOnHim)
@@ -14850,8 +14871,8 @@
     [/^(\w+) or more creatures died this turn$/i, (m) => ({ kind: 'diedCount', n: num(m[1]) })],
     // Lunar Convocation: "you gained and lost life this turn"
     [/^you gained and lost life this turn$/i, () => ({ kind: 'all', of: [{ kind: 'gainedLifeThisTurn' }, { kind: 'lostLifeThisTurn' }] })],
-    // Thornfist Striker: "you gained life this turn"
-    [/^you(?:'ve| have)? gained life this turn$/i, () => ({ kind: 'gainedLifeThisTurn' })],
+    // Thornfist Striker: "you gained life this turn"; Regna, the Redeemer: "your team gained life this turn" — yours, with no teams
+    [/^(?:you(?:'ve| have)?|your team) gained life this turn$/i, () => ({ kind: 'gainedLifeThisTurn' })],
     // Syr Ginger: "as long as an opponent controls a planeswalker"
     [/^an opponent controls an? ([a-z]+)$/i, (m) => ({ kind: 'control', what: m[1].toLowerCase(), n: 1, who: 'opponents' })],
     // Pestilence: "if no creatures are on the battlefield"
@@ -16449,7 +16470,7 @@
          Janeway: "Whenever Captain Janeway … enters" — a legend with no comma
          in its name, called by its first name (or first and last), where a
          verb about it follows. A word that is also one of its types (Sliver
-         Hivelord's "Sliver creatures") or a title is not a name. */
+         Hivelord's "Sliver creatures") or a title is not a name. (Darigaaz Reincarnated: "If Darigaaz would die") */
       if (!full.includes(',') && !/^([A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.test(full)) {
         const parts = full.split(/\s+/);
         const subs = new Set((tl.subtypes || []).map(x => x.toLowerCase()));
@@ -16457,7 +16478,7 @@
         for (const c of cands) {
           if (c.length < 3 || /^(?:The|A|An|King|Queen|Lord|Lady|Sir|General|Captain|Dr\.|Doctor|Professor|Mister|Miss)$/.test(c) || subs.has(c.toLowerCase())) continue;
           text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(c) +
-            "(?=(?:'s\\s+(?:power|toughness|base)|\\s+(?:enters|attacks|blocks|deals|dies|can't|can|gets|gains|has|is|isn't|doesn't|becomes|and|or|leaves))\\b)", 'g'), 'CARDNAME');
+            "(?=(?:'s\\s+(?:power|toughness|base)|\\s+(?:enters|attacks|blocks|deals|dies|can't|can|gets|gains|has|is|isn't|doesn't|becomes|and|or|leaves|would))\\b)", 'g'), 'CARDNAME');
           // Zurgo Helmsmasher: "dealt damage by Zurgo this turn", "a +1/+1 counter on Zurgo."; Henrika Domnathi: "Transform Henrika."
           text = text.replace(new RegExp('(?<=\\b(?:on|by|to|untap|tap|exile|sacrifice|return|destroy|[Tt]ransform) )' + escapeRe(c) + '(?=[.,]|\\s+this turn\\b)', 'g'), 'CARDNAME');
         }
@@ -18803,6 +18824,8 @@
       if (ab.fromGraveyard) { out.graveTriggers = true; continue; }
       // (Senu, Keen-Eyed Protector: "if this card is exiled" — from exile only)
       if (ab.fromExile) { out.exileTriggers = true; continue; }
+      // (Darigaaz Reincarnated: "At the beginning of your upkeep, if this card is exiled with an egg counter on it, …")
+      if (/^At the beginning of [^,]+, if this card is exiled\b/i.test(ab.text)) { ab.fromExile = true; out.exileTriggers = true; continue; }
       if (/^When(?:ever)? (?:this creature|CARDNAME|this card) (?:dies|is put into)/i.test(ab.text)) continue;
       // (Syrix, Carrier of the Flame: "cast this card from your graveyard")
       if (/\b(?:return|exile|cast) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
@@ -20243,6 +20266,10 @@
     // Possessed Skaab: "If this creature would die, exile it instead."
     { re: /^If (?:CARDNAME|this creature) would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile' }) },
+    // Darigaaz Reincarnated: "If Darigaaz would die, instead exile it with three egg counters on it." (withCounter, withCounterN)
+    { re: /^If (?:CARDNAME|this creature) would die, instead exile it with (an?|one|two|three|four|five|\d+) ([a-z]+) counters? on it\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile',
+        withCounter: m[2].toLowerCase(), withCounterN: /^an?$/i.test(m[1]) ? 1 : num(m[1]) }) },
     { re: /^If a creature would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dieExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
     // Kumano, Frostwielder: "If a creature dealt damage by this creature this turn would die, exile it instead."
