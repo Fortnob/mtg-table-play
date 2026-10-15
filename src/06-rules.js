@@ -9873,10 +9873,13 @@
         const card = tx && tx.kind !== 'player' && this.obj(tx.id);
         if (card) opts = Object.assign({}, opts, { x: ((card.card && card.card.cmc) || 0) - specsX[ix].mvXPlus });
       }
+      /* Diaochan, Artful Beauty: "target creature of an opponent's choice" — a target another player chooses as it is
+         activated: the activator's own targets first, then that one asked (_askOtherTarget, chosenBy) */
+      const otherAt = ab.kind !== 'mana' && !opts._otherDone ? effectSpecs(ab.effects).findIndex(sp => sp && sp.chosenBy === 'opponent') : -1;
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
         this._specX = opts.x || 0;
-        const bad = this._illegalTargets(effectSpecs(ab.effects), opts.targets, playerId, o);
+        const bad = this._illegalTargets(effectSpecs(ab.effects).filter((_, i) => i !== otherAt), opts.targets, playerId, o);
         this._specX = null;
         if (bad) return this.fail(bad);
         /* Mishra's Helix: "{X}, {T}: Tap X target lands" — as many targets as X */
@@ -9909,6 +9912,8 @@
         if (ab.kind === 'loyalty' && this._loyaltyDelta(ab, opts, playerId) < 0 && (Number(o.counters.loyalty) || 0) < -this._loyaltyDelta(ab, opts, playerId))
           return this.fail(`${o.name} does not have enough loyalty.`);
       }
+
+      if (otherAt >= 0) return this._askOtherTarget(playerId, o, abilityIndex, ab, otherAt, opts);
 
       // the storage lands: how many counters come off is the X of what it makes
       const rc = ab.cost && ab.cost.removeCounters;
@@ -10049,6 +10054,42 @@
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
       this._resetPriority();
+      return true;
+    }
+
+    /**
+     * Diaochan, Artful Beauty: "target creature of an opponent's choice" (CR 601.2c, 602.2b) — chosen as the ability is
+     * activated, before anything is paid: its activator says which opponent when there are several (purpose
+     * 'otherChooser', opts._otherChooser), and that opponent picks the target among those legal for the activator's
+     * ability (purpose 'otherTarget'); the activation then starts again with every target (opts._otherDone).
+     */
+    _askOtherTarget(playerId, o, abilityIndex, ab, at, opts) {
+      const foes = this.opponentsOf(playerId).filter(q => !q.hasLost);
+      if (!foes.length) return this.fail('There is no opponent to choose a target.');
+      const sp = effectSpecs(ab.effects)[at];
+      const plain = Object.assign({}, sp, { chosenBy: null });
+      this._specX = opts.x || 0;
+      const legal = this._legalTargetsFor(plain, playerId, o.id);
+      this._specX = null;
+      if (!legal.length) return this.fail(`${o.name} needs a target for an opponent to choose.`);
+      const keep = JSON.parse(JSON.stringify(Object.assign({}, opts)));
+      delete keep._otherChooser;
+      const what = (ab.effects || []).find(e => (e.targets || []).includes(sp)) || {};
+      const chooser = foes.find(q => q.id === opts._otherChooser) || (foes.length === 1 ? foes[0] : null);
+      const about = { objId: o.id, abilityIndex, actOpts: keep, sourceId: o.id, sourceName: o.name, sourceCard: o.card };
+      if (!chooser) {
+        this.queueChoice(Object.assign(MTG.choice.normalize({ type: 'choose', playerId, purpose: 'otherChooser', kind: 'players',
+          items: this._choosePlayers(foes), min: 1, max: 1,
+          sourceText: what.text || ab.text || null,
+          prompt: `${o.name}: choose an opponent. They choose its target ${sp.filter || 'creature'} of an opponent's choice.` }), about));
+        return true;
+      }
+      const me = this.player(playerId);
+      this.queueChoice(Object.assign({ type: 'pickTarget', playerId: chooser.id, purpose: 'otherTarget', activator: playerId, at, op: what.op || null,
+        specs: [plain], options: [legal], count: 1,
+        // (the ability, whole, goes with it: sourceText)
+        sourceText: what.text || ab.text || null,
+        prompt: `${me.name}'s ${o.name}: choose its target ${sp.filter || 'creature'} of an opponent's choice.` }, about));
       return true;
     }
 
@@ -37833,6 +37874,15 @@
             if (!this.declareAttackers(playerId, w.declarations, w.opts)) { this.emit('choice', this.pendingChoice); this.touch(); }
             return true;
           }
+          // Diaochan, Artful Beauty: the opponent who chooses the other target — the activation starts again (_askOtherTarget)
+          if (ch.purpose === 'otherChooser') {
+            this.pendingChoice = null;
+            if (!this.activateAbility(playerId, ch.objId, ch.abilityIndex, Object.assign({}, ch.actOpts, { _otherChooser: got.picks[0] })))
+              this.logEvent('rules', `${(this.player(playerId) || {}).name} can't activate ${(this.obj(ch.objId) || {}).name || 'that'}: ${String(this.lastError || 'not now').replace(/\.$/, '')}.`);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
           // Deadpool, Trading Card: the creature picked as it entered, if any, exchanges text boxes with it
@@ -38302,6 +38352,23 @@
         }
         // targets for the spell cascade found, which is cast now
         case 'pickTarget': {
+          /* Diaochan, Artful Beauty: the target an opponent chose for another player's ability — its activation starts
+             again with it, in its place among the others (_askOtherTarget) */
+          if (ch.purpose === 'otherTarget') {
+            const raw = ((data && data.targets) || [])[0];
+            const t = typeof raw === 'string' ? (this.player(raw) ? { kind: 'player', id: raw } : { kind: 'object', id: raw }) : raw;
+            const ok = t && ((ch.options || [])[0] || []).some(x => x && x.kind === t.kind && x.id === t.id);
+            if (!ok) return this.fail('Choose one of the targets offered.');
+            this.pendingChoice = null;
+            const tg = ((ch.actOpts && ch.actOpts.targets) || []).slice();
+            tg.splice(Math.min(ch.at, tg.length), 0, { kind: t.kind, id: t.id });
+            this.logEvent('rules', `${(this.player(playerId) || {}).name} chooses ${this.describeTarget(t)} for ${(this.obj(ch.objId) || {}).name || 'that'}.`);
+            if (!this.activateAbility(ch.activator, ch.objId, ch.abilityIndex, Object.assign({}, ch.actOpts, { targets: tg, _otherDone: true })))
+              this.logEvent('rules', `${(this.player(ch.activator) || {}).name} can't activate ${(this.obj(ch.objId) || {}).name || 'that'}: ${String(this.lastError || 'not now').replace(/\.$/, '')}.`);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           // the targets of a modal spell's chosen modes, asked as it is cast: the cast starts again with them
           if (ch.purpose === 'castTargets') {
             const tg = ((data && data.targets) || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).filter(Boolean);

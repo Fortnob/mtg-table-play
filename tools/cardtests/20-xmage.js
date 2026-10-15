@@ -66180,4 +66180,79 @@ module.exports = (test) => {
     t.eq(T.life('B'), 20 - 6, 'Aradesh: 3 twice');
     t.ok(T.zone('A', 'hand').length <= hand2 + 1);
   });
+
+  test("Commanders: Diaochan, Artful Beauty — the second target is the opponent's to choose, as it is activated", (mk, t) => {
+    t.auto('Diaochan, Artful Beauty');
+    const T = mk();
+    const g = T.g;
+    const dc = T.bf('A', 'Diaochan, Artful Beauty');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    const elf = T.bf('B', 'Llanowar Elves');
+    const scout = T.bf('B', 'Gladecover Scout');
+    t.ok(g.activateAbility('A', dc.id, 0, { auto: true, targets: [{ kind: 'object', id: giant.id }] }), 'Diaochan: activated with its own target');
+    const q = g.pendingChoice;
+    t.ok(q && q.type === 'pickTarget' && q.purpose === 'otherTarget' && q.playerId === 'B', "Diaochan: B is asked");
+    t.no(dc.tapped, 'Diaochan: nothing paid before the target is chosen');
+    t.eq(g.stack.length, 0);
+    const offered = q.options[0].map(x => x.id);
+    t.ok(offered.includes(bear.id) && offered.includes(giant.id) && offered.includes(dc.id) && offered.includes(elf.id), 'Diaochan: any creature, the first target too');
+    t.no(offered.includes(scout.id), "Diaochan: not a hexproof creature of B's — it is A's ability");
+    t.ok(/opponent's choice/.test(q.prompt), 'Diaochan: says what it is');
+    t.no(g.resolveChoice('B', { targets: [{ kind: 'object', id: scout.id }] }), 'Diaochan: not a target that was not offered');
+    g.resolveChoice('B', { targets: [{ kind: 'object', id: bear.id }] });
+    t.ok(dc.tapped, 'Diaochan: tapped once activated');
+    t.eq(g.stack.length, 1);
+    t.eq(g.stack[0].targets.map(x => x.id).join(), [giant.id, bear.id].join(), 'Diaochan: its targets in order');
+    T.resolve();
+    t.zone(giant, 'graveyard'); t.zone(bear, 'graveyard');
+    t.zone(elf, 'battlefield');
+  });
+
+  test("Commanders: Diaochan, Artful Beauty — when, which opponent, a bot's choice", (mk, t) => {
+    const M = require('../harness').engine();
+    let T = mk();
+    let g = T.g;
+    let dc = T.bf('A', 'Diaochan, Artful Beauty');
+    T.bf('B', 'Hill Giant');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = g.battlefield.find(o => o.name === 'Hill Giant');
+    // B's bot points it at A's best creature
+    T.player('B').isBot = true;
+    const bot = new M.bots.BotPlayer(g, 'B', 8);
+    t.ok(g.activateAbility('A', dc.id, 0, { auto: true, targets: [{ kind: 'object', id: giant.id }] }));
+    t.eq(g.pendingChoice && g.pendingChoice.playerId, 'B');
+    bot.doChoice(g.pendingChoice);
+    t.no(g.pendingChoice);
+    t.ok(g.stack.length === 1 && g.stack[0].targets[1].id !== giant.id, "Diaochan: the bot picks one of A's creatures");
+    T.resolve();
+    t.zone(giant, 'graveyard');
+    t.ok(bear.zone === 'graveyard' || dc.zone === 'graveyard', "Diaochan: one of A's creatures goes");
+    // not after attackers are declared, not in an opponent's turn
+    T = mk();
+    g = T.g;
+    dc = T.bf('A', 'Diaochan, Artful Beauty');
+    const g2 = T.bf('B', 'Hill Giant');
+    const atk = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: atk.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(g.activateAbility('A', dc.id, 0, { auto: true, targets: [{ kind: 'object', id: g2.id }] }), 'Diaochan: not after attackers are declared');
+    T.nextTurn('B');
+    t.no(g.activateAbility('A', dc.id, 0, { auto: true, targets: [{ kind: 'object', id: g2.id }] }), "Diaochan: not in B's turn");
+    // three players: A picks the opponent who chooses
+    T = mk({ players: ['A', 'B', 'C'] });
+    g = T.g;
+    dc = T.bf('A', 'Diaochan, Artful Beauty');
+    const g3 = T.bf('B', 'Hill Giant');
+    const b3 = T.bf('A', 'Grizzly Bears');
+    t.ok(g.activateAbility('A', dc.id, 0, { auto: true, targets: [{ kind: 'object', id: g3.id }] }));
+    const q = g.pendingChoice;
+    t.ok(q && q.type === 'choose' && q.purpose === 'otherChooser' && q.playerId === 'A', 'Diaochan: A chooses the opponent');
+    t.eq(q.items.map(x => x.id).join(), 'B,C');
+    g.resolveChoice('A', { picks: ['C'] });
+    t.ok(g.pendingChoice && g.pendingChoice.purpose === 'otherTarget' && g.pendingChoice.playerId === 'C', 'Diaochan: C chooses');
+    g.resolveChoice('C', { targets: [{ kind: 'object', id: b3.id }] });
+    T.resolve();
+    t.zone(g3, 'graveyard'); t.zone(b3, 'graveyard');
+  });
 };

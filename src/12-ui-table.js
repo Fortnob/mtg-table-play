@@ -2789,7 +2789,8 @@
         for (const e of (list || [])) {
           if (!e) continue;
           if (e.op === 'sequence') { walk(e.list); continue; }
-          for (const s of (e.targets || [])) if (s) out.push(s);
+          // (Diaochan, Artful Beauty: "of an opponent's choice" — theirs to choose, asked once it is activated: chosenBy)
+          for (const s of (e.targets || [])) if (s && !s.chosenBy) out.push(s);
         }
       };
       walk(effects);

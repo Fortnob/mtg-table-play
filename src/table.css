@@ -928,7 +928,8 @@
 :root[data-phone] .me-hud .hud-who, :root[data-phone] .seat-hud .hud-who .hud-sub { display: none; }
 :root[data-phone] .pile { width: 28px; height: 39px; }
 :root[data-phone] .action-dock { width: 150px; right: 8px; bottom: calc(var(--hand-peek) + 6px); }
-:root[data-phone] .big-btn { height: 48px; font-size: 14px; }
+/* (its height is the desktop's least, and grows with a long question rather than cut it off, as .bb-sub says) */
+:root[data-phone] .big-btn { font-size: 14px; }
 :root[data-phone] .phase-strip, :root[data-phone] .dock-turn { display: none; }
 :root[data-phone] .stack-col { right: 6px; width: 120px; }
 :root[data-phone] .stack-item > .cv { --w: 60px; }

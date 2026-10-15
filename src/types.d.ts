@@ -419,6 +419,9 @@ declare namespace MTG {
     type: 'pickTarget'; specs: Array<Record<string, any>>; options: Target[][]; count: number;
     /** a triggered ability going on the stack (purpose 'triggerTargets'): the effect each target is for, for the bots */
     aimedBy?: Array<Record<string, any>>;
+    /** purpose 'otherTarget' (Diaochan, Artful Beauty: "target creature of an opponent's choice"): the player
+        activating the ability this target is for, where it goes among its targets, and what it does to it */
+    activator?: Id; at?: number; op?: string | null; objId?: Id; abilityIndex?: number; actOpts?: Record<string, any>;
   }
   interface ModeChoice extends ChoiceBase {
     /** an option that is a card's name (Pithing Needle's) carries the card, to be shown on hover */

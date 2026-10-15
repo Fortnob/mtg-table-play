@@ -2436,6 +2436,11 @@
     // Crescent Island Temple: "For each Shrine you control, create a 1/1 red Monk creature token with prowess."
     { re: /^For each ([^,]+? you control), (create [^.]+?)\.?$/i,
       make: (m) => { const e = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + ' for each ' + m[1] + '.'); return e && e.op === 'createToken' && e.count ? e : null; } },
+    /* Diaochan, Artful Beauty: "Destroy target creature of your choice, then destroy target creature of an opponent's
+       choice." — the second target chosen by an opponent as it is activated (chosenBy) */
+    { re: /^Destroy target creature of your choice, then destroy target creature of an opponent'?s choice\.?$/i,
+      make: () => [{ op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] },
+        { op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', chosenBy: 'opponent' }] }] },
     // Go-Shintai of Hidden Cruelty: "Destroy target creature with toughness X or less, where X is the number of Shrines you control."
     { re: /^Destroy target creature with toughness X or less, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && (k.scope || k.per) ? { op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', maxToughnessCount: k }] } : null; } },

@@ -4370,7 +4370,8 @@
         const mana = MTG.mana.cmc(cost.mana || '');
         // a creature that taps for value is not attacking or blocking
         if (cost.tap && this._isCreature(o)) {
-          if (myTurn && window === 'main1') return null;
+          // (Diaochan, Artful Beauty: "Activate only during your turn, before attackers are declared" — then or never)
+          if (myTurn && window === 'main1' && !(ab.only && ab.only.when === 'beforeAttackers')) return null;
           if (!myTurn && window !== 'theirEnd') return null;
           v -= this.threatValue(o) * 0.15;
         }
@@ -4487,6 +4488,14 @@
         if (e.op === 'untap' || e.op === 'tap' && !(e.targets || []).length) continue;
         if (e.op === 'gainLife' && !this.underPressure()) { v += base * 0.4; continue; }
         if (e.op === 'draw' && this.hand().length >= 7) { v += base * 0.3; continue; }
+        /* Diaochan, Artful Beauty: "destroy target creature of an opponent's choice" — they will point it at our best
+           creature (chosenBy) */
+        if ((e.targets || []).some(sp => sp && sp.chosenBy)) {
+          if (!isHarmful(e)) { v += base * 0.3; continue; }
+          const ours = this.myCreatures().map(c => this.threatValue(c)).sort((a, b) => b - a)[0];
+          if (ours != null) v -= Math.min(base, 1 + ours * 0.4);
+          continue;
+        }
         if ((e.targets || []).length) {
           const t = this.pickTarget(e.targets[0], e, null, {});
           if (!t) return -1;
@@ -4577,6 +4586,8 @@
       for (const e of (effects || [])) {
         if (e.op === 'modal') continue;              // its targets are asked for once a mode is chosen
         for (const spec of (e.targets || [])) {
+          // (Diaochan, Artful Beauty: "of an opponent's choice" — theirs to choose, asked as it is activated: chosenBy)
+          if (spec && spec.chosenBy) continue;
           /* "X target creatures", strive: as many as X allows (or, for strive,
              the one it must have) */
           if (spec && spec.multi) {
