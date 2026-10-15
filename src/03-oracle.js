@@ -4291,6 +4291,8 @@
     { re: /^You may turn a permanent you control face up\.?$/i, make: () => ({ op: 'turnFaceUpFree' }) },
     // Ixidor, Reality Sculptor: "Turn target face-down creature face up." — anyone's (turnFaceUpTarget)
     { re: /^Turn target face-down creature face up\.?$/i, make: () => ({ op: 'turnFaceUpTarget', targets: [targetSpec('target face-down creature')] }) },
+    // Kaust, Eyes of the Glade: "Turn target face-down attacking creature you control face up."
+    { re: /^Turn (target face-down attacking creature you control) face up\.?$/i, make: (m) => ({ op: 'turnFaceUpTarget', targets: [targetSpec(m[1])] }) },
     // Victor, Valgavoth's Seneschal: "surveil 2 if this is the first time this ability has resolved this turn" (surveilIf)
     { re: /^[Ss]urveil (\d+) if (this is the (?:first|second|third) time this ability has resolved this turn)\.?$/,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'surveil', n: +m[1] }] } : null; } },
@@ -7522,7 +7524,8 @@
     { re: /^Draw a card for each ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
     // Green Goblin, Revenant: "Then draw a card for each card you've discarded this turn." (discardedThisTurn)
-    { re: /^Draw a card for each (card you'?ve (?:discarded|drawn) this turn)\.?$/i,
+    // (April O'Neil, Hacktivist: "draw a card for each card type among spells you've cast this turn")
+    { re: /^Draw a card for each (card you'?ve (?:discarded|drawn) this turn|card type among spells you'?ve cast this turn)\.?$/i,
       make: (m) => { const k = countOf(m[1]); return k ? { op: 'draw', who: 'you', n: k } : null; } },
     // Sage's Reverie: "Draw a card for each Aura you control that's attached to a creature."
     { re: /^Draw a card for each ((?:Aura|Equipment) you control that'?s attached to a creature)\.?$/i,
@@ -8950,6 +8953,8 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Murmuration: "for each spell you've cast this turn"
     if (/^spells? you'?ve cast this turn$/i.test(p)) return { spellsCastThisTurn: true, mult: k };
+    // April O'Neil, Hacktivist: "for each card type among spells you've cast this turn" (spellTypesCast)
+    if (/^card types? among spells you'?ve cast this turn$/i.test(p)) return { spellTypesCast: true, mult: k };
     // Ral, Leyline Prodigy: "for each instant and sorcery spell you've cast this turn"
     if ((m = p.match(/^(instant and sorcery|instant and\/or sorcery|noncreature|creature) spells? you'?ve cast this turn$/i)))
       return { spellsCastWords: m[1].toLowerCase().replace(/ and(?:\/or)? /, ' or '), mult: k };
@@ -9401,6 +9406,9 @@
     if (lesserPow) phrase = String(phrase).slice(0, lesserPowM.index);
     /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
        Tinder Wall, Wall of Corpses: "target creature it's (this creature is) blocking" */
+    // (Cromat: "target creature blocking or blocked by Cromat" — either: blockingSelf and blockedBySelf both)
+    const eitherSelf = /\s+blocking or blocked by (?:it|this creature|CARDNAME)$/i.test(String(phrase));
+    if (eitherSelf) phrase = String(phrase).replace(/\s+blocking or blocked by (?:it|this creature|CARDNAME)$/i, ' blocking CARDNAME');
     const blockingSelf = /\s+blocking (?:it|this creature|CARDNAME)$/i.test(String(phrase));
     if (blockingSelf) phrase = String(phrase).replace(/\s+blocking (?:it|this creature|CARDNAME)$/i, '');
     const blockedBySelf = /\s+(?:it'?s|this creature is|CARDNAME is) blocking$/i.test(String(phrase));
@@ -9445,7 +9453,7 @@
     if (fromBf) spec.fromBfThisTurn = true;
     if (toGyNow) spec.toGraveThisTurn = true;
     if (tapAb) spec.hasTapAbility = true;
-    if (blockedBySelf) spec.blockedBySelf = true;
+    if (blockedBySelf || eitherSelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
        whose ability this is (CR 115.5) */
     if (/^(?:another|other) target /i.test(String(phrase).trim()) || /^any other target$/.test(p)) spec.another = true;
@@ -10538,6 +10546,9 @@
         if (!md || !md.auto) return null;
         return [{ op: 'mayPay', pay: { mana: m[1] }, then: md.effects }];
       } },
+    // Nihiloor: one for each opponent, a reflexive trigger for each one tapped (tapForEachOpponentReflex)
+    { re: /^For each opponent, tap up to one untapped creature you control\. When you do, gain control of target creature that player controls with power less than or equal to the tapped creature'?s power for as long as you control CARDNAME\.?$/i,
+      make: () => [{ op: 'tapForEachOpponentReflex' }] },
     /* Kitt Kanto, Mayhem Diva: "you may tap two untapped creatures you control. When you do, target creature that player
        controls gets +2/+2 and gains trample until end of turn. Goad that creature." — the goad the reflexive trigger's too */
     { re: /^you may (tap (?:two|three|an?) untapped [a-z]+ you control)\. (When you do, (target creature that player controls [^.]+)\. Goad that creature\.)$/i,
@@ -14836,6 +14847,8 @@
     if (/^renowned /i.test(p)) { f.renowned = true; p = p.replace(/^renowned /i, ''); }
     // Goro-Goro and Satoru: "one or more creatures you control that entered this turn" (enteredThisTurn)
     if (/ that entered this turn$/i.test(p)) { f.enteredThisTurn = true; p = p.replace(/ that entered this turn$/i, ''); }
+    // Kaust, Eyes of the Glade: "a creature you control that was turned face up this turn" (turnedUpThisTurn)
+    if (/ that was turned face up this turn$/i.test(p)) { f.turnedUpThisTurn = true; p = p.replace(/ that was turned face up this turn$/i, ''); }
     const who = (q) => {
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
       // Athreos, God of Passage: "another creature you own" — whoever controls it
@@ -15731,6 +15744,9 @@
        that creature": "that creature" is the one it hit */
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to a creature,? /i, event: 'dealsDamageToCreature', self: true,
       aboutObject: true, extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
+    // Sosuke, Son of Seshiro: "Whenever a Warrior you control deals combat damage to a creature," — the creature hit (dmgSourceYourType)
+    { re: /^Whenever an? ([A-Z][a-z]+) you control deals combat damage to a creature,? /, event: 'dealsDamageToCreature',
+      aboutObject: true, extraOf: (m) => ({ combatOnly: true, dmgSourceYourType: m[1] }) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes monstrous,? /i, event: 'becomesMonstrous', self: true },
     { re: /^When(?:ever)? you scry or surveil,? /i, event: 'youScry', also: 'youSurveil' },
     { re: /^When(?:ever)? you scry,? /i, event: 'youScry' },
@@ -15992,6 +16008,8 @@
     // Twenty-Toed Toad, Aurelia: "Whenever you / a player attack(s) with three or more creatures"
     // (Legion's Landing: "When you attack with three or more creatures")
     { re: /^When(?:ever)? you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    // Nihiloor: "Whenever you attack with a creature an opponent owns," — each such attacker (that player: its owner)
+    { re: /^Whenever you attack with a creature an opponent owns,? /i, event: 'permAttacks', filt: () => ({ who: 'you', words: 'creature', notOwned: true }) },
     // Jocasta, Automaton Avenger: "Whenever you attack with your commander" — one of your attackers is your commander (attackersCommander)
     { re: /^Whenever you attack with your commander,? /i, event: 'youAttack', extra: { attackersCommander: true } },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
@@ -17166,6 +17184,8 @@
         }
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
+        // Nihiloor: "attack with a creature an opponent owns, … that player loses 2 life" — that creature's owner (triggerObjOwner)
+        if (trig.event === 'permAttacks' && objFilter && objFilter.notOwned) for (const e of parsed.effects) if (e && e.op === 'loseLife' && e.who === 'triggerPlayer') e.who = 'triggerObjOwner';
         /* Madame Null, Power Broker: "you may pay life equal to its power. If you do, put that many +1/+1 counters on
            it" — a payment of life, and "that many" is the power paid (payLifePower) */
         if (parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'may') {

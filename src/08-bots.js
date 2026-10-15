@@ -1590,6 +1590,19 @@
       const ps = (s.items || []).map(it => g.player(it.id)).filter(Boolean).sort((a, b) => a.life - b.life);
       return { picks: ps.length ? [ps[0].id] : [] };
     },
+    /* Nihiloor: a creature of ours to tap for that opponent — the least one that covers the power of their best creature
+       it could take; none when there is nothing of theirs worth it */
+    tapForOpponent(s) {
+      const g = this.game;
+      const ours = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => g.powerOf(a) - g.powerOf(b));
+      if (!ours.length) return { picks: [] };
+      const most = g.powerOf(ours[ours.length - 1]);
+      const theirs = g.battlefield.filter(o => o.controller === s.forPlayer && !o.phasedOut && (o.analysis() || {}).isCreature && g.powerOf(o) <= most)
+        .sort((a, b) => this.permanentValue(b) - this.permanentValue(a));
+      if (!theirs.length) return { picks: [] };
+      const mine = ours.find(o => g.powerOf(o) >= g.powerOf(theirs[0]));
+      return { picks: mine ? [mine.id] : [] };
+    },
     /* Augusta, Order Returned: "each player exiles a card from their graveyard" — counters for each nonland card: ours the
        least nonland card, an opponent's the least land (or the least card) */
     eachExileGraveCard(s) {

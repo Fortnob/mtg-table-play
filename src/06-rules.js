@@ -3663,6 +3663,11 @@
           const sp = this._specsOf(item)[i];
           if (sp && !this._legalTargetsFor(sp, item.controller, item.obj && item.obj.id).some(u => u && u.kind === t.kind && u.id === t.id)) return false;
         }
+        // (Nihiloor: the tapped creature's power checked again as it resolves — maxPowerOfObj)
+        if (i != null && o.zone === 'battlefield') {
+          const sp = this._specsOf(item)[i];
+          if (sp && sp.maxPowerOfObj) { const w = this.obj(sp.maxPowerOfObj); if (this.powerOf(o) > (w && w.zone === 'battlefield' ? this.powerOf(w) : (w ? w._lastPower || 0 : 0))) return false; }
+        }
         if (o.zone === 'battlefield') {
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
@@ -4047,6 +4052,12 @@
       if (v.allSpellsThisTurn) return (this.spellsThisTurn || 0) * mult;
       // Rionya: only the spells of some kind
       if (v.spellsCastWords) return (((this.player(pid) || {}).spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.spellsCastWords)).length * mult;
+      // April O'Neil, Hacktivist: the card types among the spells this player has cast this turn (spellTypesCast)
+      if (v.spellTypesCast) {
+        const kinds = new Set();
+        for (const x of ((this.player(pid) || {}).spellObjsThisTurn || [])) for (const k of this._cardTypesOf(x)) kinds.add(k);
+        return kinds.size * mult;
+      }
       // Call Forth the Tempest: the mana values of the spells cast this turn (on the stack, X counted)
       if (v.spellsMvThisTurn) {
         let k = 0;
@@ -16550,7 +16561,7 @@
         o._leftPrev = o._leftSeq || null;
         o._leftSeq = this._uid('lv');
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
-        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null; o._freeHandOnceTurn = null;
+        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null; o._freeHandOnceTurn = null; o._turnedUpTurn = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
         if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
@@ -16957,6 +16968,8 @@
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
       }
+      // Kaust, Eyes of the Glade: "turned face up this turn" — noted as it is (turnedUpThisTurn)
+      if (event === 'turnedFaceUp' && data.object) data.object._turnedUpTurn = this.turn;
       // Gau, Feral Youth: whose graveyard a card left this turn (cardLeftGraveyard)
       if (event === 'leftGraveyard' && data.objController) {
         const hL = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
@@ -17116,6 +17129,8 @@
           if (ab.event === 'chosenPlayerLoses' && !(o.chosenOpponent && data.player === o.chosenOpponent)) continue;
           if (ab.self && data.source && data.source.id !== o.id) continue;
           if (ab.self && !data.source) continue;
+          // Sosuke, Son of Seshiro: "a Warrior you control deals combat damage" — the source one of this player's, of that type (dmgSourceYourType)
+          if (ab.dmgSourceYourType && !(data.source && data.source.controller === o.controller && this._hasCreatureType(data.source, ab.dmgSourceYourType))) continue;
           // "When this Class becomes level 3" is only that level
           if (ab.atLevel != null && data.level !== ab.atLevel) continue;
           // "whenever this attacks for the first time each turn"
@@ -19385,7 +19400,7 @@
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
-        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -19980,6 +19995,12 @@
           else if (e.who === 'triggerObjController') {
             const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
             const p = x && this.player(x.controller);
+            if (p) this.changeLife(p, -cnt);
+          }
+          // Nihiloor: the owner of the creature the trigger is about (triggerObjOwner)
+          else if (e.who === 'triggerObjOwner') {
+            const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            const p = x && this.player(x.owner);
             if (p) this.changeLife(p, -cnt);
           }
           // (Laquatus's Champion remembers whom, for "that player gains 6 life" as it leaves)
@@ -25988,6 +26009,35 @@
             x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
             this.logEvent('exile', `${x.name} is exiled with a ${e.counter} counter on it.`);
           } else this.logEvent('exile', `${x.name} is exiled.`);
+          break;
+        }
+        /* Nihiloor: "for each opponent, tap up to one untapped creature you control. When you do, gain control of target
+           creature that player controls with power less than or equal to the tapped creature's power for as long as you
+           control Nihiloor." — one for each opponent, a different one each, all tapped at once; then a reflexive trigger
+           for each one tapped (rulings), its target's power checked against the tapped creature's (maxPowerOfObj) */
+        case 'tapForEachOpponentReflex': {
+          const picked = [];
+          for (const opp of this.opponentsOf(ctx.controller).filter(q => !q.hasLost)) {
+            const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && !x.tapped &&
+              (x.analysis() || {}).isCreature && !picked.some(p => p.id === x.id));
+            if (!pool.length) break;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'tapForOpponent', kind: 'objects', zone: 'battlefield', forPlayer: opp.id,
+              items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}tap up to one untapped creature you control for ${opp.name}. When you do, gain control of target creature ${opp.name} controls with power less than or equal to the tapped creature's power.` }, 'tfo' + opp.id);
+            if (got === SUSPEND) return SUSPEND;
+            const x = ((got && got.picks) || []).map(id => this.obj(id)).find(y => y && pool.includes(y));
+            if (x) picked.push({ id: x.id, opp });
+          }
+          for (const p of picked) { const x = this.obj(p.id); if (x && !x.tapped) this._markTapped(x); }
+          for (const p of picked) {
+            const x = this.obj(p.id);
+            const rText = `When you do, gain control of target creature ${p.opp.name} controls with power less than or equal to ${x ? x.name : 'the tapped creature'}'s power for as long as you control ${me.name}.`;
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: src, objId: src ? src.id : null, abilityIndex: -1,
+              controller: ctx.controller, name: `${src ? src.name : me.name} — ${truncate(rText, 50)}`,
+              effects: [{ op: 'gainControl', until: null, whileSrc: true,
+                targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', controllerId: p.opp.id, maxPowerOfObj: p.id }] }],
+              auto: true, abilityText: rText, optional: false, triggerData: { event: 'reflexive', player: p.opp.id } });
+          }
           break;
         }
         /* Lucius the Eternal: "When that creature leaves the battlefield, return this card from exile to the battlefield
@@ -36070,6 +36120,8 @@
       if (f.name && x.name !== f.name) return false;
       // Goro-Goro and Satoru: "that entered this turn"
       if (f.enteredThisTurn && x.entered !== this.turn) return false;
+      // Kaust, Eyes of the Glade: "that was turned face up this turn" (turnedUpThisTurn)
+      if (f.turnedUpThisTurn && x._turnedUpTurn !== this.turn) return false;
       // Tome of Legends: "your commander"
       // (Norn's Choirmaster: "a commander you control" — commander 'control')
       // (Sauron, Lord of the Rings: "a commander an opponent controls" — any commander, whoever controls it: commander 'any')
@@ -36192,6 +36244,12 @@
         return this._legalTargetsFor(Object.assign({}, spec, { maxPowerAmassed: false,
           maxPower: army && army.zone === 'battlefield' ? this.powerOf(army) : (army ? army._lastPower || 0 : 0) }), controllerId, sourceId);
       }
+      // Nihiloor: "with power less than or equal to the tapped creature's power" — that creature as it is now, or as it last was (maxPowerOfObj)
+      if (spec.maxPowerOfObj) {
+        const w = this.obj(spec.maxPowerOfObj);
+        return this._legalTargetsFor(Object.assign({}, spec, { maxPowerOfObj: null,
+          maxPower: w && w.zone === 'battlefield' ? this.powerOf(w) : (w ? w._lastPower || 0 : 0) }), controllerId, sourceId);
+      }
       // Narset, Enlightened Exile: "with mana value less than Narset's power", as it is now
       if (spec.maxMvBelowSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
@@ -36262,7 +36320,7 @@
         return this._legalTargetsFor(Object.assign({}, spec, { blockingSelf: false, blockedBySelf: false }), controllerId, sourceId).filter(t => {
           const x = t.kind === 'object' && this.obj(t.id);
           if (!x || !s0) return false;
-          return spec.blockingSelf ? (x.blocking || []).includes(s0.id) : (s0.blocking || []).includes(x.id);
+          return (spec.blockingSelf && (x.blocking || []).includes(s0.id)) || (spec.blockedBySelf && (s0.blocking || []).includes(x.id));
         });
       }
       if (spec.another && sourceId) {
