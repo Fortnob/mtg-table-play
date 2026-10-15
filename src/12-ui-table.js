@@ -1876,7 +1876,9 @@
       ].filter(Boolean));
       fb._url = url;
       this._spotFb = fb;
-      UI.preloadArt(url).then(() => {
+      // (a picture that cannot be had leaves its words standing)
+      UI.preloadArt(url).then((ok) => {
+        if (!ok) return;
         if (this._spotFb === fb) this._spotFb = null;
         fb.classList.add('gone');
         setTimeout(() => fb.remove(), 260);
