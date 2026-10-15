@@ -1427,11 +1427,12 @@
           this.place(w, [el('div', { class: 'stack-ph' })]);
         } else if (s.kind !== 'ability' && s.objId) {
           const o = Object.assign({ id: s.objId, card: s.card, zone: 'stack' });
-          this.place(w, [this.cardEl(o), this._stackLabel(s, who, i === 0)]);
+          this.place(w, [i === 0 ? this._batchRow(s) : null, this.cardEl(o), this._stackLabel(s, who, i === 0)].filter(Boolean));
         } else {
           let chip = w.querySelector(':scope > .ability-chip');
           if (!chip) chip = this._abilityChip(s);
-          this.place(w, [chip, this._stackLabel(s, who, i === 0)]);
+          // (the top of a batch of your triggers: what can be done with the lot, above it)
+          this.place(w, [i === 0 ? this._batchRow(s) : null, chip, this._stackLabel(s, who, i === 0)].filter(Boolean));
         }
         return w;
       });
@@ -1449,6 +1450,18 @@
         targets.length ? el('span', { class: 'tg', text: '→ ' + targets.join(', ') }) : null,
         top ? el('span', { class: 'next', text: s.countered ? 'countered' : 'resolves next' }) : null,
       ].filter(Boolean));
+    }
+    /** Under the top of a batch of your triggers: how many there are, and what can be done with the lot of them. */
+    _batchRow(s) {
+      const live = this.live || this.view;
+      if (!s.batch) return null;
+      const n = (live.stack || []).filter(x => x.batch === s.batch).length;
+      if (n < 2) return null;
+      const acts = this.batchActions(live);
+      return el('div', { class: 'stack-batch' }, [
+        el('span', { class: 'sb-n', text: `×${n}` }),
+        ...acts.map(b => el('button', { type: 'button', class: 'stack-act', text: b.label, title: b.title, onclick: (e) => { e.stopPropagation(); b.fn(); } })),
+      ]);
     }
 
     /** A picture of a card that is not one of the table's own: the source of an ability, say. */
@@ -1576,9 +1589,54 @@
           () => this.send({ kind: 'fullControl', on: false }), 'flagged'));
       }
       if (live.yielding) {
-        d._row.appendChild(small(live.yielding === 'turn' ? 'Passing to end of turn' : 'Passing until a response', 'Click to take priority back',
+        d._row.appendChild(small(live.yielding === 'turn' ? 'Passing to end of turn' : live.yielding === 'batch' ? 'Resolving the rest' : 'Passing until a response', 'Click to take priority back',
           () => this.send({ kind: 'yield', mode: null }), 'flagged'));
       }
+      const chip = this.autoChip(live);
+      if (chip) d._row.appendChild(chip);
+    }
+
+    /**
+     * What you answered once for the rest of the turn or of a batch (live.autoAnswers), as one small chip:
+     * the answer and ✕ to be asked again; with more than one, how many, and a menu to take any of them back.
+     */
+    autoChip(live) {
+      const list = live.autoAnswers || [];
+      if (!list.length) return null;
+      const one = list.length === 1;
+      const chip = el('button', { type: 'button', class: 'dock-btn auto-chip',
+        title: one ? `Answered for you: ${list[0].text}. Click to be asked again.` : list.map(a => a.text).join('\n'),
+        'aria-label': one ? `Answered for you: ${list[0].text}. Ask me again` : `${list.length} answers given for you. Choose one to be asked again`,
+        onclick: (e) => {
+          if (one) return this.send({ kind: 'auto', act: 'clear', id: list[0].id });
+          UI.contextMenu(e, list.map(a => [`Ask again: ${a.text}`, () => this.send({ kind: 'auto', act: 'clear', id: a.id })])
+            .concat(['-', ['Ask again for all of them', () => this.send({ kind: 'auto', act: 'clear', id: 'all' })]]), { title: 'Answered for you' });
+        } }, [
+        el('span', { class: 'ac-k', text: 'auto' }),
+        el('span', { class: 'ac-t', text: one ? list[0].text : `${list.length} answers` }),
+        el('span', { class: 'ac-x', 'aria-hidden': 'true', text: one ? '✕' : '▾' }),
+      ]);
+      return chip;
+    }
+
+    /**
+     * Three or more of your same trigger on the stack, the top one of them yours to resolve: let the rest
+     * resolve without stopping ("Resolve the rest"), or — an optional one — say no to all of them ("Decline
+     * the rest"). Neither while a question is asked or something is being aimed.
+     */
+    batchActions(live) {
+      const st = live.stack || [];
+      const top = st[st.length - 1];
+      if (live.over || !top || !top.batch || top.controller !== this.meId || live.priorityPlayer !== this.meId || live.pendingChoice || this.targeting || live.yielding) return [];
+      const n = st.filter(x => x.batch === top.batch).length;
+      if (n < 2) return [];
+      const name = (top.card && top.card.name) || String(top.name || '').split(' \u2014 ')[0];
+      const out = [{ label: 'Resolve the rest', title: `Let the ${n} ${name} triggers resolve one after another. It stops if an opponent responds or one of them asks you something.`,
+        fn: () => this.send({ kind: 'yield', mode: 'batch' }) }];
+      const declined = (live.autoAnswers || []).some(a => a.batch === top.batch && a.kind === 'may');
+      if (top.optional && !declined) out.push({ label: 'Decline the rest', title: `Say no to all ${n} of the ${name} triggers as they resolve`,
+        fn: () => this.send({ kind: 'auto', act: 'decline', batch: top.batch }) });
+      return out;
     }
 
     /** The priority timer, from the top: the bar runs out over `secs`, and then the button presses itself. */

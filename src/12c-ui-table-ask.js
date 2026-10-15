@@ -48,12 +48,17 @@
           : t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}`
           : t.ability && t.sourceName ? `${escapeHtml(t.sourceName)}: choose ${t.need > 1 ? 'targets' : 'a target'}` : escapeHtml(t.label || 'Choose a target');
         const ability = t.ability ? `<span class="ab-ability">${MTG.mana.textHtml(String(t.ability).replace(/CARDNAME/g, t.sourceName || 'this'))}</span>` : '';
+        // "Same target for all": offered while what is picked would do for every copy
+        const same = t.auto && this.sameTargetsOk(t, t.chosen) ? this.autoToggle(`Same target for all (${t.auto.rest} more)`,
+          `The ${t.auto.rest} other ${t.sourceName || 'copies'} triggers waiting take the same target${t.need > 1 ? 's' : ''}. Only targets legal for every copy are highlighted.`,
+          t.sameOn, () => this.toggleSameTarget()) : null;
         // "up to one": it can be left out (Return to Dust's second artifact)
         const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
         return set('aim', title,
           `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}${press()} a highlighted card${who.length ? ' or player' : ''}` +
           (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
-          (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.') + ability);
+          (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.') + ability,
+          same ? { node: el('div', { class: 'ab-chips auto-row' }, [same]), sig: 'same:' + t.sameOn } : null);
       }
       if (this.convoking) {
         const b2 = this.convokeBanner();
@@ -205,6 +210,8 @@
           type: 'button', class: 'btn ' + (b.cls || ''), disabled: !!b.disabled, html: b.html || null, text: b.html ? null : b.label,
           title: b.title || null, onclick: b.fn,
         })).filter(Boolean)) : null,
+        // answering for the rest of them too (autoFoot)
+        opts.foot || null,
       ].filter(Boolean));
       if (opts.wide) p._wide = true;
       return p;
@@ -265,7 +272,7 @@
               : (ch.cost || {}).energy != null
                 ? { label: `Pay ${ch.cost.energy} energy`, cls: 'primary', fn: () => send({ pay: true }) }
                 : { label: `Pay ${(ch.cost || {}).life || 0} life`, cls: 'primary', fn: () => send({ pay: true }) },
-          ], { card });
+          ], { card, foot: this.autoFoot(ch) });
         }
         case 'payOrCounter':
           return () => this.panel(...head('Pay, or your spell is countered'), null, [
@@ -297,12 +304,17 @@
           if (!this.targeting) {
             const legal = new Set();
             for (const list of (ch.options || [])) for (const t of list) legal.add(t.kind + ':' + t.id);
-            this.targeting = {
+            const tg = this.targeting = {
               need: ch.count || (ch.specs || []).length || 1, specs: ch.specs || [], chosen: [], legal, slots: ch.options || null,
               label: ch.prompt || 'Choose a target', source: ch.objId || null,
               // the ability asking, whole, under the banner: a trigger's own name is shortened
               ability: ch.sourceText || null, sourceName: ch.sourceName ? String(ch.sourceName).split(' \u2014 ')[0] : null,
-              onDone: (targets) => { this.targeting = null; send({ targets }); },
+              // the first of a batch: the same targets for the copies still to come, when some would do for all (sameTargetsOk)
+              auto: ch.auto && ch.auto.kind === 'targets' && ch.auto.rest && ch.auto.same ? ch.auto : null, sameOn: false,
+              onDone: (targets) => {
+                this.targeting = null;
+                send(Object.assign({ targets }, tg.sameOn && this.sameTargetsOk(tg, targets) ? { remember: 'batch' } : {}));
+              },
             };
             setTimeout(() => this.render(), 0);
           }
@@ -372,7 +384,65 @@
       const s = this.chooseSpec(ch);
       if (!s) return '';
       const sel = this.chooseSel(s);
-      return ':' + JSON.stringify([sel.picks, sel.number]);
+      return ':' + JSON.stringify([sel.picks, sel.number, this.autoSameOn(ch)]);
+    },
+
+    /* ---------------- answering once for all of them (docs/choices.md) ----------------
+       A question that can be answered for the rest of the turn, or for the rest of a batch of the same
+       trigger, says so (ch.auto); a row under its buttons offers it, in a few plain words. The engine
+       checks each later answer again, and the table shows what was said beside the button (autoChips). */
+    autoKeyOf(ch) { return [ch.resumeKey || '', ch.stackId || '', (ch.auto || {}).key || ''].join('|'); },
+    /** Whether "Same mode for all" is ticked for this question. */
+    autoSameOn(ch) { const a = this.autoSame; return !!(a && ch && ch.auto && a.key === this.autoKeyOf(ch)); },
+    /** A small on/off button. */
+    autoToggle(label, title, on, fn) {
+      return el('button', { type: 'button', class: 'btn xs ghost auto-toggle' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
+        title, onclick: fn }, [el('span', { class: 'at-box', text: on ? '✓' : '' }), el('span', { text: label })]);
+    },
+    /** The targets picked so far would do for every copy of the batch. */
+    sameTargetsOk(t, targets) {
+      const same = (t.auto && t.auto.same) || [];
+      return (targets || []).length <= same.length && (targets || []).every((x, k) => (same[k] || []).some(y => y.kind === x.kind && y.id === x.id));
+    },
+    toggleSameTarget() {
+      const t = this.targeting;
+      if (!t || !t.auto) return;
+      t.sameOn = !t.sameOn;
+      // ticked, only what would do for every copy is lit (and can be picked)
+      if (t.sameOn) { t.legalAll = t.legalAll || t.legal; t.legal = new Set([].concat(...t.auto.same).map(x => x.kind + ':' + x.id)); }
+      else if (t.legalAll) t.legal = t.legalAll;
+      MTG.sfx('click');
+      this.render();
+    },
+    /**
+     * The row under a question that can be answered for all: "Yes to all this turn" / "No to all this
+     * turn" and "Decline the rest" for an optional trigger, "Always pay when I can" / "Never pay" for a
+     * price that keeps being asked, "Same mode for all" for the first of a batch. Null when there is none.
+     */
+    autoFoot(ch) {
+      const a = ch && ch.auto;
+      if (!a) return null;
+      const send = (data) => { this.choosing = null; this.autoSame = null; this.send({ kind: 'choice', data }); };
+      const field = ch.type === 'payOrDont' ? 'pay' : 'yes';
+      const link = (label, title, data) => el('button', { type: 'button', class: 'btn xs ghost', text: label, title, onclick: () => send(data) });
+      const kids = [];
+      if (a.kind === 'may' && a.turn) {
+        kids.push(link('Yes to all this turn', `Say yes to ${a.label}'s "you may" each time it asks, until the turn ends`, { [field]: true, remember: 'turn' }));
+        kids.push(link('No to all this turn', `Say no to ${a.label}'s "you may" each time it asks, until the turn ends`, { [field]: false, remember: 'turn' }));
+      }
+      if (a.kind === 'may' && a.rest) {
+        kids.push(link('Decline the rest', `No to this one and to the ${a.rest} other ${a.label} trigger${a.rest === 1 ? '' : 's'} waiting on the stack`, { [field]: false, remember: 'batch' }));
+      }
+      if (a.kind === 'pay' && a.turn) {
+        kids.push(link('Always pay when I can', `Pay ${a.label}'s price each time it asks, until the turn ends, whenever you can`, { [field]: true, remember: 'turn' }));
+        kids.push(link('Never pay', `Don't pay ${a.label}'s price, and don't ask again, until the turn ends`, { [field]: false, remember: 'turn' }));
+      }
+      if (a.kind === 'mode' && a.rest) {
+        const on = this.autoSameOn(ch);
+        kids.push(this.autoToggle(`Same mode for all (${a.rest} more)`, `The ${a.rest} other ${a.label} trigger${a.rest === 1 ? '' : 's'} waiting take the same mode${on ? '' : ' you choose now'}`,
+          on, () => { this.autoSame = on ? null : { key: this.autoKeyOf(ch) }; MTG.sfx('click'); this.render(); }));
+      }
+      return kids.length ? el('div', { class: 'dp-auto' }, kids) : null;
     },
     /** The candidates that are permanents on the battlefield, to be clicked there. */
     chooseBoardIds(s) {
@@ -385,7 +455,10 @@
     /** Send the answer: the generic shape, or the shape an older question has always taken. */
     chooseSend(ch, answer) {
       this.choosing = null;
-      const data = ch.type === 'choose' ? answer : (MTG.choice.legacyData(ch, answer) || answer);
+      let data = ch.type === 'choose' ? answer : (MTG.choice.legacyData(ch, answer) || answer);
+      // "Same mode for all", ticked
+      if (this.autoSameOn(ch)) data = Object.assign({}, data, { remember: 'batch' });
+      this.autoSame = null;
       this.send({ kind: 'choice', data });
     },
     /** One click is the whole answer when only one thing is chosen and nothing else is asked. */
@@ -552,7 +625,7 @@
         return this.panel(title, sub0, null, opts.map((o, k) => ({
           label: o.label, cls: o.primary || s.legacy === 'vote' || opts.length === 1 ? 'primary' : '',
           fn: () => this.chooseSend(ch, { picks: [k] }),
-        })), { card });
+        })), { card, foot: this.autoFoot(ch) });
       }
       const body = this.chooseBody(s, sel, {
         exclude: board, onPick: (p) => this.chooseToggle(ch, s, p), onLess: (p) => this.chooseLess(s, p),
@@ -577,7 +650,7 @@
         buttons.push({ label: pr.ok && none ? (s.noneLabel || 'Choose none') : (s.confirmLabel || 'Confirm'), cls: 'primary', disabled: !pr.ok,
           fn: () => this.chooseConfirm(ch) });
       }
-      return this.panel(title, sub, body, buttons, { wide: s.kind === 'objects', card });
+      return this.panel(title, sub, body, buttons, { wide: s.kind === 'objects', card, foot: this.autoFoot(ch) });
     },
 
     /**
