@@ -1759,6 +1759,8 @@
         const chk = this.canCast(playerId, o.id);
         // the same check castSpell's payment makes, so what is offered can be paid for
         // (Hama, the Bloodbender: a waterbend cost — artifacts and creatures to tap help pay it)
+        // (Not of This World: as little as a spell on the stack would let it cost — targetCond)
+        if (chk.ok && (o.analysis() || {}).selfCost) chk.cost = this._targetCondCost(o.analysis(), playerId, null, chk.cost);
         if (!chk.ok || (!this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o }) &&
           !(chk.waterbend && this._waterbendPlan(playerId, o, {}, chk.cost)))) continue;
         // a spell with nothing legal to point at is not a decision
@@ -4272,6 +4274,24 @@
       return mana;
     }
 
+    /** A spell's own "costs {N} less to cast if it targets …", settled by the targets chosen (Not of This World: targetCond);
+        with no targets yet (null), the least it could cost with something on the stack now. */
+    _targetCondCost(a, pid, targets, cost) {
+      for (const sc of ((a && a.selfCost) || [])) {
+        const tc = sc.targetCond;
+        if (!tc) continue;
+        const hit = (targets == null ? this.stack.map(s => ({ kind: 'stack', id: s.id })) : targets).some(t => {
+          const it = t && t.kind === 'stack' ? this.stack.find(s => s.id === t.id) : null;
+          return it && (it.targets || []).some(u => {
+            const x = u && u.kind === 'object' ? this.obj(u.id) : null;
+            return x && x.zone === 'battlefield' && x.controller === pid && (tc.stackTargetsYours === 'creature' ? this.characteristics(x).isCreature : true) &&
+              (tc.minPower == null || this.powerOf(x) >= tc.minPower);
+          });
+        });
+        if (hit) cost = this._addGeneric(cost || '', Number(sc.amount) || 0);
+      }
+      return cost;
+    }
     /** The reduction an {X} spell's generic mana could not take, before X was chosen: the rest comes off the X once it is. */
     _xLeftoverReduction(o, pid) {
       const a = o && o.analysis();
@@ -5502,6 +5522,7 @@
       const mt = this._multiOf(o.analysis());
       const got = mt ? Math.max(0, ((opts || {}).targets || []).length - mt.fixed) : 0;
       if (mt && mt.spec.multi.perExtra && got > 1) cost += mt.spec.multi.perExtra.repeat(got - 1);
+      cost = this._targetCondCost(o.analysis(), playerId, (opts || {}).targets, cost);
       // Trinisphere: the floor, as the cast will meet it (an {X} is left for the cast to settle)
       if (!/\{X\}/.test(cost)) { const fl = this._floorCost(playerId, o, cost, 0, true); if (fl.fl) cost = fl.cost; }
       return cost;
@@ -8040,6 +8061,8 @@
           if (mm.perKick && got > 1 + (chose.kicked || 0)) return this.fail(`Choose no more than ${1 + (chose.kicked || 0)} targets (one, and one for each kick).`);
         }
       }
+      // Not of This World: "{7} less to cast if it targets a spell or ability that targets …" — once the targets are known (targetCond)
+      if (!opts.free && opts.costOverride == null && !o.isCopy) cost = this._targetCondCost(a, playerId, opts.targets, cost);
       // Arc Trail: "any other target" — not one this spell already aims at
       if ((opts.targets || []).length > 1) {
         const dsp = spellTargetSpecs(a, mSel) || [];
@@ -29003,6 +29026,9 @@
               .filter(p => p && !p.hasLost)
               .map(p => ({ p, list: this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && restFits(o)) }));
           const byValue = (l) => l.slice().sort((a, b) => ((b.card && b.card.cmc) || 0) - ((a.card && a.card.cmc) || 0));
+          // (Slaughter the Strong: "first the player whose turn it is chooses …, then each other player in turn order")
+          const seat = (p) => { const L = this.turnOrder.length || 1, i = this.turnOrder.indexOf(p && p.id); return i < 0 ? L : (i - this.activeIndex + L) % L; };
+          groups.sort((x, y) => seat(x.p) - seat(y.p));
           const doomed = [];
           for (let gi = 0; gi < groups.length; gi++) {
             const { p, list } = groups[gi];
@@ -29015,6 +29041,22 @@
               if (!pool.length) continue;
               let picks;
               if (pool.length <= want && !e.upTo) picks = pool;
+              /* Slaughter the Strong: "any number of creatures they control with total power 4 or less" — a power below 0
+                 takes away from the total (its ruling), so the most is only held to the whole answer then (maxTotalPower) */
+              else if (e.maxTotalPower != null) {
+                const pw = (o) => this.powerOf(o);
+                if (pool.reduce((k, o) => k + pw(o), 0) <= e.maxTotalPower) picks = pool;
+                else {
+                  const got = this._choose({ playerId: chooser, purpose: 'keepPower', kind: 'objects',
+                    items: this._chooseItems(byValue(pool)).map(it => Object.assign(it, { power: pw(this.obj(it.id)) })),
+                    min: 0, max: pool.length, optional: true,
+                    constraints: [{ kind: 'sum', key: 'power', max: e.maxTotalPower, label: 'total power', finalMax: pool.some(o => pw(o) < 0) }],
+                    prompt: `Choose any number of creatures ${p && p.id !== chooser ? p.name + ' controls' : 'you control'} with total power ${e.maxTotalPower} or less to keep; the rest are sacrificed.` }, 'keep' + gi + ':' + ai);
+                  if (got === SUSPEND) return SUSPEND;
+                  picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o));
+                  if (picks.reduce((k, o) => k + pw(o), 0) > e.maxTotalPower) picks = [];
+                }
+              }
               else {
                 // (The Eternal Wanderer: a creature chosen for each player — a bot keeps its own best, another's least: perPlayer)
                 const got = this._choose({ playerId: chooser, purpose: e.perPlayer ? 'keepCreatures' : 'keep', kind: 'objects', items: this._chooseItems(byValue(pool)),
@@ -29837,7 +29879,11 @@
           for (const o of taken) {
             this._removeFromZone(o);
             if (e.to === 'battlefield') {
+              // Turntimber Symbiosis: "If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it." (enterCountersMaxMv)
+              const ecm = e.enterCountersMaxMv;
+              if (ecm && ((o.card && o.card.cmc) || 0) <= ecm.maxMv) o._enterExtraCounter = { kind: '+1/+1', n: ecm.n };
               o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) o.tapped = true;
+              if (ecm) o._enterExtraCounter = null;
               /* Winota, Joiner of Forces: "onto the battlefield tapped and attacking" — at whoever the creature that
                  set it off attacks, during combat; never declared; "It gains …" is this one */
               if (e.attacking && o.zone === 'battlefield') {
@@ -29913,6 +29959,37 @@
           // (put back in an order only the one who looked knows)
           for (const o of seq) { o.knownTo = null; this._setKnown(o, [ctx.controller]); }
           this._looked = null;
+          break;
+        }
+        /* Lim-Dûl's Vault: "As many times as you choose, you may pay 1 life, put those cards on the bottom of your library
+           in any order, then look at the top five cards of your library." — asked again after each look (lookAgainPayLife) */
+        case 'lookAgainPayLife': {
+          const z = this.zones[ctx.controller];
+          const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library' && o.owner === ctx.controller);
+          // (the whole library looked at: the bottom is the top again — nothing to gain)
+          if (!pool.length || z.library.length <= pool.length || !this._canPayLifeMv(me, e.life)) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'lookAgainPayLife', count: (e._round || 0) + 1,
+            yesLabel: `Pay ${e.life} life`, noLabel: 'Keep these',
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you are looking at ${pool.map(o => o.name).join(', ')}. Pay ${e.life} life, put those cards on the bottom of your library and look at the top ${e.n} cards of your library?` }, 'lap');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) break;
+          this.changeLife(me, -e.life, 'cost');
+          this.logEvent('life', `${me.name} pays ${e.life} life and puts ${pool.length} card${pool.length === 1 ? '' : 's'} on the bottom of their library.`);
+          for (const o of pool) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+          this._looked = null;
+          this._spliceNext([{ op: 'lookAt', n: e.n }, Object.assign({}, e, { _round: (e._round || 0) + 1 })]);
+          break;
+        }
+        // Lim-Dûl's Vault: "Then shuffle and put the last cards you looked at this way on top in any order." (shuffleLookedTop)
+        case 'shuffleLookedTop': {
+          const z = this.zones[ctx.controller];
+          const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library' && o.owner === ctx.controller);
+          for (const o of pool) this._removeFromZone(o);
+          this.rng.shuffle(z.library);
+          this.logEvent('rules', `${me.name} shuffles their library.`);
+          for (let i = pool.length - 1; i >= 0; i--) { pool[i].zone = 'library'; z.library.unshift(pool[i]); }
+          if (pool.length > 1) { this._looked = pool.map(o => o.id); this._spliceNext([{ op: 'putBackLooked' }]); }
+          else this._looked = null;
           break;
         }
 
@@ -31160,7 +31237,8 @@
           const td = ctx.triggerData || {};
           // Zendikons: the land that died goes to its owner's hand, whoever that is
           if (e.ownerHand) {
-            const x = td.objectId && this.obj(td.objectId);
+            // (Together Forever: "When that creature dies this turn" — the watched creature is the delayed trigger's own object)
+            const x = (td.objectId && this.obj(td.objectId)) || (ctx.delayed ? src : null);
             if (x && x.zone === 'graveyard' && !x.isToken) this.moveObject(x, 'hand');
             break;
           }

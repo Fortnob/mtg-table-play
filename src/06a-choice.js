@@ -124,7 +124,8 @@
         }
         case 'sum': {
           const total = entries.reduce((k, e) => k + num(e && e[c.key]), 0);
-          if (c.max != null && total > c.max) return c.reason || `That is ${total} ${label}; the most is ${c.max}.`;
+          // (Slaughter the Strong: a power below 0 brings the total back down — the most holds for the whole answer: finalMax)
+          if (c.max != null && total > c.max && (final || !c.finalMax)) return c.reason || `That is ${total} ${label}; the most is ${c.max}.`;
           if (final && c.min != null && entries.length && total < c.min) return c.reason || `That is ${total} ${label}; it needs ${c.min}.`;
           break;
         }

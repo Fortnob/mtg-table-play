@@ -68471,4 +68471,157 @@ module.exports = (test) => {
     t.zone(p2, 'hand', 'into the hand');
     t.no(T.asked.slice(asked).some(ch => ch.purpose === 'tutorMayField'), 'not asked');
   });
+  test('Cards: Turntimber Symbiosis // Turntimber, Serpentine Wood — a creature of mana value 3 or less enters with three more +1/+1 counters', (mk, t) => {
+    t.auto('Turntimber Symbiosis // Turntimber, Serpentine Wood');
+    for (const pick of ['Grizzly Bears', 'Craw Wurm']) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const g = T.g;
+      const wurm = T.top('A', 'Craw Wurm'), bears = T.top('A', 'Grizzly Bears');
+      T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === pick).id] }));
+      T.mana('A', '4GGG');
+      T.cast('A', T.hand('A', 'Turntimber Symbiosis // Turntimber, Serpentine Wood'));
+      const o = pick === 'Craw Wurm' ? wurm : bears;
+      t.zone(o, 'battlefield', pick);
+      t.eq(o.counters['+1/+1'] || 0, pick === 'Craw Wurm' ? 0 : 3, pick + ': counters');
+      t.zone(pick === 'Craw Wurm' ? bears : wurm, 'library', 'the other one to the bottom');
+    }
+    // the land face: pay 3 life, or it enters tapped
+    const T = mk();
+    const mdfc = T.hand('A', 'Turntimber Symbiosis // Turntimber, Serpentine Wood');
+    T.answer('confirm', { yes: true });
+    t.ok(T.g.playLand('A', mdfc.id, 1), T.g.lastError);
+    T.resolve();
+    t.zone(mdfc, 'battlefield');
+    t.eq(T.life('A'), 17, 'paid 3 life'); t.no(mdfc.tapped, 'untapped');
+  });
+  test('Cards: Slaughter the Strong — each player keeps creatures with total power 4 or less and sacrifices the rest', (mk, t) => {
+    t.auto('Slaughter the Strong');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    const wurm = T.bf('A', 'Craw Wurm'), bears = T.bf('A', 'Grizzly Bears'), giant = T.bf('A', 'Hill Giant');
+    const elves = T.bf('B', 'Llanowar Elves'), bears2 = T.bf('B', 'Grizzly Bears');
+    let q = null, tooMuch = null;
+    T.answer('choose', (ch) => {
+      q = ch;
+      tooMuch = g.resolveChoice('A', { picks: [bears.id, giant.id] });
+      return { picks: [bears.id] };
+    });
+    T.mana('A', '1WW');
+    T.cast('A', T.hand('A', 'Slaughter the Strong'));
+    t.ok(q && q.playerId === 'A', 'A asked');
+    t.no(tooMuch, 'power 5 is too much');
+    t.eq(T.asked.filter(c => c.type === 'choose').length, 1, "B's total is 3: not asked");
+    t.zone(bears, 'battlefield'); t.zone(wurm, 'graveyard'); t.zone(giant, 'graveyard');
+    t.zone(elves, 'battlefield'); t.zone(bears2, 'battlefield');
+    // a power below 0 takes away from the total; a bot keeps the most it can
+    const T2 = mk({ library: Array(20).fill('Plains') });
+    const g2 = T2.g;
+    const w2 = T2.bf('B', 'Craw Wurm'), shrunk = T2.bf('B', 'Grizzly Bears'), giant2 = T2.bf('B', 'Hill Giant');
+    shrunk.effects.push({ p: -4, t: 0, until: 'eot' }); shrunk._chr = null;
+    t.eq(g2.powerOf(shrunk), -2);
+    T2.player('B').isBot = true;
+    const bot = new (require('../harness').engine().bots.BotPlayer)(g2, 'B', 8);
+    T2.mana('A', '1WW');
+    T2.answer('choose', (ch) => bot.chooseGeneric(ch));
+    T2.cast('A', T2.hand('A', 'Slaughter the Strong'));
+    t.zone(w2, 'battlefield', 'the Wurm kept: 6 - 2'); t.zone(shrunk, 'battlefield'); t.zone(giant2, 'graveyard');
+  });
+  test("Cards: Together Forever — support 2; {1}: a creature with a counter on it returns to its owner's hand if it dies this turn", (mk, t) => {
+    t.auto('Together Forever');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    const bears = T.bf('A', 'Grizzly Bears'), giant = T.bf('A', 'Hill Giant'), elves = T.bf('A', 'Llanowar Elves');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bears.id }, { kind: 'object', id: giant.id }] }));
+    T.mana('A', 'WW');
+    const tf = T.hand('A', 'Together Forever');
+    T.cast('A', tf);
+    t.eq(bears.counters['+1/+1'], 1); t.eq(giant.counters['+1/+1'], 1); t.no(elves.counters['+1/+1'], 'support 2: two');
+    const ab = tf.analysis().abilities.find(a => a.kind === 'activated');
+    const ids = g._legalTargetsFor(ab.effects[0].targets[0], 'A', tf.id).map(x => x.id || x);
+    t.ok(ids.includes(bears.id), 'a creature with a counter'); t.no(ids.includes(elves.id), 'not one without');
+    T.mana('A', '1');
+    T.activate('A', tf, 0, { targets: [bears] });
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: [bears] });
+    t.zone(bears, 'hand', 'died and came back to hand');
+    // chosen, but dying next turn: stays dead
+    T.mana('A', '1');
+    T.activate('A', tf, 0, { targets: [giant] });
+    T.nextTurn('B');
+    T.mana('B', '1B');
+    T.cast('B', T.hand('B', 'Doom Blade'), { targets: [giant] });
+    t.zone(giant, 'graveyard', 'the turn is over');
+  });
+  test('Cards: Not of This World — free when it counters a spell aimed at a creature of yours with power 7 or greater', (mk, t) => {
+    t.auto('Not of This World');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const crusher = T.bf('A', "Ulamog's Crusher"), bears = T.bf('A', 'Grizzly Bears');
+    T.nextTurn('B');
+    const blade = T.hand('B', 'Doom Blade');
+    T.mana('B', '1B');
+    T.cast('B', blade, { targets: [crusher], resolve: false });
+    g.passPriority('B', true);
+    const notw = T.hand('A', 'Not of This World');
+    t.eq(g.castCostFor('A', notw.id, { targets: [T.stackTarget(blade)] }), '', 'shown as free');
+    T.cast('A', notw, { targets: [T.stackTarget(blade)] });
+    t.zone(blade, 'graveyard', 'countered'); t.zone(crusher, 'battlefield');
+    // at the Bears: the full {7}
+    const blade2 = T.hand('B', 'Doom Blade');
+    T.mana('B', '1B');
+    T.cast('B', blade2, { targets: [bears], resolve: false });
+    g.passPriority('B', true);
+    const notw2 = T.hand('A', 'Not of This World');
+    t.eq(g.castCostFor('A', notw2.id, { targets: [T.stackTarget(blade2)] }), '{7}');
+    t.no(g.castSpell('A', notw2.id, { targets: [T.stackTarget(blade2)], auto: true }), 'no mana for {7}');
+    T.mana('A', '7');
+    T.cast('A', notw2, { targets: [T.stackTarget(blade2)] });
+    t.zone(blade2, 'graveyard'); t.zone(bears, 'battlefield');
+    // offered with no mana while such a spell is on the stack, to a person and to a bot
+    const T3 = mk({ library: Array(20).fill('Island') });
+    const g3 = T3.g;
+    const cr3 = T3.bf('B', "Ulamog's Crusher");
+    const n3 = T3.hand('B', 'Not of This World');
+    T3.player('B').isBot = true;
+    const bot = new (require('../harness').engine().bots.BotPlayer)(g3, 'B', 8);
+    t.no(bot.castOptionsInstant().some(x => x.o === n3), 'nothing on the stack: {7}');
+    T3.mana('A', '1B');
+    T3.cast('A', T3.hand('A', 'Doom Blade'), { targets: [cr3], resolve: false });
+    g3.passPriority('A', true);
+    t.ok(bot.castOptionsInstant().some(x => x.o === n3), 'the bot can cast it for nothing');
+    t.ok(g3.playableNow('B').some(x => x.kind === 'cast' && x.objId === n3.id), 'offered');
+  });
+  test("Cards: Lim-Dûl's Vault — pay 1 life for each new five; then shuffle with the last five on top in any order", (mk, t) => {
+    t.auto("Lim-Dûl's Vault");
+    const T = mk({ library: Array(20).fill('Island') });
+    const second = ['Doom Blade', 'Divination', 'Counterspell', 'Shock', 'Giant Growth'].map(n => T.top('A', n));
+    const first = ['Grizzly Bears', 'Hill Giant', 'Craw Wurm', 'Llanowar Elves', 'Lightning Bolt'].map(n => T.top('A', n));
+    const asks = [];
+    T.answer('confirm', (ch) => { asks.push(ch); return { yes: true }; });
+    T.answer('confirm', (ch) => { asks.push(ch); return { yes: false }; });
+    let arr = null;
+    T.answer('arrange', (ch) => { arr = ch; return { top: ch.cards.map(c => c.id).reverse() }; });
+    T.mana('A', 'UB');
+    T.cast('A', T.hand('A', "Lim-Dûl's Vault"));
+    t.eq(asks.length, 2, 'asked twice');
+    t.ok(/Lightning Bolt/.test(asks[0].prompt) && /Shock/.test(asks[1].prompt), 'each time naming what is looked at');
+    t.eq(T.life('A'), 19, 'paid 1 life once');
+    t.ok(arr && arr.cards.length === 5, 'the last five put back in any order');
+    const top5 = T.zone('A', 'library').slice(0, 5);
+    t.eq(top5.map(o => o.id).sort().join(), second.map(o => o.id).sort().join(), 'the last five on top');
+    t.eq(top5[0].id, arr.cards[arr.cards.length - 1].id, 'in the order chosen');
+    t.no(first.some(o => T.zone('A', 'library').indexOf(o) < 5), 'the first five shuffled away');
+    // a bot pays for a look while it has life to spare and sees little worth drawing
+    const T2 = mk({ library: Array(20).fill('Island') });
+    for (let i = 0; i < 8; i++) T2.bf('A', i % 2 ? 'Island' : 'Swamp');
+    T2.player('A').isBot = true;
+    const bot = new (require('../harness').engine().bots.BotPlayer)(T2.g, 'A', 8);
+    let n = 0, yes = 0;
+    for (let i = 0; i < 6; i++) T2.answer('confirm', (ch) => { n++; const y = bot.confirmChoice(ch); if (y) yes++; return { yes: y }; });
+    T2.mana('A', 'UB');
+    T2.cast('A', T2.hand('A', "Lim-Dûl's Vault"));
+    t.ok(yes >= 1 && yes <= 4 && n === yes + 1, 'looked again, a few times at most: ' + yes);
+    t.eq(T2.life('A'), 20 - yes, 'a life for each');
+  });
 };

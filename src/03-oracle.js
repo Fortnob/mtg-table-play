@@ -2620,6 +2620,9 @@
     { re: /^Time travel(?: (two|three|four|five) times)?\.?$/i, make: (m) => ({ op: 'timeTravel', n: m[1] ? num(m[1]) : 1 }) },
     // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." — folded into the return (extraCounterIf)
     { re: /^If an? ([A-Z][a-z]+) enters this way, it enters with an additional \+1\/\+1 counter on it\.?$/, make: (m) => ({ op: 'manual', extraCounterIfRider: m[1].toLowerCase() }) },
+    // Turntimber Symbiosis: "If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it." — folded into the pick (enterCountersMaxMv)
+    { re: /^If that card has mana value (\d+) or less, it enters with (an?|one|two|three|four|five) additional \+1\/\+1 counters? on it\.?$/i,
+      make: (m) => ({ op: 'manual', enterCountersMvRider: { maxMv: +m[1], n: /^an?$/i.test(m[2]) ? 1 : num(m[2]) } }) },
     // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — folded into the tokens' creation (goadTokensRider)
     { re: /^The tokens? (?:are|is) goaded for the rest of the game\.?$/i, make: () => ({ op: 'manual', goadTokensRider: true }) },
     /* Aragorn, Company Leader: "put your choice of a counter from among first strike, vigilance, deathtouch, and lifelink
@@ -4636,6 +4639,10 @@
     { re: /^(Each player|Each opponent|That player) chooses (up to )?(a|an|one|two|three|four|five|six) (creatures?|lands?|permanents?)(?: they control)?,? (?:then |and )sacrifices the rest\.?$/i,
       make: (m) => ({ op: 'keepRest', who: /^each player/i.test(m[1]) ? 'each' : /^each opponent/i.test(m[1]) ? 'opponents' : 'triggerPlayer',
         n: num(m[3]), upTo: !!m[2], filter: m[4].toLowerCase().replace(/s$/, ''), rest: m[4].toLowerCase().replace(/s$/, '') }) },
+    /* Slaughter the Strong: "Each player chooses any number of creatures they control with total power 4 or less, then
+       sacrifices all other creatures they control." (maxTotalPower) */
+    { re: /^Each player chooses any number of creatures they control with total power (\d+) or less, then sacrifices all other creatures they control\.?$/i,
+      make: (m) => ({ op: 'keepRest', who: 'each', n: 99, upTo: true, filter: 'creature', rest: 'creature', maxTotalPower: +m[1] }) },
     // Single Combat: "Each player chooses a creature or planeswalker they control, then sacrifices the rest."
     { re: /^Each player chooses a creature or planeswalker they control, then sacrifices the rest\.?$/i,
       make: () => ({ op: 'keepRest', who: 'each', n: 1, filter: 'creature or planeswalker', rest: 'creature or planeswalker' }) },
@@ -5791,6 +5798,12 @@
     { re: /^Put one of (?:them|those cards) into your hand and the other (on the bottom of your library|into your graveyard)\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: /graveyard/i.test(m[1]) ? 'graveyard' : 'bottom' }) },
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
+    /* Lim-Dûl's Vault: "As many times as you choose, you may pay 1 life, put those cards on the bottom of your library in
+       any order, then look at the top five cards of your library." (lookAgainPayLife) */
+    { re: /^As many times as you choose, you may pay (\d+) life, put those cards on the bottom of your library in any order, then look at the top (two|three|four|five|six|seven) cards of your library\.?$/i,
+      make: (m) => ({ op: 'lookAgainPayLife', life: +m[1], n: num(m[2]) }) },
+    // Lim-Dûl's Vault: "Then shuffle and put the last cards you looked at this way on top in any order." (shuffleLookedTop)
+    { re: /^Then shuffle and put the last cards you looked at this way on top in any order\.?$/i, make: () => ({ op: 'shuffleLookedTop' }) },
     { re: /^Put one of them on top of your library and the rest on the bottom in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, to: 'top', rest: 'bottomRandom' }) },
     // Nael, Avizoa Aeronaut: "Put up to one of them on top of your library and the rest on the bottom in a random order."
@@ -8170,8 +8183,11 @@
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
     /* Kelsien, the Plague: "When that creature dies this turn, you get an experience counter." — the one aimed at,
        watched for the rest of the turn (watchDeath) */
+    // (Together Forever: "When that creature dies this turn, return that card to its owner's hand." — the card that died)
     { re: /^When (?:that creature|it) dies this turn, (.+?)\.?$/i,
       make: (m) => {
+        if (/^return that card to its owner'?s hand$/i.test(m[1])) return { op: 'delayed', event: 'dies', subject: 'lastTarget', watchDeath: true,
+          name: 'When that creature dies this turn', effects: [{ op: 'returnItToHand', ownerHand: true }] };
         const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.'));
         return pe.auto && pe.effects.length ? { op: 'delayed', event: 'dies', subject: 'lastTarget', watchDeath: true,
           name: 'When that creature dies this turn', effects: pe.effects } : null;
@@ -8809,7 +8825,8 @@
     // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
     // (Yenna, Redtooth Regent: "… you control that doesn't have the same name as another permanent you control")
     // (Willowdusk, Essence Seer: "Choose another target creature.")
-    { re: /^Choose ((?:another )?target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control)?)\.?$/i,
+    // (Together Forever: "Choose target creature with a counter on it.")
+    { re: /^Choose ((?:another )?target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control| with a counter on it)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     /* Super-Adaptoid: "If that creature has haste and Super-Adaptoid doesn't, put a haste counter on Super-Adaptoid. Do the
        same for flying, first strike, …" — the creature chosen before, each keyword in turn (copyKeywordCounters) */
@@ -13976,6 +13993,10 @@
       if (field && c.scope) c.scope.who = 'all';
       return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: c };
     }
+    /* Not of This World: "This spell costs {7} less to cast if it targets a spell or ability that targets a creature
+       you control with power 7 or greater." — settled once the targets are chosen (targetCond) */
+    m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} less to cast if it targets a spell or ability that targets a creature you control with power (\d+) or greater$/i);
+    if (m) return { amount: -(+m[1]), targetCond: { stackTargetsYours: 'creature', minPower: +m[2] } };
     m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} (less|more) to cast if (.+)$/i);
     if (m) {
       const cond = altCond(m[3]);
@@ -15122,6 +15143,12 @@
       // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." (extraCounterIf)
       if (e && e.extraCounterIfRider) {
         if (prevE && prevE.op === 'reanimate' && !prevE.extraCounterIf) { prevE.extraCounterIf = e.extraCounterIfRider; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // Turntimber Symbiosis: "If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it." (enterCountersMaxMv)
+      if (e && e.enterCountersMvRider) {
+        if (prevE && prevE.op === 'takeFromLooked' && prevE.to === 'battlefield' && !prevE.enterCountersMaxMv) { prevE.enterCountersMaxMv = e.enterCountersMvRider; continue; }
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }

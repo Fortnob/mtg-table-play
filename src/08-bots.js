@@ -2165,6 +2165,20 @@
       const best = from.sort((a, b) => this.permanentValue(b) - this.permanentValue(a)).slice(0, s.max || 1);
       return { picks: best.length >= (s.min || 0) ? best.map(o => o.id) : pool.slice(0, s.min).map(o => o.id) };
     },
+    /* Slaughter the Strong: the creatures worth most that fit in the total power, those with power below 0 first
+       (they make room) */
+    keepPower(s) {
+      const g = this.game;
+      const c = (s.constraints || []).find(x => x.kind === 'sum') || {};
+      const max = c.max != null ? c.max : Infinity;
+      const pool = (s.items || []).map(x => ({ id: x.id, pw: Number(x.power) || 0, o: g.obj(x.id) })).filter(x => x.o);
+      const picks = [];
+      let total = 0;
+      for (const x of pool.filter(x => x.pw <= 0)) { picks.push(x.id); total += x.pw; }
+      const rest = pool.filter(x => x.pw > 0).sort((a, b) => this.permanentValue(b.o) - this.permanentValue(a.o));
+      for (const x of rest) if (total + x.pw <= max) { picks.push(x.id); total += x.pw; }
+      return { picks };
+    },
     /* Fire Prophecy: the cards we want least go to the bottom */
     handToBottom(s) {
       const g = this.game;
@@ -3242,6 +3256,12 @@
         const c = ch.cardId && g.obj(ch.cardId);
         return !!c && !this.wantToDraw(c, 0);
       }
+      // Lim-Dûl's Vault: another five for a life, while these hold little we want and life is plenty (a few times at most)
+      if (ch.purpose === 'lookAgainPayLife') {
+        const seen = (g._looked || []).map(id => g.obj(id)).filter(Boolean);
+        const wanted = seen.filter((c, i) => this.wantToDraw(c, i)).length;
+        return this.me.life > 10 && (Number(ch.count) || 1) <= 4 && wanted < 2;
+      }
       if (ch.purpose === 'payToUntap') {
         // a shock land: pay when we would use the mana this turn and can spare the life
         return this.me.life > 10 && (this.d <= 3 || this._wouldUseUntapped());
@@ -4303,6 +4323,8 @@
         const a = o.analysis();
         if (!a || a.isLand || !(a.isInstant || a.has('flash'))) continue;
         const chk = g.canCast(this.pid, o.id);
+        // (Not of This World: as little as a spell on the stack would let it cost)
+        if (chk.ok && a.selfCost) chk.cost = g._targetCondCost(a, this.pid, null, chk.cost);
         if (!chk.ok || !g.couldPay(this.pid, chk.cost || '', sources)) continue;
         out.push({ o, a, cost: MTG.mana.cmc(chk.cost || ''), costStr: chk.cost || '' });
       }
