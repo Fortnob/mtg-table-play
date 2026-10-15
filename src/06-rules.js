@@ -32154,6 +32154,16 @@
           this.logEvent('discard', `${p.name} discards ${hits.length} card${hits.length === 1 ? '' : 's'} named ${nm}.`);
           break;
         }
+        // Crosis, the Purger; Persecute: "reveals their hand and discards all cards of that color" (discardColor)
+        case 'discardColor': {
+          const p = e.who === 'triggerPlayer' ? triggerPlayer() : firstPlayer();
+          const col = ctx.chosenColor || (src && src.chosenColor);
+          if (!p || !col) break;
+          this._knowHand(p.id, '*');
+          this.logEvent('reveal', `${p.name} reveals their hand.`);
+          this._discardNow(p.id, this.zones[p.id].hand.filter(c => ((c.analysis() || {}).colors || []).includes(col)), this.resolving);
+          break;
+        }
         // Cranial Extraction: every card with that name, from graveyard, hand and library
         case 'exileChosenNameEverywhere': {
           const p = firstPlayer(); const nm = this._chosenNameNow;

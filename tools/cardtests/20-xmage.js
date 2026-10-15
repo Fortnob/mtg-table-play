@@ -56834,4 +56834,104 @@ module.exports = (test) => {
     t.ok(!po.tapped, 'the Patron is green too: untapped by its own ability');
     t.no(g.activateAbility('A', po.id, 0, { auto: true }), 'only once each turn');
   });
+
+  test('Commanders: Jerren, Corrupted Bishop — enters or another nontoken Human dies: lose 1, a Human; exactly 13 life at your end step: pay to transform', (mk, t) => {
+    t.auto('Jerren, Corrupted Bishop // Ormendahl, the Corrupter');
+    const T = mk();
+    const g = T.g;
+    const humans = () => g.battlefield.filter(o => o.isToken && o.name.includes('Human')).length;
+    const jr = T.put('A', 'Jerren, Corrupted Bishop // Ormendahl, the Corrupter', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.life('A'), 19, 'enters: lose 1 life');
+    t.eq(humans(), 1, 'and a Human');
+    const ev = T.bf('A', 'Elite Vanguard');
+    g.moveObject(ev, 'graveyard'); T.settle(); T.resolve();
+    t.eq(humans(), 2, 'another nontoken Human dies: another');
+    t.eq(T.life('A'), 18, 'and another life');
+    const tok = g.battlefield.find(o => o.isToken && o.name.includes('Human'));
+    g.moveObject(tok, 'graveyard'); T.settle(); T.resolve();
+    const bear = T.bf('A', 'Grizzly Bears');
+    g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
+    const foe = T.bf('B', 'Elite Vanguard');
+    g.moveObject(foe, 'graveyard'); T.settle(); T.resolve();
+    t.eq(T.life('A'), 18, 'a token Human, a Bear or their Human: nothing');
+    // the end step: 14 life is not 13
+    for (let i = 0; i < 6; i++) T.bf('A', 'Swamp');
+    T.player('A').life = 14;
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(jr.face || 0, 0, '14 life: no transform');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.player('A').life = 13;
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(jr.face, 1, 'exactly 13: paid {4}{B}{B} — Ormendahl, the Corrupter');
+    t.ok(g.battlefield.filter(o => o.controller === 'A' && o.name === 'Swamp' && o.tapped).length === 6, 'six Swamps tapped to pay');
+    t.ok(g.hasKw(jr, 'Flying') && g.hasKw(jr, 'Lifelink'), 'flying, lifelink');
+  });
+
+  test('Commanders: Edea, Possessed Sorceress — takes a creature each combat; one you control but don\'t own dies: back to its owner, and you draw', (mk, t) => {
+    t.auto('Edea, Possessed Sorceress');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Edea, Possessed Sorceress');
+    const giant = T.bf('B', 'Hill Giant', { tapped: true });
+    T.toMain('A', 'beginCombat'); T.resolve();
+    t.eq(giant.controller, 'A', 'the Giant is Edea\'s player\'s for the turn');
+    t.ok(!giant.tapped && g.hasKw(giant, 'Haste'), 'untapped, with haste');
+    const hand = T.zone('A', 'hand').length;
+    g.moveObject(giant, 'graveyard'); T.settle(); T.resolve();
+    t.zone(giant, 'battlefield', 'it dies and comes back');
+    t.eq(giant.controller, 'B', 'under its owner\'s control');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'and a card for you');
+    const bear = T.bf('A', 'Grizzly Bears');
+    g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
+    t.zone(bear, 'graveyard', 'one you own: stays dead');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'no card');
+    const foe = T.bf('B', 'Elite Vanguard');
+    g.moveObject(foe, 'graveyard'); T.settle(); T.resolve();
+    t.zone(foe, 'graveyard', 'theirs under their control: nothing');
+  });
+
+  test('Commanders: Crosis, the Purger — combat damage to a player: pay {2}{B}, choose a color, they discard every card of it', (mk, t) => {
+    t.auto('Crosis, the Purger'); t.auto('Persecute');
+    const T = mk();
+    const cr = T.bf('A', 'Crosis, the Purger');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Swamp');
+    const bolt = T.hand('B', 'Lightning Bolt'), shock = T.hand('B', 'Shock'), bear = T.hand('B', 'Grizzly Bears'), isl = T.hand('B', 'Island');
+    T.answer('declareAttackers', () => [{ attackerId: cr.id, defenderId: 'B' }]);
+    T.answer('mode', (ch) => { t.eq(ch.options.length, 5, 'five colors'); return { modes: [3] }; });
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.eq(T.life('B'), 14, 'six damage');
+    t.zone(bolt, 'graveyard', 'Bolt discarded'); t.zone(shock, 'graveyard', 'Shock discarded');
+    t.zone(bear, 'hand', 'the green Bears stay'); t.zone(isl, 'hand', 'the Island stays');
+    t.ok(T.g.battlefield.filter(o => o.name === 'Swamp' && o.tapped).length === 3, '{2}{B} paid');
+    // Persecute: target player, the chosen color
+    const T2 = mk();
+    const b2 = T2.hand('B', 'Grizzly Bears'), s2 = T2.hand('B', 'Shock'), g2 = T2.hand('B', 'Llanowar Elves');
+    T2.answer('mode', { modes: [4] });
+    T2.mana('A', 'BB2');
+    T2.cast('A', T2.hand('A', 'Persecute'), { targets: ['B'] });
+    t.ok(b2.zone === 'graveyard' && g2.zone === 'graveyard' && s2.zone === 'hand', 'Persecute: green chosen, both green cards go');
+  });
+
+  test('Commanders: Risona, Asari Commander — an indestructible counter on hitting a player, if none; combat damage to you takes one off', (mk, t) => {
+    t.auto('Risona, Asari Commander');
+    const T = mk();
+    const g = T.g;
+    const rs = T.bf('A', 'Risona, Asari Commander');
+    T.answer('declareAttackers', () => [{ attackerId: rs.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.eq(rs.counters.indestructible, 1, 'an indestructible counter');
+    t.ok(g.hasKw(rs, 'Indestructible'), 'indestructible');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: rs.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.eq(rs.counters.indestructible, 1, 'it had one: no second');
+    rs.counters.indestructible = 2;
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'A' }, { attackerId: b2.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat'); T.resolve();
+    t.eq(T.life('A'), 15, 'five damage');
+    t.eq(rs.counters.indestructible, 1, 'two creatures at once: one counter off');
+  });
 };

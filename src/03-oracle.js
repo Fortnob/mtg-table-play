@@ -1382,6 +1382,12 @@
       make: (m) => ({ op: 'chooseName', nonland: /nonland/i.test(m[1] || ''), nonartifact: /nonartifact/i.test(m[1] || ''), creature: /creature/i.test(m[1] || '') || undefined }) },
     { re: /^Target (player|opponent) reveals their hand and discards all cards with (?:that|the chosen) name\.?$/i,
       make: (m) => ({ op: 'discardNamed', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    /* Crosis, the Purger: "choose a color, then that player reveals their hand and discards all cards of that color";
+       Persecute: "Target player reveals their hand and discards all cards of that color." (discardColor) */
+    { re: /^Choose a colou?r, then that player reveals their hand and discards all cards of that colou?r\.?$/i,
+      make: () => [{ op: 'chooseColor' }, { op: 'discardColor', who: 'triggerPlayer' }] },
+    { re: /^Target (player|opponent) reveals their hand and discards all cards of that colou?r\.?$/i,
+      make: (m) => ({ op: 'discardColor', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^Search target (player|opponent)'?s graveyard, hand, and library for (?:all|any number of) cards with (?:that|the chosen) name and exile them\.?$/i,
       make: (m) => ({ op: 'exileChosenNameEverywhere', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     /* Kamigawa flip cards: "flip it", "you may flip it", "flip this creature" — it turns
@@ -14019,6 +14025,9 @@
     // Triskaidekaphile: "if you have exactly thirteen cards in your hand"
     [/^you have exactly (\w+) cards in your hand$/i, (m) => (typeof num(m[1]) === 'number'
       ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
+    // Jerren, Corrupted Bishop: "if you have exactly 13 life"
+    [/^you have exactly (\w+) life$/i, (m) => (typeof num(m[1]) === 'number'
+      ? [{ kind: 'life', n: num(m[1]), cmp: 'atLeast' }, { kind: 'life', n: num(m[1]), cmp: 'atMost' }] : null)],
     // Righteous Valkyrie: "you have at least 7 life more than your starting life total"
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
     // Elenda, Saint of Dusk: "your life total is greater than your starting life total", "… is at least 10 greater than …"
@@ -14164,6 +14173,8 @@
     // the depletion lands: "if there are no depletion counters on this land"
     [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Risona, Asari Commander: "if it doesn't have an indestructible counter on it"
+    [/^(?:it|this creature|CARDNAME) doesn'?t have an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Blaster, Morale Booster: "If Blaster has no +1/+1 counters on it"
     [/^(?:this creature|this permanent|CARDNAME) has no ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
@@ -15101,6 +15112,9 @@
     // Witch-king of Angmar: "Whenever one or more creatures deal combat damage to you" — once for the lot
     { re: /^Whenever one or more creatures deal combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true } },
+    // Risona, Asari Commander: "Whenever combat damage is dealt to you" — once for the lot dealt at once
+    { re: /^Whenever combat damage is dealt to you,/i, event: 'youDealtDamage', aboutObject: true,
+      filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true } },
     // The Cabbage Merchant, Teysa: "Whenever a creature deals combat damage to you"
     { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() }), extra: { combatOnly: true } },
@@ -15267,6 +15281,9 @@
        for the lot, itself one of them or not (selfOk, batch) */
     { re: /^Whenever (?:CARDNAME|this creature) and\/or (one or more other [a-z ]+? you control) enter,? /i,
       event: 'permEnters', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.selfOk = true; return f; } },
+    // Jerren, Corrupted Bishop: "Whenever Jerren enters or another nontoken Human you control dies" (selfOnEnter)
+    { re: /^Whenever (?:CARDNAME|this creature) enters or (another (?:nontoken )?[A-Za-z]+ you control) dies,? /i, event: 'permEnters', also: 'permDies',
+      filt: (m) => subjectFilter(m[1]), extra: { filterOnlyOn: 'permDies', selfOnEnter: true } },
     // Carth the Lion: "Whenever Carth enters or a planeswalker you control dies" — itself entering, or that dying (selfOnEnter)
     { re: /^Whenever (?:CARDNAME|this creature) enters or an? ([a-z]+) you control dies,? /i, event: 'permEnters', also: 'permDies',
       filt: (m) => ({ words: m[1].toLowerCase(), who: 'you' }), extra: { filterOnlyOn: 'permDies', selfOnEnter: true } },
@@ -15281,6 +15298,9 @@
         if (f && m[2]) f.who = /your/i.test(m[2]) ? 'you' : 'opponent';
         return f;
       } },
+    // Edea, Possessed Sorceress: "Whenever a creature you control but don't own dies" (notOwned)
+    { re: /^Whenever an? ([a-z]+) you control but don'?t own dies,? /i, event: 'permDies',
+      filt: (m) => ({ words: m[1].toLowerCase(), who: 'you', notOwned: true }) },
     /* Nether Traitor, Bridge from Below: "is put into your graveyard / an
        opponent's graveyard from the battlefield" — dying, with whose it was */
     // (Shirei, Shizo's Caretaker: "your graveyard" is whose card it is — one you own that dies under another's control too: owned)
