@@ -20885,11 +20885,15 @@
           const want = Math.min(nVar(e.n), pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
+          // Neyam Shai Murad: "that player chooses a permanent card in your graveyard" — the player the trigger is about (chooser)
+          const chooserP = e.chooser === 'triggerPlayer' ? triggerPlayer() : gyOwner;
+          if (!chooserP || chooserP.hasLost) break;
           if (pool.length > want || e.upTo) {
-            const picked = this._ask({ type: 'pickCard', playerId: gyOwner.id, count: want, optional: !!e.upTo,
+            const picked = this._ask({ type: 'pickCard', playerId: chooserP.id, count: want, optional: !!e.upTo,
               cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
               // ("a card", not "a card card"; "an artifact card")
-              prompt: `${e.anyGraveyard ? 'Put' : 'Return'} ${want === 1 ? this._aCard(e.filter, 'card') : want + ' ' + this._aCard(e.filter, 'card', true)} from ${e.anyGraveyard ? 'a' : 'your'} graveyard${e.anyGraveyard ? ' onto the battlefield' : ''}.` }, 'gy');
+              prompt: chooserP !== gyOwner ? `Choose ${this._aCard(e.filter, 'card')} in ${gyOwner.name}'s graveyard. ${gyOwner.name} puts it onto the battlefield under their control.`
+                : `${e.anyGraveyard ? 'Put' : 'Return'} ${want === 1 ? this._aCard(e.filter, 'card') : want + ' ' + this._aCard(e.filter, 'card', true)} from ${e.anyGraveyard ? 'a' : 'your'} graveyard${e.anyGraveyard ? ' onto the battlefield' : ''}.` }, 'gy');
             if (picked === SUSPEND) return SUSPEND;
             ids = (picked || []).filter(id => pool.some(c => c.id === id)).slice(0, want);
           }
@@ -21733,7 +21737,10 @@
           // Secure the Wastes for X=0, Thalisse with no tokens made: "create X tokens" with X 0 is none
           if (!e.count && !e.countBy && (e.n === 'X' || (e.n && typeof e.n === 'object')) && !(many > 0)) break;
           // "an X/X token, where X is that spell's mana value": the size, worked out now
-          const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
+          // Kalitas, Bloodchief of Ghet: "Its power is equal to that creature's power and …" — as it last was (ptOfLast)
+          const laT = e.ptOfLast && this._lastAffected && this.obj(this._lastAffected.id);
+          const sized = laT ? { pt: Math.max(0, laT.zone === 'battlefield' ? this.powerOf(laT) : (laT._lastPower || 0)) + '/' + Math.max(0, laT.zone === 'battlefield' ? this.toughnessOf(laT) : (laT._lastToughness || 0)) }
+            : e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
             // Arboreal Alliance: "an X/X … token", X as it was cast
             : /^X\/X$/i.test(e.pt || '') ? { pt: Math.max(0, n('X')) + '/' + Math.max(0, n('X')) } : {};
           // Curse of the Swine: a token for the controller of each one that went
@@ -21952,7 +21959,7 @@
             const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${O.nounCount(howMany, e.filter || 'permanent')}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (1/${e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${O.nounCount(howMany, e.filter || 'permanent')}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (${e.fraction === 2 ? 'half' : '1/' + e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
             }, e.exile ? { exileInstead: true } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
@@ -23942,7 +23949,8 @@
         // "If a creature is destroyed this way, …": the one the destroy acted on is gone
         case 'ifDestroyed': {
           const la = this._lastAffected && this.obj(this._lastAffected.id);
-          if (la && la.zone !== 'battlefield') this._spliceNext(e.then || []);
+          // (Kalitas, Bloodchief of Ghet: "If that creature dies this way" — into a graveyard: died)
+          if (la && la.zone !== 'battlefield' && (!e.died || la.zone === 'graveyard')) this._spliceNext(e.then || []);
           break;
         }
         // "If the discarded card wasn't a land card, …"
@@ -30143,7 +30151,9 @@
         case 'restrict':
           applyToScope(e, (o) => {
             // (Jon Irenicus, Shattered One: "it gains "This creature can't be sacrificed."" — for as long as it stays: permanent)
-            o.effects.push(e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller }
+            // (Stilt-Man, Towering Terror: "until the end of your next turn" — endNextTurn)
+            o.effects.push(e.duration === 'endNextTurn' ? { flag: e.flag, until: null, untilEndTurn: this._endOfNextTurnOf(ctx.controller) }
+              : e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller }
               : e.duration === 'permanent' ? { flag: e.flag, until: null } : { flag: e.flag, until: 'eot' });
             this.logEvent('rules', `${o.name}: ${FLAG_WORDS[e.flag] || e.flag}.`);
           });
@@ -33208,6 +33218,16 @@
           this.logEvent('reveal', `${p.name} reveals their hand.`);
           for (const c of hits) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
           this.logEvent('discard', `${p.name} discards ${hits.length} card${hits.length === 1 ? '' : 's'} named ${nm}.`);
+          break;
+        }
+        // Infernal Kirin: "reveals their hand and discards all cards with that spell's mana value" (discardMv)
+        case 'discardMv': {
+          const p = firstPlayer();
+          if (!p || p.hasLost) break;
+          const mv = n(e.mv);
+          this._knowHand(p.id, '*');
+          this.logEvent('reveal', `${p.name} reveals their hand.`);
+          this._discardNow(p.id, this.zones[p.id].hand.filter(c => ((c.card && c.card.cmc) || 0) === mv), this.resolving);
           break;
         }
         // Crosis, the Purger; Persecute: "reveals their hand and discards all cards of that color" (discardColor)

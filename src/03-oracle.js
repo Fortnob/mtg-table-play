@@ -1405,6 +1405,9 @@
       make: (m) => ({ op: 'chooseName', nonland: /nonland/i.test(m[1] || ''), nonartifact: /nonartifact/i.test(m[1] || ''), creature: /creature/i.test(m[1] || '') || undefined }) },
     { re: /^Target (player|opponent) reveals their hand and discards all cards with (?:that|the chosen) name\.?$/i,
       make: (m) => ({ op: 'discardNamed', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Infernal Kirin: "target player reveals their hand and discards all cards with that spell's mana value" (discardMv)
+    { re: /^Target (player|opponent) reveals their hand and discards all cards with that spell'?s mana value\.?$/i,
+      make: (m) => ({ op: 'discardMv', mv: { triggerSpellMv: true }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     /* Crosis, the Purger: "choose a color, then that player reveals their hand and discards all cards of that color";
        Persecute: "Target player reveals their hand and discards all cards of that color." (discardColor) */
     { re: /^Choose a colou?r, then that player reveals their hand and discards all cards of that colou?r\.?$/i,
@@ -4250,6 +4253,11 @@
     // Zodiark, Umbral God: "Each player sacrifices half the non-God creatures they control of their choice, rounded down." (halfRoundDown)
     { re: /^Each player sacrifices half the (non-[A-Z][a-z]+ )?creatures they control of their choice, rounded down\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'each', filter: ((m[1] || '') + 'creature').toLowerCase() }) },
+    /* Rakdos the Defiler: "sacrifice half the non-Demon permanents you control, rounded up"; "that player sacrifices half
+       the non-Demon permanents they control of their choice, rounded up" (fraction 2) */
+    { re: /^(sacrifice|that player sacrifices) half the (non-[A-Z][a-z]+ )?(permanents|creatures) (?:you|they) control(?: of their choice)?, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: 1, fraction: 2, roundUp: /up/i.test(m[4]), who: /^that player/i.test(m[1]) ? 'triggerPlayer' : 'you',
+        filter: ((m[2] || '') + singularType(m[3].toLowerCase())).toLowerCase() }) },
     // Legate Lanius, Caesar's Ace: "each opponent sacrifices a tenth of the creatures they control of their choice, rounded up" (fraction)
     { re: /^Each (opponent|player) sacrifices (a third|a quarter|a tenth) of the (creatures|nonland permanents|permanents) they control of their choice, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: 1, fraction: { 'a third': 3, 'a quarter': 4, 'a tenth': 10 }[m[2].toLowerCase()], roundUp: /up/i.test(m[4]),
@@ -12071,6 +12079,27 @@
         const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
         return pre.auto ? [...pre.effects, { op: 'ifCond', cond, then: [e] }] : null;
       } },
+    /* Kalitas, Bloodchief of Ghet: "Destroy target creature. If that creature dies this way, create a black Vampire
+       creature token. Its power is equal to that creature's power and its toughness is equal to that creature's
+       toughness." — only once it is in a graveyard (ifDestroyed died), its size as it last was (ptOfLast) */
+    { re: /^Destroy (target creature)\. If that creature dies this way, create an? ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ([A-Z][a-z]+) creature token\. Its power is equal to that creature'?s power and its toughness is equal to that creature'?s toughness\.?$/,
+      make: (m) => {
+        const tok = parseEffectSentence('Create a 0/0 ' + m[2] + ' ' + m[3] + ' creature token.');
+        return tok && tok.op === 'createToken' ? [{ op: 'destroy', targets: [targetSpec(m[1])] },
+          { op: 'ifDestroyed', died: true, then: [Object.assign(tok, { ptOfLast: true })] }] : null;
+      } },
+    /* Neyam Shai Murad: "you may have that player return target permanent card from their graveyard to their hand. If
+       you do, that player chooses a permanent card in your graveyard, then you put it onto the battlefield under your
+       control." — their card back to them, and one of yours, their pick, onto the battlefield for you (chooser) */
+    { re: /^you may have that player return target permanent card from their graveyard to their hand\. If you do, that player chooses a permanent card in your graveyard, then you put it onto the battlefield under your control\.?$/i,
+      make: () => [{ op: 'may', prompt: 'CARDNAME: have that player return the targeted card to their hand? If you do, they choose a permanent card in your graveyard and you put it onto the battlefield under your control.',
+        then: [{ op: 'regrowth', targets: [{ type: 'permanent', filter: 'permanent card', zone: 'graveyard', controller: 'triggerPlayer' }] },
+          { op: 'graveyardPick', n: 1, filter: 'permanent', to: 'battlefield', chooser: 'triggerPlayer' }] }] },
+    /* Stilt-Man, Towering Terror: "gain control of target noncreature, nonland permanent that player controls until the
+       end of your next turn. It gains "This permanent can't be sacrificed" until the end of your next turn." */
+    { re: /^gain control of target noncreature, nonland permanent that player controls until the end of your next turn\. It gains "This permanent can'?t be sacrificed" until the end of your next turn\.?$/i,
+      make: () => [{ op: 'gainControl', until: 'endNextTurn', targets: [Object.assign(targetSpec('target noncreature, nonland permanent'), { controller: 'triggerPlayer' })] },
+        { op: 'restrict', flag: 'unsacrificable', scope: 'lastTarget', duration: 'endNextTurn' }] },
     /* Dack Fayden, Helping Hand: "They're goaded for the rest of the game. For each of those permanents, choose a
        different opponent. Each opponent gains control of the permanent for which they were chosen." — the ones just put
        (lastGroup), goaded by you for good, then one to each opponent (giveGroupToOpponents) */
