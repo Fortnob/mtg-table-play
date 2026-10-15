@@ -2383,6 +2383,9 @@
     // She-Hulk, Wallbreaker: "put a +1/+1 counter on that Hero for each creature blocking it" — counted as it resolves
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (?:that (?:creature|[A-Z][a-z]+)|it) for each creature blocking it\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofTrigger: 'blockers' }, targets: null, scope: 'triggerObject' }) },
+    // Jiang Yanggu, Alone: "put a +1/+1 counter on that creature for each card you've discarded this turn" — the trigger's
+    { re: /^(?:Then )?Put an? ([+\-0-9/a-z]+) counter on that creature for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: null, scope: 'triggerObject' } : null; } },
     // Geralf, the Fleshwright: "put a +1/+1 counter on it for each other Zombie that entered …" — "it" the trigger's, or the last one named
     { re: /^Put an? ([+\-0-9/a-z]+) counter on it for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: null, scope: 'lastTarget' } : null; } },
@@ -3003,6 +3006,9 @@
         const one = Object.assign(spec, { upTo: true }, m[3] ? { another: true } : {});
         return { op: m[1].toLowerCase(), targets: Array.from({ length: num(m[2]) }, () => Object.assign({}, one)) };
       } },
+    // Lady Sun: "Return Lady Sun and another target creature to their owners' hands." — together (andSelf)
+    { re: /^Return CARDNAME and another target (creature|permanent|artifact|nonland permanent) to their owners'? hands\.?$/i,
+      make: (m) => ({ op: 'bounce', andSelf: true, targets: [Object.assign(targetSpec('target ' + m[1]), { another: true })] }) },
     // Bottomless Pool: "Return up to one target creature to its owner's hand."
     { re: /^Return up to one (other )?target ([a-z ]+?) to its owner'?s hand\.?$/i,
       make: (m) => ({ op: 'bounce', targets: [Object.assign(targetSpec('target ' + m[2]), { upTo: true }, m[1] ? { another: true } : {})] }) },
@@ -8227,6 +8233,13 @@
       make: (m) => ({ op: 'restrict', flag: 'cantAttackOrBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) can'?t attack this turn\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'cantAttack', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
+    // Johan: "have Johan gain "Johan can't attack" until end of combat" (endOfCombat)
+    { re: /^Have CARDNAME gain "CARDNAME can'?t attack" until end of combat\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'cantAttack', scope: 'self', duration: 'endOfCombat' }) },
+    /* Johan: "attacking doesn't cause creatures you control to tap this combat if Johan is untapped" — looked at as
+       they attack (noAttackTapThisCombat) */
+    { re: /^Attacking doesn'?t cause creatures you control to tap this combat if CARDNAME is untapped\.?$/i,
+      make: () => ({ op: 'noAttackTapThisCombat', whileSrcUntapped: true }) },
     { re: /^(Target creature|It|That creature) blocks this turn if able\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'mustBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) attacks this turn if able\.?$/i,
@@ -16154,6 +16167,8 @@
        Illusionist's Bracers: an ability activated (one that uses the stack) */
     // Rangers' Refueler, Adrenaline Jockey: "Whenever you activate an exhaust ability (that isn't a mana ability)"
     { re: /^Whenever you activate an exhaust ability(?: that isn'?t a mana ability)?,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'exhaust' } },
+    // Marvel Boy, Noh-Varr: "whenever you activate a power-up ability"
+    { re: /^Whenever you activate a power-up ability,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'power-up' } },
     // Satoru Umezawa: "Whenever you activate a ninjutsu ability" (commander ninjutsu is one too)
     { re: /^Whenever you activate a ninjutsu ability,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'ninjutsu' } },
     // Ertha Jo, Frontier Mentor: "Whenever you activate an ability that targets a creature or player" (abTargetsCreatureOrPlayer)
@@ -16570,7 +16585,7 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     /* Yuriko, Blade of the Mighty: "Whenever a creature you control attacks a player alone" — no other creature
-       declared as an attacker attacking that player (attacksPlayerAlone) */
+       declared as an attacker attacking that player (attacksPlayerAlone); Jiang Yanggu, Alone the same */
     { re: /^Whenever a creature you control attacks a player alone,? /i, event: 'permAttacks',
       filt: () => ({ words: 'creature', who: 'you' }), extra: { attacksPlayer: true, attacksPlayerAlone: true } },
     // Jin Sakai, Ghost of Tsushima: "Whenever a creature you control attacks a player" — not a planeswalker or battle
@@ -22463,6 +22478,9 @@
       { re: /^(?:CARDNAME|This creature) can'?t (attack|block|attack or block) alone\.?$/i,
         make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }
           : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
+      // Pipsqueak, Rebel Strongarm: "can't attack alone unless he has a +1/+1 counter on him" (unlessCounter)
+      { re: /^CARDNAME can'?t attack alone unless (?:it|he|she|they) ha(?:s|ve) an? \+1\/\+1 counter on (?:it|him|her|them)\.?$/i,
+        eff: { op: 'cantAttackAlone', unlessCounter: '+1/+1' }, auto: true },
       { re: /^CARDNAME attacks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustAttack' }, auto: true },
       /* Galactus, Devourer of Worlds: "Galactus attacks an opponent with the most life among your opponents each combat
          if able unless you control a creature named Silver Surfer, Galactus's Herald." (mostLife, unlessNamed — the

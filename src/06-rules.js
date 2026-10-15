@@ -12331,7 +12331,9 @@
          at home, and nobody attacks */
       if (declarations.length === 1) {
         const lone = this.obj(declarations[0].attackerId);
-        if (lone && this._staticOp(lone, 'cantAttackAlone')) {
+        const alone = lone && this._staticOp(lone, 'cantAttackAlone');
+        // (Pipsqueak, Rebel Strongarm: "unless he has a +1/+1 counter on him" — unlessCounter)
+        if (alone && !(alone.unlessCounter && (lone.counters[alone.unlessCounter] || 0) > 0)) {
           this.logEvent('rules', `${lone.name} can't attack alone.`);
           declarations = [];
         }
@@ -12519,7 +12521,7 @@
         if (o.isToken) { const ap = this.player(o.controller); if (ap) ap.attackedWithTokenTurn = this.turn; }
         // Neriv, Crackling Vanguard: "During any turn you attacked with a commander"
         if (o.isCommander) { const ap = this.player(o.controller); if (ap) ap.attackedWithCommanderTurn = this.turn; }
-        if (!this.hasKw(o, 'vigilance')) this._markTapped(o, true);
+        if (!this.hasKw(o, 'vigilance') && !this._noAttackTap(o)) this._markTapped(o, true);
         // decayed (CR 702.147): "when it attacks, sacrifice it at end of combat"
         if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
         this.combat.attackers.push(o.id);
@@ -13483,6 +13485,16 @@
       }
       this.checkStateBasedActions();
       this._givePriority(this.activeIndex);
+    }
+
+    /** Johan: "attacking doesn't cause creatures you control to tap this combat if Johan is untapped" (noAttackTap) */
+    _noAttackTap(o) {
+      const p = this.player(o.controller);
+      const n = p && p.noAttackTap;
+      if (!n || n.turn !== this.turn || n.combat !== (this.combatsThisTurn || 1)) return false;
+      if (!n.srcId) return true;
+      const s = this.obj(n.srcId);
+      return !!(s && s.zone === 'battlefield' && s.controller === o.controller && !s.tapped);
     }
 
     _atEndOfCombat() {
@@ -21469,6 +21481,8 @@
               const auras = e.withYourAuras && o ? (o.attachments || []).map(id => this.obj(id)).filter(x => x && x.controller === ctx.controller && ((x.analysis() || {}).subtypes || []).includes('Aura')) : [];
               if (o) this.moveObject(o, 'hand');
               for (const x of auras) if (x.zone === 'battlefield' || x.zone === 'graveyard') this.moveObject(x, 'hand');
+              // Lady Sun: "Return Lady Sun and another target creature to their owners' hands." (andSelf)
+              if (e.andSelf && src && src.zone === 'battlefield' && src !== o) this.moveObject(src, 'hand');
             }
             // "return target spell to its owner's hand": off the stack, uncast
             if (t.kind === 'stack') {
@@ -31088,9 +31102,18 @@
             // (Stilt-Man, Towering Terror: "until the end of your next turn" — endNextTurn)
             o.effects.push(e.duration === 'endNextTurn' ? { flag: e.flag, until: null, untilEndTurn: this._endOfNextTurnOf(ctx.controller) }
               : e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller }
-              : e.duration === 'permanent' ? { flag: e.flag, until: null } : { flag: e.flag, until: 'eot' });
-            this.logEvent('rules', `${o.name}: ${FLAG_WORDS[e.flag] || e.flag}.`);
+              : e.duration === 'permanent' ? { flag: e.flag, until: null }
+              // (Johan: "gain "Johan can't attack" until end of combat" — endOfCombat)
+              : e.duration === 'endOfCombat' ? { flag: e.flag, until: 'eot', untilEndOfCombat: true } : { flag: e.flag, until: 'eot' });
+            this.logEvent('rules', `${o.name}: ${e.duration === 'endOfCombat' ? (FLAG_WORDS[e.flag] || e.flag).replace(/ this turn$/, ' this combat') : FLAG_WORDS[e.flag] || e.flag}.`);
           });
+          break;
+        /* Johan: "attacking doesn't cause creatures you control to tap this combat if Johan is untapped" — this combat
+           only, Johan looked at as they attack (noAttackTap) */
+        case 'noAttackTapThisCombat':
+          if (!me) break;
+          me.noAttackTap = { turn: this.turn, combat: this.combatsThisTurn || 1, srcId: e.whileSrcUntapped && src ? src.id : null };
+          this.logEvent('rules', `Attacking doesn't cause creatures ${me.name} controls to tap this combat${src && e.whileSrcUntapped ? ` if ${src.name} is untapped` : ''}.`);
           break;
 
         // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able." (attackNextTurn)

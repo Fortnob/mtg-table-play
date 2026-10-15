@@ -65081,4 +65081,165 @@ module.exports = (test) => {
     t.no(g.activateAbility('A', vp.id, 0, { auto: true, targets: [{ kind: 'object', id: b1.id }] }), 'Viper: two attacking — not alone');
     t.eq(g.powerOf(b1), 2);
   });
+  test('Commanders: Jiang Yanggu, Alone — a creature alone at a player: rummage, then a counter for each card discarded this turn', (mk, t) => {
+    t.auto('Jiang Yanggu, Alone');
+    const M = mk({ library: Array(30).fill('Island'), life: 40, players: ['A', 'B', 'C'] });
+    const g = M.g;
+    const jiang = M.bf('A', 'Jiang Yanggu, Alone');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const elf = M.bf('A', 'Llanowar Elves');
+    M.hand('A', 'Forest'); M.hand('A', 'Mountain');
+    // the Bears alone at B, the Elves alone at C, Jiang beside the Elves: two triggers (the Elves are not alone)
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: elf.id, defenderId: 'C' }, { attackerId: jiang.id, defenderId: 'C' }]);
+    M.toMain('A', 'declareBlockers'); M.resolve();
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'Jiang: the Bears — one card discarded this turn');
+    t.no(elf.counters['+1/+1'], 'Jiang: the Elves share C with Jiang — not alone');
+    t.no(jiang.counters['+1/+1'], 'Jiang: nor Jiang');
+    t.eq(M.zone('A', 'graveyard').length, 1, 'Jiang: one card discarded');
+    t.eq(M.zone('A', 'hand').length, 2, 'Jiang: and one drawn');
+    // two alone at two players: the second counts both discards
+    const M2 = mk({ library: Array(30).fill('Island'), life: 40, players: ['A', 'B', 'C'] });
+    M2.bf('A', 'Jiang Yanggu, Alone');
+    const b2 = M2.bf('A', 'Grizzly Bears');
+    const e2 = M2.bf('A', 'Llanowar Elves');
+    M2.hand('A', 'Forest'); M2.hand('A', 'Mountain');
+    M2.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }, { attackerId: e2.id, defenderId: 'C' }]);
+    M2.toMain('A', 'declareBlockers'); M2.resolve();
+    const ns = [b2.counters['+1/+1'] || 0, e2.counters['+1/+1'] || 0].sort().join(',');
+    t.eq(ns, '1,2', 'Jiang: one, then two — every card discarded this turn');
+    // an opponent's creature alone: not Jiang's
+    const M3 = mk({ library: Array(30).fill('Island'), life: 40 });
+    M3.bf('A', 'Jiang Yanggu, Alone');
+    const b3 = M3.bf('B', 'Grizzly Bears');
+    M3.nextTurn('B');
+    M3.answer('declareAttackers', () => [{ attackerId: b3.id, defenderId: 'A' }]);
+    M3.toMain('B', 'declareBlockers'); M3.resolve();
+    t.no(b3.counters['+1/+1'], "Jiang: an opponent's creature — nothing");
+  });
+  test("Commanders: Johan — Johan can't attack this combat; your attackers don't tap while Johan is untapped", (mk, t) => {
+    t.auto('Johan');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const jo = M.bf('A', 'Johan');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.answer('confirm', { yes: true });
+    let canJo = null;
+    M.answer('declareAttackers', () => { canJo = g.canAttack(jo); return [{ attackerId: bear.id, defenderId: 'B' }]; });
+    M.toMain('A', 'declareBlockers');
+    t.eq(canJo, false, "Johan: can't attack this combat");
+    t.ok(bear.attacking, 'Johan: the Bears attack');
+    t.no(bear.tapped, "Johan: attacking doesn't tap the Bears");
+    M.toMain('A', 'end');
+    t.no((jo.effects || []).some(x => x && x.flag === 'cantAttack'), "Johan: \"can't attack\" gone at end of combat");
+    // declined: attacking taps as usual
+    const M2 = mk({ library: Array(30).fill('Island') });
+    const j2 = M2.bf('A', 'Johan');
+    const b2 = M2.bf('A', 'Grizzly Bears');
+    M2.answer('confirm', { yes: false });
+    let can2 = null;
+    M2.answer('declareAttackers', () => { can2 = M2.g.canAttack(j2); return [{ attackerId: b2.id, defenderId: 'B' }]; });
+    M2.toMain('A', 'declareBlockers');
+    t.ok(can2, 'Johan: declined — Johan may attack');
+    t.ok(b2.tapped, 'Johan: declined — the Bears tap');
+    // Johan tapped as attackers are declared: they tap
+    const M3 = mk({ library: Array(30).fill('Island') });
+    const j3 = M3.bf('A', 'Johan');
+    const b3 = M3.bf('A', 'Grizzly Bears');
+    M3.answer('confirm', { yes: true });
+    M3.answer('declareAttackers', () => { j3.tapped = true; return [{ attackerId: b3.id, defenderId: 'B' }]; });
+    M3.toMain('A', 'declareBlockers');
+    t.ok(b3.tapped, 'Johan: tapped — the Bears tap');
+    // an opponent's attack: their creatures tap
+    const M4 = mk({ library: Array(30).fill('Island') });
+    M4.bf('A', 'Johan');
+    const b4 = M4.bf('B', 'Grizzly Bears');
+    M4.nextTurn('B');
+    M4.answer('declareAttackers', () => [{ attackerId: b4.id, defenderId: 'A' }]);
+    M4.toMain('B', 'declareBlockers');
+    t.ok(b4.tapped, "Johan: an opponent's attackers tap");
+  });
+  test('Commanders: Marvel Boy, Noh-Varr — another creature you control enters, or you activate a power-up ability: a +1/+1 counter', (mk, t) => {
+    t.auto('Marvel Boy, Noh-Varr');
+    const T = mk();
+    const mb = T.bf('A', 'Marvel Boy, Noh-Varr');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(mb.counters['+1/+1'], 1, 'Marvel Boy: a creature entered');
+    T.bf('A', 'Sol Ring', { etb: true }); T.resolve();
+    t.eq(mb.counters['+1/+1'], 1, 'Marvel Boy: not an artifact');
+    T.bf('B', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(mb.counters['+1/+1'], 1, "Marvel Boy: not an opponent's creature");
+    // a power-up ability: Unliving Legionnaire's own counters, and one on Marvel Boy (and one for its entering)
+    const u = T.bf('A', 'Unliving Legionnaire', { etb: true }); T.resolve();
+    t.eq(mb.counters['+1/+1'], 2, 'Marvel Boy: the Legionnaire entered');
+    const ab = u.analysis().abilities.find(x => x.kind === 'activated');
+    const idx = u.analysis().manaAbilities.length + u.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').indexOf(ab);
+    T.mana('A', '2B');
+    T.activate('A', u, idx, { targets: [] });
+    t.eq(mb.counters['+1/+1'], 3, 'Marvel Boy: a power-up ability activated');
+    // an ability that isn't power-up: nothing
+    const ring = T.bfOf('A').find(o => o.name === 'Sol Ring');
+    T.activate('A', ring, 0);
+    t.eq(mb.counters['+1/+1'], 3, 'Marvel Boy: not another ability');
+    // an opponent's power-up: nothing
+    const T2 = mk();
+    const m2 = T2.bf('A', 'Marvel Boy, Noh-Varr');
+    T2.nextTurn('B');
+    const u2 = T2.bf('B', 'Unliving Legionnaire', { etb: true }); T2.resolve();
+    T2.mana('B', '2B');
+    T2.activate('B', u2, idx, { targets: [] });
+    t.no(m2.counters['+1/+1'], "Marvel Boy: an opponent's power-up");
+  });
+  test("Commanders: Pipsqueak, Rebel Strongarm — can't attack alone unless he has a +1/+1 counter", (mk, t) => {
+    t.auto('Pipsqueak, Rebel Strongarm');
+    const T = mk();
+    const pip = T.bf('A', 'Pipsqueak, Rebel Strongarm');
+    T.answer('declareAttackers', () => [{ attackerId: pip.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 20, "Pipsqueak: can't attack alone");
+    // with another attacker: fine
+    const T2 = mk();
+    const p2 = T2.bf('A', 'Pipsqueak, Rebel Strongarm');
+    const bear = T2.bf('A', 'Grizzly Bears');
+    T2.answer('declareAttackers', () => [{ attackerId: p2.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T2.toMain('A', 'declareBlockers');
+    t.ok(p2.attacking, 'Pipsqueak: attacks beside the Bears');
+    // a +1/+1 counter: alone is fine
+    const T3 = mk();
+    const p3 = T3.bf('A', 'Pipsqueak, Rebel Strongarm', { counters: { '+1/+1': 1 } });
+    T3.answer('declareAttackers', () => [{ attackerId: p3.id, defenderId: 'B' }]);
+    T3.toMain('A', 'declareBlockers');
+    t.ok(p3.attacking, 'Pipsqueak: a +1/+1 counter — alone');
+  });
+  test("Commanders: Lady Sun — {T}: Lady Sun and another target creature to their owners' hands, on your turn before attackers", (mk, t) => {
+    t.auto('Lady Sun');
+    const T = mk();
+    const g = T.g;
+    const sun = T.bf('A', 'Lady Sun');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.activate('A', sun, 0, { targets: [bear] });
+    t.zone(sun, 'hand', 'Lady Sun: back to her owner\'s hand');
+    t.zone(bear, 'hand', "Lady Sun: the Bears to their owner's hand");
+    t.eq(T.zone('B', 'hand').includes(bear), true, "Lady Sun: B's hand");
+    // another: not herself
+    const T2 = mk();
+    const s2 = T2.bf('A', 'Lady Sun');
+    t.no(T2.g.activateAbility('A', s2.id, 0, { auto: true, targets: [{ kind: 'object', id: s2.id }] }), 'Lady Sun: another creature');
+    // the target gone: the ability does nothing, Lady Sun stays
+    const b2 = T2.bf('B', 'Grizzly Bears');
+    t.ok(T2.g.activateAbility('A', s2.id, 0, { auto: true, targets: [{ kind: 'object', id: b2.id }] }));
+    T2.settle();
+    T2.g.moveObject(b2, 'graveyard');
+    T2.resolve();
+    t.zone(s2, 'battlefield', 'Lady Sun: the target gone — she stays');
+    // an opponent's turn: no
+    const T3 = mk();
+    const s3 = T3.bf('A', 'Lady Sun');
+    const b3 = T3.bf('B', 'Grizzly Bears');
+    T3.nextTurn('B');
+    t.no(T3.g.activateAbility('A', s3.id, 0, { auto: true, targets: [{ kind: 'object', id: b3.id }] }), "Lady Sun: not on an opponent's turn");
+    // after attackers are declared: no
+    T3.nextTurn('A');
+    T3.toMain('A', 'end');
+    t.no(T3.g.activateAbility('A', s3.id, 0, { auto: true, targets: [{ kind: 'object', id: b3.id }] }), 'Lady Sun: not after attackers are declared');
+  });
 };
