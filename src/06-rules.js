@@ -17972,7 +17972,8 @@
           // Merry, Esquire of Rohan: this creature and another of that kind among the attackers (withSelfAnd)
           if (ab.withSelfAnd) {
             const at = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(Boolean);
-            if (!at.some(x => x.id === o.id) || !at.some(x => x.id !== o.id && this._cardFitsWords(x, ab.withSelfAnd))) continue;
+            // (Enkira, Hostile Scavenger: "and at least two Zombies" — withSelfAndN)
+            if (!at.some(x => x.id === o.id) || at.filter(x => x.id !== o.id && this._cardFitsWords(x, ab.withSelfAnd)).length < (ab.withSelfAndN || 1)) continue;
           }
           // The Council of Four: "during their turn" — the player who drew or cast is the one whose turn it is (duringOwnTurn)
           if (ab.duringOwnTurn && (data.drawer != null ? data.drawer : data.playerId) !== (this.activePlayer && this.activePlayer.id)) continue;
@@ -18161,6 +18162,11 @@
           if (ab.targetsYourCreature && !((data.spell && data.spell.targets) || []).some(t => {
             const x = t.kind === 'object' && this.obj(t.id);
             return !!x && x.zone === 'battlefield' && x.controller === o.controller && !!(x.analysis() || {}).isCreature;
+          })) continue;
+          // Danitha, Sword of Hope: "an Equipment spell or a spell that targets a creature you control" (equipOrTargetsYours)
+          if (ab.equipOrTargetsYours && !(data.object && this._cardFitsWords(data.object, 'equipment')) && !((data.spell && data.spell.targets) || []).some(t => {
+            const x = t.kind === 'object' && this.obj(t.id);
+            return !!x && x.zone === 'battlefield' && x.controller === o.controller && !!(this.characteristics(x) || {}).isCreature;
           })) continue;
           // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
           if (ab.targetsOnlySelf && !((data.spell && data.spell.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
@@ -27382,7 +27388,8 @@
           const x = firstObj();
           if (!x || x.zone !== 'graveyard') break;
           const mv = (x.card && x.card.cmc) || 0;
-          if (mv <= (me.experience || 0)) this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          // (Bortuk Bonerattle: "less than or equal to the number of basic land types among lands you control" — maxMv)
+          if (mv <= (e.maxMv != null ? n(e.maxMv) : (me.experience || 0))) this.moveObject(x, 'battlefield', { controller: ctx.controller });
           else this.moveObject(x, 'hand');
           break;
         }
@@ -36117,7 +36124,8 @@
       if (this._hasFlag(at, 'mustBeBlockedTurn')) return true;
       // (Frodo Baggins: "as long as Frodo Baggins is your Ring-bearer" — ringBearerOnly)
       const st = this._staticOp(at, 'mustBeBlocked');
-      return !!st && (!st.ringBearerOnly || (this.player(at.controller) || {}).ringBearer === at.id);
+      // (Enkira, Hostile Scavenger: "as long as Enkira is equipped" — equippedOnly)
+      return !!st && (!st.ringBearerOnly || (this.player(at.controller) || {}).ringBearer === at.id) && (!st.equippedOnly || this._equipmentOn(at).length > 0);
     }
 
     /** How many creatures must block it if able: none, one, or two for Gorm the Great ("by two or more": minBlockers). */

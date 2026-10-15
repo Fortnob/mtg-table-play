@@ -2545,6 +2545,8 @@
     { re: /^It'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature(?: with ([a-z ,]+?))? in addition to its other types\.?$/,
       make: (m) => { const kws = m[4] ? keywordList(m[4]) : [];
         return kws.every(kwKnown) ? { op: 'manual', enterRider: { setPt: { p: +m[1], t: +m[2] }, addTypes: ['Creature'], addSubtypes: m[3].split(' '), keywords: kws } } : null; } },
+    // Hellcat, Undying Vigilante: "She loses all abilities and gains haste." — as the card returned enters (enterRider)
+    { re: /^(?:It|He|She|They) lose(?:s)? all abilities and gains? haste\.?$/, make: () => ({ op: 'manual', enterRider: { loseAll: true, keywords: ['Haste'] } }) },
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
     /* Tom, Bert, and William: "When Tom, Bert, and William die, if they were a creature, return them to the battlefield.
@@ -6597,7 +6599,7 @@
     { re: /^(?:He|She|It|CARDNAME) deals damage equal to that Equipment'?s mana value divided as you choose among one, two, or three targets\.?$/i,
       make: () => ({ op: 'damageDivided', n: { ofUnattached: 'mv' },
         targets: [0, 1, 2].map(i => Object.assign({ type: 'any', filter: 'any target', distinct: true }, i ? { upTo: true } : {})) }) },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X|damage equal to its power)(?: damage)? divided as you choose among (one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X|damage equal to its power)(?: damage)? divided as you choose among (one or two targets|one, two, or three targets|up to (?:two|three|four|five) targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       /* the targets, as many as the words allow and different ones (Inferno Titan, Forked Bolt: chosen as it is cast or
          put on the stack); "any number": as many as there is damage (CR 601.2d — multi) */
       make: (m) => {
@@ -6609,6 +6611,8 @@
         const targets = w === 'one or two targets' ? [any, more(any)]
           : w === 'one, two, or three targets' ? [any, more(any), more(any)]
           : w === 'two or three targets' ? [any, Object.assign({}, any, { distinct: true }), more(any)]
+          // (Iron Fist, Hero for Hire: "among up to five targets" — each one optional)
+          : /^up to \w+ targets$/.test(w) ? Array.from({ length: num(w.split(' ')[2]) }, () => more(any))
           : null;
         const base = /creature/.test(w) ? targetSpec(/planeswalker/.test(w) ? 'target creature or planeswalker' : 'target creature') : any;
         // (a number: that many, all but the first optional; X or its power: counted as it is cast or put on the stack)
@@ -7800,7 +7804,8 @@
        battlefield under its owner's control with a flying counter on it" —
        the card the trigger is about, back from where it went */
     // (Rinoa, Angel Wing: "return one of them to the battlefield tapped under its owner's control with a flying counter on it" — of the lot that died: oneOfBatch)
-    { re: /^Return (?:it|that card|(one of them)) to the battlefield( tapped)? under (its owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on it)?\.?$/i,
+    // (Hellcat, Undying Vigilante: "return her … under her owner's control with a +1/+1 counter on her")
+    { re: /^Return (?:it|him|her|that card|(one of them)) to the battlefield( tapped)? under ((?:its|his|her) owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on (?:it|him|her|CARDNAME))?\.?$/i,
       make: (m) => Object.assign({ op: 'returnTriggerCard', yours: /your/i.test(m[3]) }, m[1] ? { oneOfBatch: true } : {}, m[2] ? { tapped: true } : {}, m[4] ? { counter: m[5].toLowerCase() } : {}) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
@@ -11862,6 +11867,11 @@
        put it into your hand." */
     { re: /^Choose target creature card in your graveyard\. If that card'?s mana value is less than or equal to the number of experience counters you have, return it to the battlefield\. Otherwise, put it into your hand\.$/i,
       make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
+    /* Bortuk Bonerattle: "choose target creature card in your graveyard. Return that card to the battlefield if its mana
+       value is less than or equal to the number of basic land types among lands you control. Otherwise, put it into your
+       hand." — counted as it resolves (experienceReturn, maxMv) */
+    { re: /^Choose target creature card in your graveyard\. Return that card to the battlefield if its mana value is less than or equal to (the number of .+?)\. Otherwise, put it into your hand\.$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? [{ op: 'experienceReturn', maxMv: k, targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] : null; } },
     // The Argent Etchings: "Incubate 2 five times, then transform all Incubator tokens you control."
     { re: /^Incubate (one|two|three|four|five|\d+) (two|three|four|five|six|seven|\d+) times, then transform all Incubator tokens you control\.?$/i,
       make: (m) => {
@@ -14480,7 +14490,8 @@
       // Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — as the card returned enters (enterRider)
       if (e && e.enterRider) {
         // (Tom, Bert, and William: "return them to the battlefield. They're an artifact." — returnSelfFromGrave)
-        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
+        // (Hellcat, Undying Vigilante: "return her … She loses all abilities and gains haste." — returnTriggerCard)
+        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave' || prevE.op === 'returnTriggerCard') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
         // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
         const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
         if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }
@@ -16051,6 +16062,8 @@
     // Feather, the Redeemed: "Whenever you cast an instant or sorcery spell that targets a creature you control" (targetsYourCreature)
     { re: /^Whenever you cast an instant or sorcery spell that targets a creature you control,? /i, event: 'youCastSpell',
       extra: { spellFilter: 'instant or sorcery', targetsYourCreature: true } },
+    // Danitha, Sword of Hope: "Whenever you cast an Equipment spell or a spell that targets a creature you control" (equipOrTargetsYours)
+    { re: /^Whenever you cast an Equipment spell or a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { equipOrTargetsYours: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
     // Feather, Radiant Arbiter: "Whenever you cast a noncreature spell that targets only Feather"
@@ -16940,6 +16953,8 @@
     { re: /^Whenever you attack with (?:CARDNAME|this creature) and another ([a-z ]+?), /i, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
     // Goldbug, Scrappy Scout: "Whenever CARDNAME and at least one Human attack" — the same thing said the other way (withSelfAnd)
     { re: /^Whenever (?:CARDNAME|this (?:creature|Vehicle)) and at least one ([A-Z][a-z]+) attack, /, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
+    // Enkira, Hostile Scavenger: "Whenever Enkira and at least two Zombies attack" — two of them besides itself (withSelfAndN)
+    { re: /^Whenever (?:CARDNAME|this creature) and at least (two|three|four) ([A-Z][a-z]+)s attack, /, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[2].toLowerCase(), withSelfAndN: num(m[1]) }) },
     /* Horizon Explorer, Karazikar, the Eye Tyrant: "Whenever you attack a player" — once for each player attacked,
        "that player" the one attacked (attackerIsYou) */
     { re: /^Whenever you attack a player,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsYou: true } },
@@ -23018,6 +23033,8 @@
         eff: { op: 'mustBeBlocked', minBlockers: 2 }, auto: true },
       // Frodo Baggins: "As long as Frodo Baggins is your Ring-bearer, it must be blocked if able." (ringBearerOnly)
       { re: /^As long as (?:CARDNAME|this creature) is your Ring-bearer, (?:it|CARDNAME) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked', ringBearerOnly: true }, auto: true },
+      // Enkira, Hostile Scavenger: "As long as Enkira is equipped, it must be blocked if able." (equippedOnly)
+      { re: /^As long as (?:CARDNAME|this creature) is equipped, (?:it|CARDNAME) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked', equippedOnly: true }, auto: true },
       // Bower Passage: "Creatures with flying can't block creatures you control."; Heat Wave: "Blue creatures can't …" (cantBlockYours)
       { re: /^(?:Creatures with (flying|reach|defender|horsemanship)|(white|blue|black|red|green|artifact) creatures) can'?t block creatures you control\.?$/i,
         make: (m) => (m[1] ? { op: 'cantBlockYours', keyword: m[1].toLowerCase() } : { op: 'cantBlockYours', words: m[2].toLowerCase() + ' creature' }), auto: true },
