@@ -17,6 +17,9 @@
      changes not saved, by every way out, asks "Leave without saving?",
      and stay, discard and save each do what they say; no question when
      nothing changed, and the tab's own "leave this page?" while changed;
+   - cards the deck's format will not have: why, in a few words, for
+     each (banned, not legal, outside the commander's colours, too many
+     copies, no commander), and the builder marking them red;
    - the deck list's order (Sort by: type, mana value, name, colour,
      rarity, price; lands together, X costs last) and Show price, with
      the cards nobody has priced sorted last.
@@ -534,8 +537,60 @@ async function sortChecks() {
   P.setSetting('showCardPrices', false);
 }
 
+/* ================= cards the format will not have =================
+   What validate says about each card, in a few words (cardIssues), the
+   same words for a search result (cardProblem), and the builder marking
+   those cards red, again as soon as the format changes. */
+async function illegalChecks() {
+  const F = MTG.formats;
+  const atraxa = card("Atraxa, Praetors' Voice");
+  const cmdDeck = { format: 'commander', commanders: [atraxa], sideboard: [], main: [
+    { card: card('Mana Crypt'), qty: 1 }, { card: card('Lightning Bolt'), qty: 1 }, { card: card('Sol Ring'), qty: 2 },
+    { card: card('Forest'), qty: 30 }, { card: card('Counterspell'), qty: 1 }] };
+  const v = F.validate(cmdDeck, 'commander');
+  const why = (vv, n) => F.cardIssuesFor(vv, card(n)).join(' | ');
+  check(why(v, 'Mana Crypt') === 'Banned in Commander', 'banned', why(v, 'Mana Crypt'));
+  check(why(v, 'Lightning Bolt') === 'Outside Atraxa’s colours', 'outside the commander’s colours, by its short name', why(v, 'Lightning Bolt'));
+  check(why(v, 'Sol Ring') === 'Only 1 copy allowed', 'over the copy limit', why(v, 'Sol Ring'));
+  check(why(v, 'Forest') === '' && why(v, 'Counterspell') === '' && why(v, "Atraxa, Praetors' Voice") === '', 'basics, cards it may have and the commander itself: nothing');
+  const bears = F.validate({ format: 'commander', commanders: [card('Grizzly Bears')], main: [], sideboard: [] }, 'commander');
+  check(/^Can’t be a commander/.test(why(bears, 'Grizzly Bears')), 'a commander that cannot be one', why(bears, 'Grizzly Bears'));
+  const two = F.validate({ format: 'commander', commanders: [card('Thrasios, Triton Hero'), card('Tymna the Weaver')], main: [{ card: card('Lightning Bolt'), qty: 1 }], sideboard: [] }, 'commander');
+  check(why(two, 'Lightning Bolt') === 'Outside your commanders’ colours', 'two commanders: their colours together', why(two, 'Lightning Bolt'));
+  const std = F.validate({ format: 'standard', commanders: [], sideboard: [], main: [{ card: card('Sol Ring'), qty: 1 }, { card: card('Grizzly Bears'), qty: 5 }] }, 'standard');
+  check(why(std, 'Sol Ring') === 'Not legal in Standard', 'not legal in the format', why(std, 'Sol Ring'));
+  check(/Only 4 copies allowed/.test(why(std, 'Grizzly Bears')), 'five of a card where four is the most', why(std, 'Grizzly Bears'));
+  check(F.cardIssuesFor(null, card('Sol Ring')).length === 0 && F.cardIssuesFor({}, card('Sol Ring')).length === 0, 'no validation, no words');
+  // a search result, on its own
+  const cmd = F.get('commander');
+  check(F.cardProblem(card('Mana Crypt'), cmd, null) === 'Banned in Commander', 'a search result: banned');
+  check(F.cardProblem(card('Lightning Bolt'), cmd, new Set(['W', 'U', 'B', 'G']), F.coloursOf([atraxa])) === 'Outside Atraxa’s colours', 'a search result: outside the colours');
+  check(F.cardProblem(card('Counterspell'), cmd, new Set(['W', 'U', 'B', 'G']), 'Atraxa’s') === null, 'a search result it may have: nothing');
+
+  // the builder: red, with why under the name, and again when the format changes
+  const { doc, makeEvent, P, UI } = builderPage();
+  const tick = (ms) => new Promise(r => setTimeout(r, ms || 10));
+  UI.deckBuilder({ id: 'redcards', name: 'Red cards', format: 'commander', commanders: [atraxa], sideboard: [], companion: null,
+    main: [{ card: card('Mana Crypt'), qty: 1 }, { card: card('Counterspell'), qty: 1 }, { card: card('Forest'), qty: 30 }] }, {});
+  await tick();
+  const b = () => doc.querySelectorAll('.modal').find(m => m.classList.contains('deck-modal'));
+  const red = () => b().querySelectorAll('.deck-list .deck-entry.illegal').map(n => n.querySelector('.nm').textContent + ': ' + n.querySelector('.illegal-why').textContent);
+  check(red().join(' | ') === 'Mana Crypt: Banned in Commander', 'the banned card is red, and says why', red().join(' | '));
+  check(b().querySelectorAll('.card-grid .card-slot.illegal .illegal-ribbon').map(n => n.textContent).join(' | ') === 'Banned in Commander', 'and in the card grid, written across it');
+  const fmtSel = b().querySelector('.deck-list select[aria-label="Format"]');
+  fmtSel.value = 'standard';
+  fmtSel.dispatchEvent(makeEvent('change'));
+  await tick();
+  check(red().join(' | ') === 'Counterspell: Not legal in Standard | Mana Crypt: Not legal in Standard' || red().join(' | ') === 'Mana Crypt: Not legal in Standard | Counterspell: Not legal in Standard',
+    'Standard chosen: at once, what Standard will not have', red().join(' | '));
+  b().querySelector('.modal-x').click(); await tick();
+  const leave = doc.querySelectorAll('.modal').find(m => m.classList.contains('leave-modal'));
+  if (leave) { leave.querySelectorAll('button').find(x => x.textContent === 'Discard and leave').click(); await tick(); }
+}
+
 (async () => {
   importNameChecks();
+  await illegalChecks();
   await sortChecks();
   await practiceChecks();
   await rulingsChecks();

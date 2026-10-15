@@ -862,6 +862,8 @@ Sideboard
         query: q,
         format: deck.format,
         colors: (validation.colorIdentity || []),
+        // whose colours they are, for saying a card is outside them
+        whose: MTG.formats.coloursOf(oathbreaker() ? MTG.formats.commandParts(deck).leaders : deck.commanders),
         // a deck opened to be named first keeps the cursor in its name box
         noFocus: focusName,
         onAdd: (card, n) => addCardObj(card, n || 1),
@@ -1558,6 +1560,7 @@ Sideboard
       if (qty > 1) slot.appendChild(el('div', { class: 'badge-row' }, el('span', { class: 'badge', text: '×' + qty })));
       slot.appendChild(UI.autoBadge(card, { corner: true }));
       if (MTG.settings.showCardPrices) slot.appendChild(UI.priceTag(card));
+      UI.markIllegal(slot, issuesOf(card));
       slot.style.cursor = 'pointer';
       slot.addEventListener('click', async () => {
         const picked = await UI.pickArt(card);
@@ -1575,6 +1578,8 @@ Sideboard
     const marksGameChangers = () => MTG.formats.usesBrackets(MTG.formats.get(deck.format));
     /** How many of a card this deck may hold, as the format has it (singleton, Vintage's restricted list). */
     const limitOf = (card) => MTG.formats.copyLimit(card, MTG.formats.get(deck.format));
+    /** Why the deck's format will not have this card, in a few words each ([] when it will). */
+    const issuesOf = (card) => MTG.formats.cardIssuesFor(validation, card);
     function entryRow(e, isCmd, isSig) {
       const a = MTG.oracle.analyze(e.card);
       const inPool = drafted && deck.sideboard.includes(e);
@@ -1587,15 +1592,20 @@ Sideboard
       });
       // each line is a strip of the card's own art, the way a deck list
       // reads in a card game: you find a card by its picture as much as its name
+      // what the format has against it, if anything (the pool of a draft is not the deck, and is not judged)
+      const bad = inPool ? [] : issuesOf(e.card);
       const row = applyHighlight(el('div', {
-        class: 'deck-entry strip' + (isCmd ? ' is-cmd' : ''),
-        title: isCmd ? e.card.name
+        class: 'deck-entry strip' + (isCmd ? ' is-cmd' : '') + (bad.length ? ' illegal' : ''),
+        title: (bad.length ? bad.join('. ') + '.\n' : '') + (isCmd ? e.card.name
           : inPool ? `${e.card.name} \u2014 click to put one in the deck`
           : drafted && !isBasic(e.card) ? `${e.card.name} \u2014 click to put one back in your pool`
-          : `${e.card.name} \u2014 \u2212 and + change how many; right-click for more`,
+          : `${e.card.name} \u2014 \u2212 and + change how many; right-click for more`),
       }, [
         qty,
-        el('span', { class: 'nm', text: e.card.name }),
+        bad.length ? el('span', { class: 'nm-col' }, [
+          el('span', { class: 'nm', text: e.card.name }),
+          el('span', { class: 'illegal-why', text: bad.join(' \u00b7 ') }),
+        ]) : el('span', { class: 'nm', text: e.card.name }),
         marksGameChangers() ? UI.gcBadge(e.card) : null,
         UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
@@ -1702,6 +1712,19 @@ Sideboard
       if (a.types.includes(t)) return t;
     return 'Other';
   }
+
+  /* ---------------- a card the format does not allow ----------------
+     Tinted red wherever the deck builder shows it, with why in a few
+     words (MTG.formats.validate's cardIssues): on a line of the list,
+     under its name; on a picture, written across it. */
+  /** Red over a card's picture, and why written across it. */
+  UI.markIllegal = function (slot, reasons) {
+    if (!reasons || !reasons.length) return slot;
+    slot.classList.add('illegal');
+    slot.title = reasons.join('\n');
+    slot.append(el('div', { class: 'illegal-veil', 'aria-hidden': 'true' }), el('div', { class: 'illegal-ribbon', text: reasons.join(' \u00b7 ') }));
+    return slot;
+  };
 
   /* ---------------- the order of the deck list ----------------
      By type is the list as it always was: creatures, then the rest, a
@@ -2096,6 +2119,10 @@ Sideboard
         });
         slot.appendChild(UI.autoBadge(c, { corner: true }));
         if (pricesOn()) slot.appendChild(UI.priceTag(c));
+        /* with "Legal in" or "Inside" not ticked, a card the deck cannot
+           have still comes up: marked red, and why */
+        const why = MTG.formats.cardProblem(c, fmt, (opts.colors || []).length ? new Set(opts.colors) : null, opts.whose);
+        if (why) { UI.markIllegal(slot, [why]); tile.classList.add('illegal'); }
         tile._card = c;
         tile.appendChild(slot);
         tile.appendChild(el('div', { class: 'search-name', text: c.name }));

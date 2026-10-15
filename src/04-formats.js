@@ -302,16 +302,50 @@
   /** Whether the Commander brackets mean anything at this table. */
   function usesBrackets(fmt) { return !!(fmt && fmt.hasBrackets && fmt.kind !== 'limited'); }
 
+  /* -------- what keeps one card out --------
+     The words the deck builder marks a card with (validate's cardIssues),
+     and a search result with: short, and about this card alone. */
+  /** Whose colours a deck keeps to, for saying so: "Atraxa's", or "your commanders'". */
+  function coloursOf(leaders) {
+    if (!leaders || !leaders.length) return null;
+    if (leaders.length > 1) return 'your commanders\u2019';
+    return String(U.frontName(leaders[0].name) || '').split(',')[0].trim() + '\u2019s';
+  }
+  /**
+   * What keeps this card out of a deck of this format on its own: banned,
+   * not legal, or (with `ci`, a Set of colours, and `whose`, from coloursOf)
+   * outside the commander's colours. Null when nothing does.
+   */
+  function cardProblem(card, fmt, ci, whose) {
+    if (!card || !fmt) return null;
+    if (fmt.scryKey) {
+      const l = legalityOf(card, fmt);
+      if (l === 'banned') return `Banned in ${fmt.name}`;
+      if (l === 'not_legal') return `Not legal in ${fmt.name}`;
+    }
+    if (ci && colorIdentity(card).some(col => !ci.has(col))) return `Outside ${whose || 'your commander\u2019s'} colours`;
+    return null;
+  }
+
   /* -------- the validator -------- */
 
   /**
-   * validate(deck, formatId) -> { ok, errors:[], warnings:[], stats }
+   * validate(deck, formatId) -> { ok, errors:[], warnings:[], stats, cardIssues }
    * deck = { main:[{card, qty}], sideboard:[], commanders:[card], companion:card|null }
+   * cardIssues: what is wrong with each card the errors name, in a few
+   * words, by its name (cardIssuesFor reads it).
    */
   function validate(deck, formatId, rules) {
     const fmt = typeof formatId === 'object' && formatId ? formatId : effective(formatId, rules);
     const errors = [], warnings = [];
-    if (!fmt) return { ok: false, errors: ['Unknown format: ' + formatId], warnings, stats: {} };
+    const cardIssues = new Map();
+    if (!fmt) return { ok: false, errors: ['Unknown format: ' + formatId], warnings, stats: {}, cardIssues };
+    const flag = (card, why) => {
+      const k = U.normName(U.frontName(card.name));
+      const list = cardIssues.get(k) || [];
+      if (!list.includes(why)) list.push(why);
+      cardIssues.set(k, list);
+    };
 
     const main = deck.main || [];
     const side = deck.sideboard || [];
@@ -366,7 +400,7 @@
       if (!oath.leaders.length) errors.push('Choose an Oathbreaker: a planeswalker.');
       else if (oath.leaders.length > 1) errors.push('One Oathbreaker only.');
       for (const c of oath.leaders)
-        if (!canBeCommander(c, fmt)) errors.push(`${c.name} can't be your Oathbreaker (it has to be a planeswalker).`);
+        if (!canBeCommander(c, fmt)) { errors.push(`${c.name} can't be your Oathbreaker (it has to be a planeswalker).`); flag(c, 'Can\u2019t be your Oathbreaker: it has to be a planeswalker'); }
       if (!oath.signatures.length) errors.push('Choose a Signature Spell: an instant or sorcery in your Oathbreaker’s colours.');
       else if (oath.signatures.length > 1) errors.push('One Signature Spell only.');
     } else if (fmt.commander) {
@@ -380,9 +414,13 @@
           info0.some(i => i.background) && info0.some(i => i.isBackground);
         commanders.forEach((c, k) => {
           if (bgPaired && info0[k].isBackground) return;
-          if (!canBeCommander(c, fmt)) errors.push(fmt.walkerCommander
-            ? `${c.name} can't be a commander (needs to be ${commanderRule(fmt)}).`
-            : `${c.name} can't be a commander (needs to be a legendary creature or say so).`);
+          if (!canBeCommander(c, fmt)) {
+            errors.push(fmt.walkerCommander
+              ? `${c.name} can't be a commander (needs to be ${commanderRule(fmt)}).`
+              : `${c.name} can't be a commander (needs to be a legendary creature or say so).`);
+            flag(c, fmt.walkerCommander ? `Can\u2019t be a commander: it needs to be ${commanderRule(fmt)}`
+              : 'Can\u2019t be a commander: it needs to be a legendary creature or say so');
+          }
         });
         if (commanders.length > 1) {
           const infos = info0;
@@ -417,8 +455,10 @@
     if (limit != null) {
       for (const [, e] of byName) {
         if (unlimitedAllowed(e.card)) continue;
-        if (e.qty > limit)
+        if (e.qty > limit) {
           errors.push(`${e.card.name}: ${e.qty} copies, but ${fmt.name} allows ${limit}.`);
+          flag(e.card, limit === 1 ? 'Only 1 copy allowed' : `Only ${limit} copies allowed`);
+        }
       }
     }
 
@@ -429,14 +469,20 @@
     if (fmt.colorIdentity && leaders.length) {
       ci = new Set();
       for (const c of leaders) for (const col of colorIdentity(c)) ci.add(col);
+      const whose = coloursOf(leaders);
       for (const e of main) {
         const bad = colorIdentity(e.card).filter(col => !ci.has(col));
-        if (bad.length)
+        if (bad.length) {
           errors.push(`${e.card.name} is outside your commander's color identity (${bad.join('')}).`);
+          flag(e.card, `Outside ${whose} colours`);
+        }
       }
       for (const c of (oath ? oath.signatures : [])) {
         const bad = colorIdentity(c).filter(col => !ci.has(col));
-        if (bad.length) errors.push(`${c.name} is outside your Oathbreaker's colour identity (${bad.join('')}), so it can't be your Signature Spell.`);
+        if (bad.length) {
+          errors.push(`${c.name} is outside your Oathbreaker's colour identity (${bad.join('')}), so it can't be your Signature Spell.`);
+          flag(c, `Outside ${whose} colours`);
+        }
       }
     }
 
@@ -444,9 +490,9 @@
     if (fmt.scryKey) {
       for (const [, e] of byName) {
         const l = legalityOf(e.card, fmt);
-        if (l === 'banned') errors.push(`${e.card.name} is banned in ${fmt.name}.`);
-        else if (l === 'restricted' && e.qty > 1) errors.push(`${e.card.name} is restricted in ${fmt.name} (max 1).`);
-        else if (l === 'not_legal') errors.push(`${e.card.name} is not legal in ${fmt.name}.`);
+        if (l === 'banned') { errors.push(`${e.card.name} is banned in ${fmt.name}.`); flag(e.card, `Banned in ${fmt.name}`); }
+        else if (l === 'restricted' && e.qty > 1) { errors.push(`${e.card.name} is restricted in ${fmt.name} (max 1).`); flag(e.card, `Restricted in ${fmt.name}: only 1 copy allowed`); }
+        else if (l === 'not_legal') { errors.push(`${e.card.name} is not legal in ${fmt.name}.`); flag(e.card, `Not legal in ${fmt.name}`); }
       }
     }
 
@@ -485,9 +531,12 @@
     else if (sixty && fmt.kind !== 'limited' && stats.lands < 18)
       warnings.push(`${stats.lands} lands is low for a ${fmt.deckMin}-card deck; most run 22-25.`);
 
-    if (realm && main.some(e => isBasicLand(e.card))) errors.push("Sovereign's Realm: your starting deck can't have basic land cards.");
+    if (realm && main.some(e => isBasicLand(e.card))) {
+      errors.push("Sovereign's Realm: your starting deck can't have basic land cards.");
+      for (const e of main) if (isBasicLand(e.card)) flag(e.card, 'No basic lands with Sovereign\u2019s Realm');
+    }
     return {
-      ok: errors.length === 0, errors, warnings, stats,
+      ok: errors.length === 0, errors, warnings, stats, cardIssues,
       colorIdentity: ci ? Array.from(ci) : null,
       size, min, max, exact: !!fmt.exactSize, sideboardCount: sideCount,
     };
@@ -798,7 +847,9 @@
     FORMATS, FORMAT_ORDER,
     get: (id) => FORMATS[id],
     list: () => FORMAT_ORDER.map(id => FORMATS[id]),
-    validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
+    validate, deckStats, canBeCommander, cardProblem, coloursOf,
+    /** What validate found wrong with this card, in a few words each ([] when nothing). */
+    cardIssuesFor: (v, card) => (v && v.cardIssues && card ? v.cardIssues.get(U.normName(U.frontName(card.name))) || [] : []), partnerInfo, colorIdentity,
     houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel, freeMulligansFor, firstPlayerDrawsFor,
     isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion, keepAs, deckFormats,
     commanderRule, commanderQuery, isSignatureSpell, commandParts, copyLimit, lifeFor, usesBrackets,
