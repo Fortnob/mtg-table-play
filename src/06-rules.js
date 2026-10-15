@@ -5901,6 +5901,9 @@
         out.push({ kind: 'cast', via: 'escape', cost: a.manaCost || '', after: null, exileGrave: this._staticOp(breach, 'grantEscape').exile || 3,
           label: `Escape (${breach.name})` });
       }
+      // Desdemona, Freedom's Edge: this card "gains escape until end of turn" — while it stays in the graveyard (escapeGrant)
+      const eg = o.zone === 'graveyard' && o.owner === playerId && !a.isLand && o.escapeGrant && o.escapeGrant.turn === this.turn && !out.some(u => u.via === 'escape') ? o.escapeGrant : null;
+      if (eg) out.push({ kind: 'cast', via: 'escape', cost: a.manaCost || '', after: null, exileGrave: eg.exile, label: `Escape (${eg.by})` });
       if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand) {
         for (const ab of (a.abilities || [])) {
           const k = String(ab.keyword || '').toLowerCase();
@@ -16521,6 +16524,8 @@
       }
       // a card taken from a library or put into one: what its owner knew of its top is out of date (_keepsSeenOnTop)
       if (from === 'library' || toZone === 'library') this._libraryTouched(o.owner);
+      // (Desdemona, Freedom's Edge: escape it was given is gone once it leaves the graveyard — escapeGrant)
+      if (from === 'graveyard' && o.escapeGrant) o.escapeGrant = null;
       /* A mutated pile is several cards; each of them goes where the
          permanent went (CR 702.140f). */
       if (from === 'battlefield' && toZone !== 'battlefield' && o.mutateCards) {
@@ -22211,6 +22216,44 @@
           break;
         }
 
+        // Desdemona, Freedom's Edge: "target creature card in your graveyard … gains escape until end of turn" (escapeGrant)
+        case 'grantEscapeTarget': {
+          const c = firstObj();
+          if (!c || c.zone !== 'graveyard') break;
+          c.escapeGrant = { turn: this.turn, exile: e.exile || 2, by: (src && src.name) || ctx.name || 'escape' };
+          this.logEvent('rules', `${c.name} gains escape until end of turn.`);
+          break;
+        }
+        /* Parnesse, the Subtle Brush: "up to one target opponent may also copy that spell. They may choose new targets
+           for that copy." — theirs to say, theirs to aim; a copy made this way is marked, so two of these can't
+           keep handing copies back and forth between bots (oppMayCopy) */
+        case 'oppMayCopyThatSpell': {
+          const foe = firstPlayer();
+          if (!foe || foe.hasLost || foe.id === ctx.controller) break;
+          const r = this.resolving;
+          const slot = r ? r.index + ':oppCopy' : null;
+          r && (r.marks = r.marks || {});
+          let made = r && r.marks[slot];
+          if (!made) {
+            const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+            const item = id ? this.stack.find(st => st.id === id) : null;
+            if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+            if (this._uncopyable(item)) break;
+            const yes = this._ask({ type: 'confirm', playerId: foe.id, purpose: 'oppMayCopy', chain: !!item.oppMayCopy,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}copy ${item.name}? You may choose new targets for the copy.` }, 'oppCopy');
+            if (yes === SUSPEND) return SUSPEND;
+            if (!yes) break;
+            made = [];
+            for (let k = 0; k < 1 + this._extraCopies(foe.id, item); k++) { const c = this._copyOnStack(item, foe.id); c.oppMayCopy = true; made.push(c.id); }
+            if (r) r.marks[slot] = made;
+            this.logEvent('copy', `${foe.name} copies ${item.name} too.`);
+          }
+          for (let k = 0; k < made.length; k++) {
+            const copy = this.stack.find(x => x.id === made[k]);
+            if (copy && this._newTargetsForCopy(copy, foe.id, 'ont' + k) === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
         /* Demonstrate (CR 702.144): a copy for you, then one for the opponent you choose, each controlled by its
            maker, who may choose new targets for it */
         case 'demonstrate': {
@@ -25707,6 +25750,19 @@
           for (const c of list) { c.faceDownExile = false; this.moveObject(c, 'hand'); if (c.zone === 'hand') back++; }
           if (back) this.logEvent('rules', `${back} card${back === 1 ? '' : 's'} exiled with ${src.name} return${back === 1 ? 's' : ''} to hand.`);
           if (e.loseLife && back) this.changeLife(me, -back);
+          break;
+        }
+        /* Toluz, Clever Conductor: "Whenever you discard one or more cards, exile them from your graveyard." — the cards
+           the trigger is about, still in your graveyard, exiled with it (exileBatchLinked) */
+        case 'exileBatchLinked': {
+          const td = ctx.triggerData || {};
+          const list = (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id))
+            .filter(c => c && c.zone === 'graveyard' && c.owner === ctx.controller);
+          for (const c of list) {
+            this.moveObject(c, 'exile');
+            if (c.zone === 'exile' && src && src.zone === 'battlefield') c.exiledWithId = src.id;
+          }
+          if (list.length) this.logEvent('exile', `${me.name} exiles ${list.map(c => c.name).join(', ')}${src ? ' with ' + src.name : ''}.`);
           break;
         }
         case 'exiledWithToGraveyardDamage': {
@@ -33578,6 +33634,30 @@
           if (castOk) ctx._freeCast = true;
           break;
         }
+        /* The Face of Boe: "You may cast a spell with suspend from your hand. If you do, pay its suspend cost rather than
+           its mana cost." — cast now, as this resolves; a card whose suspend cost can't be paid is not offered (a
+           "Suspend X" cost, its X a number of time counters, is not one this reads) (castSuspendCost) */
+        case 'castSuspendCost': {
+          const susCost = (c) => {
+            const ab = ((c.analysis() || {}).abilities || []).find(x => x.kind === 'castModifier' && String(x.keyword || '').toLowerCase() === 'suspend');
+            const sm = ab && String(ab.arg || '').match(/^(\d+)\s*[—-]\s*((?:\{[^}]+\})+)$/);
+            return sm ? sm[2] : null;
+          };
+          const srcs = this.manaSources(ctx.controller);
+          const pool = this.zones[ctx.controller].hand.filter(c => { const k = susCost(c); return k && this.couldPay(ctx.controller, k, srcs); });
+          if (!pool.length) break;
+          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+            cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may cast a spell with suspend from your hand, paying its suspend cost rather than its mana cost.` }, 'fob');
+          if (picked === SUSPEND) return SUSPEND;
+          const c = this.obj((picked || [])[0]);
+          if (!c || c.zone !== 'hand' || !pool.includes(c)) break;
+          const tg = this._askSpellTargets(ctx.controller, c, 'fobT');
+          if (tg === SUSPEND) return SUSPEND;
+          if (tg === null) break;
+          this.castSpell(ctx.controller, c.id, { costOverride: susCost(c), alternative: 'resolution', targets: tg, auto: true });
+          break;
+        }
         /* The Great Synthesis III: "You may cast any number of spells from your hand without paying their mana
            costs." — which, and in what order, chosen once (none is the "may"); each is then cast in turn as this
            resolves, timing aside, its targets chosen as it is cast. A card with nothing it could target is not
@@ -36904,6 +36984,8 @@
         if (!a || o.phasedOut) continue;
         if (!MTG.oracle.matchesSpec(spec, o, a, controllerId, this._specCtx())) continue;
         if (spec.mvAtMostCtlGy && ((o.card && o.card.cmc) || 0) > ((this.zones[o.controller] || {}).graveyard || []).length) continue;
+        // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
+        if (spec.artifactOrMaxMv != null && !a.isArtifact && ((o.card && o.card.cmc) || 0) > spec.artifactOrMaxMv) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
             (this.hasKw(o, 'hexproof') || this.hasKw(o, 'shroud'))) continue;
         // shroud: not even its own controller's (CR 702.18a)

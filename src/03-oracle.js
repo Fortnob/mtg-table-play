@@ -11170,6 +11170,10 @@
     // Asmodeus the Archfiend: "Return all cards exiled with Asmodeus to their owner's hand and you lose that much life."
     { re: /^Return all cards exiled with CARDNAME to their owner'?s hand and you lose that much life\.?$/i,
       make: () => [{ op: 'exiledWithToHand', loseLife: true }] },
+    // Toluz, Clever Conductor: "put the cards exiled with it into their owner's hand"
+    { re: /^Put the cards exiled with (?:it|CARDNAME) into their owners?'?s?'? hands?\.?$/i, make: () => [{ op: 'exiledWithToHand' }] },
+    // Toluz, Clever Conductor: "Whenever you discard one or more cards, exile them from your graveyard." (exileBatchLinked)
+    { re: /^Exile them from your graveyard\.?$/i, make: () => [{ op: 'exileBatchLinked' }] },
     // Gorex, the Tombshell: "choose a card at random exiled with Gorex and put that card into its owner's hand" (random)
     { re: /^Choose a card at random exiled with CARDNAME and put that card into its owner'?s hand\.?$/i,
       make: () => [{ op: 'exiledWithToHand', random: true }] },
@@ -11909,6 +11913,18 @@
        the chosen player." — any player but the one who cast it (notTriggerPlayer) */
     { re: /^Choose another target player\. (?:CARDNAME|It) deals damage equal to that spell'?s mana value to the chosen player\.?$/i,
       make: () => [{ op: 'damage', n: { triggerSpellMv: true }, targets: [{ type: 'player', notTriggerPlayer: true }] }] },
+    /* Desdemona, Freedom's Edge: "target creature card in your graveyard that's an artifact or that has mana value 3 or
+       less gains escape until end of turn. The escape cost is equal to its mana cost plus exile two other cards from your
+       graveyard." (grantEscapeTarget, artifactOrMaxMv) */
+    { re: /^Target creature card in your graveyard that'?s an artifact or that has mana value (\d+) or less gains escape until end of turn\. The escape cost is equal to its mana cost plus exile (\w+) other cards from your graveyard\.?$/i,
+      make: (m) => (typeof num(m[2]) === 'number' ? [{ op: 'grantEscapeTarget', exile: num(m[2]),
+        targets: [{ type: 'creature', filter: 'creature card', zone: 'graveyard', controller: 'you', artifactOrMaxMv: +m[1] }] }] : null) },
+    // Parnesse, the Subtle Brush: "up to one target opponent may also copy that spell. They may choose new targets for that copy."
+    { re: /^Up to one target opponent may also copy that spell\. They may choose new targets for that copy\.?$/i,
+      make: () => [{ op: 'oppMayCopyThatSpell', targets: [{ type: 'player', opponent: true, upTo: true }] }] },
+    // The Face of Boe: "You may cast a spell with suspend from your hand. If you do, pay its suspend cost rather than its mana cost."
+    { re: /^You may cast a spell with suspend from your hand\. If you do, pay its suspend cost rather than its mana cost\.(\s*Activate only as a sorcery\.)?$/i,
+      make: (m) => [{ op: 'castSuspendCost' }].concat(m[1] ? [{ op: 'noop' }] : []) },
     /* Darigaaz Reincarnated: "remove an egg counter from it. Then if this card has no egg counters on it, return it to
        the battlefield." — the exiled card itself, back under its owner's control */
     { re: /^Remove an? ([a-z]+) counter from it\. Then if this card has no \1 counters on it, return it to the battlefield\.?$/i,

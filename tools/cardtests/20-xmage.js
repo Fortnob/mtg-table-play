@@ -58966,4 +58966,102 @@ module.exports = (test) => {
     T.resolve();
     t.eq(Number(lions.counters.stun) || 0, 0, "Tamiyo: you're not the monarch — no stun counter");
   });
+  test('Commanders: Toluz, Clever Conductor — the cards you discard exiled with it; back to hand as it dies', (mk, t) => {
+    t.auto('Toluz, Clever Conductor');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const tz = T.bf('A', 'Toluz, Clever Conductor');
+    const bolt = T.hand('A', 'Lightning Bolt'), bears = T.hand('A', 'Grizzly Bears');
+    for (const c of T.zone('A', 'hand').filter(c => c !== bolt && c !== bears)) g.moveObject(c, 'library');
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.filter(c => c.id === bolt.id || c.id === bears.id).map(c => c.id) }));
+    T.answer('choose', (ch) => ({ picks: [bolt.id, bears.id] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    T.resolve();
+    t.zone(bolt, 'exile', 'Toluz: the discarded Bolt exiled');
+    t.zone(bears, 'exile', 'Toluz: the discarded Bears exiled');
+    t.eq(bolt.exiledWithId, tz.id, 'Toluz: exiled with it');
+    g.moveObject(tz, 'graveyard');
+    T.resolve();
+    t.zone(bolt, 'hand', 'Toluz: dies — the Bolt back to hand');
+    t.zone(bears, 'hand', 'Toluz: the Bears too');
+  });
+  test('Commanders: The Face of Boe — tap: cast a spell with suspend from your hand for its suspend cost', (mk, t) => {
+    t.auto('The Face of Boe');
+    const T = mk({ library: Array(30).fill('Island') });
+    const fob = T.bf('A', 'The Face of Boe');
+    const bolt = T.hand('A', 'Rift Bolt'), vision = T.hand('A', 'Ancestral Vision');
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [bolt.id] }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R');
+    T.activate('A', fob, 0);
+    T.resolve();
+    const offered = q ? q.cards.map(c => c.id) : [];
+    t.ok(offered.includes(bolt.id), 'Face of Boe: Rift Bolt offered, {R} to pay');
+    t.no(offered.includes(vision.id), "Face of Boe: Ancestral Vision's {U} can't be paid — not offered");
+    t.zone(bolt, 'graveyard', 'Face of Boe: Rift Bolt cast and resolved');
+    t.eq(T.life('B'), 17, 'Face of Boe: 3 damage for {R}');
+    t.zone(vision, 'hand', 'Face of Boe: Ancestral Vision stays');
+    // a card with no mana cost: cast for its suspend cost
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('pickCard', () => ({ cardIds: [vision.id] }));
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'A' }] }));
+    const hand0 = T.zone('A', 'hand').length;
+    T.mana('A', 'U');
+    T.activate('A', fob, 0);
+    T.resolve();
+    t.zone(vision, 'graveyard', 'Face of Boe: Ancestral Vision cast for {U}');
+    t.eq(T.zone('A', 'hand').length, hand0 - 1 + 3, 'Face of Boe: three cards drawn');
+  });
+  test('Commanders: Parnesse, the Subtle Brush — you copy a spell: up to one target opponent may copy it too, with new targets', (mk, t) => {
+    t.auto('Parnesse, the Subtle Brush');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Parnesse, the Subtle Brush');
+    const pick = (ch) => {
+      if (ch.playerId === 'B') return { targets: [{ kind: 'player', id: 'A' }] };
+      return { targets: [{ kind: 'player', id: 'B' }] };
+    };
+    T.answer('pickTarget', pick); T.answer('pickTarget', pick); T.answer('pickTarget', pick);
+    let offered = null;
+    T.answer('confirm', (ch) => { if (ch.purpose === 'oppMayCopy') offered = ch; return { yes: ch.purpose === 'oppMayCopy' }; });
+    T.mana('A', 'RUU');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.cast('A', T.hand('A', 'Twincast'), { targets: [T.stackTarget(bolt)] });
+    T.resolve();
+    t.ok(offered && offered.playerId === 'B', 'Parnesse: the opponent is asked');
+    t.eq(T.life('B'), 10, "Parnesse: the Bolt and your copy hit B, and B paid 4 life to aim the copy at you");
+    t.eq(T.life('A'), 17, "Parnesse: B's copy, aimed anew, hits you");
+  });
+  test("Commanders: Desdemona, Freedom's Edge — attacks: an artifact or small creature card in your graveyard gains escape this turn", (mk, t) => {
+    t.auto("Desdemona, Freedom's Edge");
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const de = T.bf('A', "Desdemona, Freedom's Edge");
+    const bears = T.grave('A', 'Grizzly Bears'), wurm = T.grave('A', 'Craw Wurm'), myr = T.grave('A', 'Myr Enforcer');
+    T.grave('A', 'Island'); T.grave('A', 'Island');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    T.answer('declareAttackers', () => [{ attackerId: de.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    const offered = q ? (q.options[0] || []).map(x => x.id) : [];
+    t.ok(offered.includes(bears.id) && offered.includes(myr.id), 'Desdemona: the Bears (mana value 2) and the Myr Enforcer (an artifact) offered');
+    t.no(offered.includes(wurm.id), 'Desdemona: not the Craw Wurm');
+    for (let i = 0; i < 50 && !(g.phase.id === 'postcombat' && !g.stack.length); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.mana('A', 'G1');
+    T.cast('A', bears, { via: 'escape' });
+    t.zone(bears, 'battlefield', 'Desdemona: the Bears escaped');
+    t.eq(T.zone('A', 'exile').length, 2, 'Desdemona: two other cards exiled');
+    // next turn: gone
+    T.grave('A', 'Island'); T.grave('A', 'Island');
+    g.moveObject(bears, 'graveyard');
+    bears.escapeGrant = { turn: g.turn, exile: 2, by: 'Desdemona' };
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'G1');
+    let threw = false;
+    try { T.cast('A', bears, { via: 'escape' }); } catch (err) { threw = true; }
+    t.ok(threw, 'Desdemona: only until end of turn');
+  });
 };

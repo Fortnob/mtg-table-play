@@ -2954,6 +2954,8 @@
           ? t.id !== this.pid && !(g.player(t.id) || {}).hasLost && (!discards || (g.zones[t.id].hand || []).length > 0)
           : !!g.obj(t.id) && g.obj(t.id).controller !== this.pid);
       }
+      // Parnesse, the Subtle Brush: a free copy, yes — but not one handed back for a copy already offered (chain)
+      if (ch.purpose === 'oppMayCopy') return !ch.chain;
       // Alpharael, Stonechosen's ward: a card at random, to see the spell or ability through
       if (ch.purpose === 'wardPay') return (g.zones[this.pid].hand || []).length > 0;
       /* a ward met as our own trigger resolves (_wardOnResolve): mana, evidence and waterbending are paid whenever
