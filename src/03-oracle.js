@@ -7401,6 +7401,8 @@
     /* ===== the last of the frequent shapes ===== */
     // the player is targeted as the spell is cast, so with more than one opponent the caster picks whose hand
     { re: /^Target (opponent|player) reveals their hand\.?$/i, make: (m) => ({ op: 'revealHand', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }) },
+    // Isperia the Inscrutable: "That player reveals their hand." — the player the trigger is about (triggerPlayer)
+    { re: /^That player reveals their hand\.?$/i, make: () => ({ op: 'revealHand', who: 'triggerPlayer' }) },
     // a generic question about players; "that player" afterwards is the one chosen
     { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'chooseOpponent' }) },
     // Gatta and Luzzu: "If damage would be dealt to that creature this turn, prevent that damage and put that many +1/+1 counters on it." (damageToCountersTurn)
@@ -14555,8 +14557,10 @@
     [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is tapped$/i, () => ({ kind: 'selfTapped' })],
+    // Isperia the Inscrutable: "a card with the chosen name is revealed this way" — in the hand just revealed (chosenNameRevealed)
+    [/^a card with the chosen name is revealed this way$/i, () => ({ kind: 'chosenNameRevealed' })],
     // Ratonhnhaké꞉ton: "As long as Ratonhnhaké꞉ton hasn't dealt damage yet" — since it entered (selfNoDamageYet)
-    [/^(?:CARDNAME|this creature) hasn'?t dealt damage yet$/i, () => ({ kind: 'selfNoDamageYet' })],
+    [/^(?:CARDNAME|this creature|it) hasn'?t dealt damage yet$/i, () => ({ kind: 'selfNoDamageYet' })],
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],

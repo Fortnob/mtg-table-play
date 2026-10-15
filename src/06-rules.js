@@ -2504,7 +2504,7 @@
       this._returnedNow = [];
       this._lastAffected = null; this._lastAffectedAll = null; this._trigObjCtlId = null;
       this._lastCopy = null;
-      this._lastPut = null; this._lastSearched = null; this._putThisWay = null;
+      this._lastPut = null; this._lastSearched = null; this._putThisWay = null; this._revealedHand = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
       this._exileUntil = null; this._exiledChosen = null;
       this._chosenCard = null; this._attachedAnyTo = null;
@@ -14903,6 +14903,8 @@
         case 'selfOnBattlefield': return !!src && src.zone === 'battlefield';
         // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — this object, since it last entered (marked in _evDamage)
         case 'selfNoDamageYet': return !!src && !src._dealtDamage;
+        // Isperia the Inscrutable: the name chosen as this resolved, among the hand it revealed (chosenNameRevealed)
+        case 'chosenNameRevealed': return !!this._chosenNameNow && ((this._revealedHand || {}).names || []).includes(this._chosenNameNow);
         case 'selfAttacking': return !!src && !!src.attacking;
         // Tromokratis: "unless it's attacking or blocking"
         case 'selfInCombat': return !!src && src.zone === 'battlefield' && !!(src.attacking || (src.blocking && src.blocking.length));
@@ -29118,10 +29120,12 @@
            names the cards. "Look at target player's hand" (Gitaxian Probe):
            only the one looking sees them, shown to that player alone. */
         case 'revealHand': {
-          const p = firstPlayer() || this.opponentsOf(ctx.controller)[0];
+          const p = (e.who === 'triggerPlayer' ? triggerPlayer() : firstPlayer()) || this.opponentsOf(ctx.controller)[0];
           if (!p) break;
           const hand = this.zones[p.id].hand;
           if (!e.look) {
+            // (Isperia the Inscrutable: "If a card with the chosen name is revealed this way" — what was shown)
+            this._revealedHand = { pid: p.id, names: hand.map(o => o.name) };
             this._knowHand(p.id, '*');
             this.logEvent('reveal', `${p.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`);
             break;

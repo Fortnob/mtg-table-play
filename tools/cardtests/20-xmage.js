@@ -60689,4 +60689,49 @@ module.exports = (test) => {
     T.mana('A', 'U');
     t.no(g.castSpell('A', div2.id, { auto: true, targets: [] }), 'Don & Raph: only the next one');
   });
+  test("Commanders: Palladia-Mors, the Ruiner — hexproof as long as it hasn't dealt damage yet", (mk, t) => {
+    t.auto('Palladia-Mors, the Ruiner');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const pm = T.bf('A', 'Palladia-Mors, the Ruiner');
+    t.ok(g.hasKw(pm, 'hexproof'), 'Palladia-Mors: hexproof before dealing damage');
+    T.answer('declareAttackers', () => [{ attackerId: pm.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 14, 'Palladia-Mors: 6 damage');
+    t.no(g.hasKw(pm, 'hexproof'), 'Palladia-Mors: no hexproof once it has dealt damage');
+    T.nextTurn('B');
+    t.no(g.hasKw(pm, 'hexproof'), 'Palladia-Mors: for good');
+    // a new object: hexproof again
+    g.moveObject(pm, 'hand');
+    g.moveObject(pm, 'battlefield', { controller: 'A' });
+    t.ok(g.hasKw(pm, 'hexproof'), 'Palladia-Mors: back on the battlefield, a new object — hexproof again');
+  });
+  test('Commanders: Isperia the Inscrutable — combat damage to a player: name a card, they reveal their hand; named card there: a flier from your library', (mk, t) => {
+    t.auto('Isperia the Inscrutable');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const isp = T.bf('A', 'Isperia the Inscrutable');
+    const bears = T.top('A', 'Grizzly Bears');
+    const drake = T.top('A', 'Wind Drake');
+    T.top('A', 'Island');   // drawn on A's next turn
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.hand('B', 'Forest');
+    T.grave('A', 'Shock');
+    const pickName = (nm) => (ch) => ({ picks: [ch.options.findIndex(o => o.label === nm)] });
+    T.answer('choose', pickName('Shock'));
+    T.answer('declareAttackers', () => [{ attackerId: isp.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.ok((bolt.knownTo || []).includes('*'), "Isperia: B's hand revealed");
+    t.zone(drake, 'library', 'Isperia: Shock not in that hand — no search');
+    T.nextTurn('A');
+    T.answers.length = 0;
+    T.answer('choose', pickName('Lightning Bolt'));
+    T.answer('declareAttackers', () => [{ attackerId: isp.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.zone(drake, 'hand', 'Isperia: Lightning Bolt revealed — Wind Drake, a creature with flying, to hand');
+    t.zone(bears, 'library', 'Isperia: not the Bears (no flying)');
+  });
 };
