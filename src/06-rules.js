@@ -32328,8 +32328,8 @@
           break;
         }
         /* Rhuk, Hexgold Nabber: "attach all Equipment attached to that creature to Rhuk" — what is on it now, or what was
-           on it as it died; one that can't legally be attached stays where it is (CR 701.3b) (attachAllToSelf) */
-        case 'attachAllToSelf': {
+           on it as it died; one that can't legally be attached stays where it is (CR 701.3b) (attachTriggerEquipToSelf) */
+        case 'attachTriggerEquipToSelf': {
           const x = this.obj((ctx.triggerData || {}).objectId);
           if (!src || src.zone !== 'battlefield' || !x) break;
           const ids = (x.zone === 'battlefield' ? x.attachments : x._lastAttachments) || [];

@@ -4886,8 +4886,8 @@
     { re: /^Exile an? ([a-z ]+?) card from your hand or graveyard and put an? ([a-z]+) counter on it\.?$/i,
       make: (m) => ({ op: 'exileHandGraveCounter', filter: m[1].toLowerCase(), counter: m[2].toLowerCase() }) },
     /* Rhuk, Hexgold Nabber: "attach all Equipment attached to that creature to Rhuk" — the creature the trigger is about,
-       as it is, or as it was when it died (attachAllToSelf) */
-    { re: /^Attach all Equipment attached to that creature to CARDNAME\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
+       as it is, or as it was when it died (attachTriggerEquipToSelf) */
+    { re: /^Attach all Equipment attached to that creature to CARDNAME\.?$/i, make: () => ({ op: 'attachTriggerEquipToSelf' }) },
     /* Zack Fair: "Put CARDNAME's counters on that creature and attach an Equipment that was attached to CARDNAME to
        that creature." — what it had as it was sacrificed (attachLeftEquipment) */
     { re: /^Put CARDNAME'?s counters on that creature and attach an Equipment that was attached to CARDNAME to that creature\.?$/,
