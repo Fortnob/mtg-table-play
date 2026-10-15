@@ -60,6 +60,7 @@
  "11-ui-deck.js",
  "11b-ui-playtest.js",
  "11c-ui-decklink.js",
+ "11d-ui-planar.js",
  "12-ui-table.js",
  "12b-ui-table-fx.js",
  "12c-ui-table-ask.js",

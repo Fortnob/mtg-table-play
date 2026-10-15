@@ -1,0 +1,122 @@
+/* ============================================================
+   planechase.css - Planechase: the plane at the table, the planar
+   die and its symbols, the planeswalk, and the deck builder's Planar
+   deck tab (src/12k-ui-planechase.js, src/11d-ui-planar.js)
+   ============================================================ */
+
+/* ---- the symbols ---- */
+.pc-sym { width: 1em; height: 1em; display: inline-block; vertical-align: -0.14em; flex: none; }
+/* {CHAOS} in a card's words (MTG.mana.textHtml): the chaos symbol in place of the letters */
+.pip.pip-chaos { background: none !important; box-shadow: none !important; color: transparent !important; position: relative; }
+.pip.pip-chaos::after { content: ''; position: absolute; inset: 0; background: currentColor; color: #e9e2cf;
+  -webkit-mask: var(--chaos-mask) center / contain no-repeat; mask: var(--chaos-mask) center / contain no-repeat; }
+:root { --chaos-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3.2'/%3E%3Cpath d='M17.2 12H22.4M20 14.1L22.6 12L20 9.9M15.68 15.68L19.35 19.35M15.67 18.6L19.5 19.5L18.6 15.67M12 17.2V22.4M9.9 20L12 22.6L14.1 20M8.32 15.68L4.65 19.35M5.4 15.67L4.5 19.5L8.33 18.6M6.8 12H1.6M4 9.9L1.4 12L4 14.1M8.32 8.32L4.65 4.65M8.33 5.4L4.5 4.5L5.4 8.33M12 6.8V1.6M14.1 4L12 1.4L9.9 4M15.68 8.32L19.35 4.65M18.6 8.33L19.5 4.5L15.67 5.4'/%3E%3C/g%3E%3C/svg%3E"); }
+
+/* ---- the plane, at the top of the right-hand column, the stack under it ---- */
+.plane-host { position: absolute; z-index: 31; right: 16px; top: calc(var(--board-top, 6px) + 44px); width: calc(var(--side-w) - 24px);
+  display: flex; flex-direction: column; gap: 0; color: #eef1f6; pointer-events: auto;
+  border-radius: 12px; border: 1px solid rgba(212,175,71,.32);
+  background: linear-gradient(180deg, rgba(26,22,40,.94), rgba(14,13,22,.94));
+  box-shadow: 0 10px 28px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05); }
+.plane-host[hidden] { display: none; }
+.arena.has-plane .stack-col { top: calc(var(--board-top, 6px) + 44px + var(--plane-h, 0px) + 8px); }
+.pc-bar { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 7px 10px; border: 0; background: none;
+  color: inherit; cursor: pointer; text-align: left; border-radius: 12px 12px 0 0; }
+.pc-bar:focus-visible { outline: 2px solid var(--focus, #63d3ff); outline-offset: -2px; }
+.pc-mark { color: #d8b4ff; font-size: 18px; display: inline-flex; filter: drop-shadow(0 0 6px rgba(190,140,255,.55)); }
+.pc-bar-words { display: grid; min-width: 0; flex: 1; }
+.pc-kicker { font: 600 9.5px/1.2 var(--font); letter-spacing: .14em; text-transform: uppercase; color: rgba(216,180,255,.85); }
+.pc-bar-name { font: 600 14px/1.25 var(--serif, Georgia, serif); color: #f3e6ff; overflow-wrap: anywhere; }
+.pc-bar-who { font: 500 12px/1.3 var(--font); color: #d9cdee; overflow-wrap: anywhere; }
+.pc-chev { width: 8px; height: 8px; border-right: 2px solid rgba(255,255,255,.55); border-bottom: 2px solid rgba(255,255,255,.55);
+  rotate: 45deg; translate: 0 -2px; transition: rotate .2s; flex: none; }
+.plane-host.open .pc-chev { rotate: 225deg; translate: 0 2px; }
+.pc-cards { display: grid; gap: 8px; padding: 0 8px 4px; }
+.pc-card { position: relative; border-radius: 9px; overflow: hidden; cursor: zoom-in;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.08); }
+.pc-card.phenomenon { border-color: rgba(255,170,120,.35); }
+.pc-art { height: 64px; background: #1a1626 center 30% / cover no-repeat; -webkit-mask: linear-gradient(180deg, #000 55%, transparent); mask: linear-gradient(180deg, #000 55%, transparent); }
+.pc-words { padding: 2px 9px 9px; margin-top: -18px; position: relative; }
+.pc-name { margin: 0; font: 700 14px/1.2 var(--serif, Georgia, serif); color: #fff; text-shadow: 0 1px 4px #000; overflow-wrap: anywhere; }
+.pc-type { font: 500 10.5px/1.3 var(--font); color: #b9a8d8; margin: 1px 0 5px; overflow-wrap: anywhere; }
+/* the whole of its words, never cut: the column scrolls before a word is lost */
+.pc-text { font: 400 11.5px/1.42 var(--font); color: #e3e6ee; white-space: pre-line; overflow-wrap: anywhere; }
+.pc-text .pip { font-size: 10px; }
+.pc-counters { margin-top: 6px; font: 600 11px/1.3 var(--font); color: #f3dd96; }
+.pc-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 6px 8px 8px; }
+.pc-who, .pc-whose { flex: 1 1 auto; min-width: 0; font: 500 11px/1.3 var(--font); color: #a9b0c0; overflow-wrap: anywhere; }
+.pc-flag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 99px; font: 600 10.5px/1.2 var(--font);
+  color: #ffd9a8; background: rgba(255,150,60,.14); border: 1px solid rgba(255,170,90,.35); }
+.pc-roll { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 10px 6px 8px; margin-left: auto;
+  border-radius: 10px; border: 1px solid rgba(216,180,255,.35); cursor: pointer;
+  font: 600 12.5px/1.15 var(--font); color: #f1e6ff; background: linear-gradient(180deg, rgba(120,80,190,.45), rgba(70,40,120,.45)); }
+.pc-roll.can { border-color: rgba(216,180,255,.8); box-shadow: 0 0 0 1px rgba(216,180,255,.25), 0 0 16px rgba(170,110,255,.35); }
+.pc-roll.can:hover { filter: brightness(1.15); }
+.pc-roll:disabled { cursor: default; opacity: .55; filter: saturate(.5); }
+.pc-roll:focus-visible { outline: 2px solid var(--focus, #63d3ff); outline-offset: 2px; }
+.pc-roll-die { font-size: 20px; display: inline-flex; color: #e6d3ff; }
+.pc-cost { display: inline-flex; align-items: center; }
+.pc-cost .pip { margin: 0; }
+
+/* a planeswalk: the panel turns over, a glow sweeps it */
+.plane-host.walking { animation: pcTurn 1.15s cubic-bezier(.3,.7,.25,1); }
+.plane-host.walking::after { content: ''; position: absolute; inset: -2px; border-radius: 13px; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 40%, rgba(200,150,255,.55), transparent 70%); animation: pcGlow 1.15s ease-out forwards; }
+@keyframes pcTurn { 0% { transform: perspective(700px) rotateY(0); } 38% { transform: perspective(700px) rotateY(88deg); opacity: .4; }
+  39% { transform: perspective(700px) rotateY(-88deg); } 100% { transform: perspective(700px) rotateY(0); opacity: 1; } }
+@keyframes pcGlow { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
+/* and the word in the middle of the table */
+.pc-walk { position: absolute; z-index: 66; left: 50%; top: 50%; translate: -50% -50%; display: grid; justify-items: center; gap: 4px;
+  padding: 14px 26px 16px; max-width: min(560px, calc(100% - 32px)); text-align: center; pointer-events: none;
+  border-radius: 16px; border: 1px solid rgba(216,180,255,.45);
+  background: radial-gradient(ellipse at 50% 0%, rgba(120,70,200,.5), rgba(14,12,24,.94) 75%);
+  box-shadow: 0 0 60px rgba(150,90,255,.35), 0 18px 40px rgba(0,0,0,.6);
+  animation: pcWalkIn .6s cubic-bezier(.2,.8,.25,1.15) both; }
+.pc-walk.out { animation: pcWalkOut .35s ease-in forwards; }
+.pc-walk-mark { font-size: 30px; color: #e3c8ff; display: inline-flex; filter: drop-shadow(0 0 10px rgba(200,150,255,.8)); animation: pcSpin 1.2s cubic-bezier(.2,.7,.3,1) both; }
+.pc-walk-kicker { font: 600 11px/1.3 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #cdb6f0; overflow-wrap: anywhere; }
+.pc-walk-name { font: 700 22px/1.2 var(--serif, Georgia, serif); color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.8); overflow-wrap: anywhere; }
+@keyframes pcWalkIn { from { opacity: 0; scale: .7; filter: blur(6px); } to { opacity: 1; scale: 1; filter: none; } }
+@keyframes pcWalkOut { to { opacity: 0; scale: 1.06; } }
+@keyframes pcSpin { from { rotate: -200deg; scale: .4; } to { rotate: 0deg; scale: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .plane-host.walking, .plane-host.walking::after, .pc-walk, .pc-walk-mark { animation: none !important; }
+}
+
+/* ---- the planar die, thrown (src/12f-ui-feel.js) ---- */
+.lr-die.planar { color: #2a1746; background: linear-gradient(160deg, #f4ecff, #cdb6f0) !important; }
+.lr-die.planar b { display: grid; place-items: center; width: 70%; height: 70%; }
+.lr-die.planar b .pc-sym { width: 100%; height: 100%; }
+.lr-die.planar .pc-blank { display: block; width: 100%; height: 100%; }
+.lr-die.planar.landed b { color: #2a1746; }
+
+/* ---- a phone: a bar under the opponents, the card opening over the table ---- */
+:root[data-phone] .plane-host { left: auto; right: 8px; width: min(320px, calc(100% - 16px));
+  top: calc(var(--board-top, 6px) + var(--opp-hud-h, 64px) + 10px); }
+:root[data-phone] .plane-host:not(.open) { width: auto; max-width: calc(100% - 16px); flex-direction: row; align-items: center; border-radius: 99px; }
+:root[data-phone] .plane-host:not(.open) .pc-bar { min-height: 36px; padding: 4px 6px 4px 10px; border-radius: 99px; flex: 1 1 auto; min-width: 0; }
+:root[data-phone] .plane-host:not(.open) .pc-kicker { display: none; }
+:root[data-phone] .plane-host:not(.open) .pc-bar-name { font-size: 12.5px; }
+:root[data-phone] .plane-host:not(.open) .pc-foot { padding: 3px 4px 3px 0; flex-wrap: nowrap; }
+:root[data-phone] .plane-host:not(.open) .pc-whose { display: none; }
+:root[data-phone] .plane-host:not(.open) .pc-roll { min-height: 32px; padding: 4px 8px; }
+:root[data-phone] .plane-host.open { z-index: 64; max-height: calc(100% - var(--board-top, 6px) - var(--opp-hud-h, 64px) - 20px); overflow-y: auto; overscroll-behavior: contain; }
+:root[data-phone] .arena.has-plane .stack-col { top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 10px + 44px); }
+:root[data-phone] .pc-walk-name { font-size: 18px; }
+
+/* ---- the deck builder's Planar deck tab ---- */
+.planar-head h3, .planar-add h3 { display: flex; align-items: center; gap: 8px; }
+.planar-head .pill.ok { color: var(--good, #6fe3a0); }
+.planar-problems { margin: 6px 0; padding-left: 18px; color: var(--warn, #ffc94d); }
+.planar-ok { margin: 6px 0; color: var(--good, #6fe3a0); }
+.planar-tools { gap: 8px; margin: 8px 0; }
+.planar-list, .planar-browse { display: grid; gap: 4px; }
+.planar-browse { max-height: min(52vh, 520px); overflow-y: auto; padding-right: 2px; }
+.planar-row .nm-col { display: grid; min-width: 0; flex: 1; }
+/* a plane's name whole, however long (Human—Time Lord Meta-Crisis) */
+.planar-row .nm { white-space: normal; text-overflow: clip; overflow: visible; overflow-wrap: anywhere; }
+.planar-row .planar-type { overflow-wrap: anywhere; }
+.planar-row.in-deck { opacity: .6; }
+.planar-row.is-phenomenon .planar-type { color: #ffb48a; }
+.planar-filter { gap: 8px; align-items: center; margin-bottom: 8px; }
+.planar-search { flex: 1 1 200px; min-width: 0; }

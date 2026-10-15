@@ -36,6 +36,8 @@
         side: (deck.sideboard || []).map(e => ({ id: e.card.id, q: e.qty })),
         cmd: (deck.commanders || []).map(c => c.id),
         comp: deck.companion ? deck.companion.id : null,
+        // its planar deck, for a Planechase table (src/02f-planes.js): left out when it has none
+        pl: deck.planar && deck.planar.length ? deck.planar.map(c => c.id) : undefined,
         colors: deck.colors || null,
         source: deck.source || 'manual',
         cover: deck.cover || null,
@@ -95,7 +97,7 @@
     async load(id) {
       const slim = MTG.store.get('deck.' + id, null);
       if (!slim) return null;
-      const ids = slim.main.map(e => e.id).concat(slim.side.map(e => e.id), slim.cmd, slim.comp ? [slim.comp] : []);
+      const ids = slim.main.map(e => e.id).concat(slim.side.map(e => e.id), slim.cmd, slim.comp ? [slim.comp] : [], slim.pl || []);
       const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
       const byId = new Map();
       ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
@@ -112,6 +114,7 @@
         main: hydrate(slim.main), sideboard: hydrate(slim.side),
         commanders: slim.cmd.map(i => byId.get(i)).filter(Boolean),
         companion: slim.comp ? byId.get(slim.comp) : null,
+        planar: (slim.pl || []).map(i => byId.get(i)).filter(Boolean),
         colors: slim.colors, source: slim.source, cover: slim.cover || null,
       };
     },
@@ -521,6 +524,8 @@ Sideboard
       cmd: (deck.commanders || []).map(c => c && c.id),
       comp: deck.companion ? deck.companion.id : null,
       maybe: counts(deck.maybeboard),
+      // (a deck with no planar deck reads as it always has)
+      ...(deck.planar && deck.planar.length ? { planar: deck.planar.map(c => c && c.id).sort() } : {}),
       cover: deck.cover || null,
     });
   };
@@ -540,6 +545,8 @@ Sideboard
       main: (deck.main || []).map(e => ({ card: e.card, qty: e.qty })),
       sideboard: (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty })),
       commanders: (deck.commanders || []).slice(),
+      // its planar deck too (Planechase: src/11d-ui-planar.js), so Close can throw its edits away as well
+      planar: (deck.planar || []).slice(),
     });
     /* The deck as it was opened or last saved, to tell whether leaving
        would lose anything. A deck back from a practice game keeps the
@@ -577,6 +584,8 @@ Sideboard
       leave: async (words) => { if (!await letGo(words)) return false; m.close(); return true; },
       // the snapshot the deck is measured against (UI.deckSnapshot), to carry along with it
       baseline: () => baseline,
+      // a tab changed the deck (the planar deck): everything shows it, the tab included
+      changed: () => render(),
     };
     // an empty deck opens on the search, since adding cards is the whole of the next step
     const empty = !(deck.main || []).length && !(deck.commanders || []).length;

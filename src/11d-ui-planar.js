@@ -1,0 +1,125 @@
+'use strict';
+/* ============================================================
+   11d-ui-planar.js - a deck's planar deck, in the deck builder
+
+   Planechase (src/06f-planechase.js) is played with a planar deck beside
+   each deck: at least ten plane and phenomenon cards, one of each name, no
+   more than two phenomena (CR 901.3). A deck keeps one as `planar` (a list
+   of cards, saved with it: src/11-ui-deck.js), and this tab of the deck
+   builder is where it is made: what it holds, what the rules say of it,
+   and every plane and phenomenon to add from, searched by name or words.
+   It only matters at a table playing Planechase (a house rule), and a deck
+   with none, or one the rules don't allow, is dealt planes at random there
+   to make ten (MTG.planes.complete).
+   ============================================================ */
+(function (MTG) {
+  const { el } = MTG;
+  const UI = MTG.ui;
+  const P = () => MTG.planes;
+
+  function planarPane(host, api) {
+    const deck = () => api.deck();
+    const planar = () => { const d = deck(); return d.planar || (d.planar = []); };
+    let pool = null, loading = null, query = '', kind = 'all';
+    const changed = () => { if (api.changed) api.changed(); else draw(); };
+
+    function load() {
+      if (pool || loading) return loading;
+      loading = P().cards().then(cs => { pool = cs.slice().sort((a, b) => a.name.localeCompare(b.name)); loading = null; draw(); })
+        .catch(() => { pool = []; loading = null; draw(); });
+      return loading;
+    }
+
+    function typeOf(c) { return P().isPhenomenon(c) ? 'Phenomenon' : String(c.type_line || 'Plane'); }
+
+    function row(c, inDeck) {
+      const ph = P().isPhenomenon(c);
+      const have = planar().some(x => x.name === c.name);
+      const phenomena = planar().filter(P().isPhenomenon).length;
+      const full = !inDeck && ph && phenomena >= P().MAX_PHENOMENA;
+      const btn = inDeck
+        ? el('button', { type: 'button', class: 'qty-btn', text: '−', title: `Take ${c.name} out of the planar deck`, 'aria-label': `Take ${c.name} out of the planar deck`,
+          onclick: (ev) => { ev.stopPropagation(); const d = deck(); d.planar = planar().filter(x => x.name !== c.name); MTG.sfx('click'); changed(); } })
+        : el('button', { type: 'button', class: 'qty-btn', text: '+', disabled: have || full, dataset: { why: have ? 'in' : full ? 'phenomena' : '' },
+          title: have ? `${c.name} is in the planar deck` : full ? `No more than ${P().MAX_PHENOMENA} phenomena in a planar deck` : `Put ${c.name} in the planar deck`,
+          'aria-label': `Put ${c.name} in the planar deck`,
+          onclick: (ev) => { ev.stopPropagation(); if (planar().some(x => x.name === c.name)) return; planar().push(c); MTG.sfx('click'); changed(); } });
+      const r = el('div', { class: 'deck-entry strip planar-row' + (ph ? ' is-phenomenon' : '') + (!inDeck && have ? ' in-deck' : ''), title: c.name }, [
+        el('span', { class: 'nm-col' }, [
+          el('span', { class: 'nm', text: c.name }),
+          el('span', { class: 'tiny dim planar-type', text: typeOf(c) }),
+        ]),
+        UI.autoBadge(c),
+        btn,
+      ].filter(Boolean));
+      if (UI.setArt) UI.setArt(r, c);
+      UI.attachPreview(r, c, 0);
+      r.addEventListener('click', () => UI.cardSheet(c));
+      return r;
+    }
+
+    function draw() {
+      if (!host.classList.contains('active')) return;
+      const list = planar();
+      const problems = P().problems(list);
+      const phenomena = list.filter(P().isPhenomenon).length;
+      const head = el('section', { class: 'panel planar-head' }, [
+        el('h3', null, [
+          el('span', { text: 'Planar deck' }),
+          el('span', { class: 'pill' + (list.length && !problems.length ? ' ok' : list.length ? ' warn' : ''),
+            text: `${list.length} card${list.length === 1 ? '' : 's'}` + (phenomena ? ` · ${phenomena} phenomen${phenomena === 1 ? 'on' : 'a'}` : '') }),
+        ]),
+        el('p', { class: 'small muted', text: 'For a table playing Planechase (a house rule): at least ten planes and phenomena, one of each, no more than two phenomena. '
+          + 'A deck with no planar deck, or one the rules don’t allow, is dealt planes at random there to make ten.' }),
+        problems.length && list.length ? el('ul', { class: 'small planar-problems' }, problems.map(t => el('li', { text: t }))) : null,
+        list.length && !problems.length ? el('p', { class: 'small planar-ok', text: 'Ready for a Planechase table.' }) : null,
+        el('div', { class: 'row wrap planar-tools' }, [
+          el('button', { type: 'button', class: 'btn sm', text: list.length >= P().MIN ? 'Deal ten at random' : list.length ? 'Fill up at random' : 'Deal ten at random',
+            title: list.length >= P().MIN ? 'Put ten planes dealt at random in place of these' : 'Make it up to ten with planes the game runs by itself',
+            onclick: async () => {
+              await load();
+              const keep = list.length >= P().MIN ? [] : list;
+              const d = deck();
+              d.planar = await P().complete(keep, new MTG.RNG((Date.now() >>> 0) || 1), pool || undefined);
+              MTG.sfx('click');
+              changed();
+            } }),
+          el('button', { type: 'button', class: 'btn sm', text: 'Clear', disabled: !list.length,
+            onclick: () => { deck().planar = []; changed(); } }),
+        ]),
+        list.length ? el('div', { class: 'planar-list', role: 'list', 'aria-label': 'The planar deck' },
+          list.slice().sort((a, b) => (P().isPhenomenon(a) - P().isPhenomenon(b)) || a.name.localeCompare(b.name)).map(c => row(c, true)))
+          : el('p', { class: 'small dim', text: 'No planes yet: add them from the list below, or deal ten at random.' }),
+      ].filter(Boolean));
+
+      const search = el('input', { type: 'search', class: 'planar-search', placeholder: 'Search planes by name or words', value: query,
+        'aria-label': 'Search planes and phenomena' });
+      search.addEventListener('input', () => { query = search.value; drawList(); });
+      const kinds = el('div', { class: 'seg planar-kinds', role: 'radiogroup', 'aria-label': 'Which cards' },
+        [['all', 'All'], ['plane', 'Planes'], ['phenomenon', 'Phenomena']].map(([k, label]) => el('button', {
+          type: 'button', class: 'seg-btn' + (kind === k ? ' on' : ''), role: 'radio', 'aria-checked': kind === k ? 'true' : 'false', text: label,
+          onclick: () => { kind = k; draw(); } })));
+      const listBox = el('div', { class: 'planar-browse', role: 'list', 'aria-label': 'Planes and phenomena to add' });
+      function drawList() {
+        if (!pool) { listBox.replaceChildren(el('p', { class: 'small dim', text: loading ? 'Looking up the planes…' : '' })); return; }
+        const q = query.trim().toLowerCase();
+        const rows = pool.filter(c => (kind === 'all' || (kind === 'phenomenon') === P().isPhenomenon(c)) &&
+          (!q || c.name.toLowerCase().includes(q) || String(c.oracle_text || '').toLowerCase().includes(q) || String(c.type_line || '').toLowerCase().includes(q)));
+        listBox.replaceChildren(...(rows.length ? rows.map(c => row(c, false)) : [el('p', { class: 'small dim', text: 'Nothing matches that.' })]));
+      }
+      const browse = el('section', { class: 'panel planar-add' }, [
+        el('h3', null, [el('span', { text: 'Planes and phenomena' }), pool ? el('span', { class: 'tiny dim', text: `${pool.length}` }) : null].filter(Boolean)),
+        el('div', { class: 'row wrap planar-filter' }, [search, kinds]),
+        listBox,
+      ]);
+      drawList();
+      host.replaceChildren(head, browse);
+      if (!pool) load();
+    }
+
+    return { show: () => { load(); draw(); }, refresh: draw };
+  }
+
+  UI.deckPanes = UI.deckPanes || [];
+  UI.deckPanes.push({ id: 'planar', label: 'Planar deck', mount: planarPane });
+})(window.MTG);
