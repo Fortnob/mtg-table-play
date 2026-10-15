@@ -41493,7 +41493,8 @@
       if (objs.length < 2) return objs.length === 1;
       if (objs.some(o => !o.card || o.zone !== objs[0].zone)) return false;
       const turn = this.turn, drawStep = this.step === 'draw';
-      const OWN = /^(?:id|game|card|printedCard|ts|exileStamp|_chr|_dyn|_borrow|_lki\w*|_analysis)$/;
+      // (the off-battlefield characteristics' caches, _chrOff*, _ig*: kept or not as something happened to ask, not the game)
+      const OWN = /^(?:id|game|card|printedCard|ts|exileStamp|_chr\w*|_ig(?:Base|Color|Analysis)|_dyn|_borrow|_lki\w*|_analysis)$/;
       const sig = (o) => {
         const creature = o.zone === 'battlefield' && !!(this.characteristics(o) || {}).isCreature;
         const body = JSON.stringify(o, function (k, v) {
@@ -41514,7 +41515,7 @@
         if (objs.some(o => sig(o) !== first)) return false;
         const ids = new Set(objs.map(o => o.id));
         const skip = (k, v) => (k === 'game' || k === 'card' || k === 'printedCard' || k === 'pool' || k === 'deck' || k === 'sideboard' ||
-          k === 'spellObjsThisTurn' || /^_(?:chr|dyn|borrow|lki\w*|analysis)$/.test(k) ? undefined : v);
+          k === 'spellObjsThisTurn' || /^_(?:chr\w*|ig(?:Base|Color|Analysis)|dyn|borrow|lki\w*|analysis)$/.test(k) ? undefined : v);
         const others = [];
         for (const o of this.objects.values()) if (!ids.has(o.id)) others.push(o);
         const elsewhere = JSON.stringify([this.stack, this.pendingTriggers, this.delayedTriggers, this.combat, this.prevention, this.players, others], skip);
