@@ -1103,7 +1103,74 @@
       host._hint.innerHTML = '';
       host._split.textContent = MTG.settings.splitOpponents ? 'One board' : 'All boards';
       host._split.style.display = others.length <= 3 ? '' : 'none';
+      host.classList.toggle('with-split', others.length <= 3);
+      this._seatPlates(host, others, kids);
       this.place(host, kids.concat([host._hint, host._split]));
+      this._centreStrip(host);
+    }
+
+    /**
+     * The plate of the board in view sits in the middle of the strip, the
+     * others round it the way the seats run, like turning a ring: the seats
+     * before it to its left, those after it to its right (one more of them
+     * when the count is even, the middle kept by an empty place on the left).
+     * Only where each plate is drawn turns: the plates stay in seat order for
+     * the keyboard and a screen reader. Turning to another board slides them
+     * round together with it; the plate that comes round the back fades in
+     * at the far end.
+     */
+    /** @this {MTG.TableInstance} */
+    _seatPlates(host, others, plates) {
+      const n = others.length;
+      const at = Math.max(0, others.findIndex(p => p.id === this.focusSeat));
+      const after = Math.floor(n / 2);
+      host.style.setProperty('--op-cols', String(2 * after + 1));
+      const key = others.map(p => p.id).join(' ') + '|' + (others[at] && others[at].id);
+      const turning = host._seatKey != null && host._seatKey !== key && !this._focusCut;
+      const passed = host._seatActive !== this.view.activePlayer;
+      host._seatActive = this.view.activePlayer;
+      const was = new Map();
+      if (turning) for (const pl of plates) if (pl.isConnected && pl._col) was.set(pl, pl.getBoundingClientRect().left);
+      for (const [j, pl] of plates.entries()) {
+        let d = (j - at + n) % n;
+        if (d > after) d -= n;
+        const col = after + 1 + d;
+        if (pl._col !== col) { pl._col = col; pl.style.gridColumn = String(col); }
+      }
+      host._seatKey = key;
+      if (!was.size) return;
+      for (const pl of was.keys()) if (pl._slide) { pl._slide.cancel(); pl._slide = null; }
+      const off = this._motionOff();
+      // in step with the board turned to, or longer for the turn passing to it
+      const ms = passed && this.view.activePlayer === this.focusSeat ? 640 : 500;
+      const moved = [...was].map(([pl, x]) => [pl, x - pl.getBoundingClientRect().left]).filter(([, dx]) => Math.abs(dx) > 1);
+      const lead = moved.find(([pl]) => pl === plates[at]);
+      const way = lead ? Math.sign(lead[1]) : 0;
+      const step = lead ? Math.min(Math.abs(lead[1]), plates[at].offsetWidth + 8) : 0;
+      for (const [pl, dx] of moved) {
+        if (!pl.animate) continue;
+        const ease = { duration: ms, easing: 'cubic-bezier(.2, .8, .2, 1)' };
+        // without motion: a fade where it now sits, as the board does
+        if (off) pl._slide = pl.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+        // round the back of the ring: in at the far end rather than across them all
+        else if (way && Math.sign(dx) !== way) pl._slide = pl.animate([{ opacity: 0, transform: `translateX(${way * step}px)` }, { opacity: 1, transform: 'none' }], ease);
+        else pl._slide = pl.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], ease);
+      }
+    }
+
+    /** A strip too wide for the screen (a phone) scrolls: the plate in view is brought to its middle. */
+    /** @this {MTG.TableInstance} */
+    _centreStrip(host) {
+      const pl = this._plates && this._plates.get(this.focusSeat);
+      const key = (host._seatKey || '') + '|' + host.clientWidth;
+      if (host._scrollKey === key) return;
+      const first = host._scrollKey == null;
+      host._scrollKey = key;
+      if (!pl || !pl.isConnected || host.scrollWidth <= host.clientWidth + 1) return;
+      const left = Math.max(0, pl.offsetLeft + pl.offsetWidth / 2 - host.clientWidth / 2);
+      if (Math.abs(host.scrollLeft - left) < 1) return;
+      if (first || this._motionOff() || !host.scrollTo) host.scrollLeft = left;
+      else host.scrollTo({ left, behavior: 'smooth' });
     }
 
     /** Look at the next or previous opponent's board. */

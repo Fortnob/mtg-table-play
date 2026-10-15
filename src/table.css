@@ -1131,6 +1131,20 @@
 .arena.split .oplate { display: none; }
 .arena.split .opp-strip { justify-content: flex-end; height: 30px; }
 .arena.split .arena-board { top: 40px; }
+/* the strip is a row of places, the plate of the board in view always in the middle one, the others round it in
+   seat order (renderOppStrip says which plate sits where); the button for every board beside it keeps out of the
+   middle, the same room left on either side */
+.opp-strip.on { display: grid; grid-template-columns: repeat(var(--op-cols, 3), minmax(0, 230px));
+  grid-template-rows: minmax(0, 1fr); column-gap: 8px; justify-content: center; }
+.opp-strip .oplate { grid-row: 1; container-type: inline-size; }
+/* a place too narrow for a name to be read (six at the table, a small window): the portrait and seat number say whose it
+   is (the name is in the title, the label and the tip), then the hand's chip goes too */
+@container (max-width: 159px) { .oplate .op-who { display: none; } .oplate .op-hand { margin-left: auto; } }
+@container (max-width: 123px) { .oplate .op-hand { display: none; } }
+.opp-strip.with-split { padding-inline: 104px; }
+.opp-strip .op-split { position: absolute; right: 0; top: 50%; translate: 0 -50%; }
+/* a phone: places as wide as a portrait's tab, scrolled so the one in view is in the middle when they run over */
+:root[data-phone] .opp-strip.on { grid-template-columns: repeat(var(--op-cols, 3), minmax(82px, max-content)); justify-content: safe center; padding-inline: 0; }
 
 /* the middle of the board, not of the window: the hand takes the bottom */
 .arena { --board-top: 6px; }
