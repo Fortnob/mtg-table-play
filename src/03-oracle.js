@@ -8148,6 +8148,10 @@
     /* (Daretti's emblem: "return that card to the battlefield at the
        beginning of the next end step" — with nobody named, under your control) */
     // (The Eternal Wanderer: "at the beginning of that player's next end step" — its owner's end step: forPlayer owner)
+    // Nine-Lives Familiar: "return it to the battlefield with one fewer revival counter on it at the beginning of the next end step" (fewerCounter)
+    { re: /^Return (?:it|CARDNAME) to the battlefield with one fewer ([a-z]+) counter on it at the beginning of the next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
+        effects: [{ op: 'returnThat', fewerCounter: m[1].toLowerCase() }] }) },
     { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of (the|that player'?s) next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', ...(/player/i.test(m[6]) ? { forPlayer: 'owner' } : {}),
         name: 'Return it at end of turn', effects: [Object.assign({ op: 'returnThat' }, m[4] ? { counter: m[5].toLowerCase() } : {}, m[2] ? { tapped: true } : {},
@@ -12843,6 +12847,20 @@
        from their hand onto the battlefield." (votePlayers) */
     { re: /^Each player secretly votes for a player, then those votes are revealed\. Each player draws a card for each vote they received\. Each player who received no votes may put a permanent card from their hand onto the battlefield\.?$/i,
       make: () => [{ op: 'votePlayers', secret: true, drawPerVote: true, noVotesPut: 'permanent' }] },
+    /* Professor Onyx: "Each opponent may discard a card. If they don't, they lose 3 life. Repeat this process six more
+       times." — seven rounds, each opponent answering for themselves each time (unlessPays, discard) */
+    { re: /^Each opponent may discard a card\. If they don'?t, they lose (\d+) life\. Repeat this process (one|two|three|four|five|six|seven) more times?\.?$/i,
+      make: (m) => Array.from({ length: 1 + num(m[2]) }, () => ({ op: 'unlessPays', who: 'target', cost: { discard: 1 },
+        then: [{ op: 'loseLife', n: +m[1], who: 'opponents' }], text: `Each opponent loses ${m[1]} life unless they discard a card.` })) },
+    /* Druid of Purification: "starting with you, each player may choose an artifact or enchantment you don't control.
+       Destroy each permanent chosen this way." (eachPlayerPicksDestroy) */
+    { re: /^Starting with you, each player may choose an? ([a-z]+(?: or [a-z]+)?) you don'?t control\. Destroy each permanent chosen this way\.?$/i,
+      make: (m) => [{ op: 'eachPlayerPicksDestroy', words: m[1].toLowerCase(), notYours: true }] },
+    /* Aminatou's Augury: "Exile the top eight cards of your library. You may put a land card from among them onto the
+       battlefield. Until end of turn, for each nonland card type, you may cast a spell of that type from among the
+       exiled cards without paying its mana cost." (putExiledLand fromLastExiled, freeCastByType) */
+    { re: /^Exile the top (\w+) cards of your library\. You may put a land card from among them onto the battlefield\. Until end of turn, for each nonland card type, you may cast a spell of that type from among the exiled cards without paying its mana cost\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? [{ op: 'impulse', n: num(m[1]), play: false }, { op: 'putExiledLand', fromLastExiled: true }, { op: 'freeCastByType' }] : null) },
     // Council's Judgment
     { re: /^Starting with you, each player votes for an? (nonland permanent|creature|permanent) you don'?t control\. (Exile|Destroy) each (?:permanent|creature) with the most votes or tied for most votes\.?$/i,
       make: (m) => [{ op: 'voteObjects', words: m[1].toLowerCase(), notYours: true, then: m[2].toLowerCase() }] },
@@ -14715,7 +14733,8 @@
       const unless = /^For each opponent, you mill a card, then return that card from your graveyard to your hand unless that player pays \d+ life\.?$/i.test(s) ? null :
         s.match(/^(.+?) unless (its controller|that player|they|you|target player|target opponent|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
         // Painful Quandary: "…unless they discard a card"
-        s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i) ||
+        // (Court of Ambition: "…unless they discard two cards")
+        s.match(/^(.+?) unless (that player|they|target player) (discards? (?:a|one|two|three) cards?)\.?$/i) ||
         // Perplex: "…unless its controller discards their hand"
         s.match(/^(.+?) unless (its controller|that player|they|target player) (discards? (?:their|his or her) hand)\.?$/i) ||
         /* Mogis, Torment of Scarabs, Nicol Bolas: "…unless they sacrifice a
@@ -14729,11 +14748,16 @@
            sacrifices a creature of their choice" — each opponent answers for themselves (eachOpponent) */
         const perOpp = /^for each opponent, /i.test(unless[1].trim()) && /^sacrifice/i.test(unless[3] || '') && /^that player$/i.test(unless[2]);
         if (perOpp) unless[1] = unless[1].trim().replace(/^for each opponent, (?:you )?/i, '').replace(/^./, c => c.toUpperCase());
+        /* Court of Ambition: "If you're the monarch, instead each opponent loses 6 life unless they discard two cards." —
+           the whole "unless" is what happens instead (insteadOf) */
+        const insteadM = unless[1].trim().match(/^If ([^,]+), instead (.+)$/i);
+        const insteadCond = insteadM && condOf(insteadM[1]);
+        if (insteadCond) unless[1] = insteadM[2].replace(/^./, c => c.toUpperCase());
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
         const cost = /^has /i.test(unless[3]) ? { selfDamage: 'power' } : /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
           : /^discards? (?:their|his or her) hand$/i.test(unless[3]) ? { discardHand: true }
-          : /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
-        effects.push(Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
+          : /^discard/i.test(unless[3]) ? { discard: num(unless[3].split(' ')[1]) || 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
+        const unlessEff = (Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
             // Kazuul: "unless that creature's controller pays {3}" — the attacker's
             // Elesh Norn: "that source's controller loses 2 life unless they pay {1}" — the player the trigger is about
             : /^they$/i.test(unless[2]) && /^that source'?s controller\b/i.test(unless[1].trim()) ? 'triggerPlayer'
@@ -14742,6 +14766,7 @@
           cost, then: inner.effects, text: s }, perOpp ? { eachOpponent: true } : {},
           // Athreos: "unless target opponent pays 3 life" — the opponent is a target
           /^target opponent$/i.test(unless[2]) ? { targets: [{ type: 'player', opponent: true }] } : {}));
+        effects.push(insteadCond ? { op: 'noop', insteadOf: { cond: insteadCond, effects: [unlessEff] }, text: s } : unlessEff);
         if (!inner.auto) auto = false;
         /* Withdraw: "Then return another target creature to its owner's hand
            unless its controller pays {1}" — the second target's controller,
@@ -19753,7 +19778,8 @@
     if (etbPer) out.entersWithCounters = { kind: etbPer[1].trim(), n: { per: etbPer[2].trim().toLowerCase() } };
     /* "This creature enters with a +1/+1 counter on it if you attacked this
        turn": the counters, if that holds as it enters */
-    const etbIf = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with (a|an|one|two|three|four|\d+) ([+\-0-9/a-z]+) counters? on it if ([^.]+)\./i);
+    // (Nine-Lives Familiar: "enters with eight revival counters on it if you cast it")
+    const etbIf = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([+\-0-9/a-z]+) counters? on it if ([^.]+)\./i);
     if (etbIf && !out.entersWithCounters) {
       const c = condOf(etbIf[3]);
       if (c) out.entersWithCounters = { kind: etbIf[2].trim(), n: num(etbIf[1]), cond: c };
@@ -22338,6 +22364,9 @@
       { re: /^Whenever you tap an? (land|Forest|Island|Swamp|Mountain|Plains|basic land) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Regal Behemoth: "Whenever you tap a land for mana while you're the monarch, add an additional one mana of any color." (whileMonarch)
+      { re: /^Whenever you tap a land for mana while you'?re the monarch, add an additional one mana of any colou?r\.?$/i,
+        eff: { op: 'extraManaOnTap', who: 'you', filter: 'land', anyColor: true, whileMonarch: true }, auto: true },
       /* Sasaya's Essence: "Whenever a land you control is tapped for mana, add an additional one mana of any type that land
          produced for each other land you control with the same name as it." (perSameName) */
       { re: /^Whenever a land you control is tapped for mana, add an additional one mana of any type that land produced for each other land you control with the same name as it\.?$/i,
@@ -23021,7 +23050,7 @@
       { re: /^CARDNAME enters with (?:six|seven|eight|nine|ten|\d+) \+1\/\+1 counters on it\. It escapes with (?:\w+) \+1\/\+1 counters on it instead\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read
-      { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,
+      { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
       { re: /^If ([^,.]+), (?:CARDNAME|this creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },

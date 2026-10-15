@@ -1943,7 +1943,8 @@
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     // Oblivion Sower: every land card of theirs from exile, ours
-    putExiledLands(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    // (Aminatou's Augury: one of them — max)
+    putExiledLands(s) { return { picks: (s.items || []).slice(0, s.max || (s.items || []).length).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
     // Augusta, Dean of Order: the attackers tapped (+1/+0 tapped), the rest kept up to block (+0/+1 untapped)
@@ -2331,10 +2332,12 @@
       return price <= worth ? { picks: pool.slice(0, need).map(x => x.o.id) } : { picks: [] };
     },
     /* Painful Quandary: a card from hand rather than 5 life, the least of them */
+    // (Court of Ambition: "unless they discard two cards" — the least two, or none when there aren't two)
     unlessDiscard(s) {
       const g = this.game;
+      const need = Math.max(1, s.max || 1);
       const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((x, y) => this.rating(x) - this.rating(y));
-      return pool.length ? { picks: [pool[0].id] } : { picks: [] };
+      return pool.length >= need ? { picks: pool.slice(0, need).map(o => o.id) } : { picks: [] };
     },
     /* Replicate: every copy is the spell again, so as many as can be paid
        for — unless the spell is one we would not want twice. */

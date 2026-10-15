@@ -3988,6 +3988,39 @@
         }
       }
     }
+    /**
+     * Aminatou's Augury: "for each nonland card type, you may cast a spell of that type from among the exiled cards" —
+     * a card of the lot may still be cast while each card cast from it, and this one, can have a type of its own
+     * (an artifact creature counts as either, whichever leaves the most open; nobody is asked) (freeTypeGroup)
+     */
+    _freeTypeOk(o) {
+      if (!o || !o.freeTypeGroup) return true;
+      const lists = (o.freeTypesCast || []).concat([this._cardTypesOf(o).filter(t => t !== 'Land')]);
+      const used = new Set();
+      const fit = (i) => {
+        if (i >= lists.length) return true;
+        for (const t of lists[i]) {
+          if (used.has(t)) continue;
+          used.add(t);
+          if (fit(i + 1)) return true;
+          used.delete(t);
+        }
+        return false;
+      };
+      return fit(0);
+    }
+    /** That lot, with one more card cast from it: the rest remember its types. */
+    _freeTypeUsed(o) {
+      if (!o || !o.freeTypeGroup) return;
+      const types = this._cardTypesOf(o).filter(t => t !== 'Land');
+      for (const q of this.players) {
+        for (const c of ((this.zones[q.id] || {}).exile || [])) {
+          if (c === o || c.freeTypeGroup !== o.freeTypeGroup) continue;
+          c.freeTypesCast = (c.freeTypesCast || []).concat([types]);
+        }
+      }
+      o.freeTypeGroup = null; o.freeTypesCast = null;
+    }
     /** May this player play this exiled card right now (impulse or free)? */
     _mayPlayFromExile(playerId, o) {
       if (!o || o.zone !== 'exile' || o.owner === playerId) return false;
@@ -6425,7 +6458,8 @@
           this._cardFitsWords(o, this._staticOp(s, 'freeFromHandOnce').filter || 'card'));
         if (zt) out.push({ kind: 'cast', via: 'freeHandOnce', cost: '', srcId: zt.id, label: `Cast it without paying its mana cost (${zt.name})` });
       }
-      if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand) {
+      if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand &&
+          this._freeTypeOk(o)) {
         out.push({ kind: 'cast', via: 'free', cost: '', label: 'Cast it for free' });
       }
       /* Maralen, Fae Ascendant: once each turn, a card it exiled this turn with mana value up to the Elves and
@@ -8347,6 +8381,8 @@
       }
       // Nashi, Moon Sage's Scion: "one of those cards" — the others' leave is used up
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
+      // Aminatou's Augury: one card of the lot cast, its types are spoken for (freeTypeGroup)
+      if (o.zone === 'exile' && via && via.via === 'free') this._freeTypeUsed(o);
       const fromZone = o.zone;
       // Emrakul, the Exigent Doom: "until this card is cast from exile" — cast, what it gave is over (untilCastFromExile)
       if (fromZone === 'exile') this._endUntilCast(o, true);
@@ -12417,6 +12453,8 @@
         if (e.who === 'you' && o.controller !== src.controller) continue;
         if (e.filter && !this._cardFitsWords(o, e.filter)) continue;
         if (e.scope !== 'attached' && !e.filter && !oa.isLand) continue;
+        // Regal Behemoth: "while you're the monarch" (whileMonarch)
+        if (e.whileMonarch && !(this.player(src.controller) || {}).monarch) continue;
         // Forsaken Monument: only when it made that kind of mana
         if (e.ifMade && !(made[e.ifMade] > 0)) continue;
         // Caged Sun: only when it made mana of the chosen colour
@@ -17773,6 +17811,8 @@
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
       if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
+      // (Aminatou's Augury: out of exile, out of its lot — freeTypeGroup)
+      if (from !== toZone && o.freeTypeGroup) { o.freeTypeGroup = null; o.freeTypesCast = null; }
       // (foretold: a card that leaves exile is foretold no more)
       if (from !== toZone && o.foretold) o.foretold = null;
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
@@ -26430,6 +26470,30 @@
             } else this._spliceNext(e.then);
             break;
           }
+          /* Court of Ambition: "each opponent loses 3 life unless they discard a card", "… 6 life unless they discard
+             two cards"; Professor Onyx: "Each opponent may discard a card. If they don't, they lose 3 life." — each
+             opponent answers for themselves, in turn order; all the cards, or it happens to them */
+          if (e.cost && e.cost.discard && thenEach) {
+            const need = Math.max(1, Number(e.cost.discard) || 1);
+            const pay = [], hit = [];
+            for (const q of this._turnOrderFrom(ctx.controller).filter(x => !x.hasLost && this.opponentsOf(ctx.controller).includes(x))) {
+              const hand = this.zones[q.id].hand.slice();
+              if (hand.length < need) { hit.push(q); continue; }
+              const got = this._choose({ playerId: q.id, purpose: 'unlessDiscard', kind: 'objects', zone: 'hand',
+                items: this._chooseItems(hand), min: 0, max: need,
+                prompt: e.prompt || `Discard ${need === 1 ? 'a card' : O.nounCount(need, 'card')}? If you don't:${whole(e.text || 'it happens', 80)}` }, 'udisc:' + q.id);
+              if (got === SUSPEND) return SUSPEND;
+              const xs = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'hand' && x.owner === q.id);
+              if (xs.length === need) pay.push({ q, xs }); else hit.push(q);
+            }
+            for (const { q, xs } of pay) {
+              if (xs.every(x => x.zone === 'hand' && x.owner === q.id)) this._discardNow(q.id, xs); else hit.push(q);
+            }
+            const list = [];
+            for (const q of hit) for (const f of e.then || []) list.push(Object.assign(JSON.parse(JSON.stringify(f)), f.who === 'opponents' ? { who: 'you', _as: q.id } : {}));
+            this._spliceNext(list);
+            break;
+          }
           /* Painful Quandary: "…unless they discard a card" — a card picked
              is the price paid; none picked, and it happens */
           if (e.cost && e.cost.discard) {
@@ -28774,6 +28838,11 @@
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           // (Teferi's Time Twist: the counter it enters with — enterExtraCounter)
           if (x && e.counterIfCreature) x._enterExtraCounter = { kind: e.counterIfCreature, n: 1, ifCreature: true };
+          // Nine-Lives Familiar: "with one fewer revival counter on it" — than it had as it died (fewerCounter)
+          if (x && e.fewerCounter && x.zone !== 'battlefield') {
+            const k = (Number((x._diedCounters || {})[e.fewerCounter]) || 0) - 1;
+            if (k > 0) x._enterExtraCounter = { kind: e.fewerCounter, n: k };
+          }
           // (under your control when the words say so, or name nobody)
           // (Silver Surfer, Cosmic Voyager: "If a land enters this way, it enters tapped." — landsTapped)
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner },
@@ -33884,6 +33953,34 @@
           break;
         }
         // Council's Judgment: each player votes for a permanent; the most-voted go
+        /* Druid of Purification: "starting with you, each player may choose an artifact or enchantment you don't
+           control. Destroy each permanent chosen this way." — each in turn order, none for "no"; one chosen twice is
+           destroyed once (eachPlayerPicksDestroy) */
+        case 'eachPlayerPicksDestroy': {
+          const pool = () => this.battlefield.filter(x => !x.phasedOut && this._cardFitsWords(x, e.words) && !(e.notYours && x.controller === ctx.controller));
+          if (!pool().length) break;
+          const chosen = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            if (p.hasLost) continue;
+            const list = pool();
+            const got = this._choose({ playerId: p.id, purpose: 'chooseToDestroy', kind: 'objects', zone: 'battlefield', harmful: true,
+              items: this._chooseItems(list), min: 0, max: 1, optional: true, forPlayer: ctx.controller,
+              prompt: `${src ? src.name + ': ' : ''}you may choose ${this._aCard(e.words)} ${p.id === ctx.controller ? "you don't" : me.name + " doesn't"} control. Each permanent chosen this way is destroyed.` }, 'eppd' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
+            if (!x || !list.includes(x)) continue;
+            if (!this._doneHere('eppd:' + p.id)) this.logEvent('rules', `${p.name} chooses ${x.name}.`);
+            if (!chosen.includes(x)) chosen.push(x);
+          }
+          // (destroyed together: they see each other go — CR 603.10a)
+          this._leavingTogether = chosen;
+          for (const x of chosen) {
+            if (x.zone !== 'battlefield' || this.hasKw(x, 'indestructible') || this._totemArmor(x) || this._regenerated(x)) continue;
+            this.moveObject(x, 'graveyard');
+          }
+          this._leavingTogether = null;
+          break;
+        }
         case 'voteObjects': {
           const pool = this.battlefield.filter(x => !x.phasedOut && this._cardFitsWords(x, e.words) && !(e.notYours && x.controller === ctx.controller));
           if (!pool.length) break;
@@ -34238,9 +34335,34 @@
           break;
         }
         // Rona, Tolarian Obliterator: "If it's a land card, you may put it onto the battlefield under your control."
+        /* Aminatou's Augury: "Until end of turn, for each nonland card type, you may cast a spell of that type from
+           among the exiled cards without paying its mana cost." — each nonland card just exiled, free this turn, as
+           one lot (freeTypeGroup) */
+        case 'freeCastByType': {
+          const lot = (this._lastExiledList || []).map(id => this.obj(id)).filter(c => c && c.zone === 'exile' && !c.faceDown && !(c.analysis() || {}).isLand);
+          if (!lot.length) break;
+          const gid = 'ft:' + lot[0].id;
+          for (const c of lot) { c.freeCastBy = ctx.controller; c.freeCastTurn = this.turn; c.freeTypeGroup = gid; c.freeTypesCast = []; }
+          this.logEvent('rules', `${me.name} may cast a spell of each nonland card type from among the exiled cards this turn without paying its mana cost.`);
+          break;
+        }
         case 'putExiledLand': {
           /* Oblivion Sower: "you may put any number of land cards that player owns from exile onto the battlefield under
              your control" — any of theirs in exile, not only the ones just exiled; one pick, none for "no" (ownedBy) */
+          // Aminatou's Augury: "You may put a land card from among them onto the battlefield." — one of those just exiled
+          if (e.fromLastExiled) {
+            const lands = (this._lastExiledList || []).map(id => this.obj(id)).filter(c => c && c.zone === 'exile' && !c.faceDown && (c.analysis() || {}).isLand);
+            if (!lands.length) break;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'putExiledLands', kind: 'objects', zone: 'exile',
+              items: this._chooseItems(lands), min: 0, max: 1, optional: true,
+              prompt: 'You may put a land card from among them onto the battlefield.' }, 'pelx');
+            if (got === SUSPEND) return SUSPEND;
+            const c = got && got.picks.length ? this.obj(got.picks[0]) : null;
+            if (!c || !lands.includes(c)) break;
+            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            this.logEvent('rules', `${me.name} puts ${c.name} onto the battlefield.`);
+            break;
+          }
           if (e.ownedBy) {
             const owner = firstPlayer() || triggerPlayer();
             if (!owner) break;
@@ -41027,6 +41149,8 @@
           giftTo: o.giftTo || null, printedCard: o.printedCard || null, copyOf: o.copyOf || null,
           copyUntilTurn: o.copyUntilTurn == null ? null : o.copyUntilTurn,
           freeCastBy: o.freeCastBy || null, freeCastTurn: o.freeCastTurn == null ? null : o.freeCastTurn,
+          // Aminatou's Augury: the lot a free card belongs to, and the types of those cast from it
+          freeTypeGroup: o.freeTypeGroup || null, freeTypesCast: o.freeTypesCast ? JSON.parse(JSON.stringify(o.freeTypesCast)) : null,
           graveCastBy: o.graveCastBy || null, graveCastTurn: o.graveCastTurn == null ? null : o.graveCastTurn,
           // Valgavoth, Terror Eater: what a card was exiled with; Muldrotha, the Gravetide: the types its leave was used for this turn
           exiledWithId: o.exiledWithId || null, playFromTypes: o.playFromTypes ? JSON.parse(JSON.stringify(o.playFromTypes)) : null,
