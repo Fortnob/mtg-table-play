@@ -2372,7 +2372,7 @@
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */
       if (o.zone === 'hand') {
-        const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot'].includes(u.kind));
+        const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot', 'foretell'].includes(u.kind));
         if (alts.length) {
           /* the ordinary cast, when it could be made right now: the engine's
              reason covers cost, and its timing is checked here because a card
@@ -2383,10 +2383,12 @@
           const items = alts.map(u => [u.label, () => (u.kind === 'cycle' ? this._cycleUse(o, a, u)
             : u.kind === 'suspend' ? this._suspendUse(o, u)
             : u.kind === 'plot' ? this.send({ kind: 'plot', objId: o.id })
+            : u.kind === 'foretell' ? this.send({ kind: 'foretell', objId: o.id })
             : u.via === 'morph' ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
             : this.castUse(o, a, u))]);
           if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
-          if (items.length === 1) return items[0][1]();
+          // (foretelling exiles the card: never done on a bare click, always picked from the menu)
+          if (items.length === 1 && alts[0].kind !== 'foretell') return items[0][1]();
           const n = this.els.get(o.id);
           const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
           return UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
@@ -3293,6 +3295,7 @@
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cycle') items.push([use.label, () => this._cycleUse(o, a, use)]);
           else if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);
+          else if (use.kind === 'foretell') items.push([use.label, () => this.send({ kind: 'foretell', objId: o.id })]);
           else if (use.kind === 'suspend') items.push([use.label, () => this._suspendUse(o, use)]);
           else if (use.kind === 'transmute') items.push([use.label, () => this.send({ kind: 'transmute', objId: o.id })]);
           else if (use.kind === 'cast' && use.via === 'morph') items.push([use.label, () => this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })]);

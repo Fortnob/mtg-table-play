@@ -298,7 +298,7 @@ const INTENTS = {
   /* remembered answers: take one back ('clear', by id or 'all'), or decline the rest of a batch of optional triggers */
   auto: closed({ act: lit('clear', 'decline'), id: opt(str), batch: opt(id) }),
   keep: closed({ bottom: opt(ids) }),
-  playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
+  playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, foretell: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
   // the companion's {3} into hand (CR 702.139)
   companion: onObj,
   cast: closed({
@@ -723,6 +723,7 @@ const CALLS = {
   plotCard: (pid, objId) => ({ kind: 'plot', objId }),
   suspendCard: (pid, objId) => ({ kind: 'suspend', objId }),
   transmuteCard: (pid, objId) => ({ kind: 'transmute', objId }),
+  foretellCard: (pid, objId) => ({ kind: 'foretell', objId }),
   encoreCard: (pid, objId) => ({ kind: 'encore', objId }),
   turnFaceUp: (pid, objId) => ({ kind: 'turnFaceUp', objId }),
   companionToHand: (pid, objId) => ({ kind: 'companion', objId }),

@@ -4890,6 +4890,7 @@
         case 'suspend': g.suspendCard(actorId, intent.objId, { auto: true,
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(1, Math.min(99, Math.floor(+intent.x))) : undefined }); break;
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;
+        case 'foretell': g.foretellCard(actorId, intent.objId, { auto: true }); break;
         case 'encore': g.encoreCard(actorId, intent.objId, { auto: true }); break;
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
         // the companion: {3} to put it into your hand, once a game (CR 702.139)

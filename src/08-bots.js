@@ -1615,6 +1615,13 @@
       const order = (s.options || []).map((o, i) => ({ i, mine: !!(o && o.mine) })).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
       return { picks: order.slice(0, s.max).map(x => x.i) };
     },
+    /* Rhys, the Evermore: off our creature, only the counters doing it harm (a -1/-1 counter lets persist work again) */
+    removeAnyCounters(s) {
+      const g = this.game, x = g.obj(s.objId);
+      const BAD = /^(?:-1\/-1|stun|age|doom|bounty|hit)$/;
+      const theirs = x && x.controller !== this.pid;
+      return { picks: (s.options || []).map((o, i) => ({ i, k: o && o.kind })).filter(o => theirs ? !BAD.test(o.k) : BAD.test(o.k)).map(o => o.i) };
+    },
     /* Illuna, Apex of Wishes: a permanent on the battlefield now is worth more than one in hand */
     battlefieldOrHand(s) {
       const i = (s.options || []).findIndex(o => o && o.to === 'battlefield');

@@ -501,7 +501,7 @@ declare namespace MTG {
     | { kind: 'playLand'; objId: Id; face?: number }
     | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[]; x?: number }
     | { kind: 'suspend'; objId: Id; x?: number }
-    | { kind: 'plot' | 'transmute' | 'encore' | 'turnFaceUp' | 'companion'; objId: Id }
+    | { kind: 'plot' | 'foretell' | 'transmute' | 'encore' | 'turnFaceUp' | 'companion'; objId: Id }
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;

@@ -4332,6 +4332,9 @@
     // Spinal Parasite: "Remove a counter from target permanent."
     { re: /^Remove (a|an|one|two|three|\d+) ((?:[+\-0-9/a-z]+ )?)counters? from (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), kind: (m[2] || '').trim().toLowerCase() || null, targets: [targetSpec(m[3])] }) },
+    // Rhys, the Evermore: "Remove any number of counters from target creature you control." — each counter there, one pick
+    { re: /^Remove any number of counters from (target [a-z ]+?)\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'removeAnyCounters', targets: [t] } : null; } },
     // Fire Prophecy: "Put a card from your hand on the bottom of your library."
     { re: /^Put (a|one|two) cards? from your hand on the bottom of your library\.?$/i,
       make: (m) => ({ op: 'handToBottom', n: num(m[1]) }) },
@@ -8183,6 +8186,9 @@
       make: (m) => ({ op: 'restrict', flag: /block/i.test(m[1]) ? 'cantBlock' : 'cantAttack', duration: 'nextTurn', scope: 'lastGroup' }) },
     // Orim's Chant, kicked: "creatures can't attack this turn"
     { re: /^Creatures can'?t attack this turn\.?$/i, make: () => ({ op: 'noAttacksTurn' }) },
+    // Azor, the Lawbringer: "each opponent can't cast instant or sorcery spells during that player's next turn." (silenceOn)
+    { re: /^each opponent can'?t cast instant or sorcery spells during that player'?s next turn\.?$/i,
+      make: () => ({ op: 'silence', who: 'opponents', instantSorcery: true, duration: 'theirNextTurn' }) },
     // Ranger-Captain of Eos: only the noncreature ones
     { re: /^Your opponents can'?t cast noncreature spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents', noncreature: true }) },
     /* Hope of Ghirapur: "Until your next turn, target player who was dealt combat damage by Hope of Ghirapur this turn
@@ -12366,6 +12372,15 @@
           continue;
         }
       }
+      // Verrak, Warped Sengir: "you may pay that much life again. If you do, copy that ability." — the life paid to activate it (lifePaid)
+      if (may && ifDo && /^pay that much life again$/i.test(may[1])) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        if (tp.auto && tp.effects.length) {
+          effects.push({ op: 'mayPay', pay: { life: { lifePaid: true } }, then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
       // Niv-Mizzet, Ghost Counsel: "you may pay that much life. If you do, draw that many cards." — as much as the trigger is about
       if (may && ifDo && /^pay that much life$/i.test(may[1])) {
         const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
@@ -14177,6 +14192,10 @@
     { re: /^Whenever you activate a ninjutsu ability,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'ninjutsu' } },
     // Ertha Jo, Frontier Mentor: "Whenever you activate an ability that targets a creature or player" (abTargetsCreatureOrPlayer)
     { re: /^Whenever you activate an ability that targets a creature or player,? /i, event: 'youActivateAbility', extra: { abTargetsCreatureOrPlayer: true } },
+    // Dream Devourer: "Whenever you foretell a card," (youForetell)
+    { re: /^Whenever you foretell a card,? /i, event: 'youForetell' },
+    // Verrak, Warped Sengir: "Whenever you activate an ability that isn't a mana ability, if life was paid to activate it," (lifePaidOnly)
+    { re: /^Whenever you activate an ability that isn'?t a mana ability, if life was paid to activate it,? /i, event: 'youActivateAbility', extra: { lifePaidOnly: true } },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — its mana abilities too (youActivateManaAbility)
     { re: /^Whenever you activate an ability of a creature,? /i, event: 'youActivateAbility', also: 'youActivateManaAbility', filt: () => ({ words: 'creature' }) },
@@ -14452,6 +14471,9 @@
       filt: (m) => ({ words: m[1].toLowerCase(), who: 'you' }), extra: { filterOnlyOn: 'permDies', selfOnEnter: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
       event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
+    // Millicent, Restless Revenant: "Whenever Millicent or another nontoken Spirit you control dies or deals combat damage to a player"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or deals combat damage to a player(?:,| )', 'i'),
+      event: 'permDies', also: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
       event: 'permEnters', filt: (m) => {
         const f = subjectFilter(m[1]);
@@ -19533,6 +19555,10 @@
       { re: /^You may plot nonland cards from the top of your library\.?$/i, make: () => ({ op: 'topPlot', nonland: true }), auto: true },
       // Doc Aurlock: "Plotting cards from your hand costs {2} less."
       { re: /^Plotting cards from your hand costs \{(\d+)\} less\.?$/i, make: (m) => ({ op: 'plotCostMod', amount: -(+m[1]) }), auto: true },
+      /* Bohn, Beguiling Balladeer, Dream Devourer: "Each nonland card in your hand without foretell has foretell. Its
+         foretell cost is equal to its mana cost reduced by {2}." (grantForetell) */
+      { re: /^Each nonland card in your hand without foretell has foretell\. Its foretell cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
+        make: (m) => ({ op: 'grantForetell', reduce: +m[1] }), auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },

@@ -951,6 +951,8 @@
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
       // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
       if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null); for (const r of ap.noAttackOn) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
+      // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" — this one (silenceOn)
+      if (ap.silenceOn) { ap.silenceOn = ap.silenceOn.filter(r => r.on == null); for (const r of ap.silenceOn) r.on = this.turn; if (!ap.silenceOn.length) ap.silenceOn = null; }
       /* "until your next turn" is over, and what phased out phases back in */
       if (ap.protection && ap.protection.setTurn < this.turn) ap.protection = null;
       if (ap.lifeLocked && ap.lifeLocked.setTurn < this.turn) ap.lifeLocked = null;
@@ -1528,7 +1530,7 @@
       /* Cards set aside earlier that are now yours to cast: plotted last
          turn, or left in exile by warp. */
       const waiting = (z.exile || []).filter(o =>
-        (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId);
+        (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId || (o.foretold && o.foretold.turn < this.turn));
       if (this.activePlayer && this.activePlayer.id === playerId && this.isMain &&
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
         // (Coram, the Undertaker: other players' graveyards too; Grolnok, the Omnivore: your own cards in exile with croak counters on them)
@@ -1565,6 +1567,9 @@
             out.push({ kind: 'cycle', objId: o.id });
           } else if (use.kind === 'plot') {
             if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'plot', objId: o.id });
+          } else if (use.kind === 'foretell') {
+            // (allowed whenever you have priority on your turn; offered as playable in a main phase only, not to stop every step)
+            if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'foretell', objId: o.id });
           } else if (use.kind === 'suspend') {
             out.push({ kind: 'suspend', objId: o.id });
           } else if (use.kind === 'encore') {
@@ -4537,6 +4542,9 @@
       // Hope of Ghirapur: "Until your next turn, … can't cast noncreature spells" (silenceUntil)
       if (!a.isCreature && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.noncreature))
         return { ok: false, reason: "You can't cast noncreature spells until the next turn of the player who stopped you." };
+      // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" (silenceOn)
+      if ((a.isInstant || a.isSorcery) && ((this.player(playerId) || {}).silenceOn || []).some(x => x.on === this.turn && x.instantSorcery))
+        return { ok: false, reason: "You can't cast instant or sorcery spells this turn." };
       // (an offering is cast any time you could cast an instant — CR 702.48a)
       const instantSpeed = midway || (!this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || opts === 'offering' || this._flashFor(playerId, o)));
       // Saproling Symbiosis: flash, for {2} more
@@ -5164,6 +5172,13 @@
         const pc = String(a.manaCost || '').replace(/\{X\}/gi, '');
         out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
       }
+      /* Bohn, Beguiling Balladeer: "Each nonland card in your hand without foretell has foretell. Its foretell cost is
+         equal to its mana cost reduced by {2}." — the cost kept with the card once foretold (grantForetell) */
+      if (o.zone === 'hand' && !a.isLand && this._foretellWindow(playerId, o) &&
+          !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^foretell$/i.test(ab.keyword || ''))) {
+        const gf = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
+        if (gf) out.push({ kind: 'foretell', cost: '{2}', reduce: gf.reduce || 0, label: 'Foretell {2}' });
+      }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, unearth: 'exile', embalm: 'exile', eternalize: 'exile',
         madness: null };
@@ -5213,6 +5228,11 @@
             if (pm && pm.amount < 0) pc = this._addGeneric(pc, pm.amount) || '';
           }
           out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
+        }
+        /* Foretell (CR 702.143): during your turn, pay {2} and exile it face down; cast it on a later turn for its
+           foretell cost */
+        if (o.zone === 'hand' && arg && k === 'foretell' && this._foretellWindow(playerId, o)) {
+          out.push({ kind: 'foretell', cost: '{2}', foretellCost: arg, label: 'Foretell {2}' });
         }
         /* Awaken N—{cost} (CR 702.113): cast for that cost, and the spell
            also puts N +1/+1 counters on a land you control, which becomes a
@@ -5604,8 +5624,38 @@
         if (o.warpExiled) {
           out.push({ kind: 'cast', via: 'warpExile', cost: a.manaCost || '', label: 'Cast (warped)' });
         }
+        // Foretell: from the turn after, for the foretell cost it was foretold with (Bohn's: its mana cost, {2} less)
+        if (o.foretold && o.foretold.turn < this.turn) {
+          const fc = o.foretold.cost != null ? o.foretold.cost : this._addGeneric(a.manaCost || '', -(o.foretold.reduce || 0));
+          out.push({ kind: 'cast', via: 'foretell', cost: fc, label: 'Cast (foretold) ' + (fc || '{0}') });
+        }
       }
       return out;
+    }
+    /** Foretell (CR 702.143a): "During your turn" — a card of this player's own hand, any time they have priority on their turn. */
+    _foretellWindow(playerId, o) {
+      return !!(o && o.zone === 'hand' && o.owner === playerId && this.activePlayer && this.activePlayer.id === playerId);
+    }
+    /**
+     * Foretell (CR 702.143a): a special action — pay {2} and exile the card from your hand face down. From a later
+     * turn on, it may be cast from exile for its foretell cost (altUses: via 'foretell').
+     */
+    foretellCard(playerId, objId, opts) {
+      const o = this.obj(objId);
+      if (!o || o.zone !== 'hand' || o.owner !== playerId) return this.fail('That is not in your hand.');
+      const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'foretell');
+      if (!use) return this.fail('That card cannot be foretold now (only during your turn).');
+      if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return this.fail('You do not have priority.');
+      if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts || {}))) return this.fail(`Not enough mana to foretell (${use.cost}).`);
+      this.moveObject(o, 'exile');
+      if (o.zone !== 'exile') return true;
+      o.faceDownExile = true; o.lookableBy = playerId;
+      o.foretold = { turn: this.turn, cost: use.foretellCost != null ? use.foretellCost : null, reduce: use.reduce || 0 };
+      this.logEvent('rules', `${this.player(playerId).name} foretells a card.`);
+      // Dream Devourer: "Whenever you foretell a card"
+      this._fire('youForetell', playerId, { object: o, playerId });
+      this._resetPriority();
+      return true;
     }
 
     /** The Great Work: this turn's leave for this player to cast this card from the graveyard it is in, if any. */
@@ -8631,8 +8681,9 @@
       if (!a) return;
       const hadPlus = (o._diedCounters && o._diedCounters['+1/+1']) || 0;
       const hadMinus = (o._diedCounters && o._diedCounters['-1/-1']) || 0;
-      const undying = a.keywordSet.has('undying') && hadPlus === 0;
-      const persist = a.keywordSet.has('persist') && hadMinus === 0;
+      const had = (k) => a.keywordSet.has(k) || (o._leftKw || []).includes(k);
+      const undying = had('undying') && hadPlus === 0;
+      const persist = had('persist') && hadMinus === 0;
       if (undying || persist) {
         this.pendingTriggers.push({
           id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
@@ -8777,7 +8828,12 @@
       const accWas = this._spentAcc;
       this._spentAcc = {};
       this._costExiledNow = null;
+      // (Verrak, Warped Sengir: "if life was paid to activate it" — the life paid, Phyrexian mana's too: lifePaid)
+      const lifeAccWas = this._costLifeAcc;
+      this._costLifeAcc = 0;
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
+      const lifePaid = this._costLifeAcc;
+      this._costLifeAcc = lifeAccWas;
       // Osgir, the Reconstructor: "the exiled card" — the one exiled to pay (costExiled)
       const costExiled = this._costExiledNow;
       this._costExiledNow = null;
@@ -8864,7 +8920,7 @@
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
         this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
-          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom });
+          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
       }
       this.emit('sfx', 'cast');
@@ -15000,6 +15056,8 @@
         p.gained = (p.gained || 0) + delta;      // "if you gained 3 or more life this turn"
       }
       p.life += delta;
+      // (Verrak, Warped Sengir: the life paid while an ability's cost is paid — lifePaid)
+      if (delta < 0 && reason === 'cost' && this._costLifeAcc != null) this._costLifeAcc += -delta;
       if (delta < 0) {
         this._lastLifeLost = (this._lastLifeLost || 0) + (-delta);
         p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + (-delta);
@@ -15270,6 +15328,8 @@
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
       if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
+      // (foretold: a card that leaves exile is foretold no more)
+      if (from !== toZone && o.foretold) o.foretold = null;
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
       if (from === 'battlefield' && from !== toZone) {
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) {
@@ -15349,6 +15409,8 @@
         o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard || meldTo || (o.face || 0) !== 0 ? was : null;
         const lc = this.characteristics(o);
         o._leftAsCreature = !!(lc && lc.isCreature);
+        // Rhys, the Evermore: "gains persist until end of turn" — a keyword it was given still counts as it dies
+        o._leftKw = lc ? ['persist', 'undying'].filter(k => lc.keywords.has(k)) : [];
         // its power as it last existed, for "equal to its power" after it has gone
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
@@ -16066,6 +16128,8 @@
         hitController: data.hitController, hitExcess: data.hitExcess,
         // Orvar, the All-Form: what the spell cast targets, as it was cast (spellTargets)
         spellTargets: data.spell && data.spell.targets ? data.spell.targets.map(t => ({ kind: t.kind, id: t.id })) : undefined,
+        // Verrak, Warped Sengir: the life paid to activate the ability (lifePaid)
+        lifePaid: data.lifePaid || undefined,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -16395,6 +16459,8 @@
           // Zaxara: a spell with {X} in its mana cost (xSpell); Zuko: one cast during combat (duringCombat)
           // (the cost of the face being cast: a split card's half, an adventure, an MDFC's back; both halves fused)
           // (Magus Lucea Kane: an ability activated — {X} in its activation cost: xCost)
+          // Verrak, Warped Sengir: "if life was paid to activate it" (lifePaidOnly)
+          if (ab.lifePaidOnly && !(data.lifePaid > 0)) continue;
           if (ab.xSpell && event === 'youActivateAbility') { if (!data.xCost) continue; }
           else if (ab.xSpell) {
             const xo = data.object, xItem = data.stackId ? this.stack.find(st => st.id === data.stackId) : null;
@@ -18107,6 +18173,8 @@
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
         // Captain Howler, Sea Scourge: "+2/+0 … for each card discarded this way" — the cards in the lot, times two
         if (v && typeof v === 'object' && v.triggerAmount) return n('triggerAmount') * (v.mult || 1);
+        // Verrak, Warped Sengir: "pay that much life again" — the life paid to activate the ability (lifePaid)
+        if (v && typeof v === 'object' && v.lifePaid) return Number((ctx.triggerData || {}).lifePaid) || 0;
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
         // "… minus four": never less than zero
@@ -25946,7 +26014,13 @@
             : e.who === 'targetController' ? [this._lastAffectedController()].filter(Boolean) : this.players)) {
             // Hope of Ghirapur: "Until your next turn" — over as that turn begins (silenceUntil)
             if (e.duration === 'nextTurn') { (p.silenceUntil = p.silenceUntil || []).push({ by: ctx.controller, noncreature: !!e.noncreature }); continue; }
+            // Azor, the Lawbringer: "during that player's next turn" — set going as that turn begins (silenceOn)
+            if (e.duration === 'theirNextTurn') { (p.silenceOn = p.silenceOn || []).push({ on: null, instantSorcery: !!e.instantSorcery }); continue; }
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
+          }
+          if (e.duration === 'theirNextTurn') {
+            this.logEvent('rules', `${me.name}'s opponents can't cast instant or sorcery spells during their next turns.`);
+            break;
           }
           if (e.duration === 'nextTurn') {
             const who = e.who === 'target' ? firstPlayer() : null;
@@ -27682,6 +27756,30 @@
           this.moveObject(c, 'battlefield', { controller: ctx.controller });
           if (e.tapped && c.zone === 'battlefield') this._markTapped(c);
           this.logEvent('rules', `${c.name} returns to the battlefield${e.tapped ? ' tapped' : ''}.`);
+          break;
+        }
+        // Rhys, the Evermore: "Remove any number of counters from target creature you control." — each counter, one pick
+        case 'removeAnyCounters': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const opts = [];
+          for (const [kind, c] of Object.entries(x.counters || {})) {
+            const k = Number(c) || 0;
+            for (let i = 0; i < k; i++) opts.push({ label: k > 1 ? `a ${kind} counter (${i + 1} of ${k})` : `a ${kind} counter`, kind });
+          }
+          if (!opts.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'removeAnyCounters', kind: 'options', options: opts.map((o, i) => ({ i, label: o.label, kind: o.kind })),
+            min: 0, max: opts.length, optional: true, objId: x.id,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}remove any number of counters from ${x.name}.` }, 'rac');
+          if (got === SUSPEND) return SUSPEND;
+          let total = 0;
+          for (const i of ((got && got.picks) || [])) {
+            const o = opts[i];
+            if (!o || x.zone !== 'battlefield' || !((Number((x.counters || {})[o.kind]) || 0) > 0)) continue;
+            this.addCounters(x, o.kind, -1);
+            total++;
+          }
+          if (total) this.logEvent('counters', `${total} counter${total === 1 ? '' : 's'} removed from ${x.name}.`);
           break;
         }
         case 'removeCountersAmong': {
