@@ -2702,7 +2702,7 @@
     activate(o, a, index, ab, x, split) {
       this.closePopover();
       // an ability whose cost has an X (mana, or counters taken off) asks for it first
-      const asks = x == null ? this._abilityX(o, ab) : null;
+      const asks = x == null ? this._abilityX(o, ab, index) : null;
       if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, asks.min || 0, asks.max, asks.start != null ? asks.start : asks.max,
         (n) => this.activate(o, a, index, ab, n), o.card);
       /* "Add X mana in any combination of {U} and/or {B}": how much of the
@@ -2826,11 +2826,25 @@
     /**
      * The X an ability's cost asks for, if any: "{X}: ..." pays X mana, and a
      * storage land's "Remove X storage counters" takes that many off. Returns
-     * { label, sub, max } or null.
+     * { label, sub, max } or null. `index`: the ability's, for the cost picks
+     * the table offers for it (Jetfire, Ingenious Scientist).
      * @this {MTG.TableInstance}
+     * @param {any} o
+     * @param {any} ab
+     * @param {number=} index
      */
-    _abilityX(o, ab) {
+    _abilityX(o, ab, index) {
       const c = (ab && ab.cost) || {};
+      /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" — how many,
+         up to every one among them (the costPicks row for this ability says which they are); one way only: not asked */
+      const rs = c.removeCounterSpread;
+      if (rs && (rs.n === 'X' || rs.n === 'any')) {
+        const row = (((this.live || this.view).costPicks || {})[o.id] || []).find(r => r.kind === 'counterSpread' && (index == null || r.index === index));
+        const have = ((row && row.candidates) || []).reduce((k, id) => k + (Number(((this.objIn(id) || {}).counters || {})[rs.kind]) || 0), 0);
+        const min = rs.min || 0;
+        if (have <= min) return null;
+        return { label: `remove how many ${rs.kind} counters?`, sub: `From among ${MTG.oracle.nounPlural(rs.filter)} you control: there are ${have}.`, max: have, min };
+      }
       // a planeswalker's "-X": as many loyalty counters as you like, up to all of them
       if (ab && ab.kind === 'loyalty' && c.loyaltyX < 0) {
         const have = Number((o.counters || {}).loyalty) || 0;

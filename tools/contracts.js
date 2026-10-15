@@ -176,10 +176,10 @@ const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt
   each: opt(nat),
   /* a cost the table would otherwise pick (evidence, forage, reveal, behold…): the opts key the
      answer goes in, how many (or 'X'), and forage's Foods and their key */
-  key: opt(str), need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool), symbol: opt(str) });
+  key: opt(str), need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool), symbol: opt(str), counterKind: opt(str) });
 /* The same offer for one activated ability of a permanent, by the index activateAbility takes. */
 const CostPick = obj({ index: nat, kind: str, label: str, key: str, candidates: arr(id),
-  need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool), symbol: opt(str) });
+  need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool), symbol: opt(str), counterKind: opt(str) });
 /* A modal spell's modes, offered as it is cast: how many, and which can be chosen (ok); the count once kicked */
 const CastModes = obj({ count: nat, min: nat, max: nat, repeatable: opt(lit(true)), pawprint: opt(nat),
   options: arr(obj({ i: nat, label: str, ok: bool, weight: opt(num) }, { closed: true }), { min: 2 }),
@@ -342,9 +342,9 @@ const INTENTS = {
     /* generic questions answered as the spell is cast (replicate, splice), by purpose */
     choices: opt(maybe(rec(ChooseAnswer))),
     /* what pays a cost the table would otherwise pick (evidence, forage, reveal, behold...) */
-    evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str),
+    evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str), counterSpreadIds: opt(arr(id)),
   }),
-  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat), evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str) }),
+  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat), evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str), counterSpreadIds: opt(arr(id)) }),
   mana: closed({ objId: id, index: opt(nat), choice: opt(maybe(str)) }),
   declareAttackers: closed({ declarations: arr(Declaration) }),
   declareBlockers: closed({ declarations: arr(Block) }),

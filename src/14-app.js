@@ -370,6 +370,9 @@
     for (const k of COST_PICK_LISTS) if (Array.isArray(intent[k])) out[k] = idList(intent[k]);
     for (const k of COST_PICK_ONES) if (typeof intent[k] === 'string') out[k] = intent[k];
     if (typeof intent.counterKind === 'string') out.counterKind = intent.counterKind.slice(0, 40);
+    /* Jetfire, Ingenious Scientist: one id for each counter that comes off (the same id again for each more off it) —
+       ids only, and no more than a board could hold; the engine checks each has that many */
+    if (Array.isArray(intent.counterSpreadIds)) out.counterSpreadIds = intent.counterSpreadIds.filter(x => typeof x === 'string').slice(0, 1000);
     return out;
   };
   /* Paid only from the mana already in the player's pool, with no lands

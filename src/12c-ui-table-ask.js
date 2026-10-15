@@ -1824,6 +1824,15 @@
           ], { card }) };
           return this.render();
         }
+        /* Jetfire, Ingenious Scientist: counters of one kind off any of yours, as many off each as you like — asked
+           only when there is a choice: two or more to take them from, and more there than come off */
+        if (r.kind === 'counterSpread') {
+          const need = r.need === 'X' ? (x || 0) : (Number(r.need) || 1);
+          const has = (id) => Number(((this.objIn(id) || {}).counters || {})[r.counterKind]) || 0;
+          const ids = (r.candidates || []).filter(id => has(id) > 0);
+          if (need <= 0 || ids.length < 2 || ids.reduce((k, id) => k + has(id), 0) <= need) return next();
+          return this._pickCounterSpread(r, ids, need, has, card, (list) => { if (list) out[r.key] = list; next(); });
+        }
         /* a counter off a permanent of yours: which permanent, then which
            kind of counter when it has more than one */
         if (r.kindKey) {
@@ -1865,6 +1874,45 @@
         });
       };
       step(0);
+    },
+
+    /**
+     * Jetfire, Ingenious Scientist: how many counters come off each permanent, `need` in all — a tile for each (a tap
+     * takes one more off it), with fewer and more beneath it. `done` gets one id for each counter, or null to leave it
+     * to the game.
+     */
+    _pickCounterSpread(r, ids, need, has, card, done) {
+      const n = {};
+      for (const id of ids) n[id] = 0;
+      const sum = () => ids.reduce((k, id) => k + n[id], 0);
+      const title = String(r.label || '').replace(/^Remove (?:X|an?|\d+) (\S+) counters? /, (m0, kind) => `Remove ${need} ${kind} counter${need === 1 ? '' : 's'} `);
+      const key = 'spread:' + r.label + ':' + ids.join(',');
+      this.asking = { base: key, get key() { return key + ':' + ids.map(id => n[id]).join(','); }, build: () => {
+        const row = el('div', { class: 'pick-row' });
+        for (const id of ids) {
+          const x = this.objIn(id);
+          if (!x || !x.card) continue;
+          const set = (v) => { n[id] = U.clamp(v, 0, Math.min(has(id), n[id] + need - sum())); this.render(); };
+          row.appendChild(el('div', { class: 'spread-col', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' } }, [
+            this.pickTile(x.card, { face: x.face || 0, cls: n[id] ? 'chosen' : '', badge: n[id] || null, onClick: () => set(n[id] + 1) }),
+            el('span', { class: 'stepper' }, [
+              el('button', { type: 'button', class: 'btn xs', text: '−', disabled: !n[id], 'aria-label': `One fewer off ${x.card.name}`, onclick: () => set(n[id] - 1) }),
+              el('span', { class: 'stepper-val', text: `${n[id]} of ${has(id)}` }),
+              el('button', { type: 'button', class: 'btn xs', text: '+', disabled: n[id] >= has(id) || sum() >= need, 'aria-label': `One more off ${x.card.name}`, onclick: () => set(n[id] + 1) }),
+            ]),
+          ]));
+        }
+        return this.panel(escapeHtml(title), `${sum()} of ${need} chosen.`, row, [
+          { label: 'Let the game choose', fn: () => { this.asking = null; done(null); } },
+          { label: 'Use these', cls: 'primary', disabled: sum() !== need, fn: () => {
+            this.asking = null;
+            const list = [];
+            for (const id of ids) for (let i = 0; i < n[id]; i++) list.push(id);
+            done(list);
+          } },
+        ], { card, wide: true });
+      } };
+      this.render();
     },
 
     /** Pick the cards or permanents that pay a cost: a fixed number, or ones whose mana values reach a total. */

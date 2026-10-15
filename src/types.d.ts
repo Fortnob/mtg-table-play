@@ -248,6 +248,9 @@ declare namespace MTG {
     symbol?: string;
     /** remove a counter: the option naming which kind (counterKind) */
     kindKey?: string;
+    /** counterSpread (Jetfire, Ingenious Scientist): the kind of counter that comes off the candidates, as many off each as
+        the player likes, `need` in all; answered in counterSpreadIds, one id for each counter */
+    counterKind?: string;
     [k: string]: any;
   }
   /** The same offer for an activated ability of one of your permanents. */
@@ -566,10 +569,12 @@ declare namespace MTG {
       choices?: Record<string, ChooseAnswer>;
       /** what pays a cost the table would otherwise pick */
       evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string;
+      /** Jetfire, Ingenious Scientist: the permanents the counters come off, one id for each counter */
+      counterSpreadIds?: Id[];
       /** paid only from the mana in the pool, no lands tapped for it (tapping lands by hand) */
       fromPool?: boolean;
     }
-    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; fromPool?: boolean; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string }
+    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; fromPool?: boolean; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string; counterSpreadIds?: Id[] }
     | { kind: 'mana'; objId: Id; index?: number; choice?: string | null; split?: string[] }
     | { kind: 'declareAttackers'; declarations: AttackDeclaration[] }
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }

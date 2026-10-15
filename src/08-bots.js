@@ -4304,6 +4304,11 @@
       const effects = ab.effects || [];
       const flat = flatEffects(effects);
       if (!flat.length || flat.some(e => e.op === 'manual')) return null;
+      /* Jetfire, Novijen Sages: counters enough among ours to take off (removeCounterSpread); Jetfire's "Target player
+         adds that much {C}" is mana a bot does not plan with */
+      const rsp = cost.removeCounterSpread;
+      if (rsp && g._counterSpreadTotal(this.pid, rsp, o) < (typeof rsp.n === 'number' ? rsp.n : (rsp.min || 1))) return null;
+      if (flat.some(e => e.op === 'addManaPer' && e.who === 'target')) return null;
       // Hanweir Battlements, Urza, Lord Protector: paid for only with the other card there to meld with
       const meldE = flat.find(e => e.op === 'meld');
       if (meldE && !g._meldPartner(o, meldE, this.pid).partner) return null;

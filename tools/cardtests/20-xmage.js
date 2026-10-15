@@ -65744,4 +65744,125 @@ module.exports = (test) => {
     t.eq(ans.picks[0], f3.id, 'Harold and Bob: a bot picks the untapped Forest');
     t.ok(hb3);
   });
+  test('Commanders: Jetfire, Ingenious Scientist — +1/+1 counters off artifacts as you spread them: that much {C} for a target player, artifact spells only; convert', (mk, t) => {
+    t.auto('Jetfire, Ingenious Scientist // Jetfire, Air Guardian');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    const g = T.g;
+    const jet = T.bf('A', 'Jetfire, Ingenious Scientist // Jetfire, Air Guardian', { counters: { '+1/+1': 2 } });
+    const orn = T.bf('A', 'Ornithopter', { counters: { '+1/+1': 2 } });
+    const bears = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 3 } });
+    // the table offers the spread: the artifacts with +1/+1 counters, not the Bears
+    const row = ((g.viewFor('A').costPicks || {})[jet.id] || []).find(r => r.kind === 'counterSpread');
+    t.ok(row, 'Jetfire: a pick for which counters come off');
+    t.eq(row.key, 'counterSpreadIds');
+    t.eq(row.need, 'X', 'Jetfire: as many as the amount chosen');
+    t.eq(row.candidates.slice().sort().join(), [jet.id, orn.id].sort().join(), 'Jetfire: the artifacts only');
+    t.no(g.activateAbility('A', jet.id, 0, { auto: true, x: 5, targets: [{ kind: 'player', id: 'B' }] }), 'Jetfire: not more than there are');
+    t.no(g.activateAbility('A', jet.id, 0, { auto: true, x: 0, targets: [{ kind: 'player', id: 'B' }] }), 'Jetfire: one or more');
+    T.activate('A', jet, 0, { x: 3, counterSpreadIds: [orn.id, orn.id, jet.id], targets: ['B'] });
+    t.eq(orn.counters['+1/+1'] || 0, 0, 'Jetfire: two off the Ornithopter');
+    t.eq(jet.counters['+1/+1'] || 0, 1, 'Jetfire: one off Jetfire');
+    t.eq(bears.counters['+1/+1'], 3, 'Jetfire: none off the Bears');
+    const pb = T.player('B');
+    t.eq((pb.restricted || []).filter(r => r.color === 'C').length, 3, 'Jetfire: B adds three {C}, held for what it may pay for');
+    t.eq(pb.pool.C || 0, 0);
+    t.eq((T.player('A').restricted || []).length, 0, 'Jetfire: none for A');
+    t.eq(jet.face, 1, 'Jetfire: converted');
+    t.eq(jet.name, 'Jetfire, Air Guardian');
+  });
+  test('Commanders: Jetfire, Ingenious Scientist — the mana pays for artifact spells and abilities, not nonartifact spells; the table spreads it otherwise', (mk, t) => {
+    t.auto('Jetfire, Ingenious Scientist // Jetfire, Air Guardian');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    const g = T.g;
+    const jet = T.bf('A', 'Jetfire, Ingenious Scientist // Jetfire, Air Guardian');
+    const bears = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 3 } });
+    t.no(g.activateAbility('A', jet.id, 0, { auto: true, x: 1, targets: [{ kind: 'player', id: 'A' }] }), 'Jetfire: no artifact with a +1/+1 counter — not activated');
+    t.eq(bears.counters['+1/+1'], 3);
+    const ring = T.bf('A', 'Sol Ring', { counters: { '+1/+1': 1 } });
+    const orn = T.bf('A', 'Ornithopter', { counters: { '+1/+1': 3 } });
+    // a spread naming one with no counters to give is not taken: the table's instead
+    T.activate('A', jet, 0, { x: 1, targets: ['A'], counterSpreadIds: [jet.id] });
+    t.eq(jet.counters['+1/+1'] || 0, 0, 'Jetfire: nothing off Jetfire, which had none');
+    t.eq((ring.counters['+1/+1'] || 0) + (orn.counters['+1/+1'] || 0), 3, 'Jetfire: one counter came off, from the others');
+    // the table's spread, with none named: off what is not a creature first
+    const T2 = mk({ library: Array(20).fill('Wastes') });
+    const g2 = T2.g;
+    const jet2 = T2.bf('A', 'Jetfire, Ingenious Scientist // Jetfire, Air Guardian');
+    const ring2 = T2.bf('A', 'Millstone', { counters: { '+1/+1': 1 } });
+    const orn2 = T2.bf('A', 'Ornithopter', { counters: { '+1/+1': 3 } });
+    T2.activate('A', jet2, 0, { x: 2, targets: ['A'] });
+    t.eq(ring2.counters['+1/+1'] || 0, 0, 'Jetfire: the noncreature Millstone first');
+    t.eq(orn2.counters['+1/+1'], 2, 'Jetfire: then one off the Ornithopter');
+    const pa = T2.player('A');
+    t.eq((pa.restricted || []).length, 2, 'Jetfire: two {C} for A');
+    T2.mana('A', 'G');
+    t.no(g2.castSpell('A', T2.hand('A', 'Grizzly Bears').id, { auto: true }), 'Jetfire: not for a nonartifact spell');
+    t.ok(g2.castSpell('A', T2.hand('A', 'Millstone').id, { auto: true }), 'Jetfire: for an artifact spell');
+    T2.resolve();
+    t.eq((pa.restricted || []).length, 0, 'Jetfire: spent on the Millstone');
+    // an ability's cost: anything that isn't a nonartifact spell (Ornithopter's own counters again)
+    T2.nextTurn('A');
+    const jet3 = g2.battlefield.find(o => o === jet2);
+    t.eq(jet3.face, 1, 'Jetfire: the Air Guardian now');
+    T2.mana('A', 'UUU');
+    T2.activate('A', jet2, 0);
+    t.eq(jet2.face, 0, 'Air Guardian: converted back');
+    t.eq(jet2.counters['+1/+1'], 3, 'Air Guardian: then adapt 3');
+    T2.activate('A', jet2, 0, { x: 2, counterSpreadIds: [jet2.id, jet2.id], targets: ['A'] });
+    t.eq((pa.restricted || []).length, 2);
+    const mill = g2.battlefield.find(o => o.name === 'Millstone');
+    const lib0 = T2.zone('B', 'library').length;
+    T2.activate('A', mill, 0, { targets: ['B'] });
+    t.eq(T2.zone('B', 'library').length, lib0 - 2, "Jetfire: the mana paid for Millstone's ability");
+    t.eq((pa.restricted || []).length, 0);
+    t.ok(ring && orn);
+  });
+  test('Remove counters from among permanents you control: Novijen Sages, Retribution of the Ancients, Ooze Flux, The Filigree Sylex', (mk, t) => {
+    t.auto('Novijen Sages'); t.auto('Retribution of the Ancients'); t.auto('Ooze Flux'); t.auto('The Filigree Sylex');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    const g = T.g;
+    // Novijen Sages: "Remove two +1/+1 counters from among creatures you control" — one off each, the Sages keep the rest
+    const sages = T.bf('A', 'Novijen Sages', { counters: { '+1/+1': 1 } });
+    const bears = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const ring = T.bf('A', 'Millstone', { counters: { '+1/+1': 5 } });
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '1');
+    T.activate('A', sages, 0);
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'Novijen Sages: a card');
+    t.eq((sages.counters['+1/+1'] || 0) + (bears.counters['+1/+1'] || 0), 0, 'Novijen Sages: one off each creature');
+    t.eq(ring.counters['+1/+1'], 5, 'Novijen Sages: not off a noncreature');
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', sages.id, 0, { auto: true }), 'Novijen Sages: no two counters left among creatures');
+    // Retribution of the Ancients: X off, -X/-X
+    const T2 = mk({ library: Array(20).fill('Wastes') });
+    const ret = T2.bf('A', 'Retribution of the Ancients');
+    const b2 = T2.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const b3 = T2.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    const giant = T2.bf('B', 'Hill Giant');
+    T2.mana('A', 'B');
+    T2.activate('A', ret, 0, { x: 3, targets: [giant] });
+    t.zone(giant, 'graveyard', 'Retribution: -3/-3');
+    t.eq((b2.counters['+1/+1'] || 0) + (b3.counters['+1/+1'] || 0), 0, 'Retribution: three off, from both');
+    // Ooze Flux: "one or more" — the Ooze as big as how many came off
+    const T3 = mk({ library: Array(20).fill('Wastes') });
+    const flux = T3.bf('A', 'Ooze Flux');
+    const b4 = T3.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    const b5 = T3.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    T3.mana('A', '1G');
+    T3.activate('A', flux, 0, { x: 3, counterSpreadIds: [b4.id, b5.id, b5.id] });
+    const ooze = T3.g.battlefield.find(o => o.isToken && /Ooze/.test(o.name));
+    t.ok(ooze, 'Ooze Flux: an Ooze');
+    t.eq(T3.g.powerOf(ooze), 3, 'Ooze Flux: 3/3');
+    t.eq(b4.counters['+1/+1'], 1); t.eq(b5.counters['+1/+1'] || 0, 0, 'Ooze Flux: as spread');
+    // The Filigree Sylex: ten oil counters from among permanents, and sacrifice it
+    const T4 = mk({ library: Array(20).fill('Wastes') });
+    const syl = T4.bf('A', 'The Filigree Sylex', { counters: { oil: 6 } });
+    const other = T4.bf('A', 'Millstone', { counters: { oil: 3 } });
+    t.no(T4.g.activateAbility('A', syl.id, 2, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'Filigree Sylex: nine oil counters are not ten');
+    other.counters.oil = 4;
+    T4.activate('A', syl, 2, { targets: ['B'] });
+    t.zone(syl, 'graveyard', 'Filigree Sylex: sacrificed');
+    t.eq(other.counters.oil || 0, 0, 'Filigree Sylex: the Millstone\'s oil too');
+    t.eq(T4.life('B'), 10, 'Filigree Sylex: 10 damage');
+  });
 };

@@ -483,6 +483,21 @@
           continue;
         }
       }
+      /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control"; Novijen
+         Sages: "Remove two +1/+1 counters from among creatures you control"; Retribution of the Ancients: "Remove X …";
+         The Filigree Sylex: "… and sacrifice The Filigree Sylex" — counters of one kind, as many off each as the player
+         likes, adding up to the number (removeCounterSpread; 'any' with min 1 is "one or more", its X the amount) */
+      if ((m = p.match(/^Remove (one or more|X|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([a-z+\-0-9/]+) counters? from among (other )?([a-z, ]+?) you control( and sacrifice (?:CARDNAME|this [a-z]+))?$/i))) {
+        const kinds = m[4].replace(/,? and /g, ', ').split(/,\s*/).map(w => w.trim().replace(/s$/, '')).filter(Boolean);
+        const w = m[1].toLowerCase();
+        const k = w === 'one or more' ? 'any' : w === 'x' ? 'X' : /^\d+$/.test(w) ? +w : num(w.replace(/^an?$/, 'one'));
+        if (kinds.every(x => /^(?:artifact|creature|planeswalker|permanent|land|enchantment)$/i.test(x)) && (typeof k === 'number' ? k > 0 : true)) {
+          cost.removeCounterSpread = Object.assign({ n: k, kind: m[2].toLowerCase(), filter: kinds.join(' or ').toLowerCase() },
+            k === 'any' ? { min: 1 } : {}, m[3] ? { other: true } : {});
+          if (m[5]) cost.sacSelf = true;
+          continue;
+        }
+      }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       // Sasaya, Orochi Ascendant: "Reveal your hand"
@@ -1669,8 +1684,10 @@
       make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: (m[1] || m[2]).toLowerCase() }) },
     // Jegantha, the Wellspring: "This mana can't be spent to pay generic mana costs." — only for coloured symbols (noGenericMana)
     { re: /^This mana can'?t be spent to pay generic mana costs\.?$/i, make: () => ({ op: 'noGenericMana' }) },
+    /* Jetfire, Ingenious Scientist; Karn, Legacy Reforged: "This mana can't be spent to cast nonartifact spells." — an
+       artifact spell, or anything that isn't a spell: any ability's cost too (anyAbility) */
     { re: /^This mana can'?t be spent to cast (?:a |an )?non(artifact|creature) spells?\.?$/i,
-      make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
+      make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', anyAbility: true }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'ancestryScry', open: true }) },
     /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
@@ -5396,6 +5413,10 @@
     // Rasputin, the Oneiromancer: "{T}, Remove one or more dream counters from Rasputin: Add that much {C}." (removedCounters)
     { re: /^Add that much (\{[WUBRGC]\})\.?$/i,
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { removedCounters: true, mult: 1 }, thatMuch: true }) },
+    /* Jetfire, Ingenious Scientist: "Target player adds that much {C}." — the counters removed to pay, into that player's
+       pool (not a mana ability: it targets, CR 605.1a) */
+    { re: /^Target player adds that much (\{[WUBRGC]\})\.?$/i,
+      make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { removedCounters: true, mult: 1 }, thatMuch: true, who: 'target', targets: [{ type: 'player' }] }) },
     // anything else counted: "for each card named CARDNAME in each graveyard"
     { re: /^Add (\{[WUBRGC]\}) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: c } : null; } },
@@ -18040,8 +18061,12 @@
             o.perTurn ? { perTurn: o.perTurn } : null);
           if (o.anyPlayer) ab.anyPlayer = true;
         }
+        /* Jetfire, Ingenious Scientist: "Target player adds that much {C}. This mana can't be spent to cast nonartifact
+           spells." — not a mana ability, so the restriction is a step of its own, on the mana just added */
+        const manaAt = ab.kind === 'mana' || !spend || spend.open ? -1 : effects.map(e => !!(e && MANA_OPS.has(e.op))).lastIndexOf(true);
+        if (manaAt >= 0) effects.splice(manaAt + 1, 0, spend);
         /* a rider with no restriction (Path of Ancestry) still travels with the mana */
-        if (spend) ab.spendOnly = spend.open ? { rider: spend.rider, open: true } : spend;
+        else if (spend) ab.spendOnly = spend.open ? { rider: spend.rider, open: true } : spend;
         if (ab.kind === 'mana') out.manaAbilities.push(ab); else out.abilities.push(ab);
         if (ab.auto) autoLines++;
         continue;

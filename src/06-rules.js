@@ -9909,6 +9909,15 @@
       }
       // Vish Kal, Blood Arbiter: "Remove all +1/+1 counters" — "for each counter removed this way" is that many (all)
       if (rc && rc.n === 'all') opts = Object.assign({}, opts, { x: Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0 });
+      /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" — how many is
+         the X (all there are, unless said); Retribution of the Ancients: "Remove X …" (removeCounterSpread) */
+      const rs = ab.cost && ab.cost.removeCounterSpread;
+      if (rs && (rs.n === 'X' || rs.n === 'any')) {
+        const have = this._counterSpreadTotal(playerId, rs, o);
+        if ((opts.x || 0) > have) return this.fail(`There aren't that many ${rs.kind} counters among ${O.nounPlural(rs.filter)} you control.`);
+        opts = Object.assign({}, opts, { x: opts.x != null ? opts.x : have });
+        if (rs.min && opts.x < rs.min) return this.fail(`At least ${rs.min} ${rs.kind} counter${rs.min === 1 ? '' : 's'} must be removed.`);
+      }
       // (Mr. House, President and CEO: "each mana from Treasures spent to activate this ability" — manaFromTreasure)
       const accWas = this._spentAcc;
       this._spentAcc = {};
@@ -10108,6 +10117,42 @@
       return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(spec.other && x === self) && this._cardFitsWords(x, spec.filter || 'permanent') &&
         (spec.kind ? Number(x.counters[spec.kind]) > 0 : Object.values(x.counters || {}).some(v => Number(v) > 0))));
     }
+    /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" — what has
+       counters of that kind to give, and how many there are in all (removeCounterSpread) */
+    _counterSpreadPool(pid, spec, self) {
+      return this._counterCostPool(pid, { filter: spec.filter, kind: spec.kind, other: spec.other }, self);
+    }
+    _counterSpreadTotal(pid, spec, self) {
+      return this._counterSpreadPool(pid, spec, self).reduce((k, x) => k + (Number(x.counters[spec.kind]) || 0), 0);
+    }
+    /**
+     * How many come off each, as a Map: the player's own spread (`ids`, one id for each counter) when it adds up to
+     * `want` and each has that many; otherwise the table's — off what is not a creature first, then off what has the
+     * most. Null when there are not that many.
+     */
+    _counterSpreadPlan(pid, spec, self, want, ids) {
+      const pool = this._counterSpreadPool(pid, spec, self);
+      const have = (x) => Number(x.counters[spec.kind]) || 0;
+      if (Array.isArray(ids) && ids.length === want) {
+        const plan = new Map();
+        const ok = ids.every(id => {
+          const x = pool.find(y => y.id === id);
+          if (!x) return false;
+          plan.set(x, (plan.get(x) || 0) + 1);
+          return plan.get(x) <= have(x);
+        });
+        if (ok) return plan;
+      }
+      const creature = (x) => ((this.characteristics(x) || {}).isCreature ? 1 : 0);
+      const plan = new Map();
+      let left = want;
+      for (const x of pool.slice().sort((a, b) => (creature(a) - creature(b)) || (have(b) - have(a)))) {
+        if (left <= 0) break;
+        const k = Math.min(left, have(x));
+        if (k > 0) { plan.set(x, k); left -= k; }
+      }
+      return left > 0 ? null : plan;
+    }
     /** Collect evidence: the mana value there is to exile from a graveyard. */
     // (The Capitoline Triad: "historic cards" only — filter)
     _evidenceTotal(pid, self, filter, symbol) {
@@ -10220,6 +10265,13 @@
           candidates: this._equipmentOn(self).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
           candidates: this._counterCostPool(pid, c.removeCounterFrom, self).map(x => x.id) });
+        /* Jetfire, Ingenious Scientist: which of yours the counters come off, as many off each as you like
+           (removeCounterSpread; need: the number, or 'X' — the amount chosen first) */
+        if (c.removeCounterSpread) {
+          const rs = c.removeCounterSpread, many = typeof rs.n === 'number' ? rs.n : 'X';
+          out.push({ kind: 'counterSpread', label: `Remove ${many === 1 ? 'a' : many} ${rs.kind} counter${many === 1 ? '' : 's'} from among ${rs.other ? 'other ' : ''}${O.nounPlural(rs.filter)} you control`,
+            key: 'counterSpreadIds', need: many, counterKind: rs.kind, candidates: this._counterSpreadPool(pid, rs, self).map(x => x.id) });
+        }
         if (c.blight) out.push({ kind: 'blight', label: 'Blight ' + c.blight, key: 'blightId', need: 1,
           candidates: this._blightPool(pid).map(x => x.id) });
         if (c.behold) out.push({ kind: 'behold', label: 'Behold a ' + c.behold.filter, key: 'beholdIds', need: c.behold.n || 1,
@@ -10681,6 +10733,12 @@
       if (cost.mill && this.zones[pid].library.length < cost.mill) return 'Not enough cards in your library to mill.';
       if (cost.removeCounterFrom && this._counterCostPool(pid, cost.removeCounterFrom, self)
         .reduce((k, x) => k + Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0), 0) < (cost.removeCounterFrom.n || 1)) return 'No counter to remove.';
+      // Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" (removeCounterSpread)
+      if (cost.removeCounterSpread) {
+        const rs = cost.removeCounterSpread;
+        const need = rs.n === 'any' ? (rs.min || 1) : this._costCount(rs.n, opts, pid);
+        if (this._counterSpreadTotal(pid, rs, self) < need) return `Not enough ${rs.kind} counters among ${O.nounPlural(rs.filter)} you control.`;
+      }
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
@@ -11290,6 +11348,21 @@
       if (cost.untap) this._markUntapped(o);
       if (cost.life) this.changeLife(playerId, -cost.life, 'cost');
       if (lifeFrom) this.changeLife(playerId, -lifeFrom, 'cost');
+      /* Jetfire, Ingenious Scientist: counters of one kind off any of yours, as the player spread them (counterSpreadIds);
+         "that much" is how many came off (removeCounterSpread); before The Filigree Sylex is sacrificed, its own counting too */
+      if (cost.removeCounterSpread) {
+        const rs = cost.removeCounterSpread;
+        const want = rs.n === 'any' || rs.n === 'X' ? Math.max(0, (opts && opts.x) || 0) : (rs.n || 1);
+        const plan = this._counterSpreadPlan(playerId, rs, o, want, opts && opts.counterSpreadIds);
+        for (const [x, k] of (plan || [])) {
+          x.counters[rs.kind] = (Number(x.counters[rs.kind]) || 0) - k;
+          if (x.counters[rs.kind] <= 0) delete x.counters[rs.kind];
+          x._chr = null;
+          this.logEvent('counters', `${k} ${rs.kind} counter${k === 1 ? ' is' : 's are'} removed from ${x.name}.`);
+        }
+        this.bumpBoard();
+        this._lastRemovedCounters = plan ? want : 0;
+      }
       if (cost.sacSelf) {
         const tok = o.isToken;
         this.moveObject(o, 'graveyard');
@@ -19291,6 +19364,8 @@
         // Abstract Paintmage: what mana this makes, for a "spend this mana only" after it (restrictedMana)
         const manaBy = /^addMana/.test(e.op || '') ? this.player(ctxNow.controller) : null;
         const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
+        // (Jetfire, Ingenious Scientist: "Target player adds that much {C}" — whichever pool it went into: who 'target')
+        const poolsBefore = manaBy && e.who === 'target' ? this.players.map(q => ({ q, before: Object.assign({}, q.pool) })) : null;
         // (what an effect done as another player puts next in line is done as that player too: _spliceNext)
         this._curAs = e._as || null;
         // a villainous choice: "that player" is the one who chose it, for what it puts next in line too (_tp)
@@ -19310,6 +19385,8 @@
           continue;
         }
         finally { this._putBy = null; this._curAs = null; this._curTp = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
+          const grew = poolsBefore && poolsBefore.find(x => MANA.COLORS.concat('C').some(c => (Number(x.q.pool[c]) || 0) > (Number(x.before[c]) || 0)));
+          if (grew) this._lastAddedMana = { pid: grew.q.id, before: grew.before, target: true };
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
           if (e.op !== 'spendOnly') this._lastSetAside = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
@@ -20772,15 +20849,17 @@
         }
         case 'spendOnly': {
           const lm = this._lastAddedMana;
-          if (!lm || lm.pid !== me.id || e.open) break;
-          me.restricted = me.restricted || [];
+          // (Jetfire, Ingenious Scientist: the mana a target player added — theirs to spend, restricted all the same)
+          const holder = lm && (lm.pid === me.id ? me : lm.target ? this.player(lm.pid) : null);
+          if (!holder || e.open) break;
+          holder.restricted = holder.restricted || [];
           let k = 0;
           const aside = [];
           for (const c of MANA.COLORS.concat('C')) {
-            const made = Math.max(0, (Number(me.pool[c]) || 0) - (Number(lm.before[c]) || 0));
-            for (let i = 0; i < made; i++) { me.pool[c]--; const r = { color: c, spendOnly: e, srcId: src ? src.id : null }; me.restricted.push(r); aside.push(r); k++; }
+            const made = Math.max(0, (Number(holder.pool[c]) || 0) - (Number(lm.before[c]) || 0));
+            for (let i = 0; i < made; i++) { holder.pool[c]--; const r = { color: c, spendOnly: e, srcId: src ? src.id : null }; holder.restricted.push(r); aside.push(r); k++; }
           }
-          this._lastSetAside = { pid: me.id, list: aside };
+          this._lastSetAside = { pid: holder.id, list: aside };
           if (k) this.logEvent('mana', `${src ? src.name : ctx.name || 'That'}'s mana can only be spent as it says.`);
           break;
         }
@@ -25832,8 +25911,11 @@
             // anything else that counts, read the way every other number is
             : (e.per && e.per.per == null && !e.per.counteredMv) ? n(e.per)
             : this.countPermanents(ctx.controller, e.per) * ((e.per && e.per.mult) || 1);
-          for (let i = 0; i < k; i++) me.pool.add(e.symbol === 'C' ? 'C' : e.symbol);
-          if (k) this.logEvent('mana', `${me.name} adds ${k} mana.`);
+          // Jetfire, Ingenious Scientist: "Target player adds that much {C}." — into that player's pool (who 'target')
+          const into = e.who === 'target' ? firstPlayer() : me;
+          if (!into || into.hasLost) break;
+          for (let i = 0; i < k; i++) into.pool.add(e.symbol === 'C' ? 'C' : e.symbol);
+          if (k) this.logEvent('mana', `${into.name} adds ${k} mana.`);
           break;
         }
 
