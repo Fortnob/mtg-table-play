@@ -7686,6 +7686,8 @@
       if (chose.casualty) {
         const dup = this._register(new GObj(o.card, playerId, 'stack'));
         dup.isCopy = true; dup.chosenX = o.chosenX;
+        // (Ashad, the Lone Cyberman: "A copy of an artifact spell becomes a token." — CR 707.10f)
+        if ((o.analysis() || {}).isPermanent) dup.isToken = true;
         this.stack.push(Object.assign({}, item, {
           id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id,
           targets: (item.targets || []).slice(),
@@ -11147,6 +11149,11 @@
       // (Vislor Turlough: "goaded for as long as they control it" — the control effect that carries the goad, while it holds)
       for (const e of (o.effects || [])) if (e && e.goadBy != null && e.control === o.controller && !out.includes(e.goadBy)) out.push(e.goadBy);
       if ((o.zone !== 'battlefield' && !leaving) || !(this.characteristics(o) || {}).isCreature) return out;
+      // (The Rani's Mark of the Rani, Psychic Impetus: "Enchanted creature … is goaded" — by the Aura's controller)
+      for (const id of (o.attachments || [])) {
+        const at = this.obj(id);
+        if (at && at.zone === 'battlefield' && !out.includes(at.controller) && this._staticOp(at, 'goadAttached')) out.push(at.controller);
+      }
       for (const s of this.battlefield) {
         if (s.phasedOut || s.controller === o.controller || out.includes(s.controller)) continue;
         if (!this._staticOp(s, 'goadWeaker')) continue;
@@ -26055,12 +26062,16 @@
           // Augusta, Order Returned: "When one or more nonland cards are exiled this way, put that many …" (ifExiledNonland)
           const exN = e.ifExiledNonland ? (this._exiledNonlandN || 0) : 0;
           if (e.ifExiledNonland && !exN) break;
-          const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
+          // Nyssa of Traken: "When you sacrifice one or more artifacts this way, … that many …" — only if some went (ifSacrificed)
+          const sacN = e.ifSacrificed ? (this._lastSacCount || 0) : 0;
+          if (e.ifSacrificed && !sacN) break;
+          const rText = String(e.whenText || e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
             effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN }))
               : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
-            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {}) });
+            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
+              sacN ? { amount: sacN } : {}) });
           break;
         }
         case 'delayed': {

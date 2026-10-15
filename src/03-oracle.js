@@ -3382,8 +3382,8 @@
       make: (m) => ({ op: 'gainControl', until: 'eot', untap: true, targets: [targetSpec(m[1])] }) },
     /* What a creature is, for the rest of the turn: Turn to Frog, Ovinize,
        Animate Land, Merfolk Trickster's "It loses all abilities until end of
-       turn". Each part in its layer (becomesEff). */
-    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|creatures target (?:player|opponent) controls|each creature target (?:player|opponent) controls|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
+       turn". Each part in its layer (becomesEff). (Halsin, Emerald Archdruid: "target token you control") */
+    { re: /^(?:Until end of turn, )?((?:another )?target (?:creature|land|artifact|permanent|token)(?: you control| an opponent controls| you don'?t control)?|it|that creature|CARDNAME|this creature|this land|creatures your opponents control|creatures target (?:player|opponent) controls|each creature target (?:player|opponent) controls|all creatures|each creature|other creatures you control) ((?:loses?|becomes?|has|have|gains?|is|are) .+?)(?: until end of turn)?\.?$/i,
       make: (m) => {
         if (!/until end of turn/i.test(m[0])) return null;
         const eff = becomesEff(m[2]);
@@ -10556,6 +10556,14 @@
        many cards", "… Draw a card for each permanent sacrificed this way",
        "… CARDNAME deals that much damage to any target" — the rest read with
        X standing for how many were sacrificed */
+    /* Nyssa of Traken: "sacrifice any number of artifacts. When you sacrifice one or more artifacts this way, tap up to
+       that many target creatures and draw that many cards." — a reflexive trigger only if some went, "that many" its
+       amount (ifSacrificed, triggerAmount) */
+    { re: /^Sacrifice any number of ([a-z]+)s\. When you sacrifice one or more \1s this way, tap up to that many target ([a-z]+)s and draw that many cards\.$/i,
+      make: (m) => [{ op: 'sacrificeAnyNumber', filter: m[1].toLowerCase() },
+        { op: 'reflexive', ifSacrificed: true, whenText: m[0].replace(/^[^.]+\. /, ''), effects: [
+          { op: 'tap', targets: [Object.assign(targetSpec('target ' + m[2].toLowerCase()), { distinct: true, multi: { count: 'triggerAmount', exact: false } })] },
+          { op: 'draw', n: 'triggerAmount', who: 'you' }] }] },
     // (God-Eternal Bontu: "any number of other permanents" — never itself)
     { re: /^Sacrifice any number of (other )?((?:[a-z]+(?:, and\/or |, | and\/or | or ))*[a-zA-Z]+?)s?(?: you control)?(?:, then |\. )([\s\S]+)$/i,
       make: (m0) => {
@@ -11653,8 +11661,8 @@
           { op: 'castFree', from: 'thatCard', upTo: 1, maxMv: k, elseHand: true }];
       } },
     /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
-       opponent controls. The token has enchant creature and "Whenever enchanted creature attacks, …"" (createAuraToken) */
-    { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to (target creature(?: an opponent controls| you control)?)\. The token has enchant creature and "(.+)"\.?$/i,
+       opponent controls. The token has enchant creature and "Whenever enchanted creature attacks, …"" (createAuraToken); The Rani: "… attached to another target creature. That token has …" */
+    { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to ((?:another )?target creature(?: an opponent controls| you control)?)\. (?:The|That) token has enchant creature and "(.+)"\.?$/i,
       make: (m) => [{ op: 'createAuraToken', name: m[2], colors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]],
         words: m[4], targets: [targetSpec(m[3])] }] },
     /* Estrid, the Masked: "Create a white Aura enchantment token named Mask attached to another target permanent. The
@@ -14894,8 +14902,10 @@
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitItsOwner: true } },
     /* Puppet Master, String Puller: "Whenever one or more goaded creatures deal combat damage to one of your opponents," —
        anyone's goaded creatures, once for each opponent hit (batchPerPlayer, hitYourOpponent) */
-    { re: /^Whenever one or more goaded creatures deal combat damage to one of your opponents,? /i,
-      event: 'permCombatDamage', filt: () => ({ words: 'goaded creature' }), extra: { hitYourOpponent: true, batchPerPlayer: true } },
+    // (The Rani: "Whenever a goaded creature deals combat damage to one of your opponents," — each one)
+    { re: /^Whenever (one or more goaded creatures deal|a goaded creature deals) combat damage to one of your opponents,? /i,
+      event: 'permCombatDamage', filt: () => ({ words: 'goaded creature' }),
+      extraOf: (m) => (/^one or more/i.test(m[1]) ? { hitYourOpponent: true, batchPerPlayer: true } : { hitYourOpponent: true }) },
     /* Nelly Borca, Impulsive Accuser: "Whenever one or more creatures an opponent controls deal combat damage to one or
        more of your opponents," — one for the lot */
     { re: /^Whenever one or more creatures an opponent controls deal combat damage to one or more of your opponents,? /i,
@@ -18437,8 +18447,14 @@
       // "becomes a blue Frog with base power and toughness 1/1", "is an Insect artifact creature with base power and toughness 0/1"
       // (Ensoul Artifact: "is a creature with base power and toughness 5/5 in addition to its other types")
       // (Frodo, Sauron's Bane: "becomes a Halfling Scout with base power and toughness 2/3 and lifelink")
-      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)(?: in addition to its other types| and ([a-z]+(?:(?:,|,? and) [a-z]+)*))?$/))) {
+      // (Halsin, Emerald Archdruid: "becomes a green Bear creature with base power and toughness 4/4 in addition to its other
+      // colors and types" — the colour and the Bear added to what it has: addColors, addSubtypes)
+      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)(?: in addition to its other types| and ([a-z]+(?:(?:,|,? and) [a-z]+)*)|( in addition to its other colors and types))?$/))) {
         if (!typed(m[1], m[2], [m[3], m[4]])) return null;
+        if (m[6]) {
+          if (eff.setColors) { if (!eff.setColors.length) return null; eff.addColors = eff.setColors; delete eff.setColors; }
+          if (eff.setCreatureTypes) { eff.addSubtypes = eff.setCreatureTypes; delete eff.setCreatureTypes; }
+        }
         if (m[5]) {
           const kws = keywordList(m[5]);
           if (!kws.length || !kws.every(kwKnown)) return null;
@@ -20179,8 +20195,8 @@
       // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1."
       { re: /^Each (instant and sorcery|[a-z]+) spell you cast has casualty (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'casualty', n: +m[2], filter: m[1].toLowerCase().replace(' and ', ' or ') }), auto: true },
-      // Anhelo, the Painter: "The first instant or sorcery spell you cast each turn has casualty 2." (firstEachTurn)
-      { re: /^The first (instant or sorcery|[a-z]+) spell you cast each turn has casualty (\d+)\.?$/i,
+      // Anhelo, the Painter: "The first instant or sorcery spell you cast each turn has casualty 2." (firstEachTurn) (Ashad, the Lone Cyberman: "The first nonlegendary artifact spell")
+      { re: /^The first (instant or sorcery|(?:nonlegendary )?[a-z]+) spell you cast each turn has casualty (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'casualty', n: +m[2], filter: m[1].toLowerCase(), firstEachTurn: true }), auto: true },
       // Thrumming Stone: "Spells you cast have ripple 4."
       { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
