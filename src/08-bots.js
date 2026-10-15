@@ -2829,6 +2829,8 @@
       }
       // Combustible Gearhulk: let them draw while life is short; take the damage otherwise
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
+      // Wernog, Rider's Chaplain: a Clue for us costs its controller one more too; the life while there's plenty
+      if (ch.purpose === 'mayInvestigate') return this.me.life <= 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature
       if (ch.purpose === 'takeDamage') return this.me.life > 12;
       // Obeka, Brute Chronologist: end our own turn to be rid of an opponent's spell or ability, once combat is over

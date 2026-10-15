@@ -2650,6 +2650,8 @@
     { re: /^If you cast a spell this way, (?:you )?pay life equal to its mana value rather than pay(?:ing)? its mana cost\.?$/i,
       make: () => ({ op: 'noop', payLifeRider: true }) },
     { re: /^Mana of any type can be spent to cast (?:a spell|spells) this way\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
+    // Durnan of the Yawning Portal: "That spell has undaunted." — on the leave before it (undauntedRider)
+    { re: /^That spell has undaunted\.?$/i, make: () => ({ op: 'noop', undauntedRider: true }) },
     // Oubliette: "Tap that creature as it phases in this way."
     { re: /^Tap that creature as it phases in this way\.?$/i, make: () => ({ op: 'noop', phaseTapRider: true }) },
     { re: /^Return the exiled cards? to the battlefield under (?:its owner'?s|their owners'?|your) control\.?$/i,
@@ -4477,12 +4479,19 @@
       make: (m) => ({ op: 'exileTop', who: 'target', n: { ofTrigger: 'mv' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^(Target opponent|Target player) exiles the top (card|(two|three|four|five|X|\d+) cards) of their library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: m[3] ? num(m[3]) : 1, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Loot, the Key to Everything: "exile the top X cards of your library, where X is the number of card types among …"
+    { re: /^Exile the top X cards of your library, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && !k.unread ? { op: 'impulse', n: k, play: false } : null; } },
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library."
     { re: /^Exile the top (two|three|four|five|X|\d+) cards of target (opponent|player)'?s library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: num(m[1]), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
     { re: /^You may cast any number of (?:spells|instant and\/or sorcery spells)( with mana value (X|\d+) or less)? from among (?:them|those cards|the nonland cards exiled this way|cards exiled this way|the exiled cards) without paying their mana costs\.?$/i,
       make: (m) => Object.assign({ op: 'castFree' }, m[2] ? { maxMv: num(m[2]) } : {},
         /instant and\/or sorcery/i.test(m[0]) ? { filter: 'instant or sorcery' } : {}) },
+    /* Scarlet Witch, Chaotic Avenger: "Then you may cast a Hero or noncreature spell from among cards exiled with
+       Scarlet Witch without paying its mana cost." — any of them, from this time or before, one picked or none (exiledWith) */
+    { re: /^(?:Then )?you may cast an? ([A-Z][a-z]+) or (noncreature|nonland|instant or sorcery) spell from among cards exiled with CARDNAME without paying its mana cost\.?$/,
+      make: (m) => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true, filter: m[1].toLowerCase() + ' or ' + m[2] }) },
     /* Velomachus Lorehold: "You may cast an instant or sorcery spell with mana value less than or equal to Velomachus
        Lorehold's power from among them without paying its mana cost." — the cards looked at, one picked or none (pickOne) */
     { re: /^You may cast an? (instant or sorcery|instant|sorcery|creature|artifact|enchantment|noncreature|nonland|permanent) spell with mana value less than or equal to (CARDNAME'?s power|CARDNAME'?s toughness) from among them without paying its mana cost\.?$/i,
@@ -4675,6 +4684,9 @@
       make: (m) => ({ op: 'gainLife', who: 'you', n: { ofLast: m[1].toLowerCase() } }) },
     { re: /^Its controller loses (one|two|three|four|five|\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'targetController', n: num(m[1]) }) },
+    // Nin, the Pain Artist: "That creature's controller draws X cards."
+    { re: /^(?:That creature'?s|Its) controller draws (X|one|two|three|\d+) cards\.?$/i,
+      make: (m) => ({ op: 'draw', who: 'targetController', n: num(m[1]) }) },
     // (Genesis Chamber: "a 1/1 colorless Myr artifact creature token" — an artifact, and a Myr)
     { re: /^Its controller creates (a|an|one|two|three|four|\d+) ([\dX*]+\/[\dX*]+) ((?:(?:white|blue|black|red|green|colorless)(?:,? and |, | ))*)(.+?)( artifact)? creature tokens?(?: with ([a-z, ]+))?\.?$/i,
       make: (m) => ({ op: 'createToken', who: 'targetController', n: num(m[1]), pt: m[2],
@@ -4863,13 +4875,17 @@
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library and put (?:that card|them) into your hand\.?$/i,
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
     // (Gandalf, Goblins' Bane — Flameshape: "Look at the top two cards of your library and exile them face down.")
-    { re: /^(?:Look at the top (a|one|two|three|\d+)? ?cards? of your library and exile (?:it|them)|Exile the top (a|one|two|three|\d+)? ?cards? of your library) face down\.?$/i,
+    // (Scarlet Witch, Chaotic Avenger: "look at the top two cards of your library, then exile them face down")
+    { re: /^(?:Look at the top (a|one|two|three|\d+)? ?cards? of your library(?: and|, then) exile (?:it|them)|Exile the top (a|one|two|three|\d+)? ?cards? of your library) face down\.?$/i,
       make: (m) => Object.assign({ op: 'impulse', n: (m[1] || m[2]) ? num(m[1] || m[2]) : 1, play: false, faceDown: true }, /^Look/i.test(m[0]) ? { look: true } : {}) },
     // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
     { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
     // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
     { re: /^For as long as (?:that card|it) remains exiled, its owner may play it\.?$/i,
       make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled', who: 'owner' }) },
+    // Durnan of the Yawning Portal: "For as long as that card remains exiled, you may cast it."
+    { re: /^For as long as (?:that card|it) remains exiled, you may (play|cast) it\.?$/i,
+      make: (m) => ({ op: 'mayPlayExiled', castOnly: /cast/i.test(m[1]), duration: 'exiled' }) },
     // Gandalf, Goblins' Bane (Flameshape): "For as long as they remain exiled, you may play them if you control a Wizard." (ifControl)
     { re: /^For as long as (?:they|it|those cards|that card) remains? exiled, you may play (?:them|it) if you control an? ([A-Z][a-z]+)\.?$/,
       make: (m) => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled', ifControl: m[1] }) },
@@ -8488,6 +8504,9 @@
     if (mi) { p = mi[1]; plus = -num(mi[2]); if (typeof plus !== 'number' || isNaN(plus)) return null; }
     // (a number taken away never goes below zero)
     const done = (v) => (v == null ? null : plus ? Object.assign({}, v, { plus }, plus < 0 ? { floorZero: true } : {}) : v);
+    // Loot, the Key to Everything: "the number of card types among other nonland permanents you control" (typesAmongScope)
+    { const ct = p.match(/^the number of card types among ((?:other )?(?:nonland )?permanents you control)$/i); const sc = ct && scopeOf(ct[1]);
+      if (sc) return done({ typesAmongScope: sc, mult: 1 }); }
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
@@ -10693,6 +10712,10 @@
         { op: 'grantKeyword', keywords: ['Haste'], scope: 'thatToken', duration: 'eot' },
         { op: 'delayed', event: 'yourEndStep', forPlayer: 'you', subject: 'lastTarget', name: 'Sacrifice it unless you pay ' + m[1],
           effects: [{ op: 'unlessPays', who: 'you', cost: m[1], then: [{ op: 'sacrificeThat' }] }] }] },
+    /* Wernog, Rider's Chaplain: "each opponent may investigate. Each opponent who doesn't loses 1 life. You investigate
+       X times, where X is one plus the number of opponents who investigated this way." (opponentsMayInvestigate) */
+    { re: /^Each opponent may investigate\. Each opponent who doesn'?t loses (\d+) life\. You investigate X times, where X is one plus the number of opponents who investigated this way\.?$/i,
+      make: (m) => [{ op: 'opponentsMayInvestigate', lose: +m[1] }] },
     /* Kotis, the Fangkeeper: "exile the top X cards of their library, where X is the amount of damage dealt. You may
        cast any number of spells with mana value X or less from among them without paying their mana costs." — the
        player it hit, X the damage (triggerAmount) */
@@ -12111,6 +12134,15 @@
           continue;
         }
       }
+      // Niv-Mizzet, Ghost Counsel: "you may pay that much life. If you do, draw that many cards." — as much as the trigger is about
+      if (may && ifDo && /^pay that much life$/i.test(may[1])) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        if (tp.auto && tp.effects.length) {
+          effects.push({ op: 'mayPay', pay: { life: { triggerAmount: true, mult: 1 } }, then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
       /* Gogo, Mysterious Mime: "you may have CARDNAME become a copy of … If you do, …" — what
          follows only once it has (gone before it resolves, it doesn't) */
       if (may && ifDo && /^have (?:CARDNAME|this creature) become a copy of /i.test(may[1])) {
@@ -12773,10 +12805,10 @@
         continue;
       }
       // Nashi, Moon Sage's Scion: life for the spell; Gonti, Night Minister: any mana for it — on the leave just given
-      if (e && (e.payLifeRider || e.anyManaRider)) {
+      if (e && (e.payLifeRider || e.anyManaRider || e.undauntedRider)) {
         const host = out.slice().reverse().find(x => x && (x.op === 'mayPlayExiled' || x.op === 'impulseLast'));
-        if (!host || host.free) { unrideable(); continue; }
-        if (e.payLifeRider) host.payLife = true; else host.anyMana = true;
+        if (!host || host.free || (e.undauntedRider && host.op !== 'mayPlayExiled')) { unrideable(); continue; }
+        if (e.payLifeRider) host.payLife = true; else if (e.undauntedRider) host.undaunted = true; else host.anyMana = true;
         continue;
       }
       // Lembas: "its owner shuffles it" is the card itself only when nothing was aimed at before it
@@ -14375,6 +14407,8 @@
       event: 'etb', self: true, also: 'attacks' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or dies(?:,| )/i,
       event: 'etb', self: true, also: 'dies' },
+    // Sygg, Wanderwine Wisdom: "Whenever this creature enters or transforms into Sygg, Wanderwine Wisdom"
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) enters or transforms into (?:CARDNAME|this creature),? /i, event: 'etb', self: true, also: 'transforms' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or is put into a graveyard from the battlefield(?:,| )/i,
       event: 'etb', self: true, also: 'dies' },
     // (Lich, Induced Amnesia: "When this enchantment is put into a graveyard from the battlefield")
@@ -14653,8 +14687,8 @@
     { re: /^Whenever you tap one or more untapped creatures your opponents control, /i, event: 'youTapOpponentCreature', extra: { batch: true } },
     // Captain Ripley Vance: "Whenever you cast your third spell each turn"
     { re: /^When(?:ever)? you cast your third spell each turn,? /i, event: 'youCastSpell', extra: { castNth: 3 } },
-    // Midnight Clock: "When the twelfth hour counter is put on this artifact"
-    { re: /^When the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) ([a-z]+) counter is put on (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME),? /i,
+    // Midnight Clock: "When the twelfth hour counter is put on this artifact"; Shang-Chi and the Ten Rings: "When the tenth +1/+1 counter is put on Shang-Chi"
+    { re: /^When the (second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) ([+\-0-9/a-z]+) counter is put on (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME),? /i,
       event: 'countersPut', self: true, extraOf: (m) => ({ counterKind: m[2].toLowerCase(),
         reachesN: { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12 }[m[1].toLowerCase()] }) },
     // Speedway Fanatic, Gearshift Ace: "Whenever this creature crews a Vehicle, that Vehicle gains haste until end of turn."
@@ -18382,7 +18416,10 @@
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamage' }) },
     { re: /^Prevent all combat damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' }) },
-    // the Phantoms: "If damage would be dealt to this creature, prevent that damage. Remove a +1/+1 counter from this creature."
+    // Masako the Humorless: "Tapped creatures you control can block as though they were untapped." (blockTapped)
+    { re: /^Tapped creatures you control can block as though they were untapped\.?$/i,
+      make: () => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'blockTapped' }) },
+    // the Phantoms:"If damage would be dealt to this creature, prevent that damage. Remove a +1/+1 counter from this creature."
     { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage\. Remove a \+1\/\+1 counter from (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'phantom' }) },
     // Crystal Barricade: "Prevent all noncombat damage that would be dealt to other creatures you control."

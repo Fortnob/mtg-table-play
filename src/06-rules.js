@@ -3307,7 +3307,7 @@
       for (const q of this.players) {
         for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c === o || c.impulseGroup !== o.impulseGroup) continue;
-          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null; c.impulseLess = null;
+          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null; c.impulseLess = null; c.impulseUndaunted = null;
           if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; }
         }
       }
@@ -3667,6 +3667,8 @@
       }
       // Urianger Augurelt: a card it lets you play from exile, "{2} less" (impulseLess)
       if (o.impulseLess && o.zone === 'exile' && o.impulseBy === pid && this._impulseOpen(o, pid)) d -= o.impulseLess;
+      // Durnan of the Yawning Portal: a card it lets you cast from exile has undaunted (impulseUndaunted)
+      if (o.impulseUndaunted === pid && o.zone === 'exile' && o.impulseBy === pid && this._impulseOpen(o, pid) && !(a.keywordSet && a.keywordSet.has('undaunted'))) d -= this.opponentsOf(pid).filter(q => !q.hasLost).length;
       for (const sc of (a.selfCost || [])) {
         let k = 0;
         if (sc.per) k = this._countValue(sc.per, pid, o);
@@ -3889,6 +3891,15 @@
           if (cs.length === 2) pairs.add(cs.slice().sort().join(''));
         }
         return pairs.size * mult;
+      }
+      // Loot, the Key to Everything: "the number of card types among other nonland permanents you control" (typesAmongScope)
+      if (v.typesAmongScope) {
+        const seen = new Set();
+        for (const x of this._scopeList(v.typesAmongScope, pid, src, null, inLayers)) {
+          const ch = this.characteristics(x) || {};
+          for (const t of ((x.analysis() || {}).types || []).concat(ch.addTypes || [], ch.isCreature ? ['Creature'] : [])) seen.add(String(t).toLowerCase().replace(/^tribal$/, 'kindred'));
+        }
+        return seen.size * mult;
       }
       // Sisay, Weatherlight Captain: "each color among other legendary permanents you control" (colorsAmongScope)
       if (v.colorsAmongScope) {
@@ -10969,7 +10980,8 @@
       if (!ba || !aa) return false;
       const bc = this.characteristics(blocker);
       if (blocker.zone !== 'battlefield' || !(bc && bc.isCreature)) return false;
-      if (blocker.tapped || blocker.phasedOut) return false;
+      // (Masako the Humorless: "Tapped creatures you control can block as though they were untapped." — blockTapped)
+      if ((blocker.tapped && !this._hasFlag(blocker, 'blockTapped')) || blocker.phasedOut) return false;
       if (ba.abilities.some(x => (x.effects || []).some(e => e.op === 'cantBlock'))) return false;
       if (this._hasFlag(blocker, 'cantBlock')) return false;
       // Void Winnower: "Your opponents can't block with creatures with even mana values."
@@ -14983,7 +14995,7 @@
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
-        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null;
+        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null; o.impulseUndaunted = null;
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null;
       }
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
@@ -17359,7 +17371,7 @@
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
-        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -21414,7 +21426,7 @@
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             // (Koskun Falls: "Tap one" / "Sacrifice it")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
-            prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} (X is ${lifeX}.)` : `${ctx.name || 'Effect'}: ${whole(e.text || 'pay the cost', 90)}`) }, 'q');
+            prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} ${/\bX\b/.test(e.text || 'X') ? `(X is ${lifeX}.)` : `(${lifeX} life.)`}` : `${ctx.name || 'Effect'}: ${whole(e.text || 'pay the cost', 90)}`) }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
           if (pay.energy && !this._doneHere('energyPaid')) {
@@ -22602,6 +22614,26 @@
           break;
         }
         case 'nextCreatureCounter': me.nextCreatureCounter = { turn: this.turn, n: (me.nextCreatureCounter && me.nextCreatureCounter.turn === this.turn ? me.nextCreatureCounter.n : 0) + (Number(e.n) || 1) }; break;
+        /* Wernog, Rider's Chaplain: "each opponent may investigate. Each opponent who doesn't loses 1 life. You
+           investigate X times, where X is one plus the number of opponents who investigated this way." — every
+           answer first, in turn order, then it happens */
+        case 'opponentsMayInvestigate': {
+          const opps = this.opponentsOf(ctx.controller);
+          const yes = [];
+          for (const q of opps) {
+            if (q.hasLost) continue;
+            const got = this._ask({ type: 'confirm', playerId: q.id, purpose: 'mayInvestigate',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}investigate? If you don't, you lose ${e.lose || 1} life.` }, 'mi:' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            if (got) yes.push(q);
+          }
+          for (const q of opps) {
+            if (yes.includes(q)) this._createNamedToken(q.id, { token: 'Clue', n: 1 });
+            else if (!q.hasLost) this.changeLife(q, -(e.lose || 1));
+          }
+          this._createNamedToken(ctx.controller, { token: 'Clue', n: 1 + yes.length });
+          break;
+        }
         // Kwain, Will of the Jeskai: each player may; every answer first, then it happens
         case 'eachMay': {
           const order = this.players.filter(q => !q.hasLost);
@@ -24863,6 +24895,8 @@
             if (e.affinity) c.impulseAffinity = e.affinity;
             // Urianger Augurelt: "Spells you cast this way cost {2} less to cast." (impulseLess)
             c.impulseLess = e.less || null;
+            // Durnan of the Yawning Portal: "That spell has undaunted." (impulseUndaunted)
+            c.impulseUndaunted = e.undaunted ? pid : null;
             // the player who may play a face-down card may look at it
             if (c.faceDownExile) c.lookableBy = pid;
             if (e.faceUpForThem) c.faceDownExile = false;
@@ -26752,6 +26786,8 @@
               : e.from === 'exiledCounter' ? this._freeFromExiledCounter(e, ctx)
               // Oskar, Rubbish Reclaimer: "you may cast it from your graveyard" — the card discarded, still there (triggerObj)
               : e.from === 'triggerObj' ? [(ctx.triggerData || {}).objectId].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
+              // Scarlet Witch, Chaotic Avenger: "from among cards exiled with Scarlet Witch" — this time's and before (exiledWith)
+              : e.from === 'exiledWith' ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             // Plargg and Nassari: "from among the other cards exiled this way" — not the one an opponent chose (exceptChosen)
             if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);
