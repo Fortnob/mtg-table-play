@@ -776,6 +776,13 @@
         onclick: (e) => { e.stopPropagation(); close(); opts.onActions(e); },
       }));
     }
+    // a token's picture, chosen among the printings that are that token (src/02e-tokenart.js)
+    if (opts.onArt) {
+      foot.appendChild(el('button', {
+        class: 'btn card-sheet-art', text: 'Choose art…',
+        onclick: (e) => { e.stopPropagation(); close(); opts.onArt(e); },
+      }));
+    }
     foot.appendChild(el('button', { class: 'btn primary card-sheet-close', text: 'Close' }));
     // with room, keywords to the card's left and tokens to its right; without, under it
     const sides = UI.cardSides(card, { keywords: opts.keywords });
@@ -954,6 +961,8 @@
    */
   UI.pickArt = async function (card, opts) {
     opts = opts || {};
+    // a token the game made from words: its picture is chosen among the printings that are that token
+    if (MTG.tokenArt && MTG.tokenArt.drawn(card)) return UI.pickTokenArt(card, opts);
     return new Promise(async (resolve) => {
       const grid = el('div', { class: 'art-grid' });
       const status = el('div', { class: 'small muted', text: 'Loading printings…' });
@@ -969,6 +978,8 @@
       let prints = [];
       try { prints = await MTG.scry.printings(card); }
       catch (e) { status.textContent = 'Could not load printings: ' + e.message; return; }
+      // a printed token: only the printings that are the same token, every word of it (src/02e-tokenart.js)
+      if (MTG.tokenArt && /token/.test(card.layout || '')) prints = prints.filter(p => MTG.tokenArt.options(card, [p]).how === 'exact' || p.id === card.id);
       if (!prints.length) { status.textContent = 'No printings found.'; return; }
 
       const current = (MTG.settings.artPreferences || {})[card.oracle_id] || card.id;
@@ -1052,6 +1063,66 @@
         }
       }
       render();
+    });
+  };
+
+  /**
+   * Choose the picture for a kind of token (src/02e-tokenart.js). What is offered is every printed token
+   * that is this token — name, size, colours, types and abilities — one per piece of art, and nothing else.
+   * Tokens are no one's to own, so none of it costs anything. The choice is kept on this device and shown
+   * for every such token on this player's table; resolves to the option chosen, or null.
+   */
+  UI.pickTokenArt = function (card, opts) {
+    opts = opts || {};
+    const TA = MTG.tokenArt, face = opts.face || 0;
+    const f = TA.facts(card, face);
+    return new Promise((resolve) => {
+      const grid = el('div', { class: 'art-grid token-art-grid' });
+      const status = el('div', { class: 'small muted', role: 'status', style: { marginBottom: '10px' }, text: 'Looking for printed tokens like this one…' });
+      const chosen = TA.chosen(card, face);
+      const done = (val) => { m._onClose = null; m.close(); resolve(val); };
+      const m = UI.modal({
+        title: 'Choose art — ' + f.name + ' token',
+        width: '980px',
+        className: 'token-art-pick',
+        content: el('div', null, [
+          el('p', { class: 'small', text: 'Only printed tokens that are exactly this one: ' + TA.describe(card, face) }),
+          status, grid,
+        ]),
+        buttons: [
+          chosen ? { label: 'Use the default', onClick: () => { TA.choose(card, face, null); MTG.sfx('click'); done(null); } } : null,
+          { label: 'Cancel', onClick: () => done(null) },
+        ].filter(Boolean),
+      });
+      m._onClose = () => resolve(null);
+      TA.lookup(card, face).then((r) => {
+        if (m._closed) return;
+        if (!r.list.length) {
+          status.textContent = 'No printed token is exactly this one, so it keeps its drawn card.';
+          return;
+        }
+        const current = chosen || TA.defaultUrl(card, face) || r.list[0].url;
+        status.textContent = `${r.list.length} printing${r.list.length === 1 ? '' : 's'}` +
+          (r.how === 'size' ? ' printed */*: no printing has its exact size, and these leave the size to what made it.' : '');
+        for (const p of r.list) {
+          const pick = () => { TA.choose(card, face, p); MTG.sfx('click'); done(p); };
+          const label = `${p.set_name || String(p.set).toUpperCase()} #${p.collector_number}${p.artist ? ', ' + p.artist : ''}`;
+          grid.appendChild(el('div', {
+            class: 'art-option' + (p.url === current ? ' chosen' : ''), role: 'button', tabindex: '0',
+            'aria-label': label + (p.url === current ? ' (shown now)' : ''), 'aria-pressed': p.url === current ? 'true' : 'false',
+            dataset: { id: p.id, face: String(p.face) },
+            onclick: pick, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } },
+          }, [
+            el('img', { src: p.url, loading: 'lazy', alt: p.name + ' token, ' + label }),
+            el('div', { class: 'cap' }, [
+              el('div', { text: `${String(p.set).toUpperCase()} · #${p.collector_number}` }),
+              el('div', { class: 'dim', text: p.artist || '' }),
+            ]),
+          ]));
+        }
+      }).catch(() => {
+        if (!m._closed) status.textContent = 'Could not reach Scryfall. The token keeps the picture it has.';
+      });
     });
   };
 

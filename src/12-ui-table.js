@@ -116,50 +116,13 @@
 
   /* ---------------- token art ----------------
      The engine makes tokens out of words — a 3/3 red Elemental, a Treasure —
-     and words have no picture. Scryfall has a printed token for nearly all of
-     them, so the first time one appears it is looked up by name, size and
-     colour, and the answer is kept for every game after. Until it arrives
-     (or if there is none) the token wears a frame of its own colours. */
-  const TOKEN_ART = { key: 'tokenArt.v1', map: null, pending: new Set(), listeners: new Set() };
-  function tokenKey(card) {
-    return [card.name, card.power || '', card.toughness || '', (card.colors || []).join('')].join('|');
-  }
-  function tokenArtUrl(card) {
-    if (!TOKEN_ART.map) TOKEN_ART.map = MTG.store.get(TOKEN_ART.key, {}) || {};
-    const k = tokenKey(card);
-    if (Object.prototype.hasOwnProperty.call(TOKEN_ART.map, k)) {
-      // a picture that cannot load (offline, most likely) leaves the token its frame
-      const url = TOKEN_ART.map[k];
-      return url && (!MTG.scry.imageUsable || MTG.scry.imageUsable(url, 'normal')) ? url : null;
-    }
-    if (!TOKEN_ART.pending.has(k) && MTG.scry && MTG.scry.search) fetchTokenArt(card, k);
-    return null;
-  }
-  // pictures that failed to load: whatever is on the table looks again, and writes those cards out
-  if (MTG.bus) MTG.bus.on('scryfall:images', () => { for (const fn of TOKEN_ART.listeners) fn(); });
-  async function fetchTokenArt(card, k) {
-    TOKEN_ART.pending.add(k);
-    const name = String(card.name || '').replace(/"/g, '');
-    const colours = (card.colors || []).join('').toLowerCase();
-    const tries = [];
-    if (card.power != null && card.power !== '') tries.push(`t:token !"${name}" pow=${card.power} tou=${card.toughness} c=${colours || 'c'}`);
-    tries.push(`t:token !"${name}"`);
-    try {
-      let url = '';
-      for (const q of tries) {
-        const found = await MTG.scry.search(q + ' -is:digital', { unique: 'art', max: 6 });
-        const pick = (found || []).find(c => c.image_uris && c.image_uris.normal && (c.layout === 'token' || !c.card_faces));
-        if (pick) { url = pick.image_uris.normal; break; }
-      }
-      TOKEN_ART.map[k] = url;
-      MTG.store.set(TOKEN_ART.key, TOKEN_ART.map);
-      for (const fn of TOKEN_ART.listeners) fn();
-    } catch (e) {
-      /* offline, or Scryfall said no: the frame will do, and it is asked again next game */
-    } finally {
-      TOKEN_ART.pending.delete(k);
-    }
-  }
+     and words have no picture. A printed token is shown only when it is that
+     token, every word of it: its name, size, colours, types and abilities
+     (src/02e-tokenart.js finds it, keeps it, and keeps the one a player
+     chose instead). Until it arrives, or when no printing is that token, the
+     token wears a frame of its own colours with its own words on it. */
+  const tokenArtUrl = (card, face) => (MTG.tokenArt ? MTG.tokenArt.url(card, face || 0) : null);
+  const tokenKey = (card, face) => (MTG.tokenArt ? MTG.tokenArt.key(card, face || 0) : String(card && card.name));
   const TOKEN_HUES = { W: ['#f4ecd2', '#b9a67a'], U: ['#5f9bd6', '#1f3f6b'], B: ['#6f6278', '#211a28'],
     R: ['#e2694d', '#6b1f14'], G: ['#5fae6c', '#1d4a27'], M: ['#e6c66a', '#7a5a1a'], C: ['#9ea7b5', '#3a404b'] };
   function tokenFrame(card) {
@@ -282,12 +245,15 @@
       document.body.appendChild(this.preview);
 
       this._wireInput();
-      // a token's picture arriving from Scryfall is a reason to repaint it
+      // a token's picture arriving from Scryfall, or another chosen for it, is a reason to repaint it
       this._onTokenArt = U.debounce(() => {
-        for (const n of this.els.values()) if (n._url && n._url.startsWith('token:')) n._url = null;
+        for (const [id, n] of this.els) {
+          const o = n._url && this.view ? this.objIn(id) : null;
+          if (n._url && (n._url.startsWith('token:') || (o && MTG.tokenArt && MTG.tokenArt.drawn(o.card)))) n._url = null;
+        }
         if (this.view && !this._destroyed) this.render();
       }, 250);
-      TOKEN_ART.listeners.add(this._onTokenArt);
+      if (MTG.tokenArt) MTG.tokenArt.onChange(this._onTokenArt);
       this._keys();
     }
 
@@ -388,7 +354,7 @@
       cancelAnimationFrame(this._arrowRaf);
       clearTimeout(this._captionTimer);
       this._destroyed = true;
-      TOKEN_ART.listeners.delete(this._onTokenArt);
+      if (MTG.tokenArt) MTG.tokenArt.offChange(this._onTokenArt);
       this.queue.length = 0;
       if (this.preview) this.preview.remove();
       this.closePopover();
@@ -691,7 +657,7 @@
       const face = n.firstChild.firstChild;
       const isToken = !hidden && (o.card._isToken || o.card.layout === 'token');
       const url = hidden ? 'back' : (MTG.scry.imageUrl(o.card, 'normal', o.face || 0) ||
-        (isToken ? (tokenArtUrl(o.card) || 'token:' + tokenKey(o.card)) : ('text:' + o.card.name)));
+        (isToken ? (tokenArtUrl(o.card, o.face) || 'token:' + tokenKey(o.card, o.face)) : ('text:' + o.card.name)));
       if (n._url !== url) {
         const wasBack = n._url === 'back';
         n._url = url;
@@ -3711,12 +3677,18 @@
       })();
       if (!o || !o.card || o.hidden) return;
       this.hidePreview();
-      if (MTG.isPhone()) return UI.cardSheet(o.card, { keywords: o.keywords, onActions: opts.actions ? (ev) => this.cardMenu(id, ev) : null });
+      if (MTG.isPhone()) {
+        // a token the game drew from words: shown in its picture, and that picture can be changed from here
+        const tok = MTG.tokenArt && MTG.tokenArt.drawn(o.card), art = tok ? tokenArtUrl(o.card, o.face) : null;
+        return UI.cardSheet(art ? Object.assign({}, o.card, { image_uris: { normal: art } }) : o.card, { keywords: o.keywords,
+          onActions: opts.actions ? (ev) => this.cardMenu(id, ev) : null, onArt: tok ? () => UI.pickTokenArt(o.card, { face: o.face || 0 }) : null });
+      }
       const card = o.card;
       const faces = card.card_faces && card.card_faces.length > 1 && card.card_faces[0].image_uris ? card.card_faces.length : 1;
       const imgs = el('div', { class: 'cardview-imgs' });
       for (let i = 0; i < faces; i++) {
-        const url = MTG.scry.imageUrl(card, UI.bigSize(Math.min(U.viewH() * 0.78, 560) * 63 / 88), faces > 1 ? i : (o.face || 0));
+        const url = MTG.scry.imageUrl(card, UI.bigSize(Math.min(U.viewH() * 0.78, 560) * 63 / 88), faces > 1 ? i : (o.face || 0)) ||
+          (MTG.tokenArt && MTG.tokenArt.drawn(card) ? tokenArtUrl(card, o.face) : null);
         imgs.appendChild(url ? el('img', { src: url, alt: card.name }) : UI.cardFallback(card, i));
       }
       const notes = this.cardNotes(o);
@@ -3831,6 +3803,8 @@
         }
       }
       items.push(['Look at this card', () => this.showCard(o.id)]);
+      // a token's picture is this player's to choose, among the printings that are that token (src/02e-tokenart.js)
+      if (MTG.tokenArt && MTG.tokenArt.drawn(o.card)) items.push(['Choose art…', () => UI.pickTokenArt(o.card, { face: o.face || 0 })]);
       if (mine) {
         const manual = this.manualItems(o, loc.zone);
         if (manual.length) items.push('-', ['By hand ▸', (ev) => UI.contextMenu(ev || e, manual, { title: 'Move or mark by hand' })]);

@@ -13,6 +13,7 @@ const { load } = require('./engine');
 
 let MTG = null;
 let CARDS = null;
+let TOKENS = null;
 /* CONTRACTS=1: every view and every question at every test table is
    checked against tools/contracts.js, and contractReport() says what broke. */
 const CONTRACTS = process.env.CONTRACTS ? require('./contracts') : null;
@@ -22,11 +23,13 @@ const watched = [];
 function cards() {
   if (CARDS) return CARDS;
   CARDS = new Map();
+  TOKENS = [];
   const raw = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'oracle-cards.jsonl.gz'))).toString('utf8');
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue;
     const c = JSON.parse(line);
     if (c.layout === 'art_series') continue;
+    if (c.layout === 'token' || c.layout === 'double_faced_token') TOKENS.push(c);
     const key = c.name.toLowerCase();
     // the real card wins over a token or a joke printing of the same name
     const prev = CARDS.get(key);
@@ -40,6 +43,12 @@ function cards() {
     }
   }
   return CARDS;
+}
+
+/** Every printed token in the bulk file (one printing of each), as Scryfall has them. */
+function tokens() {
+  cards();
+  return TOKENS;
 }
 
 function engine() {
@@ -291,4 +300,4 @@ function contractReport() {
   return { violations: all.filter(v => !v.known), known: all.filter(v => v.known), format: CONTRACTS.format };
 }
 
-module.exports = { Table, card, cards, engine, contractReport };
+module.exports = { Table, card, cards, tokens, engine, contractReport };
