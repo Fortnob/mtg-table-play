@@ -1125,7 +1125,8 @@
       steps.cost = (via === 'fuse' && faces && faces[1] ? (faces[0].mana_cost || '') + (faces[1].mana_cost || '')
         : face != null && faces && faces[face] ? faces[face].mana_cost
         : o.card.mana_cost || (faces && faces[o.face || 0] && faces[o.face || 0].mana_cost)) || '';
-      const hasX = /\{X\}/.test(steps.cost);
+      // (Toxic Deluge, Fire Covenant: "As an additional cost to cast this spell, pay X life" — X asked as {X} is)
+      const hasX = /\{X\}/.test(steps.cost) || ((a && a.additionalCost) || {}).life === 'X';
       // a modal spell: its modes, once the extra costs say whether it is kicked or entwined, before X and the targets
       // (the offer is the face that is up: another half, the engine asks about itself)
       const modal = via === 'fuse' || (face != null && face !== (o.face || 0)) ? null : (live.castModes || {})[o.id] || null;
@@ -1533,18 +1534,22 @@
         (() => { const a = this.analysis(o); return a && a.manaAbilities && a.manaAbilities.length; })()).length;
       const pool = me && me.pool ? ['W', 'U', 'B', 'R', 'G', 'C'].reduce((s, c) => s + (me.pool[c] || 0), 0) : 0;
       const xs = ((steps.cost || '').match(/\{X\}/g) || []).length || 1;
-      const most = Math.max(0, Math.floor((sources + pool - fixed) / xs));
-      steps.x = most;
+      /* X paid in life, not mana (Toxic Deluge, Fire Covenant): up to all of it, though the most offered leaves you
+         alive; nothing is the default, since every point is life */
+      const inLife = !/\{X\}/.test(steps.cost || '') && ((steps.a && steps.a.additionalCost) || {}).life === 'X';
+      const life = Math.max(0, (me && me.life) || 0);
+      const most = inLife ? Math.max(0, life - 1) : Math.max(0, Math.floor((sources + pool - fixed) / xs));
+      steps.x = inLife ? 0 : most;
       this.asking = { key: 'x:' + steps.o.id, build: () => {
         const val = el('div', { class: 'x-val', text: String(steps.x) });
-        const set = (n) => { steps.x = U.clamp(n, 0, 99); val.textContent = String(steps.x); };
+        const set = (n) => { steps.x = U.clamp(n, 0, inLife ? life : 99); val.textContent = String(steps.x); };
         const body = el('div', { class: 'x-pick' }, [
           el('button', { type: 'button', class: 'btn', text: '−', onclick: () => set(steps.x - 1) }),
           val,
           el('button', { type: 'button', class: 'btn', text: '+', onclick: () => set(steps.x + 1) }),
           el('button', { type: 'button', class: 'btn xs ghost', text: `max (${most})`, onclick: () => set(most) }),
         ]);
-        return this.panel(`Choose X for ${escapeHtml(steps.o.card.name)}`, `You can afford up to ${most}.`, body, [
+        return this.panel(`Choose X for ${escapeHtml(steps.o.card.name)}`, inLife ? `You pay X life. You have ${life} life.` : `You can afford up to ${most}.`, body, [
           { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
           { label: 'Cast', cls: 'primary', fn: () => { this.asking = null; next(); } },
         ], { card: steps.o.card });

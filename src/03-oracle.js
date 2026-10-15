@@ -1735,6 +1735,9 @@
     // Carnelian Orb of Dragonkind: "…on a Dragon creature spell, it gains haste until end of turn"; Hall of the Bandit Lord: "it gains haste" for good
     { re: /^If that mana is spent on a (Dragon )?creature spell, it gains haste( until end of turn)?\.?$/i,
       make: (m) => ({ op: 'spendOnly', rider: (m[1] ? 'hasteDragon' : 'hasteCreature') + (m[2] ? '' : 'Lasting'), open: true }) },
+    // Boseiju, Who Shelters All: "If that mana is spent on an instant or sorcery spell, that spell can't be countered." (uncounterableSpell)
+    { re: /^If that mana is spent on an? (instant or sorcery|creature|noncreature) spell, that spell can'?t be countered\.?$/i,
+      make: (m) => ({ op: 'spendOnly', rider: 'uncounterable:' + m[1].toLowerCase(), open: true }) },
     /* Opal Palace: "If you spend this mana to cast your commander, it enters with a number of additional +1/+1 counters
        on it equal to the number of times it's been cast from the command zone this game." (opalCommander) */
     { re: /^If you spend this mana to cast your commander, it enters with a number of additional \+1\/\+1 counters on it equal to the number of times it'?s been cast from the command zone this game\.?$/i,
@@ -8743,6 +8746,12 @@
     { re: /^Until end of turn, CARDNAME becomes an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )*[A-Z][a-z]+) creature(?: with ([a-z]+(?:(?:, | and )[a-z]+)*))? that'?s still a planeswalker\.?$/,
       make: (m) => ({ op: 'animate', pt: m[1] + '/' + m[2], colorWords: [], subtypes: m[3], addTypes: [],
         keywords: m[4] ? m[4].split(/, | and /).map(x => U.titleCase(x.trim())) : [], duration: 'eot' }) },
+    /* Spectacular Showdown: "Put a double strike counter on target creature, then goad each creature that had a double
+       strike counter put on it this way." (overloaded: "each creature") — only those the counter went on (putGroup, lastGroup) */
+    { re: /^Put an? ([a-z ]+?) counter on (target creature|each creature), then goad each creature that had an? \1 counter put on it this way\.?$/i,
+      make: (m) => [Object.assign({ op: 'counters', kind: m[1].toLowerCase(), n: 1, putGroup: true },
+        /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])], scope: 'eachTarget' } : { scope: { who: 'all', what: 'creature' } }),
+      { op: 'goad', scope: 'lastGroup' }] },
     // Kros, Defense Contractor: "Whenever you put one or more counters on a creature you don't control, tap that creature and goad it." (triggerObject)
     { re: /^Tap that creature and goad it\.?$/i, make: () => [{ op: 'tap', scope: 'triggerObject' }, { op: 'goad', scope: 'triggerObject' }] },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
@@ -11800,6 +11809,17 @@
     { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
       make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
         { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
+    /* Semester's End: "Exile any number of target creatures and/or planeswalkers you control. At the beginning of the
+       next end step, return each of them to the battlefield under its owner's control. Each of them enters with an
+       additional +1/+1 counter on it if it's a creature and an additional loyalty counter on it if it's a
+       planeswalker." (enterExtraCounter: counterIfCreature, loyaltyIfPw) */
+    { re: /^(Exile any number of target [a-z\/ ]+? you control)\. At the beginning of the next end step, return each of them to the battlefield under its owner'?s control\. Each of them enters with an additional \+1\/\+1 counter on it if it'?s a creature and an additional loyalty counter on it if it'?s a planeswalker\.$/i,
+      make: (m) => {
+        const ex = parseSentenceList(splitSentences(m[1] + '.'));
+        if (!ex.auto || ex.effects.length !== 1 || ex.effects[0].op !== 'exile') return null;
+        return [ex.effects[0], { op: 'delayed', event: 'eachEndStep', subject: 'exiledNow', name: 'Return them at end of turn',
+          effects: [{ op: 'returnThat', counterIfCreature: '+1/+1', loyaltyIfPw: true }] }];
+      } },
     /* Hazel of the Rootbloom: "create a token that's a copy of target token you control. If that token is a Squirrel,
        instead create two tokens that are copies of it." (twiceIfType) */
     { re: /^[Cc]reate a token that'?s a copy of target token you control\. If that token is an? ([A-Z][a-z]+), instead create two tokens that are copies of it\.$/,
@@ -17685,6 +17705,9 @@
     { re: /^Whenever an opponent gains life,? /i, event: 'opponentGainsLife' },
     // Pain Distributor: "Whenever a player casts their first spell each turn"
     { re: /^When(?:ever)? a player casts their first spell each turn(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true } },
+    // Zenith Chronicler: "Whenever a player casts their first multicolored spell each turn" (firstOfKindCaster)
+    { re: /^When(?:ever)? a player casts their first (multicolored|monocolored|colorless|creature|noncreature|instant or sorcery|instant|sorcery|artifact|enchantment) spell each turn,? /i,
+      event: 'anyCastSpell', extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindCaster: true }) },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or attacks(?:,| )/i,
       event: 'etb', self: true, also: 'attacks' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or dies(?:,| )/i,
@@ -19447,6 +19470,9 @@
         // Namor the Sub-Mariner: "create that many" — the spell's symbols of that colour (triggerSpellSymbols)
         { const ab0 = out.abilities[out.abilities.length - 1];
           if (ab0.symbolSpell) for (const e of ab0.effects || []) if (e && e.n === 'triggerAmount') e.n = { triggerSpellSymbols: ab0.symbolSpell }; }
+        // Zenith Chronicler: "a player casts …, each other player draws a card" — everyone but the caster (othersThanTrigger)
+        { const ab0 = out.abilities[out.abilities.length - 1];
+          if (ab0.event === 'anyCastSpell') for (const e of ab0.effects || []) if (e && e.op === 'draw' && e.who === 'opponents' && /^each other player\b/i.test(e.text || '')) e.who = 'othersThanTrigger'; }
         if (parsed.auto) autoLines++;
         continue;
       }
@@ -20073,7 +20099,8 @@
         walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, deep || !castMode(e)); } };
       walk(ab.effects, false);
       // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)
-      const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || '')) ||
+      // (Fire Covenant: "As an additional cost to cast this spell, pay X life" — X chosen as it is cast, as {X} is)
+      const xPaid = (ab.kind === 'spell' && (/\{X\}/.test(out.manaCost || '') || (out.additionalCost || {}).life === 'X')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || '')) ||
         // (Shigeki, Jukai Visionary: a channel cost with {X} in it, X chosen as it is channeled — channelX)
         (ab.kind === 'castModifier' && ab.keyword === 'Channel' && !!out.channel && /\{X\}/.test(out.channel.cost || '')) ||
         // (Orcus, Prince of Undeath: "When Orcus enters, …" — the X paid for it, which the permanent remembers)

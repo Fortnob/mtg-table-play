@@ -7409,6 +7409,9 @@
         else if (decides) opts.additionalChoice = this._easiestChoice(playerId, add.choice, ok);
         else return ask('additionalChoice', `${o.name}: which additional cost will you pay?`, ok.map(i => add.choice[i].label), ok);
       }
+      // Fire Covenant, Toxic Deluge: "pay X life" — no more than you have (CR 119.4)
+      if (add && !add.optional && !add.choice && add.life === 'X' && !opts.skipAdditional &&
+          this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, opts)) return this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, opts);
       /* "As an additional cost to cast this spell, you may blight 1": paid or
          not, decided before anything is paid */
       // (the table's toggle said pay it: it has to be payable)
@@ -9601,6 +9604,8 @@
       if (o._enterExtraCounter) {
         const ec = o._enterExtraCounter; o._enterExtraCounter = null;
         if (!ec.ifCreature || (this.characteristics(o) || a).isCreature) this.addCounters(o, ec.kind, ec.n || 1);
+        // Semester's End: "and an additional loyalty counter on it if it's a planeswalker" (loyaltyIfPw)
+        if (ec.loyaltyIfPw && this._cardFitsWords(o, 'planeswalker')) this.addCounters(o, 'loyalty', 1);
       }
       /* "…enters tapped unless you control two or fewer other lands", and the
          Karoo-style "unless you control a Swamp". These are decided as the
@@ -12499,6 +12504,11 @@
           name: rider.text || 'Mana rider', effects: rider.effects, auto: true, abilityText: rider.text || '',
           // (the spell it paid for — Tecutlan's "that spell's mana value", Primal Wellspring's "copy that spell")
           triggerData: { event: 'manaSpent', stackId: item.id, objectId: so.id, playerId } }));
+        return;
+      }
+      // Boseiju, Who Shelters All: "If that mana is spent on an instant or sorcery spell, that spell can't be countered."
+      if (typeof rider === 'string' && rider.startsWith('uncounterable:')) {
+        if (item.obj && this._cardFitsWords(item.obj, rider.slice(14) + ' spell')) item.uncounterable = true;
         return;
       }
       // Arena of Glory: a creature spell paid with it arrives with haste
@@ -19328,6 +19338,8 @@
           if (ab.fromExileEnter && !(data.object && data.object.enteredFrom === 'exile')) continue;
           // Pain Distributor: the caster's first spell this turn
           if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
+          // Zenith Chronicler: "their first multicolored spell each turn" — none of that kind earlier from that player (firstOfKindCaster)
+          if (ab.firstOfKindCaster && ((this.player(data.playerId) || {}).spellObjsThisTurn || []).some(x => x !== data.object && this._cardFitsWords(x, ab.spellFilter || 'spell'))) continue;
           // Flourishing Defenses: only that kind of counter
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           /* Valgavoth, Harrower of Souls: the first life that player has lost
@@ -22101,6 +22113,8 @@
           // Cait, Cage Brawler: "you and defending player each draw a card" (youAndDefending)
           else if (e.who === 'youAndDefending') for (const p of [me, this._defenderOf(src) || triggerPlayer()]) { if (p && !p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
+          // Zenith Chronicler: "each other player draws a card" — all but the player who cast it (othersThanTrigger)
+          else if (e.who === 'othersThanTrigger') { const tp = triggerPlayer(); for (const p of this.players) { if (!p.hasLost && p !== tp) this._drawCards(p, cnt); } }
           // Baleful Mastery: "an opponent draws a card" — the caster picks which
           else if (e.who === 'anOpponent') {
             const foes = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
@@ -22533,6 +22547,8 @@
           // lands counted are not "those")
           const group0 = e.scope === 'lastGroup' ? this._lastGroup : null;
           const cnt = n(e.n);
+          // Spectacular Showdown: "each creature that had a double strike counter put on it this way" (putGroup: lastGroup after)
+          const putBefore = e.putGroup ? new Map(this.battlefield.map(o => [o.id, Number(o.counters[e.kind]) || 0])) : null;
           if (group0) this._lastGroup = group0;
           // (Riku of Many Paths: "Put a +1/+1 counter on Riku. It gains trample" — "it" is the one the counter went on)
           if (e.scope === 'self' && src) { this.addCounters(src, e.kind, cnt); this._noteLastAffected([{ kind: 'object', id: src.id }]); }
@@ -22587,6 +22603,7 @@
           }
           // (modular: counters a modular triggered ability puts — Zabaz, the Glimmerwasp)
           else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.addCounters(o, e.kind, cnt, e.modular ? { modular: true } : undefined); } }
+          if (putBefore) this._lastGroup = this.battlefield.filter(o => (Number(o.counters[e.kind]) || 0) > (putBefore.get(o.id) || 0)).map(o => o.id);
           break;
         }
         case 'destroy':
@@ -29284,7 +29301,7 @@
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           // (Teferi's Time Twist: the counter it enters with — enterExtraCounter)
-          if (x && e.counterIfCreature) x._enterExtraCounter = { kind: e.counterIfCreature, n: 1, ifCreature: true };
+          if (x && e.counterIfCreature) x._enterExtraCounter = Object.assign({ kind: e.counterIfCreature, n: 1, ifCreature: true }, e.loyaltyIfPw ? { loyaltyIfPw: true } : {});
           // Nine-Lives Familiar: "with one fewer revival counter on it" — than it had as it died (fewerCounter)
           if (x && e.fewerCounter && x.zone !== 'battlefield') {
             const k = (Number((x._diedCounters || {})[e.fewerCounter]) || 0) - 1;

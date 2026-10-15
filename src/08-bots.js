@@ -4187,6 +4187,48 @@
       return best.length ? best : [list[0]];
     }
 
+    /**
+     * X paid in life (Toxic Deluge, Fire Covenant, Hatred): no more than half our life, and never the last few.
+     * "X damage divided among any number of target creatures": the creatures it can kill, best first, X what
+     * that takes. "-X/-X" to all: the X that kills the most of theirs for the least of ours. Otherwise all of it.
+     * Null when nothing is worth paying for.
+     */
+    _lifeX(choice) {
+      const g = this.game;
+      const me = g.player(this.pid);
+      const spare = Math.max(0, Math.min((me.life || 0) - 6, Math.floor((me.life || 0) / 2)));
+      if (spare <= 0) return null;
+      const effs = g._cardSpellEffects(choice.a);
+      const flat = [];
+      const walk = (l) => { for (const e of l || []) { if (!e) continue; flat.push(e); walk(e.list); walk(e.then); } };
+      walk(effs);
+      const mt = g._multiOf(choice.a);
+      if (mt && mt.spec.multi.count === 'X') {
+        const all = this.chooseTargets(choice.o, choice.a, { multiN: 30 }) || [];
+        const fixed = all.slice(0, mt.fixed);
+        let x = 0;
+        const picks = [];
+        for (const t of all.slice(mt.fixed)) {
+          const o = t.kind === 'object' && g.obj(t.id);
+          if (!o || o.controller === this.pid || g.hasKw(o, 'indestructible')) continue;
+          const need = Math.max(1, g.toughnessOf(o) - (o.damage || 0));
+          if (x + need > spare) continue;
+          x += need; picks.push(t);
+        }
+        return x > 0 ? { x, targets: fixed.concat(picks) } : null;
+      }
+      if (flat.some(e => e.op === 'pump' && e.t && e.t.negX)) {
+        const foes = g.battlefield.filter(o => (g.characteristics(o) || {}).isCreature);
+        let best = null;
+        for (let x = 1; x <= spare; x++) {
+          const v = foes.reduce((s, o) => s + (g.toughnessOf(o) <= x ? (o.controller === this.pid ? -1 : 1) * Math.max(0.5, this.permanentValue(o)) : 0), 0);
+          if (v > 0 && (!best || v > best.v)) best = { x, v };
+        }
+        return best ? { x: best.x } : null;
+      }
+      return { x: spare };
+    }
+
     /** Cast one option: targets, extra costs, X. Returns true if it went on the stack. */
     castChoice(choice, mana) {
       const g = this.game;
@@ -4273,6 +4315,14 @@
           if (mt.spec.multi.exact) opts.x = Math.min(opts.x, got);
           opts.targets = all.slice(0, mt.fixed + opts.x);
         }
+      }
+      /* Toxic Deluge, Hatred, Fire Covenant: "As an additional cost to cast this spell, pay X life" — X from the life
+         that can be spared, as much as the spell has use for */
+      else if ((choice.a.additionalCost || {}).life === 'X' && !(choice.a.additionalCost || {}).optional) {
+        const got = this._lifeX(choice);
+        if (!got) return false;
+        opts.x = got.x;
+        if (got.targets) opts.targets = got.targets;
       }
       /* Jilt, Mind Spiral, Return to Dust: the targets the kick, the gift or the phase bring in,
          picked now that those are settled */
