@@ -129,7 +129,15 @@
     analysis() {
       // face down, it is a 2/2 with no text — and that is what it is to
       // every rule that asks (CR 708.2)
-      const base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand, this.cloaked) : O.analyze(this.textCard, this.face);
+      let base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand, this.cloaked) : O.analyze(this.textCard, this.face);
+      // Clara Oswald: "If Clara Oswald is your commander, … Clara Oswald is the chosen color." — in every zone
+      if (base && this.isCommander && this.chosenColor && base.keywordSet && base.keywordSet.has('impossible girl')) {
+        if (this._igBase !== base || this._igColor !== this.chosenColor) {
+          this._igBase = base; this._igColor = this.chosenColor;
+          this._igAnalysis = Object.assign({}, base, { colors: [this.chosenColor] });
+        }
+        base = this._igAnalysis;
+      }
       /* On the battlefield a permanent can be more than its printed text:
          an ability handed to it in quotation marks, a god that is not a
          creature while your devotion is short, a land Blood Moon has made a
@@ -853,8 +861,30 @@
       this.emit('mulligan:end');
       /* A Leyline in an opening hand may start the game on the battlefield
          (CR 103.6). Everyone is asked before the first turn begins. */
-      if (this._offerLeylines()) { this._awaitingLeylines = true; return; }
+      // (Clara Oswald: "choose a color before the game begins" — asked with the Leylines)
+      const colorsAsked = this._offerPregameColors();
+      if (this._offerLeylines() || colorsAsked) { this._awaitingLeylines = true; return; }
       this._nextTurn();
+    }
+
+    /** Clara Oswald: "If Clara Oswald is your commander, choose a color before the game begins." — a bot's own pick, a person asked. */
+    _offerPregameColors() {
+      let asked = false;
+      for (const pid of this.turnOrder) {
+        const p = this.player(pid);
+        for (const o of ((this.zones[pid] || {}).command || [])) {
+          const a = o && o.isCommander && O.analyze(o.card, o.face);
+          if (!a || !(a.abilities || []).some(ab => (ab.effects || []).some(e => e && e.op === 'impossibleGirl'))) continue;
+          o.chosenColor = this._preferredColor(p);
+          if (!p || p.isBot) { this.logEvent('rules', `${p ? p.name : 'A player'} chooses ${o.chosenColor} for ${o.name}.`); continue; }
+          const COLS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green']];
+          this.queueChoice({ type: 'mode', playerId: pid, count: 1, purpose: 'chooseColor', objId: o.id,
+            colors: COLS.map(c => c[0]), options: COLS.map((c, i) => ({ i, label: c[1] })),
+            prompt: `${o.name}: choose a colour before the game begins. ${o.name} is the chosen colour.` });
+          asked = true;
+        }
+      }
+      return asked;
     }
 
     /** Ask each player about any Leyline they are holding. */
@@ -2547,6 +2577,11 @@
           if (o.zone === 'exile' && item.featherPlot) {
             o.plottedTurn = this.turn;
             this.logEvent('rules', `${item.name} is exiled and becomes plotted.`);
+          } else if (o.zone === 'exile' && item.featherSuspend) {
+            // Gandalf of the Secret Fire: "with three time counters on it … it gains suspend"
+            o.counters.time = item.featherSuspend;
+            o.suspendedBy = o.owner;
+            this.logEvent('rules', `${item.name} is exiled with ${item.featherSuspend} time counters, suspended.`);
           } else if (o.zone === 'exile') {
             this.logEvent('rules', `${item.name} is exiled; it returns to its owner's hand at the next end step.`);
             this.scheduleDelayed({ event: 'eachEndStep', controller: item.featherBy, objId: o.id, sameTurnOk: true,
@@ -15902,6 +15937,8 @@
         o._toGraveDiscarded = null;
         // Garna, the Bloodflame: "cards in your graveyard that were put there from anywhere this turn" (toGraveThisTurn)
         o._toGraveTurn = toZone === 'graveyard' ? this.turn : null;
+        // Storrev, Devkarin Lich: "that wasn't put there this combat" — which combat of which turn (_toGraveCombat)
+        o._toGraveCombat = toZone === 'graveyard' && this.phase && this.phase.id === 'combat' ? this.turn + ':' + (this.combatsThisTurn || 1) : null;
         // The Master, Transcendent: "that was milled this turn" — marked as it is milled (_noteMilled), a new object forgets
         o._milledTurn = null; o.damageToCountersTurn = null;
         // (Araumi of the Dead Tide: encore granted to the card that was there)
@@ -23345,7 +23382,15 @@
           }
           if (pay.life != null && !pay.mana) {
             if ((me.life <= pay.life && this.config.rulesEnforcement === 'full') || (pay.life > 0 && this._lifeFrozen(me))) { this._spliceNext(e.otherwise); break; }
+            // (Kinzu of the Bleak Coven: "pay 2 life and exile it" — the card that died, still in the graveyard)
+            const c1 = pay.exileTriggerCard ? this.obj((ctx.triggerData || {}).objectId) : null;
+            if (pay.exileTriggerCard && (!c1 || c1.zone !== 'graveyard' || c1.isToken)) { this._spliceNext(e.otherwise); break; }
             this.changeLife(me, -pay.life, 'cost');
+            if (c1) {
+              this.moveObject(c1, 'exile');
+              this._lastExiled = c1.id;
+              this.logEvent('exile', `${c1.name} is exiled.`);
+            }
             this._spliceNext(e.then);
             break;
           }
@@ -25071,7 +25116,11 @@
         case 'featherSpell': {
           const sid = (ctx.triggerData || {}).stackId;
           const it = sid && this.stack.find(x => x.id === sid);
-          if (it && it.kind === 'spell' && !it.isCopy) { it.featherBy = ctx.controller; if (e.plot) it.featherPlot = true; }
+          if (it && it.kind === 'spell' && !it.isCopy) {
+            it.featherBy = ctx.controller; if (e.plot) it.featherPlot = true;
+            // (Gandalf of the Secret Fire: "with three time counters on it", suspended — featherSuspend)
+            if (e.suspend) it.featherSuspend = n(e.suspend);
+          }
           break;
         }
         /* Akroma, Vision of Ixidor: each other creature you control, +1/+1 until end of turn for each of the
@@ -25927,6 +25976,49 @@
           break;
         }
         // Goblin Guide: the defending player shows their top card, and keeps it if it is a land
+        /* Gandalf, Westward Voyager: "each opponent reveals the top card of their library. If any of those cards shares a
+           card type with that spell, …. Otherwise, …" — the spell as it last was, if it has left the stack */
+        /* Malik, Grim Manipulator: "you and target opponent each secretly choose a creature that player controls. Then
+           those choices are revealed, and that player sacrifices those creatures." — yours asked first, kept from them;
+           one creature, if both chose the same (secretChooseSac) */
+        case 'secretChooseSac': {
+          const tp = firstPlayer();
+          if (!tp || tp.hasLost) break;
+          const pool = this.battlefield.filter(o => o.controller === tp.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+          if (!pool.length) break;
+          const nm = ctx.name || (src && src.name) || 'Effect';
+          const mine = this._choose({ playerId: ctx.controller, purpose: 'secretChooseOpp', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 1, max: 1,
+            prompt: `${nm}: secretly choose a creature ${tp.name} controls. ${tp.name} chooses one too; they sacrifice both.` }, 'scA');
+          if (mine === SUSPEND) return SUSPEND;
+          const theirs = this._choose({ playerId: tp.id, purpose: 'secretChooseOwn', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 1, max: 1,
+            prompt: `${nm}: secretly choose a creature you control. ${me.name} has chosen one too; you sacrifice both.` }, 'scB');
+          if (theirs === SUSPEND) return SUSPEND;
+          const pick = (got) => pool.find(o => o.id === (((got && got.picks) || [])[0])) || null;
+          const a = pick(mine) || pool[0], b = pick(theirs) || pool[0];
+          this.logEvent('reveal', `${me.name} chose ${a.name}; ${tp.name} chose ${b.name}.`);
+          this._sacrificeNow(tp.id, a === b ? [a] : [a, b]);
+          break;
+        }
+        case 'oppTopsShareSpellType': {
+          const td = ctx.triggerData || {};
+          const it = td.stackId ? this.stack.find(st => st.id === td.stackId) : null;
+          const sp = (it && it.obj) || (td.objectId && this.obj(td.objectId)) || null;
+          const kinds = this._cardTypesOf(sp);
+          let any = false;
+          for (const q of this.opponentsOf(ctx.controller)) {
+            if (q.hasLost) continue;
+            const top = this.zones[q.id].library[0];
+            if (!top) continue;
+            this._know(top, '*');
+            this.logEvent('reveal', `${q.name} reveals ${top.name}.`);
+            if (this._cardTypesOf(top).some(k => kinds.includes(k))) any = true;
+          }
+          if (any) this._spliceNext(e.then || []);
+          else this._spliceNext(e.otherwise || []);
+          break;
+        }
         case 'revealTopIf': {
           const p = e.who === 'defending' ? (this._defenderOf(src) || triggerPlayer()) : me;
           const top = p && this.zones[p.id].library[0];
@@ -35253,6 +35345,12 @@
         const s0 = this.obj(sourceId);
         const host = s0 && s0.attachedTo;
         return this._legalTargetsFor(Object.assign({}, spec, { notAttached: false }), controllerId, sourceId).filter(t => t.id !== host);
+      }
+      // Storrev, Devkarin Lich: "that wasn't put there this combat" (notThisCombat)
+      if (spec.notThisCombat) {
+        const now = this.phase && this.phase.id === 'combat' ? this.turn + ':' + (this.combatsThisTurn || 1) : null;
+        return this._legalTargetsFor(Object.assign({}, spec, { notThisCombat: false }), controllerId, sourceId)
+          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && (!now || x._toGraveCombat !== now); });
       }
       // Ground Seal: cards in graveyards can't be targeted
       if ((spec.zone === 'graveyard') && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'graveyardUntargetable'))) return [];

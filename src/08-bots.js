@@ -1800,6 +1800,17 @@
     },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
+    // Malik, Grim Manipulator: their best creature, secretly; and of ours, the least
+    secretChooseOpp(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
+      return os.length ? { picks: [os[0].id] } : null;
+    },
+    secretChooseOwn(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(a) - this.rating(b));
+      return os.length ? { picks: [os[0].id] } : null;
+    },
     // Pia Nalaar, Chief Mechanic: all the energy, for the biggest Aetherjet
     payEnergyAmount(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Gilgamesh, Master-at-Arms: the best of the Equipment it put there, always worth wearing */

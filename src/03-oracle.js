@@ -799,6 +799,9 @@
         if (c[5]) (e.addText = e.addText || []).push(c[5][0].toUpperCase() + c[5].slice(1));
       }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
+      // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1" — that size, and the keyword with its number
+      else if ((c = ex.match(/^it'?s (\d+)\/(\d+)(?=,? and |$)/))) e.setPt = c[1] + '/' + c[2];
+      else if ((c = ex.match(/^(?:it )?has (toxic|afflict|bushido|rampage|annihilator) (\d+)(?=,? and |$)/i))) (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1).toLowerCase() + ' ' + c[2]);
       // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — those types and no others (setTypeLine)
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (legendary )?((?:[A-Z][a-z]+ )+)creature(?! in addition)/))) {
         e.setTypeLine = (c[1] ? 'Legendary ' : '') + 'Creature \u2014 ' + c[2].trim();
@@ -3065,9 +3068,20 @@
        copy of it, then you draw a card if an opponent created a token this way" (tokenCopyForPlayer) */
     { re: /^Have target player other than its controller create a token that'?s a copy of it, then you draw a card if an opponent created a token this way\.?$/i,
       make: () => ({ op: 'tokenCopyForPlayer', drawIfOpponent: true, targets: [{ type: 'player', notTriggerObjController: true }] }) },
+    /* Storrev, Devkarin Lich: "return to your hand target creature or planeswalker card in your graveyard that wasn't put
+       there this combat" (notThisCombat) */
+    { re: /^return to your hand (target [a-z ]+? card) in your graveyard that wasn'?t put there this combat\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1], 'graveyard'); return sp && !sp.unknown ? { op: 'regrowth', targets: [Object.assign(sp, { zone: 'graveyard', controller: 'you', notThisCombat: true })] } : null; } },
     /* "Create a token that's a copy of that creature": the one the trigger is about */
     { re: /^Create a token that'?s a copy of (?:it|that creature|that artifact|that permanent)\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [] }) },
+    /* Kinzu of the Bleak Coven: "(you may pay 2 life and exile it. If you do,) create a token that's a copy of that
+       creature, except it's 1/1 and has toxic 1." — the card exiled by the price (ifExiled) */
+    { re: /^Create a token that'?s a copy of that creature, except (it'?s \d+\/\d+ and has [a-z]+ \d+)\.?$/i,
+      make: (m) => {
+        const e = { op: 'copyPermanent', n: 1, scope: 'lastTarget', ifExiled: true, grant: [] };
+        return copyExceptions(m[1], e) && !e.keepOwn && !e.keepThis && !e.keepName ? e : null;
+      } },
     /* "You get an emblem with 'Creatures you control get +2/+2 and have
        flying.'" — one or more abilities in quotation marks */
     { re: /^You get an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
@@ -10024,6 +10038,10 @@
        enters tapped." — the leave to play it, a land or a spell, entering tapped if played by it (mayPlayFromGraveyard) */
     { re: /^You may play (target [a-z ]+? card) from your graveyard this turn\. If you do, it enters tapped\.?$/i,
       make: (m) => { const spec = targetSpec(m[1], 'graveyard'); return spec && !spec.unknown ? [{ op: 'mayPlayFromGraveyard', tapped: true, targets: [Object.assign(spec, { zone: 'graveyard', controller: 'you' })] }] : null; } },
+    /* Malik, Grim Manipulator: "you and target opponent each secretly choose a creature that player controls. Then those
+       choices are revealed, and that player sacrifices those creatures." (secretChooseSac) */
+    { re: /^you and target opponent each secretly choose a creature that player controls\. Then those choices are revealed, and that player sacrifices those creatures\.?$/i,
+      make: () => [{ op: 'secretChooseSac', targets: [{ type: 'player', opponent: true }] }] },
     /* Obzedat, Ghost Council: "you may exile Obzedat. If you do, return it to the battlefield under its owner's control
        at the beginning of your next upkeep. It gains haste." — back only if it is still that card in exile (whileExiled) */
     { re: /^You may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield under (?:its|his|her) owner'?s control at the beginning of your next upkeep\. (?:It|He|She) gains haste\.?$/i,
@@ -10271,6 +10289,12 @@
        from a library this turn. Put that card into its owner's hand." (discardedOrLibThisTurn) */
     { re: /^Choose up to one target card in a graveyard that was discarded or put there from a library this turn\. Put that card into its owner'?s hand\.?$/i,
       make: () => [{ op: 'regrowth', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard', upTo: true, discardedOrLibThisTurn: true }] }] },
+    /* Gandalf, Westward Voyager: "each opponent reveals the top card of their library. If any of those cards shares a
+       card type with that spell, copy that spell, you may choose new targets for the copy, and each opponent draws a
+       card. Otherwise, you draw a card." (oppTopsShareSpellType) */
+    { re: /^each opponent reveals the top card of their library\. If any of those cards shares a card type with that spell, copy that spell, you may choose new targets for the copy, and each opponent draws a card\. Otherwise, you draw a card\.?$/i,
+      make: () => [{ op: 'oppTopsShareSpellType', then: [{ op: 'copyThatSpell' }, { op: 'draw', n: 1, who: 'opponents' }],
+        otherwise: [{ op: 'draw', n: 1, who: 'you' }] }] },
     /* Goblin Guide: "defending player reveals the top card of their library.
        If it's a land card, that player puts it into their hand." */
     { re: /^Defending player reveals the top card of their library\. If it'?s an? ([a-z]+) card, that player puts it into their hand\.?$/i,
@@ -10509,6 +10533,10 @@
        return it to your hand at the beginning of the next end step." — a mark on the spell (featherSpell) */
     { re: /^Exile that card instead of putting it into your graveyard as it resolves\. If you do, return it to your hand at the beginning of the next end step\.$/i,
       make: () => [{ op: 'featherSpell' }] },
+    /* Gandalf of the Secret Fire: "exile that card with three time counters on it instead of putting it into your
+       graveyard as it resolves. Then if the exiled card doesn't have suspend, it gains suspend." (featherSpell suspend) */
+    { re: /^Exile that card with (two|three|four|five) time counters on it instead of putting it into your graveyard as it resolves\. Then if the exiled card doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'featherSpell', suspend: num(m[1]) }] },
     /* Balin, Loremaster: "you may discard your hand. Draw X cards, where X is the number of cards discarded this way. If
        you have an enduring story, Balin deals X damage to each opponent." — X the cards this discarded (discardedThisRes);
        an empty hand is not asked about */
@@ -11893,6 +11921,8 @@
   const COST_PHRASES = [
     // Timothar, Baron of Bats: "you may pay {1} and exile it. If you do, …" — the card that died, in the price (exileTriggerCard)
     { re: /^pay ((?:\{[0-9WUBRGC]\})+) and exile it$/i, make: (m) => ({ mana: m[1], exileTriggerCard: true }) },
+    // (Kinzu of the Bleak Coven: "you may pay 2 life and exile it. If you do, …")
+    { re: /^pay (\d+) life and exile it$/i, make: (m) => ({ life: +m[1], exileTriggerCard: true }) },
     { re: /^discard (a|one|two|three|\d+) ([a-z ]*?)cards?$/i,
       make: (m) => ({ discard: num(m[1]), filter: (m[2] || '').trim() || 'card' }) },
     { re: /^sacrifice (a|an|one|two|three|\d+) ([-a-z ]+?)$/i,
@@ -21436,6 +21466,10 @@
         make: (m) => ({ op: 'drawExilesInstead', n: /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1, faceDown: !!m[2], play: !!m[3] }), auto: true },
       // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
+      /* Clara Oswald: "Impossible Girl — If Clara Oswald is your commander, choose a color before the game begins. Clara
+         Oswald is the chosen color." — asked as the game begins (impossibleGirl) */
+      { re: /^If CARDNAME is your commander, choose a colou?r before the game begins\. CARDNAME is the chosen colou?r\.?$/i,
+        eff: { op: 'impossibleGirl' }, auto: true },
       { re: /^If you would draw a card while your library has no cards in it, you win the game instead\.?$/i,
         eff: { op: 'winOnEmptyDraw' }, auto: true },
       // Ormos, Archive Keeper: "If you would draw a card while your library has no cards in it, instead put five +1/+1 counters on Ormos."
