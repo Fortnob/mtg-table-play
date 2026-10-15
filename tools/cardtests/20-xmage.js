@@ -57040,4 +57040,46 @@ module.exports = (test) => {
     t.zone(sw, 'graveyard', 'blocks: the Swamp sacrificed');
     t.zone(br, 'battlefield', 'Bebop & Rocksteady stay');
   });
+
+  test('Commanders: Thelon of Havenwood — Fungus creatures get +1/+1 per spore counter; {B}{G}, exile a Fungus card from a graveyard: spores all round', (mk, t) => {
+    t.auto('Thelon of Havenwood');
+    const T = mk();
+    const g = T.g;
+    const th = T.bf('A', 'Thelon of Havenwood');
+    const t1 = T.bf('A', 'Thallid'), t2 = T.bf('B', 'Thallid');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'BG');
+    t.no(g.activateAbility('A', th.id, 0, { auto: true }), 'no Fungus card in any graveyard: no');
+    const germ = T.grave('B', 'Thallid Germinator');
+    T.activate('A', th, 0);
+    t.zone(germ, 'exile', 'a Fungus card from the opponent\'s graveyard');
+    t.eq(t1.counters.spore, 1, 'a spore counter on yours');
+    t.eq(t2.counters.spore, 1, 'and on theirs');
+    t.no(bear.counters.spore, 'not on the Bears');
+    t.eq(g.powerOf(t1) + '/' + g.toughnessOf(t1), '2/2', 'a Thallid with one spore counter is 2/2');
+    t.eq(g.powerOf(t2), 2, 'theirs too');
+    t2.counters.spore = 3; g.bumpBoard();
+    t.eq(g.powerOf(t2), 4, 'three spores: 4 power');
+    t.eq(g.powerOf(bear), 2, 'the Bears are no Fungus');
+  });
+
+  test('Commanders: Sarevok, Deathbringer — each end step, if no permanent left the battlefield this turn, that player loses life equal to its power', (mk, t) => {
+    t.auto('Sarevok, Deathbringer');
+    const T = mk();
+    const g = T.g;
+    const sv = T.bf('A', 'Sarevok, Deathbringer');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('A'), 17, 'your quiet end step: you lose 3');
+    t.eq(T.life('B'), 20, 'not the other player');
+    T.nextTurn('B');
+    const bear = T.bf('B', 'Grizzly Bears');
+    g.moveObject(bear, 'graveyard'); T.settle(); T.resolve();
+    T.toMain('B', 'end'); T.resolve();
+    t.eq(T.life('B'), 20, 'a permanent left this turn: nothing');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    sv.counters['+1/+1'] = 2; g.bumpBoard();
+    T.toMain('B', 'end'); T.resolve();
+    t.eq(T.life('B'), 15, 'their quiet end step: they lose 5 (its power now)');
+  });
 };

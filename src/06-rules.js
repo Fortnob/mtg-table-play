@@ -9502,6 +9502,9 @@
         // Osgir, the Reconstructor: which card with mana value X (mvX: the table shows those of the X paid)
         if (c.exile && c.exile.what === 'graveyard' && c.exile.mvX) out.push({ kind: 'exileGraveyard', label: `Exile ${this._aCard(c.exile.filter, 'card')} with mana value X from your graveyard`,
           key: 'exileIds', need: 1, mvX: true, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
+        // Thelon of Havenwood: which card, from any graveyard (anyGraveyard)
+        if (c.exile && c.exile.what === 'graveyard' && c.exile.anyGraveyard) out.push({ kind: 'exileGraveyard', label: `Exile ${this._aCard(c.exile.filter, 'card')} from a graveyard`,
+          key: 'exileIds', need: 1, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
         if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
         // Captain America, First Avenger: which Equipment comes off him, when there is more than one
@@ -9815,7 +9818,10 @@
     _distinctNames(list) { return new Set((list || []).map(c => c.name)).size; }
     /** The cards in a graveyard an exile cost could take. */
     _exileCostPool(pid, spec, self) {
-      const yard = ((this.zones[pid] || {}).graveyard || []).filter(c => !self || c.id !== self.id);
+      // Thelon of Havenwood: "from a graveyard" — anyone's, the others' first (anyGraveyard)
+      const yard = (spec && spec.anyGraveyard ? this.players.filter(q => q.id !== pid).concat(this.players.filter(q => q.id === pid))
+        .reduce((all, q) => all.concat(((this.zones[q.id] || {}).graveyard || [])), []) : ((this.zones[pid] || {}).graveyard || []))
+        .filter(c => !self || c.id !== self.id);
       const f = String((spec && spec.filter) || 'card');
       return /^(?:card|cards)$/i.test(f) ? yard : yard.filter(c => this._cardFitsWords(c, f));
     }
@@ -9911,7 +9917,8 @@
         const need = this._costCount(cost.exile.n, opts, pid);
         // Osgir, the Reconstructor: "with mana value X" — the X paid, once it is known (mvX)
         const pool = this._exileCostPool(pid, cost.exile, self).filter(c => !cost.exile.mvX || !opts || opts.x == null || ((c.card && c.card.cmc) || 0) === opts.x);
-        if (pool.length < need) return cost.exile.mvX ? `No ${cost.exile.filter} card with mana value ${opts && opts.x != null ? opts.x : 'X'} in your graveyard.` : 'Not enough cards in your graveyard.';
+        if (pool.length < need) return cost.exile.mvX ? `No ${cost.exile.filter} card with mana value ${opts && opts.x != null ? opts.x : 'X'} in your graveyard.`
+          : cost.exile.anyGraveyard ? `No ${this._aCard(cost.exile.filter, 'card').replace(/^an? /, '')} in a graveyard.` : 'Not enough cards in your graveyard.';
       }
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
@@ -10543,8 +10550,10 @@
           if (!top) return this.fail('Your library is empty.');
           this.moveObject(top, 'exile');
         } else {
-          let yard = ((this.zones[playerId] || {}).graveyard || [])
+          let yard = ex.anyGraveyard ? this._exileCostPool(playerId, ex, o) : ((this.zones[playerId] || {}).graveyard || [])
             .filter(c => c.id !== o.id && (ex.filter === 'card' || this._matchesFilter(c, ex.filter)));
+          // Thelon of Havenwood: the card the player named, from any graveyard (anyGraveyard)
+          if (ex.anyGraveyard) { const named = ((opts && opts.exileIds) || []).map(id => yard.find(c => c.id === id)).filter(Boolean); yard = named.concat(yard.filter(c => !named.includes(c))); }
           // Osgir, the Reconstructor: "with mana value X" — the X paid; the card the player named first (mvX)
           if (ex.mvX) {
             yard = yard.filter(c => ((c.card && c.card.cmc) || 0) === ((opts && opts.x) || 0));
@@ -10558,7 +10567,8 @@
           if (yard.length < want) return this.fail(`Not enough ${ex.filter === 'card' ? 'cards' : ex.filter + ' cards'}${ex.mvX ? ' with mana value ' + ((opts && opts.x) || 0) : ''} in your graveyard.`);
           this._costExiledNow = yard.slice(0, want).map(c => c.id);
           for (const c of yard.slice(0, want)) this.moveObject(c, 'exile');
-          this.logEvent('rules', `${this.player(playerId).name} exiles ${want} card${want === 1 ? '' : 's'} from their graveyard.`);
+          this.logEvent('rules', ex.anyGraveyard ? `${this.player(playerId).name} exiles ${yard.slice(0, want).map(c => c.name).join(', ')} from a graveyard.`
+            : `${this.player(playerId).name} exiles ${want} card${want === 1 ? '' : 's'} from their graveyard.`);
         }
       }
 
@@ -14805,6 +14815,8 @@
         case 'morbid': return (h.creaturesDied || 0) > 0;
         case 'morbidOtherName': return (h.diedNames || []).some(nm => !src || U.normName(nm) !== U.normName(src.name));
         case 'revolt': return (h.permanentsLeft || 0) > 0;
+        // Sarevok, Deathbringer: "if no permanents left the battlefield this turn"
+        case 'noPermanentsLeft': return !(h.permanentsLeft || 0);
         // Ennis, Debate Moderator: "if one or more cards were put into exile this turn"
         case 'cardsExiledThisTurn': return (h.cardsExiled || 0) > 0;
         // void: a nonland permanent left the battlefield, or a spell was cast for its warp cost, this turn

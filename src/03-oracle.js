@@ -379,6 +379,8 @@
         else if ((m = what.match(/^(?:a|an) ([a-z]+) card with mana value X from your graveyard$/i)))
           ex = { what: 'graveyard', n: 1, filter: m[1].toLowerCase(), mvX: true };
         else if (/^the top card of your library$/i.test(what)) ex = { what: 'libraryTop', n: 1 };
+        // Thelon of Havenwood: "Exile a Fungus card from a graveyard" — anyone's (anyGraveyard)
+        else if ((m = what.match(/^(?:a|an) ([A-Za-z]+) card from a graveyard$/i))) ex = { what: 'graveyard', n: 1, filter: m[1].toLowerCase(), anyGraveyard: true };
         if (ex) { cost.exile = ex; continue; }
         // Jhoira of the Ghitu: "Exile a nonland card from your hand" — the player's pick (exileHand)
         const fh = what.match(/^(?:a|an) ([-a-z ]*?)\s*card from your hand$/i);
@@ -5198,6 +5200,9 @@
     // (Tomik, Wielder of Law: "that opponent loses 3 life" — the one attacking)
     { re: /^(?:They|That player|That opponent) loses? (one|two|three|four|five|\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }) },
+    // Sarevok, Deathbringer: "that player loses X life, where X is Sarevok's power"
+    { re: /^(?:They|That player|That opponent) loses? (?:X life, where X is|life equal to) (CARDNAME'?s power|this creature'?s power)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'triggerPlayer', n: k } : null; } },
     // Font of Mythos: "that player draws two additional cards"
     { re: /^(?:They|That player) draws? (two|three|\d+) additional cards\.?$/i,
       make: (m) => ({ op: 'draw', who: 'triggerPlayer', n: num(m[1]) }) },
@@ -5313,6 +5318,9 @@
     { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each of up to (two|three|four|\d+) target ([a-z ]+?)s\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].trim(), n: num(m[1]),
         targets: Array.from({ length: num(m[3]) }, () => Object.assign(targetSpec(m[4]), { upTo: true })) }) },
+    // Thelon of Havenwood: "Put a spore counter on each Fungus on the battlefield." — everyone's
+    { re: /^Put an? ([a-z]+) counter on each ([A-Z][a-z]+) on the battlefield\.?$/,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: { who: 'all', what: 'permanent', subtype: m[2].toLowerCase() } }) },
     // Lagorin, Soul of Alacria: "put a +1/+1 counter on each of up to two target Mounts and/or Vehicles"
     { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d) counters? on each of up to (two|three|four|\d+) target ([A-Z][a-z]+)s and\/or ([A-Z][a-z]+)s\.?$/,
       make: (m) => { const sp = targetSpec(`target ${m[4]} or ${m[5]}`); return sp && !sp.unknown ? { op: 'counters', kind: m[2], n: num(m[1]),
@@ -14564,6 +14572,8 @@
     // Ebondeath, Dracolich: "a creature not named Ebondeath, Dracolich died this turn" — its own name (morbidOtherName)
     [/^a creature not named CARDNAME died this turn$/i, () => ({ kind: 'morbidOtherName' })],
     [/^a permanent you controlled left the battlefield this turn$/i, () => ({ kind: 'revolt' })],
+    // Sarevok, Deathbringer: "if no permanents left the battlefield this turn" — anybody's (noPermanentsLeft)
+    [/^no permanents left the battlefield this turn$/i, () => ({ kind: 'noPermanentsLeft' })],
     // void (Alpharael, Stonechosen): "a nonland permanent left the battlefield this turn or a spell was warped this turn"
     [/^a nonland permanent left the battlefield this turn or a spell was warped this turn$/i, () => ({ kind: 'void' })],
     [/^you attacked (?:with a creature )?this turn$/i, () => ({ kind: 'raid' })],
@@ -21734,6 +21744,10 @@
           if (!kws.length || !kws.every(kwKnown)) return null;
           return { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', subtypeOrToken: m[1].toLowerCase() }, pt: { p: +m[2], t: +m[3] }, grant: kws };
         }, auto: true },
+      // Thelon of Havenwood: "Each Fungus creature gets +1/+1 for each spore counter on it." — everyone's, its own counters (countersOnIt)
+      { re: /^Each ([A-Z][a-z]+) creature gets \+1\/\+1 for each ([a-z]+) counter on it\.?$/,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'all', what: 'creature', subtype: m[1].toLowerCase() },
+          pt: { p: { countersOnIt: m[2].toLowerCase(), mult: 1 }, t: { countersOnIt: m[2].toLowerCase(), mult: 1 } } }), auto: true },
       // Toxrill, the Corrosive: "Creatures you don't control get -1/-1 for each slime counter on them."
       { re: /^Creatures you don'?t control get -1\/-1 for each ([a-z]+) counter on them\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'opponents', what: 'creature' },
