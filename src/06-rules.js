@@ -2784,6 +2784,9 @@
     /** What a clone entering could copy ("any creature", "an artifact or creature you control"). */
     _clonePool(src, e, controller) {
       const what = e.what && e.what !== 'creature' ? e.what : 'creature';
+      // The Fourteenth Doctor: "a Doctor card in your graveyard that was put there from your library this turn" (gyFromLibThisTurn)
+      if (e.gyFromLibThisTurn) return ((this.zones[controller] || {}).graveyard || [])
+        .filter(o => o !== src && o._toGraveFromLib === this.turn && this._cardFitsWords(o, what + ' card'));
       // Superior Spider-Man: "any creature card in a graveyard" (fromGraveyard)
       if (e.fromGraveyard) return this.players.filter(q => !q.hasLost).flatMap(q => (this.zones[q.id] || {}).graveyard || [])
         .filter(o => o !== src && (o.analysis() || {}).isCreature);
@@ -15539,6 +15542,13 @@
         this.logEvent('damage', `${o.name} loses a shield counter instead of being dealt ${amount} damage.`);
         return 0;
       }
+      /* Wolverine, Fierce Fighter: "instead that damage is dealt, but all other damage already dealt to him is healed" —
+         combat damage dealt at once heals only what was there before it (damageHealsOther) */
+      if (a && a.isCreature && this._staticOp(o, 'damageHealsOther')) {
+        const healKey = isCombat ? this.turn + ':' + this.step : null;
+        if (!healKey || o._healKey !== healKey) { o.damage = 0; o.dealtDeathtouch = false; }
+        o._healKey = healKey;
+      }
       // excess damage (CR 120.4a): whatever was more than it took to be lethal
       const excess = Math.max(0, amount - this._lethalLeft(o, source));
       if (excess > 0) {
@@ -23584,7 +23594,9 @@
             let capX = 0;
             // (Mortarion, Daemon Primarch: "X can't be greater than the amount of life you lost this turn" — xCap)
             const mostX = ((triggerAbility().effects || []).filter(x => x && x.op === 'xCap').map(x => Math.max(0, n(x.n) || 0)).concat([60])).reduce((a, b) => Math.min(a, b));
-            for (let k = 1; k <= mostX && this.couldPay(ctx.controller, '{' + k + '}' + restCost, srcsX); k++) capX = k;
+            // Hawkeye, Master Marksman: "pay {1} up to three times" (maxX)
+            const capAt = e.maxX != null ? Math.min(e.maxX, mostX) : mostX;
+            for (let k = 1; k <= capAt && this.couldPay(ctx.controller, '{' + k + '}' + restCost, srcsX); k++) capX = k;
             if (!capX) { this._spliceNext(e.otherwise); break; }
             const gotX = this._choose({ playerId: ctx.controller, purpose: 'mayPayX', kind: 'number', number: { min: 0, max: capX },
               prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay {X}').replace(/^./, c => c.toUpperCase()), 110)} Choose X (0 pays nothing).` }, 'q');
@@ -26780,7 +26792,9 @@
             effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN }))
               : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
-              sacN ? { amount: sacN } : {}) });
+              sacN ? { amount: sacN } : {},
+              // Hawkeye, Master Marksman: "choose up to that many" — the times paid (amountX)
+              e.amountX ? { amount: Number(ctx.x) || 0 } : {}) });
           break;
         }
         case 'delayed': {
@@ -27288,11 +27302,13 @@
           const under = [];
           for (const o of top) {
             const keep = /\s/.test(f) ? this._cardFitsWords(o, f) : this._matchesFilter(o, f);
-            if (keep) this.moveObject(o, 'hand');
-            // Goblin Ringleader: "the rest on the bottom of your library in any order"
-            else if (e.rest === 'bottom') under.push(o);
+            // (The Fourteenth Doctor: "Put all Doctor cards revealed this way into your graveyard" — keep graveyard)
+            if (keep) this.moveObject(o, e.keep === 'graveyard' ? 'graveyard' : 'hand');
+            // Goblin Ringleader: "the rest on the bottom of your library in any order" (the Doctor's: in a random order)
+            else if (e.rest === 'bottom' || e.rest === 'bottomRandom') under.push(o);
             else this.moveObject(o, 'graveyard');
           }
+          if (e.rest === 'bottomRandom') this.rng.shuffle(under);
           for (const o of under) { this._removeFromZone(o); o.zone = 'library'; lib.push(o); }
           this._looked = [];
           break;
@@ -30954,6 +30970,11 @@
         }
         case 'exileMadeEoc': {
           for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.exileAtEndOfCombat = true; }
+          break;
+        }
+        // Dorothea's Retribution: "Sacrifice that token at end of combat." (sacMadeEoc)
+        case 'sacMadeEoc': {
+          for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.sacAtEndOfCombat = true; }
           break;
         }
         // Reconfigure: off whatever it was attached to

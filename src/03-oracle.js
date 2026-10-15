@@ -2602,6 +2602,8 @@
         effects: [{ op: 'destroyThat' }] }) },
     // Geist of Saint Traft: "Exile that token at end of combat."
     { re: /^Exile (?:that token|it|them|those tokens) at end of combat\.?$/i, make: () => ({ op: 'exileMadeEoc' }) },
+    // Dorothea's Retribution: "Sacrifice that token at end of combat." (sacMadeEoc)
+    { re: /^Sacrifice (?:that token|those tokens) at end of combat\.?$/i, make: () => ({ op: 'sacMadeEoc' }) },
     // Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." (exileMadeWhenSelfLeaves)
     { re: /^Exile (?:that token|those tokens) when (?:CARDNAME|this creature) leaves the battlefield\.?$/i, make: () => ({ op: 'exileMadeWhenSelfLeaves' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
@@ -5533,6 +5535,9 @@
     { re: /^This spell can'?t be countered\.?$/i, make: () => ({ op: 'cantBeCountered' }) },
     /* Goblin Ringleader, Garruk, Caller of Beasts: "… and the rest on the bottom of your library in any order";
        Lair Delve: "creature and land cards" — either kind */
+    // The Fourteenth Doctor: "Put all Doctor cards revealed this way into your graveyard and the rest on the bottom of your library in a random order."
+    { re: /^Put all ([A-Z][a-z]+) cards revealed this way into your graveyard and the rest on the bottom of your library in a random order\.?$/,
+      make: (m) => ({ op: 'sortRevealed', filter: m[1], keep: 'graveyard', rest: 'bottomRandom' }) },
     { re: /^Put all ([a-z ]+?) cards revealed this way into your hand and the rest (into your graveyard|on the bottom of your library in any order)\.?$/i,
       make: (m) => (/chosen/i.test(m[1]) ? null : { op: 'sortRevealed', filter: m[1].trim().toLowerCase().replace(/ and /g, ' or '), keep: 'hand',
         rest: /graveyard/i.test(m[2]) ? 'graveyard' : 'bottom' }) },
@@ -8723,6 +8728,14 @@
         if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
         return { op: 'sequence', list: [a, b] };
       } },
+    /* Rith, the Awakener: "choose a color, then create a 1/1 green Saproling creature token for each permanent of that
+       color" — a colour chosen, then the same as "of the chosen color" */
+    { re: /^Choose a colou?r, then (.+?) of that colou?r(.*)$/i,
+      make: (m) => {
+        const inner = parseEffectSentence(U.titleCase(m[1].charAt(0)) + m[1].slice(1) + ' of the chosen color' + m[2]);
+        if (!inner || inner.op === 'manual' || hasManualStep(inner)) return null;
+        return { op: 'sequence', list: [{ op: 'chooseColor' }].concat(inner.op === 'sequence' ? inner.list : [inner]) };
+      } },
     /* Wash Out: "Return all permanents of the color of your choice to their
        owners' hands." — a colour chosen, then the same as "of the chosen color" */
     { re: /^(.*\ball (?:nonland )?(?:permanents|creatures|artifacts|enchantments)) of the colou?r of your choice(.*)$/i,
@@ -10188,6 +10201,10 @@
     { re: /^Look at target player'?s hand\. You may choose an? (nonland )?card from it\. If you do, that player reveals the chosen card, puts it on the bottom of their library, then draws a card\.?$/i,
       make: (m) => [{ op: 'revealHand', look: true, targets: [{ type: 'player' }] },
         { op: 'chooseFromHand', filter: m[1] ? 'nonland' : 'any', optional: true }, { op: 'chosenToBottomDraw' }] },
+    /* The Fourteenth Doctor: "You may have The Fourteenth Doctor enter as a copy of a Doctor card in your graveyard that was
+       put there from your library this turn. If you do, it gains haste until end of turn." (gyFromLibThisTurn) */
+    { re: /^You may have CARDNAME enter as a copy of an? ([A-Z][a-z]+) card in your graveyard that was put there from your library this turn\. If you do, it gains haste until end of turn\.?$/,
+      make: (m) => [{ op: 'etbAsCopy', what: m[1], gyFromLibThisTurn: true, haste: true }] },
     /* Superior Spider-Man: "You may have Superior Spider-Man enter as a copy of any creature card in a graveyard, except
        his name is Superior Spider-Man and he's a 4/4 Spider Human Hero in addition to his other types. When you do,
        exile that card." — a card in any graveyard (fromGraveyard), exiled by a reflexive trigger (exileCopied) */
@@ -10374,6 +10391,16 @@
         const tp = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
         if (!tp.auto || !tp.effects.length) return null;
         return [{ op: 'removeExiledCounter', kind: m[1].toLowerCase(), owner: 'triggerPlayer', then: tp.effects }];
+      } },
+    /* Hawkeye, Master Marksman: "you may pay {1} up to three times. When you do, choose up to that many — …" — how many
+       times one question ({X}, at most three: maxX); the modes a reflexive trigger's, as many as were paid for (amountX) */
+    { re: /^you may pay \{1\} up to (two|three|four|five) times\. When you do, choose up to that many\s*[-—]\s*([\s\S]+)$/i,
+      make: (m) => {
+        const md = parseModal('Choose one — ' + m[2]);
+        if (!md || !md.auto) return null;
+        Object.assign(md.effects[md.effects.length - 1], { count: 'triggerAmount', min: 0, upToX: true });
+        return [{ op: 'mayPay', pay: { mana: '{X}' }, maxX: num(m[1].toLowerCase()), text: 'you may pay {1} up to ' + m[1] + ' times.',
+          then: [{ op: 'reflexive', amountX: true, effects: md.effects, text: 'When you do, choose up to that many.' }] }];
       } },
     /* Hylda of the Icy Crown: "you may pay {1}. When you do, choose one — …" — the payment the only question until it
        is made; the mode after it */
@@ -21105,6 +21132,9 @@
       // Rakdos, Lord of Riots: "You can't cast CARDNAME unless an opponent lost life this turn." (castUnless)
       { re: /^You can'?t cast (?:CARDNAME|this spell) unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'noop', castWindow: { cond: c } } : null; }, auto: true },
+      // Wolverine, Fierce Fighter: "If damage would be dealt to Wolverine, instead that damage is dealt, but all other damage already dealt to him is healed." (damageHealsOther)
+      { re: /^If damage would be dealt to CARDNAME, instead that damage is dealt, but all other damage already dealt to (?:him|her|it|them) is healed\.?$/i,
+        eff: { op: 'damageHealsOther' }, auto: true },
       // Khârn the Betrayer: "If damage would be dealt to CARDNAME, prevent that damage and an opponent of your choice gains control of it."
       { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage and an opponent of your choice gains control of (?:it|him|her)\.?$/i,
         eff: { op: 'damageGivesControl' }, auto: true },
