@@ -8688,7 +8688,8 @@
           this._sacrificeNow(o.controller, eaten, { controller: o.controller, obj: o });
           o.devoured = eaten.length;
           // (Mycoloth with Hardened Scales: the counters it enters with are put on it, CR 122.6)
-          this.addCounters(o, '+1/+1', a.devour * eaten.length);
+          // (Thromok the Insatiable: "Devour X, where X is the number of creatures devoured this way" — X for each)
+          this.addCounters(o, '+1/+1', (a.devour === 'X' ? eaten.length : a.devour) * eaten.length);
           this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
         }
       }
@@ -29728,8 +29729,9 @@
           const lessCost = e.pay && e.less ? this._addGeneric(this.castCost(c, {}) || '', -e.less) : null;
           // (Kaervek, the Punisher: paying its mana cost — pay; not offered when it can't be paid for)
           if (e.pay && !this.couldPay(ctx.controller, lessCost != null ? lessCost : ((c.card && c.card.mana_cost) || ''), this.manaSources(ctx.controller))) break;
-          const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
-            prompt: e.reveal ? `Reveal ${c.name} and cast a copy of it${lessCost != null ? ` for ${lessCost || '{0}'}` : ''}?`
+          // (Uldaros Theorix: picked to be cast already — noAsk)
+          const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            prompt: e.reveal ?`Reveal ${c.name} and cast a copy of it${lessCost != null ? ` for ${lessCost || '{0}'}` : ''}?`
               : `Cast a copy of ${c.name}${e.pay ? ', paying its mana cost' : ' without paying its mana cost'}?` }, 'ccopy');
           if (yes === SUSPEND) return SUSPEND;
           if (yes === false) break;
@@ -29749,6 +29751,31 @@
             // Kaervek, the Punisher: "If you do, you lose 2 life."
             if (e.lifeIfCast) this.changeLife(me, -e.lifeIfCast);
           } else { this._removeFromZone(dup); dup.zone = null; }
+          break;
+        }
+        /* Uldaros Theorix: "Copy those cards. You may cast any number of spells with total mana value 6 or less from among
+           the copies without paying their mana costs." — the cards this exiled, picked within the total, each copy cast in
+           turn (castCopy, chosen already: noAsk) */
+        case 'castCopiesFree': {
+          const pool = (this._resExiled || []).map(id => this.obj(id))
+            .filter(c => c && c.zone === 'exile' && c.card && !(c.analysis() || {}).isLand && ((c.card.cmc) || 0) <= e.totalMv);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'castCopiesFree', kind: 'objects', zone: 'exile',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'mana value' }],
+            prompt: `Cast copies of any number of these with total mana value ${e.totalMv} or less without paying their mana costs.` }, 'ccfPick');
+          if (got === SUSPEND) return SUSPEND;
+          let total = 0;
+          const list = [];
+          for (const id of (got && got.picks) || []) {
+            const x = this.obj(id);
+            if (!x || !pool.includes(x)) continue;
+            const mv = (x.card && x.card.cmc) || 0;
+            if (total + mv > e.totalMv) continue;
+            total += mv;
+            list.push({ op: 'castCopy', _forcedId: x.id, noAsk: true });
+          }
+          if (list.length) this._spliceNext(list);
           break;
         }
         /* Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." —
@@ -30375,6 +30402,19 @@
         }
         /* Erestor of the Council: "each opponent who voted for a choice you voted for creates a Treasure token" — in the
            voting the trigger is about (votedSameTreasure) */
+        /* Jurin, Leading the Charge: "each creature you control attacking a player gets +1/+0 until end of turn for each
+           creature that player controls" — each its own count, as this resolves (pumpPerDefenderCreature) */
+        case 'pumpPerDefenderCreature': {
+          for (const o of this.battlefield) {
+            if (o.controller !== ctx.controller || !o.attacking || o.phasedOut || !this.characteristics(o).isCreature) continue;
+            const dp = this.player(o.attacking);
+            if (!dp) continue;
+            const k = this.battlefield.filter(x => x.controller === dp.id && !x.phasedOut && this.characteristics(x).isCreature).length;
+            if (k) o.effects.push({ p: k * (e.p || 1), t: 0, until: 'eot' });
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'votedSameTreasure': {
           const votes = (ctx.triggerData || {}).votes || [];
           const mine = new Set(votes.filter(x => x.pid === ctx.controller).map(x => x.choice));

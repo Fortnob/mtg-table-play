@@ -424,6 +424,7 @@
       case 'takeFromLooked': return 1.2;
       case 'regrowth': return 1.2;
       case 'reanimate': return 2.6;
+      case 'castCopiesFree': return 2.4;
       case 'returnOwn': return 0.3;
       case 'destroyAll': case 'exileAll': return 2.8;
       case 'bounceAll': return 1.6;
@@ -2059,6 +2060,16 @@
       const want = (t) => yard.filter(o => !!(o.analysis() || {})['is' + t.charAt(0).toUpperCase() + t.slice(1)]).length;
       const opts = (s.options || []).slice().sort((x, y) => want(x.type) - want(y.type));
       return opts.length ? { picks: [opts[0].i] } : null;
+    },
+    /* Uldaros Theorix: copies cast for free — the most mana value the total allows, biggest first */
+    castCopiesFree(s) {
+      const cap = ((s.constraints || []).find(c => c.kind === 'sum') || {}).max || 0;
+      const mv = (o) => (o.card && o.card.cmc) || 0;
+      const items = (s.items || []).map(x => this.game.obj(x.id)).filter(Boolean).sort((x, y) => mv(y) - mv(x));
+      const picks = [];
+      let tot = 0;
+      for (const o of items) if (tot + mv(o) <= cap) { picks.push(o.id); tot += mv(o); }
+      return { picks };
     },
     /* Devour: tokens are fodder; real creatures stay */
     devour(s) { return { picks: (s.items || []).filter(x => { const o = this.game.obj(x.id); return o && o.isToken; }).map(x => x.id) }; },

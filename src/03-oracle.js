@@ -183,6 +183,8 @@
   const KEYWORD_PATTERNS = [
     // Famished Worldsire, Feasting Hobbit, Caprichrome: "Devour land 3", "Devour Food 3" — devouring a kind (devourWhat)
     /^(Devour) (?:artifact|land|Food) \d+$/i,
+    // Thromok the Insatiable: "Devour X, where X is the number of creatures devoured this way" — X for each, X times X (devour 'X')
+    /^(Devour) X, where X is the number of creatures devoured this way$/i,
     // Indoraptor, the Perfect Hybrid: "Bloodthirst X"
     /^(Bloodthirst) X$/i,
     // simple flags, matched as whole comma-separated clauses
@@ -527,6 +529,8 @@
       /* Magus Lucea Kane: "When you next cast a spell with {X} in its mana cost or activate an ability with {X} in its
          activation cost this turn, copy that spell or ability." — a trigger for later, set up with the mana */
       if (e.op === 'getEmblem') return !!(e.thisTurn && e.once);
+      // (Shaun & Rebecca, Agents: "When you do, mill two cards." — a reflexive trigger, put on the stack later)
+      if (e.op === 'reflexive') return !(e.effects || []).some(x => x && (x.targets || []).length);
       return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly' || e.op === 'noGenericMana';
     };
     return effects.every(fits);
@@ -7532,6 +7536,9 @@
       make: (m) => [{ op: 'tap', targets: [targetSpec(m[1])] }, { op: 'goad', scope: 'lastTarget' }] },
     /* Erestor of the Council: "each opponent who voted for a choice you voted for creates a Treasure token. You scry X, where
        X is the number of opponents who voted for a choice you didn't vote for." — the voting the trigger is about */
+    // Jurin, Leading the Charge: "each creature you control attacking a player gets +1/+0 until end of turn for each creature that player controls"
+    { re: /^Each creature you control attacking a player gets \+(\d+)\/\+0 until end of turn for each creature that player controls\.?$/i,
+      make: (m) => ({ op: 'pumpPerDefenderCreature', p: +m[1] }) },
     { re: /^Each opponent who voted for a choice you voted for creates a Treasure token\.?$/i, make: () => ({ op: 'votedSameTreasure' }) },
     { re: /^You scry X, where X is the number of opponents who voted for a choice you didn'?t vote for\.?$/i,
       make: () => ({ op: 'scry', n: { votedOther: true, mult: 1 } }) },
@@ -7957,7 +7964,8 @@
       make: (m) => Object.assign({ op: 'tutor', n: 1, filter: m[2] ? 'card' : m[3].toLowerCase(), to: /hand/i.test(m[4]) ? 'hand' : 'battlefield', alsoGraveyard: true },
         m[2] ? { named: m[2] } : {}, /reveal it/i.test(m[0]) ? { reveal: true } : {}) },
     // Kassandra, Eagle Bearer: "search your graveyard, hand, and library for a card named The Spear of Leonidas, put it onto the battlefield, then shuffle" (alsoHand)
-    { re: /^Search your graveyard, hand, and library for a card named ([^.]+?), put it onto the battlefield, then shuffle\.?$/i,
+    // (Shaun & Rebecca, Agents: "… for a card named The Animus and put it onto the battlefield, then shuffle")
+    { re: /^Search your graveyard, hand, and library for a card named ([^.]+?),? (?:and )?put it onto the battlefield, then shuffle\.?$/i,
       make: (m) => ({ op: 'tutor', n: 1, filter: 'card', named: m[1], to: 'battlefield', alsoGraveyard: true, alsoHand: true,
         prompt: `Search your graveyard, hand, and library for a card named ${m[1]}.` }) },
     /* Waterlogged Teachings: "an instant card or a card with flash" */
@@ -9872,6 +9880,15 @@
       make: (m) => {
         const ex = parseEffectSentence('Exile ' + m[1] + ' from a graveyard.', 1);
         return ex && ex.op === 'exile' && (ex.targets || []).length === 1 ? [Object.assign(ex, { counter: m[2].toLowerCase() })] : null;
+      } },
+    /* Uldaros Theorix: "exile up to one target nonland card of each card type from your graveyard. Copy those cards. You
+       may cast any number of spells with total mana value 6 or less from among the copies without paying their mana
+       costs." — a target for each card type, no card twice; the copies cast as this resolves (castCopiesFree) */
+    { re: /^Exile up to one target nonland card of each card type from your graveyard\. Copy those cards\. You may cast any number of spells with total mana value (\d+) or less from among the copies without paying their mana costs\.?$/i,
+      make: (m) => {
+        const specs = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'planeswalker', 'sorcery'].map(ty =>
+          Object.assign(targetSpec('target nonland card', 'graveyard'), { filter: 'nonland ' + ty + ' card', cardTypes: [ty], controller: 'you', upTo: true, distinct: true }));
+        return specs.some(s => s.unknown) ? null : [{ op: 'exile', targets: specs }, { op: 'castCopiesFree', totalMv: +m[1] }];
       } },
     /* Night Nurse, Healer of Heroes: "choose target permanent card in your graveyard that was put there from anywhere this
        turn. Return it to your hand." (regrowth, toGraveThisTurn) */
@@ -13960,7 +13977,7 @@
     [/^you control (\w+) or more other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) + 1 })],
     [/^you created a token this turn$/i, () => ({ kind: 'createdToken' })],
     [/^creatures you control have total power (\d+) or greater$/i, (m) => ({ kind: 'totalPower', n: +m[1] })],
-    [/^you cast (?:it|them)$/i, () => ({ kind: 'wasCast' })],
+    [/^you cast (?:it|them|him|her)$/i, () => ({ kind: 'wasCast' })],  // (Uldaros Theorix: "if you cast him")
     // Ran and Shaw: "if you cast them and there are three or more Dragon and/or Lesson cards in your graveyard"
     [/^you cast (?:it|them) and (there (?:are|is) .+)$/i, (m) => { const b = condOf(m[1]); return b ? [{ kind: 'wasCast' }].concat(b) : null; }],
     // Eshki, Temur's Roar: "If that spell's power is 4 or greater" (spellPowerAtLeast)
@@ -15511,6 +15528,10 @@
     // Auntie Ool, Cursewretch: "Whenever one or more -1/-1 counters are put on a creature" — anyone's, by anyone
     { re: /^Whenever one or more -1\/-1 counters are put on a creature, /i, event: 'countersPut', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { counterKind: '-1/-1' } },
+    // Ant-Man, Colony Commander: "Whenever you put a +1/+1 counter on a creature" — anyone's (putByYou, counterKind)
+    { re: /^Whenever you put an? (\+1\/\+1|-1\/-1) counter on (a|another) creature( you control)?, /i, event: 'countersPut', aboutObject: true,
+      filt: (m) => ({ words: 'creature', other: /another/i.test(m[2]), who: m[3] ? 'you' : undefined }),
+      extraOf: (m) => ({ putByYou: true, counterKind: m[1] }) },
     /* Hapatra, Nest of Scarabs: "Whenever you put one or more -1/-1 counters on
        a creature"; Generous Patron: "counters on a creature you don't control" */
     // (Mikey & Leo, Chaos & Order: "Whenever you put a counter on a creature you control" — counterOnYours)
@@ -16318,6 +16339,11 @@
           for (const k of ['n', 'p', 't']) if (e[k] && typeof e[k] === 'object') e[k] = mine(e[k]);
           if (e.fromTrigger) delete e.fromTrigger;
         }
+        /* Shaun & Rebecca, Agents: "{T}: Add {C}. When you do, mill two cards." — still a mana ability; what follows "When
+           you do" is a reflexive trigger of its own (CR 605.1a, 603.12) */
+        const wyd = effects.findIndex(e => e && /^When you do,/i.test(String(e.text || '')) && e.op !== 'reflexive');
+        if (wyd > 0 && effects.slice(0, wyd).some(e => MANA_OPS.has(e.op)))
+          effects.splice(wyd, effects.length - wyd, { op: 'reflexive', effects: effects.slice(wyd), text: String(effects[wyd].text) });
         // ("that player" after a target, as in a spell)
         const thatOk = thatPlayerOfTheTarget(effects);
         const ab = {
@@ -17755,8 +17781,8 @@
         effects: [{ op: 'draw', n: 1, who: 'you' }], text: 'Ravenous: when it enters, if X is 5 or more, draw a card.', auto: true });
     }
     // Devour N: how many counters for each creature it eats
-    const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (?:(artifact|land|Food) )?(\d+)/i)).find(Boolean);
-    if (devourN) { out.devour = +devourN[2]; if (devourN[1]) out.devourWhat = devourN[1].toLowerCase(); }
+    const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (?:(artifact|land|Food) )?(\d+|X)\b/i)).find(Boolean);
+    if (devourN) { out.devour = /^X$/i.test(devourN[2]) ? 'X' : +devourN[2]; if (devourN[1]) out.devourWhat = devourN[1].toLowerCase(); }
     /* Bloodthirst N (CR 702.54): N +1/+1 counters as it enters if an opponent was dealt damage this turn; Bloodthirst X
        (Indoraptor, the Perfect Hybrid): as many as the damage dealt to your opponents this turn */
     const bloodthirst = text.split('\n').map(l => l.match(/^Bloodthirst (\d+|X)\b/i)).find(Boolean);
