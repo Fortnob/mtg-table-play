@@ -511,6 +511,8 @@
         if ((x.type === 'cast' || x.type === 'activate') && !paid) paid = x;
       }
       if (paid) resolving = null;
+      // its own spell resolving is no cause (a Hangarback Walker cast for nothing dies of its 0 toughness)
+      if (resolving && (resolving.objId === id || String(resolving.name || '').split(' — ')[0] === nm)) resolving = null;
       // what dealt it damage this turn
       const hurt = [];
       for (let i = at - 1, n = 0; i >= 0 && n < 400; i--, n++) {
@@ -784,7 +786,12 @@
       if (lastSeen) for (let i = nl.length - 1; i >= 0; i--) { const x = nl[i]; if (x.t === lastSeen.t && x.type === lastSeen.type && x.text === lastSeen.text) { at = i; break; } }
       // and should that line have gone (a long log trimmed), only what came after it in time: never the whole log again
       const fresh = !lastSeen ? nl : at >= 0 ? nl.slice(at + 1) : nl.filter(x => (x.t || 0) > (lastSeen.t || 0));
-      for (const e of fresh) if (e.type === 'manual') this.say(e.text, 'manual', 6000);
+      for (const e of fresh) {
+        if (e.type !== 'manual') continue;
+        // (dice rolled or a coin flipped by hand are shown landing in the middle already: not said over them too)
+        if (beat.luck && /\b(rolls?|flips?) (an?|two|three|four|five|six|\d+) (d\d+|coins?)\b/i.test(e.text)) continue;
+        this.say(e.text, 'manual', 6000);
+      }
       // a board wipe is worth feeling
       const gone = prev.battlefield.filter(o => !next.battlefield.some(x => x.id === o.id) && o.power != null).length;
       if (gone >= 3) this.flash('wipe');
