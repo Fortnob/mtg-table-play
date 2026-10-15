@@ -378,7 +378,8 @@
         }
         // (Tawnos, Solemn Survivor: "an artifact or creature card" — "an", not "a" and "n artifact")
         else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s+([-a-z' ]*?)\s*cards? from your graveyard$/i)))
-          ex = { what: 'graveyard', n: WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
+          // (Ludevic, Necrogenius, Necropolis Fiend: "{X}…, Exile X creature cards from your graveyard" — the X paid)
+          ex = { what: 'graveyard', n: /^X$/.test(m[1]) && /\{X\}/.test(str) ? 'X' : WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
         // Araumi of the Dead Tide: "Exile cards from your graveyard equal to the number of opponents you have" (n 'opponents')
         else if (/^cards from your graveyard equal to the number of opponents you have$/i.test(what)) ex = { what: 'graveyard', n: 'opponents', filter: 'card' };
         // Osgir, the Reconstructor: "Exile an artifact card with mana value X from your graveyard" — X the one paid (mvX)
@@ -848,6 +849,12 @@
       // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
       else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
       else if ((c = ex.match(/^it'?s legendary in addition to its other types/i))) e.addLegendary = true;
+      // Olag, Ludevic's Hubris: "it's a legendary blue and black Zombie in addition to its other colors and types" (addColors)
+      else if ((c = ex.match(/^it'?s a (legendary )?((?:white|blue|black|red|green)(?:,? (?:and )?(?:white|blue|black|red|green))*) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other colors and types/))) {
+        if (c[1]) e.addLegendary = true;
+        e.addColors = c[2].split(/,? (?:and )?|, /).filter(Boolean).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[w]);
+        e.addTypes = c[3].split(' ');
+      }
       // Moritte of the Frost: "it's legendary and snow in addition to its other types" (addSnow)
       else if ((c = ex.match(/^it'?s legendary and snow in addition to its other types/i))) { e.addLegendary = true; e.addSnow = true; }
       /* Moritte of the Frost: "if it's a creature, it enters with two additional +1/+1 counters on it and has changeling"
@@ -2068,7 +2075,8 @@
         return { op: 'castThisWayGains', filter: 'creature', keywords: kws, ability: m[2] };
       } },
     // Katara, Ruthless Technomancer: "X can't be 0." — said of an ability's X; nothing to do as it resolves
-    { re: /^X can'?t be 0\.?$/i, make: () => ({ op: 'noop' }) },
+    // (Ludevic, Necrogenius: X of 1 or more asked of the activation, xMin)
+    { re: /^X can'?t be 0\.?$/i, make: () => ({ op: 'noop', xMin: 1 }) },
     /* Gogo, Master of Mimicry: "This ability can't be copied and X can't be 0." — X of 1 or more is
        asked of the activation, and copying it makes nothing */
     { re: /^This ability can'?t be copied and X can'?t be 0\.?$/i, make: () => ({ op: 'noop', uncopyable: true, xMin: 1 }) },
@@ -9682,7 +9690,8 @@
     /* Deepwood Denizen: "for each +1/+1 counter on creatures you control";
        Maester Seymour: "the number of counters among creatures you control"; Ferrafor, Young Yew: "… target player
        controls" */
-    if ((m = p.match(/^(?:([+\-0-9/a-z]+) )?counters? (?:on|among) ((?:[a-z]+ )*(?:creatures|lands|artifacts|permanents|enchantments)(?: and (?:creatures|lands|artifacts|permanents|enchantments))? (?:you control|target (?:player|opponent) controls))$/i))) {
+    // (Chong and Lily, Nomads: "for each lore counter among Sagas you control")
+    if ((m = p.match(/^(?:([+\-0-9/a-z]+) )?counters? (?:on|among) ((?:[a-z]+ )*(?:creatures|lands|artifacts|permanents|enchantments|Sagas)(?: and (?:creatures|lands|artifacts|permanents|enchantments))? (?:you control|target (?:player|opponent) controls))$/i))) {
       const sc = scopeOf(m[2]);
       if (sc && !sc.self && !sc.attached) return { countersAmong: sc, kind: m[1] ? m[1].toLowerCase() : null, mult: k };
     }
@@ -9984,6 +9993,8 @@
     'one', 'two', 'three', 'up', 'to']);
 
   function targetSpec(phrase, zone) {
+    // Triad of Fates: "target creature that has a fate counter on it" — as "with a fate counter on it"
+    phrase = String(phrase).replace(/\s+that has an? ([+\-0-9/a-z]+) counter on it$/i, ' with a $1 counter on it');
     // "target creature that was dealt damage this turn"
     const damaged = /\s+that was dealt damage this turn$/i.test(String(phrase));
     if (damaged) phrase = String(phrase).replace(/\s+that was dealt damage this turn$/i, '');
@@ -10611,7 +10622,8 @@
       const inner = parseEffectSentence(tmv[1] + tmv[3], 0);
       if (inner && inner.anyFrom && inner.op !== 'manual' && !hasManualStep(inner)) { inner.anyTotalMv = +tmv[2]; inner.text = s; return inner; }
     }
-    const anyN = !depth && s.match(/\bany number of (other )?target ((?:[a-z]+ )*?)(creatures|artifacts|enchantments|lands|permanents|planeswalkers|players|cards)( [^,.]*)?/i);
+    // (Chong and Lily, Nomads: "Put a lore counter on each of any number of target Sagas you control")
+    const anyN = !depth && s.match(/\b(?:each of )?any number of (other )?target ((?:[a-z]+ )*?)(creatures|artifacts|enchantments|lands|permanents|planeswalkers|players|cards|Sagas)( [^,.]*)?/i);
     if (anyN && !/divided|damage/i.test(s)) {
       const one = s.replace(anyN[0], (anyN[1] ? 'another ' : '') + 'target ' + anyN[2] + anyN[3].replace(/s$/, '') + (anyN[4] || '').replace(/\bthey control\b/, 'it controls').replace(/\btheir owners?'?s?\b/, "its owner's"))
         .replace(/\bto their owners'? hands?\b/i, "to its owner's hand");
@@ -16517,6 +16529,10 @@
     { re: /^Whenever (?:equipped|enchanted) creature attacks alone,? /i, event: 'attacksAlone', filt: () => ({ words: 'creature', equipped: true }) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
+    /* Yuriko, Blade of the Mighty: "Whenever a creature you control attacks a player alone" — no other creature
+       declared as an attacker attacking that player (attacksPlayerAlone) */
+    { re: /^Whenever a creature you control attacks a player alone,? /i, event: 'permAttacks',
+      filt: () => ({ words: 'creature', who: 'you' }), extra: { attacksPlayer: true, attacksPlayerAlone: true } },
     // Jin Sakai, Ghost of Tsushima: "Whenever a creature you control attacks a player" — not a planeswalker or battle
     { re: /^Whenever a creature you control attacks a player,? /i, event: 'permAttacks',
       filt: () => ({ words: 'creature', who: 'you' }), extra: { attacksPlayer: true } },
@@ -17970,7 +17986,8 @@
       /* "As this land enters, you may pay 2 life. If you don't, it enters
          tapped." is not a trigger at all: it is decided on the way in
          (CR 614.12), so the replacement reading gets the first look. */
-      if (/^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura)) enters/i.test(line)) {
+      // (Olag, Ludevic's Hubris: "As this creature transforms into …" — the same, as it turns over)
+      if (/^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura)) (?:enters|transforms into)/i.test(line)) {
         const st0 = parseStatic(line, out);
         if (st0 && st0.auto) { out.abilities.push(st0); autoLines++; continue; }
       }
@@ -21305,6 +21322,17 @@
     // Marisi, Breaker of the Coil: "Your opponents can't cast spells during combat."
     // Basandra, Battle Seraph: "Players can't cast spells during combat." — its controller too (castRestrictAll)
     { re: /^Players can'?t cast spells during combat\.?$/, make: () => ({ op: 'castRestrict', who: 'all', combatOnly: true }) },
+    /* Olag, Ludevic's Hubris: "As this creature transforms into Olag, Ludevic's Hubris, it becomes a copy of a creature card
+       exiled with it, except … Put a number of +1/+1 counters on Olag equal to the number of creature cards exiled with
+       it." — done as it transforms, not a trigger (asTransformCopy) */
+    { re: /^As (?:this creature|CARDNAME) transforms into CARDNAME, it becomes a copy of an? ([a-z]+) card exiled with it, except (.+?)\. Put a number of (\+1\/\+1) counters on CARDNAME equal to the number of ([a-z]+) cards exiled with it\.?$/,
+      make: (m) => {
+        const e = { op: 'asTransformCopy', words: m[1], counters: m[3], countWords: m[4] };
+        return copyExceptions(m[2], e) && !e.keepOwn && !e.keepThis ? e : null;
+      } },
+    // Yuriko, Blade of the Mighty: "During combat, players can't cast spells or activate abilities that aren't mana abilities." (nonManaAbilities)
+    { re: /^During combat, players can'?t cast spells or activate abilities that aren'?t mana abilities\.?$/,
+      make: () => ({ op: 'castRestrict', who: 'all', combatOnly: true, nonManaAbilities: true }) },
     { re: /^Your opponents can'?t cast spells during combat\.?$/,
       make: () => ({ op: 'castRestrict', who: 'opponents', combatOnly: true }) },
     /* Silence on a stick: Grand Abolisher, Voice of Victory, Kutzil */

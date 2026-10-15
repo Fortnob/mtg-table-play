@@ -4984,6 +4984,9 @@
       }
       if (opts === 'ninjutsu' || opts === 'returnAttacker') {
         if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return { ok: false, reason: 'You do not have priority.' };
+        // (Yuriko, Blade of the Mighty: ninjutsu is an activated ability)
+        const lockN = this._nonManaLock(playerId);
+        if (lockN) return { ok: false, reason: lockN };
         if (opts === 'returnAttacker') {
           const ra = (o.analysis() || {}).returnAttacker;
           if (!ra || o.zone !== 'hand') return { ok: false, reason: 'No such ability.' };
@@ -6830,6 +6833,9 @@
       const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'cycle' && (opts.channel == null || !!x.channel === !!opts.channel));
       if (!use) return this.fail('That card has no cycling ability.');
       if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return this.fail('You do not have priority.');
+      // (Yuriko, Blade of the Mighty: cycling, channel and the like are activated abilities)
+      const lockC = this._nonManaLock(playerId);
+      if (lockC) return this.fail(lockC);
       if (use.channel) return this._channel(playerId, o, use, opts);
       if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts))) {
         return this.fail(`Not enough mana to cycle (${use.cost}).`);
@@ -10132,6 +10138,9 @@
         // Osgir, the Reconstructor: which card with mana value X (mvX: the table shows those of the X paid)
         if (c.exile && c.exile.what === 'graveyard' && c.exile.mvX) out.push({ kind: 'exileGraveyard', label: `Exile ${this._aCard(c.exile.filter, 'card')} with mana value X from your graveyard`,
           key: 'exileIds', need: 1, mvX: true, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
+        // Ludevic, Necrogenius: which X creature cards (need X, the X paid)
+        if (c.exile && c.exile.what === 'graveyard' && c.exile.n === 'X' && !c.exile.mvX && !c.exile.anyGraveyard) out.push({ kind: 'exileGraveyard',
+          label: `Exile X ${O.nounPlural(c.exile.filter === 'card' ? 'card' : c.exile.filter + ' card')} from your graveyard`, key: 'exileIds', need: 'X', candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
         // Thelon of Havenwood: which card, from any graveyard (anyGraveyard)
         if (c.exile && c.exile.what === 'graveyard' && c.exile.anyGraveyard) out.push({ kind: 'exileGraveyard', label: `Exile ${this._aCard(c.exile.filter, 'card')} from a graveyard`,
           key: 'exileIds', need: 1, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
@@ -10335,6 +10344,8 @@
       if (o && o.zone === 'battlefield' && this._hasFlag(o, 'cantActivate')) return "Its activated abilities can't be activated.";
       // Faith's Fetters: all but its mana abilities
       if (o && o.zone === 'battlefield' && ab && ab.kind !== 'mana' && this._hasFlag(o, 'cantActivateNonMana')) return "Its activated abilities can't be activated unless they're mana abilities.";
+      // Yuriko, Blade of the Mighty: "During combat, players can't … activate abilities that aren't mana abilities."
+      if (ab && ab.kind !== 'mana') { const lk = this._nonManaLock(playerId); if (lk) return lk; }
       const label = ab && ab.cost && ab.cost.label;
       if (label === 'boast') {
         if (o.attackedTurn !== this.turn) return 'It can boast only after attacking this turn.';
@@ -11226,10 +11237,16 @@
           // (Araumi of the Dead Tide: what the ability targets goes last — exiled, it would leave the ability nothing to do)
           const aimed = new Set(((opts && opts.targets) || []).map(t => t && t.id));
           if (aimed.size) yard = yard.filter(c => !aimed.has(c.id)).concat(yard.filter(c => aimed.has(c.id)));
-          const want = ex.n === 'opponents' ? this._costCount(ex.n, opts, playerId) : (ex.n || 1);
+          // (Ludevic, Necrogenius: "Exile X creature cards" — the X paid, the cards the player named first)
+          if (ex.n === 'X') { const named = ((opts && opts.exileIds) || []).map(id => yard.find(c => c.id === id)).filter(Boolean); yard = named.concat(yard.filter(c => !named.includes(c))); }
+          const want = ex.n === 'opponents' || ex.n === 'X' ? this._costCount(ex.n, opts, playerId) : (ex.n || 1);
           if (yard.length < want) return this.fail(`Not enough ${ex.filter === 'card' ? 'cards' : ex.filter + ' cards'}${ex.mvX ? ' with mana value ' + ((opts && opts.x) || 0) : ''} in your graveyard.`);
           this._costExiledNow = yard.slice(0, want).map(c => c.id);
-          for (const c of yard.slice(0, want)) this.moveObject(c, 'exile');
+          for (const c of yard.slice(0, want)) {
+            this.moveObject(c, 'exile');
+            // (Ludevic, Necrogenius: the cards exiled to pay are "exiled with it" — CR 607.2a)
+            if (ex.n === 'X' && c.zone === 'exile' && o && o.zone === 'battlefield') c.exiledWithId = o.id;
+          }
           this.logEvent('rules', ex.anyGraveyard ? `${this.player(playerId).name} exiles ${yard.slice(0, want).map(c => c.name).join(', ')} from a graveyard.`
             : `${this.player(playerId).name} exiles ${want} card${want === 1 ? '' : 's'} from their graveyard.`);
         }
@@ -12474,7 +12491,9 @@
         this._fire('attacks', o.controller, { attacker: o, source: o, declared: declarations.length,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
         this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o, defenderId: d.defenderId,
-          player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
+          player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller,
+          // (Yuriko, Blade of the Mighty: "attacks a player alone" — attacksPlayerAlone)
+          aloneAtPlayer: !!this.player(d.defenderId) && declarations.filter(x => x.defenderId === d.defenderId).length === 1 });
       }
       this._declaringAttackers = null;
       if (declarations.length) {
@@ -16775,6 +16794,13 @@
       if (!n) return;
       // who puts them (Hapatra: "Whenever you put"): the effect's controller, a wither source's, or its own
       const putter = (opts && opts.by) || this._putBy || o.controller;
+      /* a lore counter put on a Saga reads its next chapter, however it is put (CR 714.2c)
+         (Chong and Lily, Nomads: "Put a lore counter on each of any number of target Sagas you control") */
+      if (kind === 'lore' && n > 0 && !(opts && opts.noReplace) && o.zone === 'battlefield' && (o.analysis() || {}).isSaga) {
+        const pb = this._putBy; this._putBy = putter;
+        try { this._advanceSaga(o, n); } finally { this._putBy = pb; }
+        return;
+      }
       if (n > 0 && !(opts && opts.noReplace)) {
         const ev = this._replace({ kind: 'counters', object: o, n, counter: kind, controller: o.controller,
           putter, modular: !!(opts && opts.modular) });
@@ -18228,6 +18254,8 @@
           if (ab.duringYourUntap && !(this.step === 'untap' && this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // "attacks a player": not a planeswalker or a battle
           if (ab.attacksPlayer && !(data.attacker && this.player(data.attacker.attacking))) continue;
+          // Yuriko, Blade of the Mighty: "attacks a player alone" — the only one declared attacking that player (attacksPlayerAlone)
+          if (ab.attacksPlayerAlone && !data.aloneAtPlayer) continue;
           // Dragonlord Kolaghan: "a … spell with the same name as a card in their graveyard" (sameNameInGraveyard)
           if (ab.sameNameInGraveyard) {
             const sp = data.object;
@@ -19616,6 +19644,11 @@
       }
       /* "except its name is CARDNAME" (and "it's legendary"): the copy
          keeps this card's name, and its words say that name */
+      // Olag, Ludevic's Hubris: "a legendary blue and black Zombie in addition to its other colors" (addColors)
+      if ((e.addColors || []).length) {
+        const cols = Array.from(new Set((card.colors || []).concat(e.addColors)));
+        card = Object.assign({}, card, { id: card.id + ':colors:' + cols.join(''), colors: cols, card_faces: null });
+      }
       if (e.keepName || e.addLegendary) {
         const was = card.name;
         const nm = e.keepName && own.name ? own.name : was;
@@ -28884,6 +28917,8 @@
           break;
         case 'cantBeCountered': case 'uncounterable': case 'castRestrict':
           break;   // read when a spell is countered or cast
+        case 'asTransformCopy':
+          break;   // read as it transforms (Olag, Ludevic's Hubris)
         /* Silence: "Your opponents can't cast spells this turn." */
         case 'silence':
           for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean)
@@ -30487,12 +30522,42 @@
           if (x.meld) { this.logEvent('rules', `${x.name} is melded and can't transform.`); break; }          /* Aang, at the Crossroads: a delayed transform does nothing to a permanent that has left since, or has
              transformed since it was set up (CR 701.28f; sinceNow) */
           if (e.sinceNow && (x.zone !== 'battlefield' || x.ts !== e.sinceTs || (x.xformN || 0) !== e.sinceXf)) break;
-          x.face = (x.face + 1) % x.card.card_faces.length;
-          x.xformN = (x.xformN || 0) + 1;
-          x._chr = null;
-          this.bumpBoard();
-          this.logEvent('rules', `${x.name} transforms.`);
-          this.emit('sfx', 'transform');
+          // (Olag, Ludevic's Hubris: a question as it transforms — turned once, however often this is come back to)
+          if (!this._doneHere('xform:' + x.id)) {
+            x.face = (x.face + 1) % x.card.card_faces.length;
+            x.xformN = (x.xformN || 0) + 1;
+            x._chr = null;
+            this.bumpBoard();
+            this.logEvent('rules', `${x.name} transforms.`);
+            this.emit('sfx', 'transform');
+          }
+          /* Olag, Ludevic's Hubris: "As this creature transforms into Olag, it becomes a copy of a creature card exiled
+             with it, except …" — which card, then the copy and the +1/+1 counters (asTransformCopy) */
+          const atc = x.zone === 'battlefield' && !x.printedCard && this._staticOp(x, 'asTransformCopy');
+          if (atc) {
+            const pool = this._exiledWithPool(x, atc.words);
+            let c = pool[0] || null;
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: x.controller, purpose: 'becomeCopyOf', objId: x.id, kind: 'objects', zone: 'exile', items: this._chooseItems(pool), min: 1, max: 1,
+                prompt: `${x.name} becomes a copy of which card?` }, 'atcopy');
+              if (got === SUSPEND) return SUSPEND;
+              c = ((got && got.picks) || []).map(id => this.obj(id)).find(q => q && pool.includes(q)) || pool[0];
+            }
+            const n = this._exiledWithPool(x, atc.countWords || atc.words).length;
+            if (c) {
+              const face = x.card.card_faces[x.face] || {};
+              const was = x.name;
+              x.printedCard = x.card;
+              x.copyOf = c.printedCard || c.card;
+              x.card = this._copyExcept(x.copyOf, { name: face.name, oracle_text: face.oracle_text }, atc);
+              x.face = 0;
+              x.copyBefore = null; x.copyUntilTurn = null; x.copyUntilTurnOf = null;
+              x._chr = null;
+              this.bumpBoard();
+              this.logEvent('rules', `${was} becomes a copy of ${c.name}.`);
+            }
+            if (n > 0) this.addCounters(x, atc.counters || '+1/+1', n);
+          }
           // Huntmaster of the Fells, the werewolves: "whenever this creature transforms (into …)" (transformsInto)
           if (x.zone === 'battlefield') this._fire('transforms', x.controller, { object: x, source: x });
           break;
@@ -35947,6 +36012,18 @@
         if (e.combatOnly && !(this.phase && this.phase.id === 'combat')) continue;
         if (e.whileAttached && !(o.attachedTo && this.obj(o.attachedTo))) continue;
         return `${o.name} stops that.`;
+      }
+      return null;
+    }
+
+    /** Yuriko, Blade of the Mighty: "During combat, players can't … activate abilities that aren't mana abilities." — why not, or null */
+    _nonManaLock(playerId) {
+      if (!(this.phase && this.phase.id === 'combat')) return null;
+      for (const o of this.battlefield) {
+        if (o.phasedOut) continue;
+        const e = this._staticOp(o, 'castRestrict');
+        if (!e || !e.nonManaAbilities || (o.controller === playerId && e.who !== 'all')) continue;
+        return `${o.name}: during combat, only mana abilities can be activated.`;
       }
       return null;
     }
