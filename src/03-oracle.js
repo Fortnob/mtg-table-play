@@ -4271,6 +4271,9 @@
        until end of turn, except it isn't legendary." — the one "Choose target creature you control" chose (yours) */
     { re: /^Each creature you control other than the chosen creature becomes a copy of that creature until end of turn, except it isn'?t legendary\.?$/i,
       make: () => ({ op: 'becomeCopyAll', duration: 'eot', yours: true, nonLegendary: true }) },
+    // Nanogene Conversion: "Each other creature becomes a copy of that creature until end of turn, except it isn't legendary." — everyone's
+    { re: /^Each other creature becomes a copy of that creature until end of turn, except it isn'?t legendary\.?$/i,
+      make: () => ({ op: 'becomeCopyAll', duration: 'eot', nonLegendary: true }) },
     /* Mirrorweave: a copy effect on every other creature, for the turn */
     { re: /^Each other creature becomes a copy of (target [a-z ]+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeCopyAll', duration: 'eot', targets: [targetSpec(m[1])] }) },
@@ -6282,6 +6285,13 @@
     // Crypt Incursion: "Exile all creature cards from target player's graveyard."
     { re: /^Exile all ([a-z]+) cards from target player'?s graveyard\.?$/i,
       make: (m) => ({ op: 'exileGraveyard', who: 'target', filter: m[1].toLowerCase(), targets: [{ type: 'player' }] }) },
+    /* Kaya, Geist Hunter: "Exile all cards from all graveyards, then create a 1/1 white Spirit creature token with flying for
+       each card exiled this way." — as many as were exiled (lastExiledCount) */
+    { re: /^Exile all cards from all graveyards, then (create .+?) for each card exiled this way\.?$/i,
+      make: (m) => {
+        const inner = parseTokenSentence('C' + m[1].slice(1) + '.');
+        return inner && inner.op === 'createToken' && inner.n === 1 ? [{ op: 'exileGraveyard', who: 'all' }, Object.assign(inner, { n: { lastExiledCount: true } })] : null;
+      } },
     // Oona, Queen of the Fae: "For each card of the chosen color exiled this way, create a 1/1 … token with flying." (exiledChosenColor)
     { re: /^For each card of the chosen colou?r exiled this way, (create .+)$/i,
       make: (m) => {
@@ -7137,6 +7147,9 @@
        lands and cast spells from the top of your library." (Gwenom, Remorseless: paying life, in COMBO_RULES) */
     { re: /^Until end of turn, you may look at the top card of your library any time,? and you may (play lands and cast spells|play cards) from the top of your library\.?$/i,
       make: () => ({ op: 'playFromThisTurn', zone: 'top', what: 'any' }) },
+    // Kaya, Geist Hunter: "Until end of turn, if one or more tokens would be created under your control, twice that many of those tokens are created instead."
+    { re: /^Until end of turn, if one or more tokens would be created under your control, twice that many of those tokens are created instead\.?$/i,
+      make: () => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'tokDoubleTurn', event: 'createToken', who: 'you', how: 'double' } }) },
     // Yawgmoth's Will: "If a card would be put into your graveyard from anywhere this turn, exile that card instead."
     { re: /^If a card would be put into your graveyard from anywhere this turn, exile (?:that card|it) instead\.?$/i,
       make: () => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'gyExileTurn', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile', who: 'all', owner: 'you' } }) },
@@ -7716,7 +7729,9 @@
         return Object.assign({ op: 'damageDivided', n: k, targets: list }, pow ? { fromTrigger: true } : {});
       } },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
-      make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true }) },
+      // (Fireball: the targets chosen as it is cast, at least one — strive's price for each beyond the first)
+      make: (m) => ({ op: 'damageDivided', n: num(m[1]), evenly: true,
+        targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', multi: { count: 'any', min: 1 } }] }) },
 
     // Elesh Norn: "Exile CARDNAME, then return it to the battlefield transformed under its owner's control."
     // (Ajani, Nacatl Pariah; Sorin of House Markov: "return him … under his owner's control")
@@ -10360,6 +10375,11 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'restrict', flag: 'lure', targets: [targetSpec('target creature')] }
         : { op: 'restrict', flag: 'lure', scope: 'self' }) },
     { re: /^(?:CARDNAME|This creature|It) becomes prepared\.?$/i, make: () => ({ op: 'becomePrepared' }) },
+    /* Stensian Sanguinist: "Whenever that creature deals combat damage to a player this combat, this creature becomes
+       prepared." — the creature just given deathtouch, watched for this combat, each time (watchDamage repeat, thisCombat) */
+    { re: /^Whenever that creature deals combat damage to a player this combat, (?:CARDNAME|this creature) becomes prepared\.?$/i,
+      make: () => ({ op: 'delayed', event: 'permCombatDamage', watchDamage: true, repeat: true, thisCombat: true,
+        name: 'Whenever that creature deals combat damage to a player this combat', effects: [{ op: 'becomePrepared' }] }) },
     // Codie, Ravenous Codex: "Each creature you control becomes prepared." (scope)
     { re: /^Each creature you control becomes prepared\.?$/i, make: () => ({ op: 'becomePrepared', scope: { who: 'you', what: 'creature' } }) },
     { re: /^Regenerate each creature you control\.?$/i, make: () => ({ op: 'regenerate', scope: 'yourCreatures' }) },
@@ -21689,7 +21709,8 @@
     if (out.strive) {
       for (const ab of out.abilities) {
         if (ab.kind !== 'spell') continue;
-        const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.anyFrom) { e.targets = [Object.assign({}, e.anyFrom, { multi: { count: 'any', min: 1, perExtra: out.strive } })]; delete e.targets[0].upTo; delete e.anyFrom; } walk(e.list); } };
+        // (Fireball: "among any number of targets" — already its targets, a variable number of them)
+        const walk = (list) => { for (const e of list || []) { if (!e) continue; for (const sp of e.targets || []) if (sp && sp.multi && sp.multi.count === 'any' && !sp.multi.perExtra) sp.multi = Object.assign({}, sp.multi, { perExtra: out.strive }); if (e.anyFrom) { e.targets = [Object.assign({}, e.anyFrom, { multi: { count: 'any', min: 1, perExtra: out.strive } })]; delete e.targets[0].upTo; delete e.anyFrom; } walk(e.list); } };
         // (the strive spell's group, read as it resolves, is now its targets)
         walk(ab.effects);
       }
@@ -24162,6 +24183,9 @@
     { re: /^((?:Artifacts|Creatures|Lands|Nonbasic lands)(?:,? (?:and )?(?:artifacts|creatures|lands))*) enter (?:the battlefield )?tapped\.?$/,
       make: (m) => ({ op: 'replace', id: 'etbTapAll', event: 'enters', who: 'all', how: 'tapped',
         whatAny: m[1].toLowerCase().split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
+    // Phyrexian Censor: "Non-Phyrexian creatures enter tapped." — everyone's, but those of that type (notCreatureType)
+    { re: /^Non-([A-Z][a-z]+) creatures enter (?:the battlefield )?tapped\.?$/,
+      make: (m) => ({ op: 'replace', id: 'etbTapAll', event: 'enters', who: 'all', how: 'tapped', whatAny: ['creature'], notCreatureType: m[1] }) },
     // Kismet, Frozen Aether: "Artifacts, creatures, and lands your opponents control enter tapped."
     // (Reidane, God of the Worthy: "Snow lands your opponents control enter tapped.")
     { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands|Snow lands)(?:,? (?:and )?(?:artifacts|creatures|lands|nonbasic lands))*) your opponents control enter (?:the battlefield )?tapped\.?$/i,
@@ -26266,8 +26290,9 @@
       // Glacial Chasm
       { re: /^Prevent all damage that would be dealt to you\.?$/i, eff: { op: 'preventAllToYou' }, auto: true },
       // Deafening Silence, Rule of Law, Eidolon of Rhetoric
-      { re: /^Each player can'?t cast more than one (noncreature )?spell each turn\.?$/i,
-        make: (m) => ({ op: 'spellLimit', n: 1, noncreature: !!m[1] }), auto: true },
+      // (Phyrexian Censor: "more than one non-Phyrexian spell" — only those count, only they are stopped: notCreatureType)
+      { re: /^Each player can'?t cast more than one (noncreature |non-([A-Z][a-z]+) )?spell each turn\.?$/i,
+        make: (m) => Object.assign({ op: 'spellLimit', n: 1, noncreature: /^noncreature/i.test(m[1] || '') }, m[2] ? { notCreatureType: m[2] } : {}), auto: true },
       // Curse of Exhaustion
       { re: /^Enchanted (?:player|opponent) can'?t cast more than one spell each turn\.?$/i,
         make: () => ({ op: 'spellLimit', n: 1, who: 'enchantedPlayer' }), auto: true },

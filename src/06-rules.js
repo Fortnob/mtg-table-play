@@ -5705,9 +5705,13 @@
         if (lim.noncreature && a.isCreature) continue;
         // Ethersworn Canonist: only nonartifact spells count, and only they are stopped
         if (lim.nonartifact && a.isArtifact) continue;
+        // Phyrexian Censor: "non-Phyrexian spell" — a Phyrexian one neither counts nor is stopped (notCreatureType)
+        const nct = lim.notCreatureType;
+        if (nct && this._hasCreatureType(o, nct)) continue;
         const cast = (p.spellObjsThisTurn || []).filter(x => (!lim.noncreature || !(O.analyze(x.card, x.face) || {}).isCreature) &&
-          (!lim.nonartifact || !(O.analyze(x.card, x.face) || {}).isArtifact)).length;
-        if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : lim.nonartifact ? 'nonartifact ' : ''}spells this turn.` };
+          (!lim.nonartifact || !(O.analyze(x.card, x.face) || {}).isArtifact) &&
+          (!nct || !(x.analysis ? this._hasCreatureType(x, nct) : ((O.analyze(x.card, x.face) || {}).subtypes || []).includes(nct)))).length;
+        if (cast >= (lim.n || 1)) return { ok: false, reason: `${s0.name}: no more ${lim.noncreature ? 'noncreature ' : lim.nonartifact ? 'nonartifact ' : nct ? 'non-' + nct + ' ' : ''}spells this turn.` };
       }
       // Eloren Wilds, Prahv, Skybreen (planes): what the planes say can't be cast (src/06f-planechase.js)
       const pcWhy = this.config.planechase ? this._planarCastBlock(playerId, o, a) : null;
@@ -8861,6 +8865,9 @@
       if (mt) {
         const got = Math.max(0, (opts.targets || []).length - mt.fixed);
         const mm = mt.spec.multi;
+        // (Fireball: "any number of targets" — each one once, CR 115.3)
+        const mts = (opts.targets || []).slice(mt.before, mt.before + got).map(t => t && (t.id || t));
+        if (new Set(mts).size < mts.length) return this.fail('That needs a different target.');
         const legalN = this._legalTargetsFor(mt.spec, playerId, o.id).length;
         if (mm.count === 'X') {
           const x = opts.x || 0;
@@ -15725,6 +15732,8 @@
           : (a.types || []).some(t => t.toLowerCase() === w) || (a.subtypes || []).some(t => t.toLowerCase() === w)));   // (Caradora: "or Vehicle" — plusOneVehicle)
         if (!fits) return false;
       }
+      // Phyrexian Censor: "Non-Phyrexian creatures" (notCreatureType)
+      if (ef.notCreatureType && ev.object && this._hasCreatureType(ev.object, ef.notCreatureType)) return false;
       // "+1/+1 counters would be put on…" is only those counters
       if (ef.counter && ev.counter !== ef.counter) return false;
       // "an opponent's graveyard" is about whose card it is
@@ -20345,6 +20354,7 @@
         if (d.eventController != null && d.event === event && controllerId !== d.eventController) { keep.push(d); continue; }
         // (Kelsien, the Plague: "this turn" over, gone; only that creature dying, as the one it was — watchObj)
         if (d.untilTurn != null && this.turn !== d.untilTurn) continue;
+        if (d.untilCombat != null && (this.combatsThisTurn || 1) !== d.untilCombat) continue;
         // (Tamiyo, Field Researcher: "Until your next turn" — gone once that turn has begun: untilNextTurnOf)
         if (d.untilNextTurnOf && !this._beforeNextTurnOf(d.untilNextTurnOf.pid, d.untilNextTurnOf.taken)) continue;
         // (… "deals combat damage": combat damage only, once each combat damage step however many it hit — combatOnly)
@@ -32701,9 +32711,12 @@
           /* Optimus Prime, Autobot Leader: "When that creature deals combat damage to a player this turn, convert
              Optimus Prime." — the creature just chosen, watched this turn; this permanent the one converted (watchDamage) */
           if (e.watchDamage) {
-            const w = this._lastAffected && this.obj(this._lastAffected.id);
+            // (Stensian Sanguinist: "that creature" — the one the sentence before aimed at, when it aimed: firstObj)
+            const w = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
             if (!w || w.zone !== 'battlefield') break;
+            // (Stensian Sanguinist: "Whenever … this combat" — each time, this combat only: repeat, untilCombat)
             this.scheduleDelayed({ event: e.event || 'permCombatDamage', controller: ctx.controller, objId: src ? src.id : null, watchObj: w.id,
+              ...(e.repeat ? { once: false } : {}), ...(e.thisCombat ? { untilCombat: this.combatsThisTurn || 1 } : {}),
               watchLeftSeq: w._leftSeq || null, untilTurn: this.turn, name: e.name || 'When that creature deals combat damage to a player this turn',
               effects: (e.effects || []).map(x => (x.sinceNow && src ? Object.assign({}, x, { sinceTs: src.ts, sinceXf: src.xformN || 0 }) : x)) });
             break;

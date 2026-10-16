@@ -79301,4 +79301,154 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(b1), 6, 'attacking C, one of A\'s opponents: power doubled');
     t.eq(T.g.powerOf(b2), 2, 'attacking A: not');
   });
+
+  test('Cards: Stensian Sanguinist — you attack: deathtouch; that creature\'s combat damage to a player prepares it; Exsanguinate drains', (mk, t) => {
+    t.auto('Stensian Sanguinist // Exsanguinate');
+    const T = mk({ library: Array(30).fill('Swamp') });
+    const g = T.g;
+    const ss = T.bf('A', 'Stensian Sanguinist // Exsanguinate');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bears.id }] });
+    T.toMain('A', 'declareBlockers');
+    t.ok(g.hasKw(bears, 'deathtouch'), 'the Bears gain deathtouch');
+    t.no(ss.prepared, 'not prepared before damage');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 18, 'the Bears hit B');
+    t.ok(ss.prepared, 'Sanguinist becomes prepared');
+    T.nextTurn('A');
+    T.mana('A', '2BB');
+    t.ok(g.castSpell('A', ss.id, { via: 'prepared', x: 2, auto: true }), 'cast a copy of Exsanguinate, X=2');
+    T.resolve();
+    t.eq(T.life('B'), 16, 'B loses 2');
+    t.eq(T.life('A'), 22, 'A gains 2');
+    t.no(ss.prepared, 'no longer prepared');
+  });
+  test('Cards: Stensian Sanguinist — a blocked creature, or another creature, prepares nothing', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Swamp') });
+    const ss = T.bf('A', 'Stensian Sanguinist // Exsanguinate');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('A', 'Hill Giant');
+    const wall = T.bf('B', 'Wall of Omens');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }, { attackerId: giant.id, defenderId: 'B' }]);
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bears.id }] });
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [bears.id] }]);
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 17, 'only the Giant got through');
+    t.zone(wall, 'graveyard', 'deathtouch killed the Wall');
+    t.no(ss.prepared, 'not prepared');
+  });
+
+  test('Cards: Fireball — {1} more for each target beyond the first; X divided evenly among them', (mk, t) => {
+    t.auto('Fireball');
+    const T = mk();
+    const g = T.g;
+    T.toMain('A');
+    const wurm = T.bf('B', 'Craw Wurm'), bears = T.bf('B', 'Grizzly Bears');
+    const fb = T.hand('A', 'Fireball');
+    T.mana('A', '7R');
+    const r0 = g.castSpell('A', fb.id, { x: 6, targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: wurm.id }, { kind: 'object', id: bears.id }], auto: true });
+    t.no(r0,
+      'X=6 at three targets is 9 mana: 8 is not enough');
+    t.zone(fb, 'hand');
+    T.mana('A', '1');
+    t.ok(g.castSpell('A', fb.id, { x: 6, targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: wurm.id }, { kind: 'object', id: bears.id }], auto: true }), 'cast with 9');
+    T.resolve();
+    t.eq(T.life('B'), 18, 'the player: 2');
+    t.eq(wurm.damage, 2, 'the Wurm: 2');
+    t.zone(bears, 'graveyard', 'the Bears: 2');
+  });
+  test('Cards: Fireball — one target costs X plus {R}; the same target twice is refused', (mk, t) => {
+    const T = mk();
+    const g = T.g;
+    T.toMain('A');
+    const wurm = T.bf('B', 'Craw Wurm');
+    const fb = T.hand('A', 'Fireball');
+    T.mana('A', '5R');
+    t.no(g.castSpell('A', fb.id, { x: 4, targets: [{ kind: 'object', id: wurm.id }, { kind: 'object', id: wurm.id }], auto: true }), 'not the Wurm twice');
+    t.ok(g.castSpell('A', fb.id, { x: 3, targets: [{ kind: 'object', id: wurm.id }], auto: true }), 'X=3 at one target');
+    T.resolve();
+    t.eq(wurm.damage, 3, 'all 3 to the Wurm');
+  });
+
+  test('Cards: Kaya, Geist Hunter — −2: your tokens doubled until end of turn, not an opponent\'s, not next turn', (mk, t) => {
+    t.auto('Kaya, Geist Hunter');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const kaya = T.bf('A', 'Kaya, Geist Hunter');
+    T.activate('A', kaya, 1);
+    t.eq(kaya.counters.loyalty, 1, '3 − 2');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 4, 'two Soldiers become four');
+    T.mana('B', '1W');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    const ok = T.g.castSpell('B', T.hand('B', 'Raise the Alarm').id, { auto: true });
+    t.ok(ok, 'B casts one too'); T.settle(); T.resolve(); t.eq(T.bfOf('B').filter(o => o.isToken).length, 2, "B's two stay two");
+    T.nextTurn('A');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 6, 'next turn: just two more');
+  });
+  test('Cards: Kaya, Geist Hunter — −6: exile every graveyard, a flying Spirit for each card', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Plains') });
+    const kaya = T.bf('A', 'Kaya, Geist Hunter', { counters: { loyalty: 6 } });
+    const a1 = T.grave('A', 'Grizzly Bears'), a2 = T.grave('A', 'Opt'), b1 = T.grave('B', 'Hill Giant');
+    T.activate('A', kaya, 2);
+    for (const c of [a1, a2, b1]) t.zone(c, 'exile');
+    const sp = T.bfOf('A').filter(o => o.isToken);
+    t.eq(sp.length, 3, 'three Spirits');
+    t.ok(sp.every(o => /Spirit/.test(o.name) && T.g.hasKw(o, 'flying')), '1/1 flying Spirits');
+    t.zone(kaya, 'graveyard', 'Kaya at 0 loyalty');
+  });
+
+  test('Cards: Phyrexian Censor — one non-Phyrexian spell a turn; Phyrexian ones free; non-Phyrexian creatures enter tapped', (mk, t) => {
+    t.auto('Phyrexian Censor');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('B', 'Phyrexian Censor');
+    T.mana('A', '1G');
+    const bears = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield');
+    t.ok(bears.tapped, 'the Bears enter tapped');
+    T.mana('A', 'U');
+    t.no(g.castSpell('A', T.hand('A', 'Opt').id, { auto: true }), 'a second non-Phyrexian spell is refused');
+    T.mana('A', '2B');
+    const rager = T.hand('A', 'Phyrexian Rager');
+    T.cast('A', rager);
+    t.zone(rager, 'battlefield', 'a Phyrexian spell is still allowed');
+    t.no(rager.tapped, 'a Phyrexian creature enters untapped');
+  });
+  test('Cards: Phyrexian Censor — a Phyrexian spell first leaves room for one non-Phyrexian spell', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Phyrexian Censor');
+    T.mana('A', '2BUU');
+    T.cast('A', T.hand('A', 'Phyrexian Rager'));
+    t.ok(g.castSpell('A', T.hand('A', 'Opt').id, { auto: true }), 'Opt: the first non-Phyrexian spell');
+    T.resolve();
+    t.no(g.castSpell('A', T.hand('A', 'Opt').id, { auto: true }), 'a second Opt is refused');
+  });
+
+  test('Cards: Nanogene Conversion — every other creature, anyone\'s, a nonlegendary copy of yours until end of turn', (mk, t) => {
+    t.auto('Nanogene Conversion');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const leg = T.bf('A', 'Isamaru, Hound of Konda'), bear = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Hill Giant');
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Nanogene Conversion'), { targets: [leg] });
+    t.ok(/Isamaru/.test(bear.name) && /Isamaru/.test(theirs.name), 'the Bears and the Giant are Isamarus');
+    t.eq(theirs.controller, 'B', 'still B\'s');
+    t.no(((bear.analysis() || {}).supertypes || []).includes('Legendary'), 'not legendary');
+    t.zone(bear, 'battlefield', 'no legend rule');
+    t.zone(leg, 'battlefield', 'the original stays');
+    t.eq(g.powerOf(theirs), 2, 'a 2/2');
+    T.nextTurn('B');
+    t.eq(bear.name, 'Grizzly Bears', 'until end of turn');
+    t.eq(theirs.name, 'Hill Giant');
+  });
 };
