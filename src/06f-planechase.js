@@ -91,6 +91,14 @@
       }
       return null;
     },
+    /** Deceptive Divination: is a face-up plane making every sorcery an instant? (once for each state of the board) */
+    _sorceriesAsInstants() {
+      if (!this.planechaseOn()) return false;
+      if (this.__sorcInstKey === this._boardKey) return this.__sorcInst;
+      this.__sorcInstKey = this._boardKey; this.__sorcInst = false;
+      this.__sorcInst = this.facePlanes().some(pl => !!this._staticOp(pl, 'sorceryAsInstant'));
+      return this.__sorcInst;
+    },
     /** Every face-up plane and phenomenon is the planar controller's (CR 901.6), whoever owns it. */
     _planarSync() {
       const pc = this.planarController();
@@ -959,6 +967,75 @@
           this.logEvent('rules', `${me.name} can't sacrifice a creature.`);
           const r = this._planeswalk(pid, { ctx });
           return r === SUSPEND ? r : null;
+        }
+        /* Singing Towers of Darillium: "you may cast a foretold card you own from exile without paying its mana cost this turn"
+           — one of them, cast at its own speed (a lot: the first cast uses the leave up) */
+        case 'freeForetold': {
+          const gid = this._uid('ff');
+          const mine = ((this.zones[pid] || {}).exile || []).filter(c => c.owner === pid && c.foretold);
+          for (const c of mine) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.impulseGroup = gid; }
+          this.logEvent('rules', mine.length ? `${me.name} may cast one of their foretold cards without paying its mana cost this turn.` : `${me.name} has no foretold card in exile.`);
+          return null;
+        }
+        /* sAnS mERcY: "each player chooses a nonblack creature they control. Destroy those creatures." — chosen in turn order,
+           destroyed together */
+        case 'eachChooseDestroy': {
+          const order = this.turnOrder.length ? this.turnOrder : this.players.map(q => q.id);
+          const at = Math.max(0, order.indexOf(pid));
+          const picks = [];
+          for (let k = 0; k < order.length; k++) {
+            const q = this.player(order[(at + k) % order.length]);
+            if (!q || q.hasLost) continue;
+            const pool = this.battlefield.filter(o => o.controller === q.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature && this._cardFitsWords(o, e.filter || 'creature'));
+            if (!pool.length) continue;
+            let c = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: q.id, purpose: 'chooseToDestroy', kind: 'objects', zone: 'battlefield', min: 1, max: 1, harmful: true, items: this._chooseItems(pool),
+                prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: choose a ${e.filter || 'creature'} you control. It is destroyed.` }, 'pcCD' + q.id);
+              if (got === SUSPEND) return got;
+              c = pool.find(o => got && got.picks && got.picks[0] === o.id) || pool[0];
+            }
+            picks.push(c);
+          }
+          if (picks.length) this.logEvent('rules', `Chosen: ${picks.map(o => o.name).join(', ')}.`);
+          for (const o of picks) {
+            if (o.zone !== 'battlefield') continue;
+            if (this.hasKw(o, 'indestructible')) { this.logEvent('rules', `${o.name} is indestructible.`); continue; }
+            if (this._totemArmor(o) || this._regenerated(o)) continue;
+            this.moveObject(o, 'graveyard');
+          }
+          return null;
+        }
+        /* Morphic Tide: each player's permanents counted and shuffled into their library, that many cards revealed; the
+           artifacts, creatures, lands and planeswalkers among them onto the battlefield, then the enchantments, the rest to
+           the bottom (tokens count, and cease to exist) */
+        case 'morphicTide': {
+          const order = this.turnOrder.length ? this.turnOrder : this.players.map(q => q.id);
+          const at = Math.max(0, order.indexOf(pid));
+          const live = [];
+          for (let k = 0; k < order.length; k++) { const q = this.player(order[(at + k) % order.length]); if (q && !q.hasLost) live.push(q); }
+          const counts = new Map(live.map(q => [q.id, this.battlefield.filter(o => o.owner === q.id).length]));
+          for (const q of live) {
+            for (const o of this.battlefield.filter(x => x.owner === q.id)) this.moveObject(o, 'library');
+            this.rng.shuffle(this.zones[q.id].library);
+            this.logEvent('rules', `${q.name} shuffles ${MTG.oracle.nounCount(counts.get(q.id), 'permanent')} into their library.`);
+          }
+          const shown = new Map();
+          for (const q of live) {
+            const cards = this.zones[q.id].library.slice(0, counts.get(q.id));
+            shown.set(q.id, cards);
+            this._planarShow(q.id, cards);
+          }
+          const isA = (c, words) => words.some(w => this._cardFitsWords(c, w));
+          for (const wave of [['artifact', 'creature', 'land', 'planeswalker'], ['enchantment']]) {
+            for (const q of live) for (const c of shown.get(q.id)) if (c.zone === 'library' && isA(c, wave)) this.moveObject(c, 'battlefield', { controller: q.id });
+          }
+          for (const q of live) {
+            const lib = this.zones[q.id].library;
+            for (const c of shown.get(q.id)) { const i = lib.indexOf(c); if (i >= 0) { lib.splice(i, 1); lib.push(c); } }
+          }
+          this.bumpBoard();
+          return null;
         }
         /* The Doctor's Childhood Barn: "Untap those permanents. They phase out. They can't phase in for as long as CARDNAME
            remains face up. When a player planeswalks, those permanents phase in." — the targets, phased out until a player

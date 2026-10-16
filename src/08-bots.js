@@ -2370,6 +2370,12 @@
     },
     /* Devour: tokens are fodder; real creatures stay */
     devour(s) { return { picks: (s.items || []).filter(x => { const o = this.game.obj(x.id); return o && o.isToken; }).map(x => x.id) }; },
+    // sAnS mERcY: the creature of ours we miss least
+    chooseToDestroy(s) {
+      const g = this.game;
+      const worst = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((x, y) => this.permanentValue(x) - this.permanentValue(y))[0];
+      return { picks: worst ? [worst.id] : [] };
+    },
     // (Jund: devour handed to the spell, asked as it enters — the same)
     devourEnter(s) { return this.devour(s); },
     /* Reverse the Sands, The Doctor's Tomb: our total for the highest an opponent has, when that is more; theirs

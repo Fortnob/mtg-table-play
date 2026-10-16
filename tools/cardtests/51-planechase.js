@@ -2155,4 +2155,100 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(copter), 3, 'the Copter, a Vehicle already, unchanged');
     t.no(T.g.hasKw(copter, 'trample'), 'no trample for it');
   });
+
+  test('Planes: Glimmervoid Basin — a single-target instant or sorcery is copied for each other thing it could target', (mk, t) => {
+    t.auto('Glimmervoid Basin');
+    const T = onPlane(mk, 'Glimmervoid Basin');
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    const la = T.life('A'), lb = T.life('B');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'the Bolt'); t.zone(giant, 'graveyard', 'a copy at the Giant');
+    t.eq(T.life('A'), la - 3, 'a copy at A'); t.eq(T.life('B'), lb - 3, 'a copy at B');
+    // no target: no copies
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.eq(T.zone('A', 'hand').length, h + 2, 'Divination once: two cards');
+  });
+
+  test('Planes: Deceptive Divination — sorceries are instants', (mk, t) => {
+    t.auto('Deceptive Divination');
+    const T = onPlane(mk, 'Deceptive Divination');
+    const div = T.hand('A', 'Divination');
+    t.ok(div.analysis().isInstant && !div.analysis().isSorcery, 'an instant card in hand');
+    t.ok(T.g._cardFitsWords(div, 'instant card'), 'by its words too');
+    T.nextTurn('B');
+    T.mana('A', '2U');
+    const h = T.zone('A', 'hand').length;
+    T.g.passPriority('B', true);
+    t.eq(T.g.priorityPlayer.id, 'A', 'A has priority in B\'s main phase');
+    t.ok(T.g.castSpell('A', div.id, { auto: true }), T.g.lastError);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h + 1, 'cast on B\'s turn: two cards drawn for the one');
+    T.nextTurn('A');
+    walkTo(T, 'Shiv');
+    t.ok(T.hand('A', 'Divination').analysis().isSorcery, 'a sorcery again once A planeswalks away');
+  });
+
+  test('Planes: Singing Towers of Darillium — chaos: one foretold card cast for free this turn', (mk, t) => {
+    t.auto('Singing Towers of Darillium');
+    const T = onPlane(mk, 'Singing Towers of Darillium');
+    const a = T.hand('A', 'Hill Giant'), b = T.hand('A', 'Craw Wurm');
+    T.mana('A', '4');
+    t.ok(T.g.foretellCard('A', a.id), T.g.lastError);
+    t.ok(T.g.foretellCard('A', b.id), T.g.lastError);
+    chaos(T);
+    t.ok(T.g.castSpell('A', a.id, { auto: true, via: 'free' }), T.g.lastError);
+    T.resolve();
+    t.zone(a, 'battlefield', 'the Giant for free');
+    t.no(T.g.castSpell('A', b.id, { auto: true, via: 'free' }), 'only one');
+  });
+
+  test('Planes: Naktamun — creature cards in your graveyard have embalm for their mana cost', (mk, t) => {
+    t.auto('Naktamun');
+    const T = onPlane(mk, 'Naktamun');
+    const g = T.grave('A', 'Hill Giant'), theirs = T.grave('B', 'Grizzly Bears');
+    const has = (o) => (o.analysis().abilities || []).findIndex(ab => /^Embalm/.test(ab.text || ''));
+    t.ok(has(g) >= 0, 'the Giant has embalm');
+    t.ok(has(theirs) < 0, 'not B\'s card on A\'s turn');
+    T.mana('A', '3R');
+    const ai = g.analysis();
+    T.activate('A', g, ai.manaAbilities.length + ai.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^Embalm/.test(x.text || '')));
+    t.zone(g, 'exile', 'exiled');
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Hill Giant');
+    t.ok(tok && T.g._hasCreatureType(tok, 'Zombie') && T.g._cardFitsWords(tok, 'white creature'), 'a white Zombie Giant token');
+  });
+
+  test('Planes: sAnS mERcY — read in plain words: each player\'s chosen nonblack creature destroyed; chaos: torment for each roll', (mk, t) => {
+    t.auto('sAnS mERcY');
+    const T = onPlane(mk, 'Gavony');
+    const a1 = T.bf('A', 'Grizzly Bears'), a2 = T.bf('A', 'Hill Giant'), ab = T.bf('A', 'Vampire Nighthawk');
+    const b1 = T.bf('B', 'Craw Wurm');
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'chooseToDestroy'); t.no(ch.items.some(x => x.id === ab.id), 'not the black Nighthawk'); return { picks: [a1.id] }; });
+    walkTo(T, 'sAnS mERcY');
+    t.zone(a1, 'graveyard', 'A\'s choice destroyed'); t.zone(a2, 'battlefield'); t.zone(ab, 'battlefield', 'black: never chosen');
+    t.zone(b1, 'graveyard', 'B\'s only nonblack creature');
+    // the second roll this turn: chaos, X = 2 — each opponent loses 3 twice, unless they give something up
+    T.zone('B', 'hand').length = 0;
+    for (const o of T.bfOf('B').slice()) T.g.moveObject(o, 'graveyard');
+    const lb = T.life('B');
+    chaos(T);
+    t.eq(T.life('B'), lb - 6, 'two times three, with nothing to give up');
+  });
+
+  test('Planes: Morphic Tide — permanents shuffled away; as many cards revealed, the permanents put onto the battlefield', (mk, t) => {
+    t.auto('Morphic Tide');
+    const T = onPlane(mk, 'Gavony', { library: ['Grizzly Bears'], libraryEach: 10 });
+    T.bf('A', 'Hill Giant'); T.bf('A', 'Forest');
+    const tok = T.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    T.bf('B', 'Craw Wurm');
+    walkTo(T, 'Morphic Tide');
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(T.bfOf('A').length, 3, 'three permanents counted (the token too): three Bears');
+    t.ok(T.bfOf('A').every(o => !o.isToken), 'cards from the library, the token gone');
+    t.no(T.g.battlefield.includes(tok), 'the token ceased to exist');
+    t.eq(T.bfOf('B').length, 1, 'B: one');
+    t.ok(!T.g.facePlanes().some(o => o.name === 'Morphic Tide'), 'then planeswalked away');
+  });
 };

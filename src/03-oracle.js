@@ -5684,6 +5684,8 @@
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
     // Bad Wolf Bay: "cards can't enter from exile this turn"
     { re: /^Cards can'?t enter from exile this turn\.?$/i, make: () => ({ op: 'planar', what: 'noEnterFromExile' }) },
+    // Singing Towers of Darillium: "you may cast a foretold card you own from exile without paying its mana cost this turn" (freeForetold)
+    { re: /^Until end of turn, you may cast a foretold card you own from exile without paying its mana cost\.?$/i, make: () => ({ op: 'planar', what: 'freeForetold' }) },
     // Kharasha Foothills: "for each other opponent, you may create a token that's a copy of that creature, tapped and attacking that opponent"
     { re: /^For each other opponent, you may create a token that'?s a copy of that creature, tapped and attacking that opponent\.?$/i,
       make: () => ({ op: 'copyAttackingOthers', optional: true }) },
@@ -14146,6 +14148,23 @@
       make: () => [{ op: 'chooseColor' },
         { op: 'counters', kind: '+1/+1', n: { devotionChosen: true, mult: 1 }, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], scope: null },
         { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true, notTarget: true }] },
+    /* Glimmervoid Basin: "that player copies that spell for each other spell, permanent, card not on the battlefield, and/or
+       player the spell could target. Each copy targets a different one of them." */
+    { re: /^That player copies that spell for each other spell, permanent, card not on the battlefield, and\/or player the spell could target\. Each copy targets a different one of them\.?$/i,
+      make: () => [{ op: 'copyForEachLegal' }] },
+    // sAnS mERcY: "each player chooses a nonblack creature they control. Destroy those creatures."
+    { re: /^Each player chooses an? ((?:non)?(?:white|blue|black|red|green|artifact|legendary)? ?creature) they control\. Destroy those creatures\.?$/i,
+      make: (m) => [{ op: 'planar', what: 'eachChooseDestroy', filter: m[1].toLowerCase().trim() }] },
+    /* sAnS mERcY: "perform the following process X times, where X is the number of times you've rolled the planar die this
+       turn. Each opponent loses 3 life unless that player sacrifices a nonland permanent or discards a card." (as Torment of Hailfire) */
+    { re: /^Perform the following process X times, where X is the number of times you'?ve rolled the planar die this turn\. Each opponent loses (\d+) life unless that player sacrifices a nonland permanent(?: of their choice)? or discards a card\.?$/i,
+      make: (m) => [{ op: 'tormentRepeat', n: { planarRolls: true, mult: 1 }, life: +m[1] }] },
+    /* Morphic Tide: "each player shuffles all permanents they own into their library, then reveals that many cards from the top
+       of their library. Each player puts all artifact, creature, land, and planeswalker cards revealed this way onto the
+       battlefield, then does the same for enchantment cards, then puts all cards revealed this way that weren't put onto the
+       battlefield on the bottom of their library in any order." */
+    { re: /^Each player shuffles all permanents they own into their library, then reveals that many cards from the top of their library\. Each player puts all artifact, creature, land, and planeswalker cards revealed this way onto the battlefield, then does the same for enchantment cards, then puts all cards revealed this way that weren'?t put onto the battlefield on the bottom of their library in any order\.?$/i,
+      make: () => [{ op: 'planar', what: 'morphicTide' }] },
     /* Math is for Blockers: "exile it. Return it to the battlefield under its owner's control tapped and attacking at the
        beginning of that player's next declare attackers step." — the attacker (warpReturn, without Noctis's "can't be blocked") */
     { re: /^Exile it\. Return it to the battlefield under its owner'?s control tapped and attacking at the beginning of that player'?s next declare attackers step\.?$/i,
@@ -14592,6 +14611,17 @@
   }
   /* Scavenge (CR 702.97): "[Cost], Exile this card from your graveyard: Put a number of +1/+1 counters equal to this
      card's power on target creature. Activate only as a sorcery." — its own, or one Varolz, the Scar-Striped gives */
+  /* Embalm (CR 702.128), eternalize (CR 702.129): "Exile this card from your graveyard and pay its cost: create a token
+     that's a copy of it, except it's a white Zombie … with no mana cost. Activate only as a sorcery." — printed, or handed
+     out (Naktamun: the cost the mana cost) */
+  function embalmAbility(mana, text, keyword, eternalize) {
+    const cost = parseCost(mana);
+    cost.exile = { what: 'self', fromGraveyard: true };
+    const e = { op: 'copyPermanent', self: true, n: 1, grant: [], addSubtypes: ['Zombie'], noManaCost: true, setColor: eternalize ? 'black' : 'white' };
+    if (eternalize) e.setPt = '4/4';
+    return { kind: 'activated', cost, text: text || ((eternalize ? 'Eternalize ' : 'Embalm ') + mana), keyword: keyword || (eternalize ? 'Eternalize' : 'Embalm'),
+      sorcerySpeed: true, auto: true, fromGraveyard: true, effects: [e] };
+  }
   function scavengeAbility(mana, power, text) {
     const cost = parseCost(mana);
     cost.exile = { what: 'self', fromGraveyard: true };
@@ -18058,6 +18088,8 @@
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
+    // Glimmervoid Basin: "Whenever a player casts an instant or sorcery spell with a single target," (singleTarget)
+    { re: /^Whenever a player casts an instant or sorcery spell with a single target,? /i, event: 'anyCastSpell', filt: () => ({ words: 'instant or sorcery' }), extra: { singleTarget: true } },
     // Jund: "Whenever a player casts a creature spell that's black, red, or green," — the colours said after
     { re: /^When(?:ever)? a player casts an? ([a-z]+ )?spell that'?s ((?:white|blue|black|red|green), (?:white|blue|black|red|green),? or (?:white|blue|black|red|green)), /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[2].toLowerCase() + ' ' + (m[1] || '')) },
@@ -18762,8 +18794,22 @@
    * }
    */
   const cache = new Map();
+  /* sAnS mERcY (a Secret Lair plane) is printed in alternating case: read case-blind, as plain words — mana symbols and X
+     as they are, each sentence capitalised (spongeCase) */
+  function spongeCase(card) {
+    const t = String(card.oracle_text || '');
+    const words = t.match(/[A-Za-z]{3,}/g) || [];
+    const odd = words.filter(w => /[a-z][A-Z]/.test(w)).length;
+    if (words.length < 6 || odd / words.length < 0.4) return card;
+    // (its "wHeNEveR cHoAS EnSUEs" is chaos, printed misspelt with the rest)
+    const plain = (x) => String(x || '').toLowerCase().replace(/\{[^}]*\}/g, (m) => m.toUpperCase()).replace(/\bx\b/g, 'X').replace(/\bchoas\b/g, 'chaos')
+      .replace(/(^|\n|[.!?]\s+|\(\s*)([a-z])/g, (m, a, b) => a + b.toUpperCase());
+    const title = (x) => String(x || '').toLowerCase().replace(/(^|[\s\u2014-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+    return Object.assign({}, card, { oracle_text: plain(t), type_line: title(card.type_line) });
+  }
   function analyze(card, faceIndex) {
     if (!card) return null;
+    if (card.layout === 'planar') card = spongeCase(card);
     const key = card.id + ':' + (faceIndex || 0);
     if (cache.has(key)) return cache.get(key);
     let res;
@@ -19676,6 +19722,8 @@
            graveyard from anywhere this turn, exile it instead." — a permission, as Yawgmoth's Will words it, not a "may" */
         const permit = body.match(/^you may (play lands and cast spells|cast spells|play lands) from your graveyard this turn, and (if a card would be put into your graveyard from anywhere this turn, exile (?:it|that card) instead\.?)$/i);
         if (permit) body = `Until end of turn, you may ${permit[1]} from your graveyard. ${permit[2].charAt(0).toUpperCase()}${permit[2].slice(1)}`;
+        // (Singing Towers of Darillium: "you may cast a foretold card you own from exile without paying its mana cost this turn" — a permission)
+        if (/^you may cast a foretold card you own from exile without paying its mana cost this turn\.?$/i.test(body)) body = 'Until end of turn, you may cast a foretold card you own from exile without paying its mana cost.';
         const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) ||
           /\bthis way\b/i.test(/^you may /i.test(body) ? body.replace(/^[^.]*\./, '') : body);
         /* Sephiroth, Fallen Hero: "you may put a cell counter on target creature. Until end of turn, each modified
@@ -20162,13 +20210,7 @@
              sorcery — exile it, and a token copy of it, white (or a 4/4 black) Zombie as well as its own
              types, with no mana cost. Not a spell: nothing is cast. */
           if ((lower === 'embalm' || lower === 'eternalize') && k.arg && /^(?:\{[^}]+\})+$/.test(String(k.arg).trim())) {
-            const cost = parseCost(String(k.arg).trim());
-            cost.exile = { what: 'self', fromGraveyard: true };
-            const e = { op: 'copyPermanent', self: true, n: 1, grant: [], addSubtypes: ['Zombie'], noManaCost: true,
-              setColor: lower === 'embalm' ? 'white' : 'black' };
-            if (lower === 'eternalize') e.setPt = '4/4';
-            out.abilities.push({ kind: 'activated', cost, text: k.text, keyword: k.keyword, sorcerySpeed: true, auto: true, fromGraveyard: true,
-              effects: [e] });
+            out.abilities.push(embalmAbility(String(k.arg).trim(), k.text, k.keyword, lower === 'eternalize'));
             autoLines += 1 / kws.length;
             continue;
           }
@@ -24551,6 +24593,11 @@
       { re: /^Each creature spell you cast has emerge\. The emerge cost is equal to its mana cost\.?$/i, eff: { op: 'grantEmerge' }, auto: true },
       // Varolz, the Scar-Striped: "Each creature card in your graveyard has scavenge. The scavenge cost is equal to its mana cost." (grantScavenge)
       { re: /^Each creature card in your graveyard has scavenge\. The scavenge cost is equal to its mana cost\.?$/i, eff: { op: 'grantScavenge' }, auto: true },
+      // Naktamun (a plane): "Each creature card in your graveyard has embalm. Its embalm cost is equal to its mana cost." (grantEmbalm)
+      { re: /^Each creature card in your graveyard has embalm\. Its embalm cost is equal to its mana cost\.?$/i, eff: { op: 'grantEmbalm' }, auto: true },
+      /* Deceptive Divination (a plane): 'Change the text of each sorcery spell and sorcery card not on the stack by replacing
+         "sorcery" with "instant."' — every sorcery is an instant, its words too (sorceryAsInstant) */
+      { re: /^Change the text of each sorcery spell and sorcery card not on the stack by replacing "sorcery" with "instant\.?"\.?$/i, eff: { op: 'sorceryAsInstant' }, auto: true },
       // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
       { re: /^Each ([a-z]+) card in your graveyard has unearth ((?:\{[^}]+\})+)\.?$/i,
         make: (m) => ({ op: 'grantUnearth', words: m[1].toLowerCase(), cost: m[2] }), auto: true },
@@ -25786,6 +25833,7 @@
     wardPrice,
     parseCost,
     scavengeAbility,
+    embalmAbility,
     provokeAbility,
     parseEffects,
     parseEffectSentence,

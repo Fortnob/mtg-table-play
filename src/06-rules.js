@@ -134,6 +134,14 @@
       // face down, it is a 2/2 with no text — and that is what it is to
       // every rule that asks (CR 708.2)
       let base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand, this.cloaked) : O.analyze(this.textCard, this.face);
+      /* Deceptive Divination (a plane): 'Change the text of each sorcery spell and sorcery card not on the stack by replacing
+         "sorcery" with "instant."' — off the battlefield, a sorcery is read as the instant its words now make it */
+      if (base && base.isSorcery && !this.faceDown && this.zone !== 'battlefield' && this.game && this.game._sorceriesAsInstants && this.game._sorceriesAsInstants()) {
+        const c0 = this.textCard;
+        let c1 = SORC_INSTANT.get(c0);
+        if (!c1) { c1 = sorceryAsInstant(c0); SORC_INSTANT.set(c0, c1); }
+        base = O.analyze(c1, this.face) || base;
+      }
       // Clara Oswald: "If Clara Oswald is your commander, … Clara Oswald is the chosen color." — in every zone
       if (base && this.isCommander && this.chosenColor && base.keywordSet && base.keywordSet.has('impossible girl')) {
         if (this._igBase !== base || this._igColor !== this.chosenColor) {
@@ -220,6 +228,13 @@
   const UNSOLVED = new WeakMap();
   // Varolz, the Scar-Striped: each analysis with the scavenge it is given, by the one without (grantScavenge)
   const GRAVE_SCAVENGE = new WeakMap();
+  // Deceptive Divination: each card with "sorcery" read as "instant", by the card (sorceryAsInstant)
+  const SORC_INSTANT = new WeakMap();
+  function sorceryAsInstant(card) {
+    const sw = (t) => String(t || '').replace(/\b([Ss])orcer(y|ies)\b/g, (m, a, b) => (a === 'S' ? 'Instant' : 'instant') + (b === 'ies' ? 's' : ''));
+    const one = (f) => Object.assign({}, f, { type_line: sw(f.type_line), oracle_text: sw(f.oracle_text) });
+    return Object.assign(one(card), { id: String(card.id) + ':instant', card_faces: card.card_faces ? card.card_faces.map(one) : card.card_faces });
+  }
 
   /* The dungeons (CR 309), room by room as their cards print them: each
      room's ability, and the rooms it leads to. Undercity is entered only
@@ -3946,18 +3961,26 @@
       if (!base.manaCost) return base;
       if (!this._grantGraveMemo || this._grantGraveMemo.key !== this._boardKey) {
         // (empty while it is worked out: the board's own analyses look at graveyards too)
-        this._grantGraveMemo = { key: this._boardKey, scav: [] };
+        this._grantGraveMemo = { key: this._boardKey, scav: [], emb: [] };
         // (The Cave of Skulls, a plane: its controller's)
-        this._grantGraveMemo.scav = this._withEmblems(this.battlefield).filter(x => !x.phasedOut && this._staticOp(x, 'grantScavenge')).map(x => x.controller);
+        const holders = this._withEmblems(this.battlefield).filter(x => !x.phasedOut);
+        this._grantGraveMemo.scav = holders.filter(x => this._staticOp(x, 'grantScavenge')).map(x => x.controller);
+        // Naktamun (a plane): "Each creature card in your graveyard has embalm. Its embalm cost is equal to its mana cost." (grantEmbalm)
+        this._grantGraveMemo.emb = holders.filter(x => this._staticOp(x, 'grantEmbalm')).map(x => x.controller);
       }
-      if (!this._grantGraveMemo.scav.includes(o.owner)) return base;
-      let out = GRAVE_SCAVENGE.get(base);
-      if (!out) {
+      const scav = this._grantGraveMemo.scav.includes(o.owner), emb = this._grantGraveMemo.emb.includes(o.owner);
+      if (!scav && !emb) return base;
+      let memo = GRAVE_SCAVENGE.get(base);
+      if (!memo) { memo = {}; GRAVE_SCAVENGE.set(base, memo); }
+      const k = (scav ? 's' : '') + (emb ? 'e' : '');
+      if (!memo[k]) {
         const mana = base.manaCost.replace(/\{X\}/g, '') || '{0}';
-        out = Object.assign({}, base, { abilities: base.abilities.concat([O.scavengeAbility(mana, parseInt(base.power, 10) || 0, 'Scavenge ' + mana)]) });
-        GRAVE_SCAVENGE.set(base, out);
+        const extra = [];
+        if (scav) extra.push(O.scavengeAbility(mana, parseInt(base.power, 10) || 0, 'Scavenge ' + mana));
+        if (emb) extra.push(O.embalmAbility(mana, 'Embalm ' + mana));
+        memo[k] = Object.assign({}, base, { abilities: base.abilities.concat(extra) });
       }
-      return out;
+      return memo[k];
     }
     /** Tomik, Distinguished Advokist: does an opponent of this player control a permanent with this standing rule? */
     _tomikAgainst(pid, op) {
@@ -20014,6 +20037,11 @@
             const foe = t0 && (t0.kind === 'player' ? t0.id : x && x.zone === 'battlefield' ? x.controller : null);
             if (!foe || !this.opponentsOf(o.controller).some(q => q.id === foe) || !ts.every(t => t.kind === t0.kind && t.id === t0.id)) continue;
           }
+          // Glimmervoid Basin: "an instant or sorcery spell with a single target" — one target, not the same one twice (singleTarget)
+          if (ab.singleTarget) {
+            const sp = data.spell || (data.stackId && this.stack.find(st => st.id === data.stackId));
+            if (!sp || (sp.targets || []).length !== 1) continue;
+          }
           // Ivy, Gleeful Spellthief: "targets only a single creature other than Ivy" — one creature, maybe more than once, and nothing else
           // (Loki, God of Lies: "targets only a single creature" — itself too: targetsOneCreature)
           if (ab.targetsOneOtherCreature || ab.targetsOneCreature) {
@@ -25201,6 +25229,34 @@
           break;
         }
 
+        /* Glimmervoid Basin: "that player copies that spell for each other spell, permanent, card not on the battlefield,
+           and/or player the spell could target. Each copy targets a different one of them." — what it could target were it
+           cast anew; the spell's controller controls the copies */
+        case 'copyForEachLegal': {
+          const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = r ? r.index + ':gbcopies' : null;
+          if (r && r.marks[slot]) break;
+          const item = id ? this.stack.find(st => st.id === id) : null;
+          if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+          if (r) r.marks[slot] = true;
+          const have = item.targets || [];
+          if (have.length !== 1 || this._uncopyable(item)) break;
+          const spec = this._specsOf(item, 1)[0];
+          if (!spec) break;
+          const legal = this._legalTargetsFor(spec, item.controller, item.objId)
+            .filter(t => !(t.kind === have[0].kind && t.id === have[0].id) && !(t.kind === 'stack' && t.id === item.id));
+          for (const t of legal) {
+            const copy = this._copyOnStack(item, item.controller);
+            copy.targets = [normTarget(t)];
+          }
+          if (legal.length) {
+            this.logEvent('copy', `${(this.player(item.controller) || me).name} copies ${item.name || 'the spell'} ${legal.length} time${legal.length === 1 ? '' : 's'}, a copy for each other target.`);
+            this.emit('sfx', 'cast');
+          }
+          break;
+        }
         /* Zevlor, Elturel Exile: "for each other opponent, choose that player or a permanent they control, copy that spell,
            and the copy targets the chosen player or permanent" — only what the spell could target; with one choice, no
            question (copyForOtherOpponents) */
