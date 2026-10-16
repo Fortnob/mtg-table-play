@@ -2278,6 +2278,15 @@
       return { picks: [!mine || theirs >= 3 ? 0 : 1] };
     },
     /* Seize the Spotlight: fame when it costs us nothing (no creature, or none worth stealing), else fortune */
+    /* Master of Ceremonies: both get what is chosen, so what is worth most to us (each option's worth, from the engine);
+       a full hand makes a card worth less */
+    oppChoice(s) {
+      const full = ((this.game.zones[this.pid] || {}).hand || []).length >= 7;
+      const opts = (s.options || []).map((o, k) => ({ i: o.i != null ? o.i : k, w: (Number(o.worth) || 0) - (full && /secret|card|draw/i.test(o.label || '') ? 2 : 0) }));
+      if (!opts.length) return null;
+      opts.sort((a, b) => b.w - a.w);
+      return { picks: [opts[0].i] };
+    },
     fameOrFortune(s) {
       const g = this.game;
       const mine = g.battlefield.filter(o => o.controller === this.pid && !o.phasedOut && (g.characteristics(o) || {}).isCreature);

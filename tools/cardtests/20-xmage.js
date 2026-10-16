@@ -72021,4 +72021,132 @@ module.exports = (test) => {
     t.eq(b2.counters['+1/+1'], 1, 'a +1/+1 counter on the attacker');
     t.ok(T2.g.hasKw(b2, 'menace'), 'menace');
   });
+  test("Cards: Canopy Gargantuan — at your upkeep each other creature of yours gets +1/+1 counters equal to its toughness", (mk, t) => {
+    t.auto('Canopy Gargantuan');
+    const T = mk();
+    const cg = T.bf('A', 'Canopy Gargantuan');
+    const bear = T.bf('A', 'Grizzly Bears'), wall = T.bf('A', 'Wall of Wood');   // 2/2, 0/3
+    const foe = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(bear.counters['+1/+1'], 2, 'two on the 2/2');
+    t.eq(wall.counters['+1/+1'], 3, 'three on the 0/3');
+    t.no(cg.counters['+1/+1'], 'not on itself');
+    t.no(foe.counters['+1/+1'], "not on an opponent's");
+    t.ok(T.g.hasKw(cg, 'flying'), 'flying');
+  });
+  test('Cards: Master of Ceremonies — each opponent chooses money, friends, or secrets; you and each chooser get what they chose', (mk, t) => {
+    t.auto('Master of Ceremonies');
+    const T = mk({ players: ['A', 'B', 'C', 'D'], library: Array(20).fill('Island') });
+    T.bf('A', 'Master of Ceremonies');
+    const hand = (p) => T.zone(p, 'hand').length;
+    const hA = hand('A'), hB = hand('B'), hC = hand('C');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; t.eq(ch.playerId, 'B'); return { picks: [0] }; });
+    T.answer('choose', (ch) => { t.eq(ch.playerId, 'C'); return { picks: [2] }; });
+    T.answer('choose', (ch) => { t.eq(ch.playerId, 'D'); return { picks: [1] }; });
+    // the next upkeep of A's: run on to it
+    T.nextTurn('A');
+    t.ok(asked && asked.purpose === 'oppChoice' && asked.options.length === 3, 'three options');
+    t.ok(/money, friends, or secrets/.test(asked.prompt), asked.prompt);
+    const tre = (p) => T.bfOf(p).filter(o => o.name === 'Treasure').length;
+    t.eq(tre('A'), 1, 'B chose money: a Treasure for A'); t.eq(tre('B'), 1, '… and one for B'); t.eq(tre('C'), 0);
+    const cit = (p) => T.bfOf(p).filter(o => o.isToken && T.g._hasCreatureType(o, 'Citizen')).length;
+    t.eq(cit('A'), 1, 'D chose friends: a Citizen for A'); t.eq(cit('D'), 1, '… and one for D'); t.eq(cit('B'), 0);
+    t.eq(hand('C'), hC + 2, 'C chose secrets: a card (and the turn draw)');
+    t.eq(hand('A'), hA + 1 + 1, "A's draw and one secret");
+    t.eq(hand('B'), hB + 1, 'B drew only on its turn');
+    // a bot picks for itself
+    const T2 = mk();
+    T2.bf('A', 'Master of Ceremonies');
+    const sp = { purpose: 'oppChoice', kind: 'options', playerId: 'B', min: 1, max: 1,
+      options: [{ i: 0, label: 'Money', worth: 1.5 }, { i: 1, label: 'Friends', worth: 2 }, { i: 2, label: 'Secrets', worth: 3 }] };
+    const bot = new T2.MTG.bots.BotPlayer(T2.g, 'B', 5);
+    const a = bot.chooseGeneric(sp);
+    t.eq(a && a.picks[0], 2, 'a card is worth most');
+  });
+  test("Cards: Double Major — copies your creature spell, the copy not legendary", (mk, t) => {
+    t.auto('Double Major');
+    const T = mk();
+    T.mana('A', 'W');
+    const legend = T.hand('A', 'Isamaru, Hound of Konda');
+    T.cast('A', legend, { resolve: false });
+    T.mana('A', 'GU');
+    T.cast('A', T.hand('A', 'Double Major'), { targets: [T.stackTarget(legend)] });
+    const isas = T.bfOf('A').filter(o => o.name === 'Isamaru, Hound of Konda');
+    t.eq(isas.length, 2, 'both stay: the copy is not legendary');
+    const tok = isas.find(o => o.isToken);
+    t.ok(tok && !(tok.analysis() || {}).isLegendary, 'a nonlegendary token');
+    t.ok((legend.analysis() || {}).isLegendary, 'the original still legendary');
+    // a nonlegendary creature spell: a plain copy
+    const T2 = mk();
+    T2.mana('A', '1G');
+    const bear = T2.hand('A', 'Grizzly Bears');
+    T2.cast('A', bear, { resolve: false });
+    T2.mana('A', 'GU');
+    T2.cast('A', T2.hand('A', 'Double Major'), { targets: [T2.stackTarget(bear)] });
+    t.eq(T2.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 2, 'two Bears');
+  });
+  test("Cards: Autumn's Veil — your spells can't be countered by blue or black spells, your creatures can't be their targets, this turn", (mk, t) => {
+    t.auto("Autumn's Veil");
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', "Autumn's Veil"));
+    // B's black removal can't target the Bears; red removal can
+    const dread = T.hand('B', 'Doom Blade'), bolt = T.hand('B', 'Lightning Bolt');
+    t.no(g._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'battlefield' }, 'B', dread.id).some(x => x.id === bear.id), 'not by a black spell');
+    t.ok(g._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'battlefield' }, 'B', bolt.id).some(x => x.id === bear.id), 'a red one can');
+    // A's spell: a blue counterspell can't counter it
+    T.mana('A', '1G');
+    const b2 = T.hand('A', 'Grizzly Bears');
+    T.cast('A', b2, { resolve: false });
+    g.passPriority('A');
+    T.mana('B', 'UU');
+    t.ok(g.castSpell('B', T.hand('B', 'Counterspell').id, { auto: true, targets: [T.stackTarget(b2)] }), g.lastError);
+    T.resolve();
+    t.zone(b2, 'battlefield', 'Counterspell (blue) could not counter it');
+    // Mana Leak: blue too — nothing asked, not countered
+    T.mana('A', '1G');
+    const b3 = T.hand('A', 'Grizzly Bears');
+    T.cast('A', b3, { resolve: false });
+    g.passPriority('A');
+    T.mana('B', '1U');
+    t.ok(g.castSpell('B', T.hand('B', 'Mana Leak').id, { auto: true, targets: [T.stackTarget(b3)] }), g.lastError);
+    T.resolve();
+    t.zone(b3, 'battlefield', 'Mana Leak could not counter it');
+    t.eq(T.asked.filter(c => c.type === 'payOrCounter').length, 0, 'not asked to pay');
+    // a white counterspell still counters it
+    T.mana('A', '1G');
+    const b4 = T.hand('A', 'Grizzly Bears');
+    T.cast('A', b4, { resolve: false });
+    g.passPriority('A');
+    T.mana('B', 'W');
+    t.ok(g.castSpell('B', T.hand('B', 'Mana Tithe').id, { auto: true, targets: [T.stackTarget(b4)] }), g.lastError);
+    T.answer('payOrCounter', { pay: false });
+    T.resolve();
+    t.zone(b4, 'graveyard', 'Mana Tithe (white) counters it');
+    // next turn: over
+    T.nextTurn('B');
+    t.ok(g._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'battlefield' }, 'B', dread.id).some(x => x.id === bear.id), 'only this turn');
+  });
+  test('Cards: Frontier Warmonger — creatures attacking an opponent or their planeswalker gain menace', (mk, t) => {
+    t.auto('Frontier Warmonger');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Frontier Warmonger');
+    const bear = T.bf('A', 'Grizzly Bears'), lion = T.bf('A', 'Savannah Lions'), ogre = T.bf('A', 'Gray Ogre'), home = T.bf('A', 'Wind Drake');
+    const pw = T.bf('C', 'Jace Beleren');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: lion.id, defenderId: 'B' }, { attackerId: ogre.id, defenderId: pw.id }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(T.g.hasKw(bear, 'menace') && T.g.hasKw(lion, 'menace'), 'those at B');
+    t.ok(T.g.hasKw(ogre, 'menace'), "the one at C's planeswalker");
+    t.no(T.g.hasKw(home, 'menace'), 'not one that stayed home');
+    t.no(T.g.hasKw(theirs, 'menace'));
+    // an opponent's attack doesn't count
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: theirs.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    t.no(T.g.hasKw(theirs, 'menace'), 'B attacking A: not one of your opponents');
+  });
 };

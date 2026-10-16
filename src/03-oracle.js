@@ -4144,6 +4144,9 @@
     { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control| an opponent controls)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
       make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
         m[2] ? { controller: /opponent/i.test(m[2]) ? 'opponent' : 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }, m[4] ? { times: /twice/i.test(m[4]) ? 2 : num(m[4].trim().split(' ')[0].toLowerCase()) } : {}) },
+    // Double Major: "Copy target creature spell you control, except it isn't legendary if the spell is legendary." (nonLegendary)
+    { re: /^Copy target (creature|permanent|artifact|enchantment) spell you control, except it isn'?t legendary if the spell is legendary\.?$/i,
+      make: (m) => ({ op: 'copySpell', nonLegendary: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase(), controller: 'you' }] }) },
     // Errant, Street Artist: "Copy target spell you control that wasn't cast." — a copy, say (notCast)
     { re: /^Copy target spell you control that wasn'?t cast\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: () => ({ op: 'copySpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'you', notCast: true }] }) },
@@ -4383,6 +4386,10 @@
     /* Aerith Gainsborough, Halana and Alena */
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on each ([a-z ]+?), where X is the number of (\+1\/\+1|[a-z]+) counters on (?:CARDNAME|this creature|it)\.?$/i,
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: { countersOnSelf: m[3].toLowerCase() }, scope: sc } : null; } },
+    /* Canopy Gargantuan: "put a number of +1/+1 counters on each other creature you control equal to that creature's
+       toughness" — each its own number, all counted before any go on (eachOwn) */
+    { re: /^Put a number of (\+1\/\+1|[a-z]+) counters on each ([a-z ]+?) equal to that creature'?s (power|toughness)\.?$/i,
+      make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: 0, scope: sc, eachOwn: m[3].toLowerCase() } : null; } },
     // Szarel, Genesis Shepherd: "put a number of +1/+1 counters equal to CARDNAME's power on up to one other target creature" (countersEqualTo)
     { re: /^Put a number of (\+1\/\+1|[a-z]+) counters equal to (.+?) on (up to one )?(other |another )?(target creature(?: you control)?)\.?$/i,
       make: (m) => {
@@ -6764,6 +6771,13 @@
       make: (m) => ({ op: 'transformChosen', subtypes: [m[1].toLowerCase(), singularType(m[2] + 's')] }) },
     // Veil of Summer: "Spells you control can't be countered this turn."
     { re: /^Spells you control can'?t be countered this turn\.?$/i, make: () => ({ op: 'uncounterableTurn' }) },
+    /* Autumn's Veil: "Spells you control can't be countered by blue or black spells this turn, and creatures you control
+       can't be the targets of blue or black spells this turn." — only spells of those colours kept off (byColors) */
+    { re: /^Spells you control can'?t be countered by (white|blue|black|red|green)(?: or (white|blue|black|red|green))? spells this turn, and creatures you control can'?t be the targets of \1(?: or \2)? spells this turn\.?$/i,
+      make: (m) => {
+        const cols = [m[1], m[2]].filter(Boolean).map(x => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[x.toLowerCase()]);
+        return [{ op: 'uncounterableTurn', byColors: cols }, { op: 'untargetableTurn', what: 'creature', byColors: cols }];
+      } },
     // Vexing Shusher: "Target spell can't be countered."
     { re: /^Target (spell|creature spell|instant or sorcery spell) can'?t be countered\.?$/i,
       make: (m) => ({ op: 'spellUncounterable', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() }] }) },
@@ -13384,6 +13398,23 @@
        chose fortune, you draw a card and create a Treasure token." (fameOrFortune) */
     { re: /^Each opponent chooses fame or fortune\. For each player who chose fame, gain control of a creature that player controls until end of turn\. Untap those creatures and they gain haste until end of turn\. For each player who chose fortune, you draw a card and create a Treasure token\.?$/i,
       make: () => [{ op: 'fameOrFortune' }] },
+    /* Master of Ceremonies: "each opponent chooses money, friends, or secrets. For each player who chose money, you and
+       that player each create a Treasure token. For each player who chose friends, …" — each opponent in turn; for each
+       who chose a word, its sentence done once as you and once as them (oppChoice) */
+    { re: /^Each opponent chooses ([a-z]+), ([a-z]+),? or ([a-z]+)\.((?:\s*For each player who chose [a-z]+, you and that player each [^.]+\.){3})$/i,
+      make: (m) => {
+        const words = [m[1], m[2], m[3]].map(w => w.toLowerCase());
+        const choices = words.map(w => ({ label: U.titleCase(w), then: null, text: '' }));
+        for (const sm of m[4].matchAll(/For each player who chose ([a-z]+), you and that player each ([^.]+)\./gi)) {
+          const i = words.indexOf(sm[1].toLowerCase());
+          if (i < 0 || choices[i].then) return null;
+          const body = parseSentenceList([sm[2].charAt(0).toUpperCase() + sm[2].slice(1) + '.']);
+          if (!body.auto || !body.effects.length || body.effects.some(x => (x.targets || []).length)) return null;
+          choices[i].then = body.effects;
+          choices[i].text = sm[2];
+        }
+        return choices.every(c => c.then) ? [{ op: 'oppChoice', choices, both: true }] : null;
+      } },
     /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed. For
        each fellowship vote, the voter chooses a creature they control. You gain control of each creature chosen this way,
        and they gain "This creature can't attack its owner." Then for each aid vote, put a +1/+1 counter on each creature
@@ -17242,6 +17273,10 @@
        have power or toughness equal to the chosen number," — once for each opponent attacked, those at them (attackersHerePtChosen) */
     { re: /^Whenever one or more creatures attack one of your opponents, if any of those creatures have power or toughness equal to the chosen number,? /i,
       event: 'anyPlayerAttacksPlayer', extra: { attackedIsYourOpponent: true, attackersHerePtChosen: true } },
+    /* Frontier Warmonger: "Whenever one or more creatures attack one of your opponents or a planeswalker they control" — once
+       for each opponent attacked, "those creatures" the ones at them or their planeswalkers (anyAttacksPlayerOrPw) */
+    { re: /^Whenever one or more creatures attack one of your opponents or a planeswalker they control,? /i,
+      event: 'anyAttacksPlayerOrPw', extra: { attackedIsYourOpponent: true } },
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },

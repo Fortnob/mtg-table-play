@@ -3919,7 +3919,15 @@
     /** Suq'Ata Firewalker: no spell or ability from a source of that colour may target it, whoever controls it. */
     /* Thrun, Breaker of Silence: "nongreen spells your opponents control or abilities from nongreen sources your
        opponents control" — a source without that colour, controlled by an opponent of its controller (nonColor, opponents) */
-    _untargetableHit(o, source, controllerId) {
+    _untargetableHit(o, source, controllerId, isAbility) {
+      /* Autumn's Veil: "creatures you control can't be the targets of blue or black spells this turn" — a spell (isAbility
+         said, or one being cast or on the stack) of one of those colours, at a creature of that player's (untargetableKinds) */
+      const uk = o && source ? ((this.player(o.controller) || {}).untargetableKinds || []) : [];
+      if (uk.length && uk.some(u => u.turn === this.turn)) {
+        const spell = isAbility != null ? !isAbility : source.zone === 'stack' || source.zone === 'hand';
+        const cs = spell ? ((source.analysis() || {}).colors || []) : [];
+        if (spell && uk.some(u => u.turn === this.turn && this._cardFitsWords(o, u.what || 'creature') && (u.byColors || []).some(c => cs.includes(c)))) return true;
+      }
       const e = o && source && this._staticOp(o, 'untargetableBy');
       if (!e) return false;
       // Tetsuo Umezawa: "can't be the target of Aura spells" — an Aura not yet on the battlefield (auraSpells)
@@ -4135,7 +4143,8 @@
         if (o.zone === 'battlefield') {
           if (this._hexproofBars(o) && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj, item.kind !== 'spell')) return false;
-          if (item.obj && this._untargetableHit(o, item.obj, item.controller)) return false;
+          if (item.obj && this._untargetableHit(o, item.obj, item.controller, item.kind !== 'spell')) return false;
+
           if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
           if (this._shroudFor(o, item.controller)) return false;
           // protection from a quality the spell or ability's source has
@@ -9626,6 +9635,18 @@
       const attackedPlayers = [];
       for (const x of attackers) if (x && this.player(x.attacking) && !attackedPlayers.includes(x.attacking)) attackedPlayers.push(x.attacking);
       for (const d of attackedPlayers) this._fire('anyPlayerAttacksPlayer', null, { attackers: attackers.filter(x => x && x.attacking === d), playerId: pid, attackedPlayer: d });
+      /* Frontier Warmonger: "Whenever one or more creatures attack one of your opponents or a planeswalker they control" —
+         once for each player attacked, with the creatures at them or at their planeswalkers (not battles) */
+      const atPw = new Map();
+      for (const x of attackers) {
+        if (!x || x.attacking == null) continue;
+        const pw = this.player(x.attacking) ? null : this.obj(x.attacking);
+        const who = this.player(x.attacking) ? x.attacking : pw && pw.zone === 'battlefield' && (pw.analysis() || {}).isPlaneswalker ? pw.controller : null;
+        if (who == null) continue;
+        if (!atPw.has(who)) atPw.set(who, []);
+        atPw.get(who).push(x);
+      }
+      for (const [d, list] of atPw) this._fire('anyAttacksPlayerOrPw', null, { attackers: list, playerId: pid, attackedPlayer: d });
       this._fire('yourCreatureAttacks', pid, { attackers });
       /* "Whenever a creature you control attacks alone" (exalted's cousins):
          the only creature declared as an attacker this combat */
@@ -19250,6 +19271,8 @@
         votes: data.votes,
         // Breena, the Demagogue: the player attacked, as against the one attacking (attacksOneOfYourOpponents)
         attackedPlayer: data.attackedPlayer,
+        // Frontier Warmonger: "those creatures" — the ones at that player or their planeswalkers (anyAttacksPlayerOrPw)
+        attackers: event === 'anyAttacksPlayerOrPw' ? (data.attackers || []).map(x => x && x.id).filter(Boolean) : undefined,
         // Ghyrson Starn, Kelermorph: the permanent a source dealt damage to (toVictim)
         victimId: data.victimId,
         // Maarika, Brutal Gladiator: the creature it dealt damage to — whose it was, and whether it was dealt excess damage
@@ -21551,7 +21574,11 @@
           return;
         }
         if (e2.scope === 'lastGroup') {
-          for (const id of (this._lastGroup || []).slice()) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
+          /* (Frontier Warmonger: "those creatures" with no group named before — the attackers the trigger is about) */
+          const tdL = ctx.triggerData || {};
+          const ids = this._lastGroup != null ? this._lastGroup
+            : (tdL.attackers || []).map(x => (typeof x === 'string' ? x : x && x.id)).filter(Boolean);
+          for (const id of ids.slice()) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
           return;
         }
         // Heroes in a Half Shell: "one or more Mutants … deal combat damage to a player, put a +1/+1 counter on each of those creatures" (triggerBatch)
@@ -22843,7 +22870,9 @@
             // (The Fifth Doctor: "Untap those creatures" are these — idleOrNew)
             const listC = this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id);
             this._lastGroup = listC.map(o => o.id);
-            for (const o of listC) this.addCounters(o, e.kind, cnt);
+            // Canopy Gargantuan: "equal to that creature's toughness" — each its own, all counted first (eachOwn)
+            const own = e.eachOwn ? listC.map(o => Math.max(0, e.eachOwn === 'power' ? this.powerOf(o) : this.toughnessOf(o))) : null;
+            listC.forEach((o, i) => { if (!own) this.addCounters(o, e.kind, cnt); else if (own[i] > 0) this.addCounters(o, e.kind, own[i]); });
           }
           // Jared Carthalion: "a number of +1/+1 counters on it equal to the number of colors it is" — each its own (perColorsOf)
           else if (e.perColorsOf) for (const t of targets) {
@@ -23005,7 +23034,14 @@
           (this._blockLimitsCombat = (this._blockLimitsCombat || []).filter(x => x.turn === this.turn)).push({ by: ctx.controller, n: n(e.n) || 1, turn: this.turn, name: (src && src.name) || ctx.name || 'Effect' });
           this.logEvent('rules', `${me.name}'s opponents can't block with more than ${n(e.n) || 1} creature${(n(e.n) || 1) === 1 ? '' : 's'} this combat.`);
           break;
-        case 'uncounterableTurn': (me.uncounterableKinds = me.uncounterableKinds || []).push({ turn: this.turn, words: e.words || null }); break;
+        // (Autumn's Veil: "can't be countered by blue or black spells this turn" — byColors)
+        case 'uncounterableTurn': (me.uncounterableKinds = me.uncounterableKinds || []).push(Object.assign({ turn: this.turn, words: e.words || null }, e.byColors ? { byColors: e.byColors.slice() } : {})); break;
+        /* Autumn's Veil: "creatures you control can't be the targets of blue or black spells this turn" — kept with the
+           player, for whatever creature of theirs is there this turn (untargetableTurn) */
+        case 'untargetableTurn':
+          (me.untargetableKinds = (me.untargetableKinds || []).filter(u => u.turn === this.turn)).push({ turn: this.turn, what: e.what || 'creature', byColors: (e.byColors || []).slice() });
+          this.logEvent('rules', `${me.name}'s ${e.what || 'creature'}s can't be the targets of ${(e.byColors || []).map(c => ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[c]).join(' or ')} spells this turn.`);
+          break;
         // Aetherspouts: each attacker's owner picks top or bottom of their library for it
         case 'attackersTopOrBottom': {
           const list = (this.combat.attackers || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield');
@@ -23041,14 +23077,9 @@
               const rv = rv0 && rv0 === (this.zones[ctx.controller].library || [])[0] ? rv0 : null;
               if (!rv || ((rv.card && rv.card.cmc) || 0) !== ((item.obj && item.obj.card && item.obj.card.cmc) || 0)) { this.logEvent('counter', `${item.name} has another mana value than ${rv ? rv.name : 'the revealed card'}.`); continue; }
             }
-            // an ability on the stack is countered whatever its source says about spells (Stifle)
-            const proof = (item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
-              (ab.effects || []).some(ef => ef.op === 'cantBeCountered' ||
-                // Exquisite Firecraft: "Spell mastery — If …, this spell can't be countered" — judged as it would be countered
-                (ef.op === 'ifCond' && (ef.then || []).some(x => x && x.op === 'cantBeCountered') && this._condMet(ef.cond, { controller: item.controller, obj: item.obj }))))) || this._uncounterable(item))) ||
-              // Spider-Punk: "Spells and abilities can't be countered."
-              (item.kind !== 'spell' && this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'uncounterable') || {}).abilities));
-            if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
+            const proof = this._counterProof(item, { spell: ctx.kind === 'spell', obj: src });
+            if (proof)
+ { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             item.countered = true;
             if (e.exileIt) item.exileIfCountered = true;
             if (e.counterTo === 'suspend') { item.counterTo = 'suspend'; item.suspendTime = e.timeCounters || 3; }
@@ -25601,6 +25632,8 @@
             const item = this.stack.find(st => st.id === t.id);
             if (!item) continue;
             const payer = this.player(item.controller);
+            // (a spell that can't be countered, by this one at least — Veil of Summer, Autumn's Veil — needs nothing paid)
+            if (this._counterProof(item, { spell: ctx.kind === 'spell', obj: src })) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }
             // Repulsive Mutation: "pays mana equal to the greatest power among creatures you control" — counted now (costN); nothing to pay, nothing asked
             const cn = e.costN != null ? Math.max(0, n(e.costN) || 0) : null;
             if (cn === 0) { this.logEvent('counter', `${item.name} is not countered \u2014 there is nothing to pay.`); continue; }
@@ -26064,9 +26097,11 @@
               // Gogo, Master of Mimicry: "This ability can't be copied"
               if (this._uncopyable(item)) { this.logEvent('rules', `${item.name} can't be copied.`); continue; }
               // Mister Fantastic: "Copy target triggered ability you control twice"
-              for (let rep = Math.max(1, e.times ? n(e.times) : 1); rep > 0; rep--) made.push(this._copyOnStack(item, ctx.controller).id);
+              // (Double Major: "except it isn't legendary if the spell is legendary" — nonLegendary)
+              const exc = e.nonLegendary ? { nonLegendary: true } : undefined;
+              for (let rep = Math.max(1, e.times ? n(e.times) : 1); rep > 0; rep--) made.push(this._copyOnStack(item, ctx.controller, exc).id);
               // Twinning Staff: one more
-              for (let k = this._extraCopies(ctx.controller, item); k > 0; k--) made.push(this._copyOnStack(item, ctx.controller).id);
+              for (let k = this._extraCopies(ctx.controller, item); k > 0; k--) made.push(this._copyOnStack(item, ctx.controller, exc).id);
               this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}.`);
             }
             if (r) r.marks[slot] = made;
@@ -34911,6 +34946,35 @@
           if (fortune) this._spliceNext([].concat(...Array.from({ length: fortune }, () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'createNamedToken', n: 1, token: 'Treasure' }])));
           break;
         }
+        /* Master of Ceremonies: "each opponent chooses money, friends, or secrets. For each player who chose money, you
+           and that player each create a Treasure token. …" — each opponent in turn order, every choice told once all are
+           in; then, chooser by chooser, the words of the choice done as you and as them (oppChoice, both) */
+        case 'oppChoice': {
+          const opps = this._turnOrderFrom(ctx.controller).filter(q => !q.hasLost && q.id !== ctx.controller);
+          const cs = e.choices || [];
+          if (!cs.length) break;
+          const opts = cs.map((c, i) => ({ i, label: c.label, worth: this._oppChoiceWorth(c.then) }));
+          const said = cs.map(c => `${c.label}: ${e.both ? `you and ${me.name} each ` : ''}${c.text}.`).join(' ');
+          const lw = cs.map(c => c.label.toLowerCase());
+          const words = lw.length > 2 ? lw.slice(0, -1).join(', ') + ', or ' + lw[lw.length - 1] : lw.join(' or ');
+          const picks = [];
+          for (const q of opps) {
+            const v = this._choose({ playerId: q.id, purpose: 'oppChoice', kind: 'options', min: 1, max: 1, options: opts, forPlayer: ctx.controller,
+              prompt: `${src ? src.name + ': ' : ''}choose ${words}. ${said}` }, 'oc' + q.id);
+            if (v === SUSPEND) return SUSPEND;
+            const k = v && v.picks.length ? v.picks[0] : 0;
+            picks.push({ pid: q.id, pick: cs[k] ? k : 0 });
+          }
+          if (!this._doneHere('ocTold')) for (const v of picks) this.logEvent('rules', `${(this.player(v.pid) || {}).name} chooses ${cs[v.pick].label.toLowerCase()}.`);
+          const list = [];
+          for (const v of picks) {
+            const body = cs[v.pick].then || [];
+            for (const f of body) list.push(JSON.parse(JSON.stringify(f)));
+            if (e.both) for (const f of body) list.push(Object.assign(JSON.parse(JSON.stringify(f)), { _as: v.pid }));
+          }
+          if (list.length) this._spliceNext(list);
+          break;
+        }
         /* Círdan the Shipwright: "each player secretly votes for a player, then those votes are revealed" — nobody's vote
            is told until all are in; then a card for each vote received, and those who got none may put a permanent card
            from their hand onto the battlefield (votePlayers) */
@@ -38479,14 +38543,30 @@
     }
 
     /** Is this spell one nothing can counter: "creature spells you control can't be countered", Cavern of Souls? */
-    _uncounterable(item) {
+    /** Can't this spell or ability be countered (by `by`: { spell, obj } of what counters it)? Its own words, the table's rules. */
+    _counterProof(item, by) {
+      if (!item) return false;
+      const ia = item.obj && item.obj.analysis();
+      // an ability on the stack is countered whatever its source says about spells (Stifle)
+      return (item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
+        (ab.effects || []).some(ef => ef.op === 'cantBeCountered' ||
+          // Exquisite Firecraft: "Spell mastery — If …, this spell can't be countered" — judged as it would be countered
+          (ef.op === 'ifCond' && (ef.then || []).some(x => x && x.op === 'cantBeCountered') && this._condMet(ef.cond, { controller: item.controller, obj: item.obj }))))) || this._uncounterable(item, by))) ||
+        // Spider-Punk: "Spells and abilities can't be countered."
+        (item.kind !== 'spell' && this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'uncounterable') || {}).abilities));
+    }
+    _uncounterable(item, by) {
       if (!item) return false;
       if (item.uncounterable) return true;
       // Veil of Summer: "Spells you control can't be countered this turn."
       if (item.kind === 'spell' && ((this.player(item.controller) || {}).uncounterableTurn === this.turn)) return true;
       // Domri, Anarch of Bolas: "Creature spells you cast this turn can't be countered."
+      /* (Autumn's Veil: "by blue or black spells" — only when what counters it is a spell of one of those colours: by,
+         the countering spell's object — byColors) */
+      const byCols = by && by.spell && by.obj ? ((by.obj.analysis() || {}).colors || []) : null;
       if (item.kind === 'spell' && ((this.player(item.controller) || {}).uncounterableKinds || []).some(u => u.turn === this.turn &&
-          (!u.words || (item.obj && this._cardFitsWords(item.obj, u.words))))) return true;
+          (!u.words || (item.obj && this._cardFitsWords(item.obj, u.words))) &&
+          (!u.byColors || (byCols && u.byColors.some(c => byCols.includes(c)))))) return true;
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'uncounterable');
         if (!e) continue;
@@ -40999,6 +41079,20 @@
       const as = this._curAs, tp = this._curTp;
       r.effects.splice(r.index + 1, 0, ...(as || tp ? list.map(x => (x && ((as && x._as == null) || (tp && x._tp == null))
         ? Object.assign({}, x, as && x._as == null ? { _as: as } : {}, tp && x._tp == null ? { _tp: tp } : {}) : x)) : list));
+    }
+
+    /** What a choice's effects are roughly worth to whoever gets them, for a bot choosing among them (oppChoice). */
+    _oppChoiceWorth(list) {
+      let w = 0;
+      for (const f of list || []) {
+        const k = typeof f.n === 'number' ? f.n : 1;
+        if (f.op === 'draw') w += 3 * k;
+        else if (f.op === 'createToken') { const pt = String(f.pt || '1/1').split('/').map(Number); w += k * (1 + Math.max(0, (pt[0] || 0) + (pt[1] || 0)) / 2); }
+        else if (f.op === 'createNamedToken') w += k * (f.token === 'Treasure' ? 1.5 : 1.2);
+        else if (f.op === 'gainLife') w += k / 3;
+        else w += 1;
+      }
+      return Math.round(w * 10) / 10;
     }
 
     /**
