@@ -80327,4 +80327,117 @@ module.exports = (test) => {
     atk();
     t.eq(T.player('B').rad || 0, had + 1, 'proliferated: one more, not two');
   });
+
+  test('Cards: Summon: Magus Sisters — I, II, III: one mode at random — three +1/+1 counters, a shield counter and 3 life, or it fights', (mk, t) => {
+    t.auto('Summon: Magus Sisters');
+    const seen = new Set();
+    for (let seed = 1; seed <= 10; seed++) {
+      const T = mk({ library: Array(20).fill('Island'), seed });
+      T.toMain('A');
+      const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+      const life = T.life('A');
+      T.answer('pickTarget', (ch) => ({ targets: ch.options.map(l => l.find(x => x.id === bear.id) || l.find(x => x.id === elf.id) || l[0]).filter(Boolean) }));
+      T.mana('A', '4G');
+      const ms = T.hand('A', 'Summon: Magus Sisters');
+      T.cast('A', ms);
+      t.no(T.asked.some(q => q.type === 'mode'), 'nobody chooses the mode');
+      const got = [(bear.counters['+1/+1'] || 0) === 3 && 'combine', (bear.counters.shield || 0) === 1 && T.life('A') === life + 3 && 'defense',
+        elf.zone === 'graveyard' && (ms.damage || 0) === 1 && 'fight'].filter(Boolean);
+      t.eq(got.length, 1, 'seed ' + seed + ': exactly one mode: ' + got.join(','));
+      seen.add(got[0]);
+    }
+    t.ok(seen.size >= 2, 'different modes come up: ' + [...seen].join(', '));
+  });
+
+  test('Cards: Grave Betrayal — a creature you don\'t control dies: back at the next end step under your control, with a +1/+1 counter, a black Zombie', (mk, t) => {
+    t.auto('Grave Betrayal');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Grave Betrayal');
+    const bear = T.bf('B', 'Grizzly Bears'), mine = T.bf('A', 'Llanowar Elves');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Doom Blade'), { targets: [bear] });
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Doom Blade'), { targets: [mine] });
+    t.zone(bear, 'graveyard', 'not yet');
+    T.nextTurn('B');
+    t.zone(bear, 'battlefield', 'back at the end step');
+    t.eq(bear.controller, 'A', 'under your control');
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'with a +1/+1 counter');
+    t.eq(T.g.powerOf(bear), 3, '3/3');
+    t.ok((bear.analysis().subtypes || []).includes('Zombie'), 'a Zombie');
+    t.ok((bear.analysis().subtypes || []).includes('Bear'), 'still a Bear');
+    t.ok((bear.analysis().colors || []).includes('B') && (bear.analysis().colors || []).includes('G'), 'black as well as green');
+    t.zone(mine, 'graveyard', 'your own creature: not returned');
+  });
+
+  test('Cards: Summon: Good King Mog XII — I: two Moogles; II, III: noncreature spells this turn copy a non-Saga token; IV: two counters on each other Moogle', (mk, t) => {
+    t.auto('Summon: Good King Mog XII');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const mog = T.hand('A', 'Summon: Good King Mog XII');
+    T.mana('A', '4W');
+    T.cast('A', mog);
+    const moogles = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Moogle');
+    t.eq(moogles().length, 2, 'I: two Moogle tokens');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(moogles().length, 2, 'no copy before chapter II');
+    T.nextTurn('A');
+    t.eq(mog.counters.lore, 2, 'chapter II');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(moogles().length, 3, 'II: a noncreature spell — a copy of a Moogle token');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Llanowar Elves'));
+    t.eq(moogles().length, 3, 'not for a creature spell');
+    T.nextTurn('A');
+    T.nextTurn('A');
+    t.eq(moogles().length, 3, 'III: no noncreature spell, no copy');
+    t.ok(moogles().every(o => (o.counters['+1/+1'] || 0) === 2), 'IV: two +1/+1 counters on each other Moogle');
+    t.zone(mog, 'graveyard', 'after IV it is sacrificed');
+  });
+
+  test('Cards: Flamerush Rider — attacks: a tapped and attacking token copy of another target attacker, exiled at end of combat', (mk, t) => {
+    t.auto('Flamerush Rider');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const fr = T.bf('A', 'Flamerush Rider'), giant = T.bf('A', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    for (const o of [fr, giant, bear, elf]) o.summoningSick = false;
+    let offered = null;
+    T.answer('declareAttackers', () => [fr, giant, bear].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    T.answer('pickTarget', (ch) => { offered = ch.options[0].map(x => x.id); return { targets: [ch.options[0].find(x => x.id === giant.id)] }; });
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.ok(offered && offered.includes(bear.id) && !offered.includes(fr.id) && !offered.includes(elf.id), 'another attacking creature only');
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Hill Giant');
+    t.ok(tok, 'a token copy of the Giant');
+    t.ok(tok && tok.tapped && tok.attacking, 'tapped and attacking');
+    const life = T.life('B');
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), life - 3 - 3 - 2 - 3, 'the token dealt damage too');
+    t.no(T.bfOf('A').some(o => o.isToken && o.name === 'Hill Giant'), 'the token exiled at end of combat');
+  });
+
+  test('Cards: Reflector Mage — an opponent\'s creature returned; its owner can\'t cast spells of that name until your next turn', (mk, t) => {
+    t.auto('Reflector Mage');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1WU');
+    T.cast('A', T.hand('A', 'Reflector Mage'));
+    t.zone(bear, 'hand', 'returned to its owner\'s hand');
+    T.nextTurn('B');
+    T.mana('B', '1G');
+    t.no(T.g.castSpell('B', bear.id, { auto: true, targets: [] }), 'the same name: not on B\'s turn');
+    const other = T.hand('B', 'Grizzly Bears');
+    t.no(T.g.castSpell('B', other.id, { auto: true, targets: [] }), 'nor another card of that name');
+    T.cast('B', T.hand('B', 'Llanowar Elves'));
+    t.eq(T.bfOf('B').filter(o => o.name === 'Llanowar Elves').length, 1, 'other spells are fine');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    T.mana('B', '1G');
+    T.cast('B', bear);
+    t.zone(bear, 'battlefield', 'from your next turn on it can be cast');
+  });
 };

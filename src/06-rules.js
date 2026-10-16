@@ -5729,6 +5729,11 @@
       // Hope of Ghirapur: "Until your next turn, … can't cast noncreature spells" (silenceUntil)
       if (!a.isCreature && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.noncreature))
         return { ok: false, reason: "You can't cast noncreature spells until the next turn of the player who stopped you." };
+      // Reflector Mage: "can't cast spells with the same name as that creature until your next turn" (silenceUntil name)
+      {
+        const nb = ((this.player(playerId) || {}).silenceUntil || []).find(x => x.name && this._nameAmong(o, [x.name, x.fullName]));
+        if (nb) return { ok: false, reason: `You can't cast spells named ${nb.name} until ${(this.player(nb.by) || {}).name || 'that player'}'s next turn.` };
+      }
       // Single Combat: "Players can't cast creature or planeswalker spells until the end of your next turn." (castBanUntil)
       {
         const ban = ((this.player(playerId) || {}).castBanUntil || []).find(x => (x.types || []).some(t => a['is' + t.charAt(0).toUpperCase() + t.slice(1)]));
@@ -21571,7 +21576,9 @@
         } else if (m.upToX && !(n(m.count) > 0)) picks = [];
         // Cult of Skaro: "choose one at random" — chosen as it goes on the stack, by nobody (random)
         // (Typhoid Mary, Fractured: "If you discarded a card this turn, you choose one instead." — randomUnless)
-        else if (m.random && !(m.randomUnless && this._condMet(m.randomUnless, item))) picks = [this.rng.int(modes.length)];
+        /* (Summon: Magus Sisters: the mode drawn kept on the item, so asking for its targets — and coming back here
+           once they are chosen — doesn't draw again: randomPick) */
+        else if (m.random && !(m.randomUnless && this._condMet(m.randomUnless, item))) picks = (item.randomPick || (item.randomPick = [this.rng.int(modes.length)])).slice();
         else {
           let want = Math.min(n(m.count) || 1, modes.length);
           const least = m.min != null ? Math.min(m.min, want) : want;
@@ -31960,6 +31967,10 @@
         }
         case 'returnThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+          // (Grave Betrayal: "return it" — the card that died, still in the graveyard: onlyFrom)
+          if (x && e.onlyFrom && x.zone !== e.onlyFrom) break;
+          // (Grave Betrayal: "with an additional +1/+1 counter on it" — as it enters: enterCounter)
+          if (x && e.enterCounter && x.zone !== 'battlefield') x._enterExtraCounter = { kind: e.enterCounter, n: 1 };
           // (Teferi's Time Twist: the counter it enters with — enterExtraCounter)
           if (x && e.counterIfCreature) x._enterExtraCounter = Object.assign({ kind: e.counterIfCreature, n: 1, ifCreature: true }, e.loyaltyIfPw ? { loyaltyIfPw: true } : {});
           // Nine-Lives Familiar: "with one fewer revival counter on it" — than it had as it died (fewerCounter)
@@ -31969,8 +31980,10 @@
           }
           // (under your control when the words say so, or name nobody)
           // (Silver Surfer, Cosmic Voyager: "If a land enters this way, it enters tapped." — landsTapped)
+          // (Grave Betrayal: "That creature is a black Zombie in addition to its other colors and types" — so as it enters: enterEff)
           if (x && x.zone !== 'battlefield') this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner },
-            e.landsTapped && (x.analysis() || {}).isLand ? { tapped: true } : {}));
+            e.landsTapped && (x.analysis() || {}).isLand ? { tapped: true } : {}, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+          if (x && e.enterCounter && x.zone !== 'battlefield') x._enterExtraCounter = null;
           // Nezahal: "Return it to the battlefield tapped …"
           if (x && (e.tapped || (e.landsTapped && (x.analysis() || {}).isLand)) && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
@@ -32132,6 +32145,17 @@
            are chosen to stay, and the rest are sacrificed (or destroyed). One
            permanent may answer for two of the kinds asked for. */
         // Single Combat: "Players can't cast creature or planeswalker spells until the end of your next turn."
+        /* Reflector Mage: "That creature's owner can't cast spells with the same name as that creature until your next turn."
+           — the creature just returned, by its name, until your next turn begins (silenceUntil name) */
+        case 'nameSilenceUntil': {
+          const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
+          const p = x && this.player(x.owner);
+          if (!p) break;
+          const nm = x.name, full = (x.card && x.card.name) || x.name;
+          (p.silenceUntil = p.silenceUntil || []).push({ by: ctx.controller, name: nm, fullName: full });
+          this.logEvent('rules', `${p.name} can't cast spells named ${nm} until ${me.name}'s next turn.`);
+          break;
+        }
         case 'castBanUntil': {
           for (const q of this.players) (q.castBanUntil = q.castBanUntil || []).push({ by: ctx.controller, set: this.turn, types: (e.types || []).slice() });
           this.logEvent('rules', `Players can't cast ${(e.types || []).join(' or ')} spells until the end of ${me.name}'s next turn.`);
@@ -41474,7 +41498,7 @@
     _castBlocked(playerId, abilities) {
       const p = this.player(playerId);
       if (!abilities && p && p.silencedTurn === this.turn) return "You can't cast spells this turn.";
-      if (!abilities && p && (p.silenceUntil || []).some(x => !x.noncreature && !x.notFromHand)) return "You can't cast spells until the next turn of the player who stopped you.";
+      if (!abilities && p && (p.silenceUntil || []).some(x => !x.noncreature && !x.notFromHand && !x.name)) return "You can't cast spells until the next turn of the player who stopped you.";
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
         const e = this._staticOp(o, 'castRestrict');

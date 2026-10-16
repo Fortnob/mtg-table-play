@@ -2404,6 +2404,8 @@
     // Into the Fire: "2 damage to each creature, planeswalker, and battle"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature, planeswalker, and battle\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'all', what: 'permanent', anyOf: ['creature', 'planeswalker', 'battle'] } }) },
+    // Reflector Mage: "That creature's owner can't cast spells with the same name as that creature until your next turn." (nameSilenceUntil)
+    { re: /^That creature'?s owner can'?t cast spells with the same name as that creature until your next turn\.?$/i, make: () => ({ op: 'nameSilenceUntil' }) },
     // Kaya's Guile: "Exile all opponents' graveyards."
     { re: /^Exile all opponents'? graveyards\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'opponents' }) },
     // Memnarch: "Target permanent becomes an artifact in addition to its other types." — for good
@@ -12482,6 +12484,18 @@
         const t = targetSpec(m[1] + (m[2] || ''), 'graveyard');
         return t && !t.unknown ? [{ op: 'regrowth', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] }] : null;
       } },
+    /* Grave Betrayal: "return it to the battlefield under your control with an additional +1/+1 counter on it at the beginning
+       of the next end step. That creature is a black Zombie in addition to its other colors and types." — the card that died,
+       entering with the counter, black and a Zombie as it enters (enterCounter, enterEff) */
+    { re: /^return it to the battlefield under your control with an additional (\+1\/\+1) counter on it at the beginning of the next end step\. That creature is a black Zombie in addition to its other colors and types\.?$/i,
+      make: (m) => [{ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
+        effects: [{ op: 'returnThat', yours: true, onlyFrom: 'graveyard', enterCounter: m[1], enterEff: { addSubtypes: ['Zombie'], addColors: ['B'] } }] }] },
+    // Flamerush Rider: "create a token that's a copy of another target attacking creature and that's tapped and attacking. Exile the token at end of combat."
+    { re: /^create a token that'?s a copy of another target attacking creature and that'?s tapped and attacking\. Exile the token at end of combat\.?$/i,
+      make: () => {
+        const spec = targetSpec('another target attacking creature');
+        return spec && !spec.unknown ? [{ op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true, targets: [spec] }, { op: 'exileMadeEoc' }] : null;
+      } },
     /* Krothuss, Lord of the Deep: "create a tapped and attacking token that's a copy of another target attacking creature.
        If that creature is a Kraken, Leviathan, Octopus, or Serpent, create two of those tokens instead." (twiceIfType, a list) */
     { re: /^create a tapped and attacking token that'?s a copy of another target attacking creature\. If that creature is an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+), create two of those tokens instead\.?$/,
@@ -14805,7 +14819,8 @@
         return [{ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', chooseFrom: spec }];
       } },
     // Calix, Guided by Fate: "create a token that's a copy of a nonlegendary enchantment you control" — chosen, not targeted
-    { re: /^Create a token that'?s a copy of an? ((?:non[a-z]+ )?(?:creature|artifact|enchantment|permanent|nonland permanent)) you control\.?$/i,
+    // (Summon: Good King Mog XII: "create a token that's a copy of a non-Saga token you control")
+    { re: /^Create a token that'?s a copy of an? ((?:non[a-z]+ )?(?:creature|artifact|enchantment|permanent|nonland permanent)|non-Saga token|token) you control\.?$/i,
       make: (m) => {
         const spec = targetSpec('target ' + m[1] + ' you control');
         if (!spec || spec.unknown) return null;
@@ -15547,7 +15562,8 @@
     if (modes.length < 2) return null;
     const out = [];
     for (const label of modes) {
-      const named = label.match(/^([A-Z][A-Za-z' ,-]{1,40}?) \u2014 ([\s\S]+)$/);
+      // (Summon: Magus Sisters: "Combine Powers! — …" — a name that shouts)
+      const named = label.match(/^([A-Z][A-Za-z' ,-]{1,40}?!?) \u2014 ([\s\S]+)$/);
       const body = named ? named[2] : label;
       const parsed = parseEffects(xIsWords && /\bX\b/.test(body) ? body.replace(/\.?$/, `, where X is ${xIsWords}.`) : body);
       out.push({ label: label.replace(/\.$/, ''), effects: parsed.effects, auto: parsed.auto });
@@ -20763,7 +20779,8 @@
       }
 
       // A Saga chapter: "I — ..." or "II, III — ..."
-      const chap = line.match(/^([IVX]+(?:\s*,\s*[IVX]+)*)\s*[-\u2014]\s*(.+)$/);
+      // (Summon: Magus Sisters: "I, II, III — Choose one at random —\n• …" — the modes on lines of their own)
+      const chap = line.match(/^([IVX]+(?:\s*,\s*[IVX]+)*)\s*[-\u2014]\s*([\s\S]+)$/);
       if (chap && out.isSaga) {
         const chapters = chap[1].split(/\s*,\s*/).map(romanValue).filter(Boolean);
         // the Summons: "II — Zantetsuken — This creature gains …" — the chapter's name is flavour
