@@ -2898,8 +2898,10 @@
     // Hellcat, Undying Vigilante: "She loses all abilities and gains haste." — as the card returned enters (enterRider)
     { re: /^(?:It|He|She|They) lose(?:s)? all abilities and gains? haste\.?$/, make: () => ({ op: 'manual', enterRider: { loseAll: true, keywords: ['Haste'] } }) },
     // Ghost Vacuum: "Each of them is a 1/1 Spirit in addition to its other types." — as they enter (enterRider)
-    { re: /^Each of them is an? (\d+)\/(\d+) ([A-Z][a-z]+) in addition to its other types\.?$/,
-      make: (m) => ({ op: 'manual', enterRider: { setPt: { p: +m[1], t: +m[2] }, addSubtypes: [m[3]] } }) },
+    // (Storm of Souls: "Each of them is a 1/1 Spirit with flying in addition to its other types." — and flying)
+    { re: /^Each of them is an? (\d+)\/(\d+) ([A-Z][a-z]+)(?: with ([a-z ,]+?))? in addition to its other types\.?$/,
+      make: (m) => { const kws = m[4] ? keywordList(m[4]) : [];
+        return kws.every(kwKnown) ? { op: 'manual', enterRider: Object.assign({ setPt: { p: +m[1], t: +m[2] }, addSubtypes: [m[3]] }, kws.length ? { keywords: kws } : {}) } : null; } },
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
     /* Tom, Bert, and William: "When Tom, Bert, and William die, if they were a creature, return them to the battlefield.
@@ -12881,6 +12883,15 @@
        it has since the trigger (CR 701.28f; sinceTrigger, then) */
     { re: /^convert (?:CARDNAME|it)\. If you do, (create [^.]+)\.?$/i,
       make: (m) => { const then = voteBody(m[1]); return then ? [{ op: 'transformSelf', sinceTrigger: true, then }] : null; } },
+    /* Lightning Runner: "you get {E}{E}, then you may pay eight {E}. If you pay, untap all creatures you control, and
+       after this phase, there is an additional combat phase." — the energy first, then the price (mayPay energy) */
+    { re: /^you get ((?:\{E\})+), then you may pay (\w+) \{E\}\. If you (?:pay|do), ([^.]+)\.?$/i,
+      make: (m) => {
+        const k = num(m[2]);
+        if (typeof k !== 'number' || k < 1) return null;
+        const rest = parseEffects(m[3].charAt(0).toUpperCase() + m[3].slice(1) + '.');
+        return rest.auto ? [{ op: 'energy', n: (m[1].match(/\{E\}/g) || []).length }, { op: 'mayPay', pay: { energy: k }, then: rest.effects }] : null;
+      } },
     /* Pia Nalaar, Chief Mechanic: "you may pay one or more {E}. If you do, create an X/X … token …, where X is the
        amount of {E} paid this way." — how much, none for no (payEnergyAny) */
     { re: /^(?:you may )?pay one or more \{E\}\. If you do, (create an X\/X [^.]+?), where X is the amount of \{E\} paid this way\.?$/i,
@@ -14427,6 +14438,21 @@
         return typeof k === 'number' ? [{ op: 'piles', n: k, separator: 'target', chooser: 'you', other: 'graveyard', faceDown: true,
           targets: [{ type: 'player', opponent: true }] }] : null;
       } },
+    /* Sauron's Ransom: "Choose an opponent. They look at the top four cards of your library and separate them into a
+       face-down pile and a face-up pile. Put one pile into your hand and the other into your graveyard." — the chosen
+       opponent splits them (separator 'chosen') */
+    { re: /^Choose an opponent\. They look at the top (\w+) cards of your library and separate them into a face-down pile and a face-up pile\. Put one pile into your hand and the other into your graveyard\.(?:\s+(.+))?$/i,
+      make: (m) => {
+        const k = num(m[1]);
+        if (typeof k !== 'number') return null;
+        const out = [{ op: 'chooseOpponent' }, { op: 'piles', n: k, separator: 'chosen', chooser: 'you', other: 'graveyard', faceDown: true }];
+        if (m[2]) {
+          const rest = parseEffects(m[2]);
+          if (!rest.auto) return null;
+          out.push(...rest.effects);
+        }
+        return out;
+      } },
     /* The Celestial Toymaker: "look at the top three cards of your library. Exile any number of them in a face-down pile
        and the rest in a face-up pile. Defending player chooses one of those piles. Put that pile into your hand." — the
        other pile stays exiled (other 'exile') */
@@ -15936,6 +15962,9 @@
       const inner = per && parseCostMod(xCount[1] + ' cost {1} less to cast');
       return inner && inner.amount === -1 && !inner.symbols && !inner.per && !inner.cond ? Object.assign(inner, { per }) : null;
     }
+    // Damping Sphere: "Each spell a player casts costs {1} more to cast for each other spell that player has cast this turn" (casterSpellsTurn)
+    const dmp = s.match(/^Each spell a player casts costs \{(\d+)\} more to cast for each other spell that player has cast this turn$/i);
+    if (dmp) return { op: 'costMod', who: 'all', words: 'spell', chosenType: false, amount: +dmp[1], casterSpellsTurn: true };
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
     if (each) {
@@ -17226,7 +17255,8 @@
         // (Tom, Bert, and William: "return them to the battlefield. They're an artifact." — returnSelfFromGrave)
         // (Hellcat, Undying Vigilante: "return her … She loses all abilities and gains haste." — returnTriggerCard)
         // (Ghost Vacuum: "Put each creature card exiled with this artifact onto the battlefield … Each of them is a 1/1 Spirit …" — exiledWithToBattlefield)
-        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave' || prevE.op === 'returnTriggerCard' || prevE.op === 'exiledWithToBattlefield') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
+        // (Storm of Souls: "Return all creature cards from your graveyard to the battlefield. Each of them is a 1/1 Spirit with flying …" — massReanimate)
+        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave' || prevE.op === 'returnTriggerCard' || prevE.op === 'exiledWithToBattlefield' || prevE.op === 'massReanimate') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
         // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
         const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
         if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }
@@ -25091,6 +25121,8 @@
       { re: /^Whenever you tap an? (creature|nonland permanent|artifact token|artifact|permanent) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that (?:creature|permanent|artifact token|artifact) produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+      // Damping Sphere: "If a land is tapped for two or more mana, it produces {C} instead of any other type and amount." (dampLandMana)
+      { re: /^If a land is tapped for two or more mana, it produces \{C\} instead of any other type and amount\.?$/i, eff: { op: 'dampLandMana' }, auto: true },
       // Mana Reflection, Nyxbloom Ancient: "If you tap a permanent for mana, it produces twice as much of that mana instead."
       { re: /^If you tap an? (permanent|land|basic land) for mana, it produces (twice|three times) as much of that mana instead\.?$/i,
         make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), times: /twice/i.test(m[2]) ? 2 : 3 }), auto: true },
@@ -26705,7 +26737,9 @@
       // Platinum Emperion: "Your life total can't change."
       { re: /^Your life total can'?t change\.?$/i, eff: { op: 'lifeCantChange' }, auto: true },
       // Yasharn, Implacable Earth: "Players can't pay life or sacrifice nonland permanents to cast spells or activate abilities."
-      { re: /^Players can'?t pay life or sacrifice nonland permanents to cast spells or activate abilities\.?$/i, eff: { op: 'noLifeSacCosts' }, auto: true },
+      // (Angel of Jubilation: "Players can't pay life or sacrifice creatures to cast spells or activate abilities." — sacWhat 'creature')
+      { re: /^Players can'?t pay life or sacrifice (nonland permanents|creatures) to cast spells or activate abilities\.?$/i,
+        make: (m) => (/creature/i.test(m[1]) ? { op: 'noLifeSacCosts', sacWhat: 'creature' } : { op: 'noLifeSacCosts' }), auto: true },
       // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."
       { re: /^During your turn, commanders you control have ([a-z ,]+)\.?$/i,
         make: (m) => {

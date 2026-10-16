@@ -81402,4 +81402,155 @@ module.exports = (test) => {
     const got = ai.chooseGeneric(Object.assign({ type: 'choose', playerId: 'B', kind: 'objects', min: 1, max: 1, prompt: '' }, s));
     t.eq(got && got.picks && got.picks[0], cheap.id, 'the bot picks the cheap card for its opponent');
   });
+
+  test('Cards: Sauron\'s Ransom — the chosen opponent splits your top four face down and face up; you take one; the Ring tempts you', (mk, t) => {
+    t.auto('Sauron\'s Ransom');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Mountain') });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const bolt = T.top('A', 'Lightning Bolt'), opt = T.top('A', 'Opt'), elf = T.top('A', 'Llanowar Elves'), wall = T.top('A', 'Wall of Omens');
+    let who = null, split = null, pick = null;
+    T.answer('choose', (ch) => { who = ch; return { picks: ['C'] }; });
+    T.answer('choose', (ch) => { split = ch; return { picks: [bolt.id, opt.id] }; });
+    T.answer('choose', (ch) => { pick = ch; return { picks: [0] }; });
+    T.mana('A', '1UB');
+    T.cast('A', T.hand('A', 'Sauron\'s Ransom'));
+    t.ok(who && who.playerId === 'A' && /Choose an opponent/.test(who.prompt), 'you choose an opponent');
+    t.eq(split && split.playerId, 'C', 'the chosen opponent splits them');
+    t.ok(split && /face-down pile and a face-up pile/.test(split.prompt), split && split.prompt);
+    t.eq(pick && pick.playerId, 'A', 'you choose a pile');
+    t.zone(bolt, 'hand', 'the face-down pile to your hand');
+    t.zone(opt, 'hand', 'both of it');
+    t.zone(elf, 'graveyard', 'the face-up pile to the graveyard');
+    t.zone(wall, 'graveyard', 'all of it');
+    t.eq(T.g.player('A').ringLevel, 1, 'the Ring tempts you');
+    t.eq(T.g.player('A').ringBearer, bear.id, 'the Bears bear it');
+  });
+
+  test('Cards: Damping Sphere — a land tapped for two or more mana makes {C}; each spell costs {1} more for each other spell its caster cast this turn', (mk, t) => {
+    t.auto('Damping Sphere');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const g = T.g;
+    T.bf('B', 'Damping Sphere');
+    const tomb = T.bf('A', 'Ancient Tomb'), forest = T.bf('A', 'Forest');
+    g.tapForMana('A', tomb.id, 0);
+    t.eq(T.player('A').pool.C, 1, 'Ancient Tomb makes {C} instead of {C}{C}');
+    g.tapForMana('A', forest.id, 0);
+    t.eq(T.player('A').pool.G, 1, 'a Forest is tapped for one: unchanged');
+    T.player('A').pool.clear();
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    T.mana('A', 'U');
+    t.no(g.castSpell('A', T.hand('A', 'Opt').id, { auto: true, targets: [] }), 'the second spell costs {1} more');
+    T.mana('A', '1');
+    T.cast('A', T.hand('A', 'Opt'));
+    T.mana('A', 'UU');
+    t.no(g.castSpell('A', T.hand('A', 'Opt').id, { auto: true, targets: [] }), 'the third costs {2} more');
+    T.player('A').pool.clear();
+    T.nextTurn('A');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(T.player('A').spellsCastThisTurn, 1, 'a new turn: the first spell costs nothing more');
+    // with Mana Reflection the land's controller orders them: damped first, then doubled
+    const T2 = mk();
+    T2.toMain('A');
+    T2.bf('B', 'Damping Sphere');
+    T2.bf('A', 'Mana Reflection');
+    const f2 = T2.bf('A', 'Forest');
+    T2.g.tapForMana('A', f2.id, 0);
+    t.eq(T2.player('A').pool.G, 2, 'one {G} doubled: {G}{G}');
+    // auto-pay counts the Tomb as one {C}
+    const T3 = mk({ library: Array(20).fill('Island') });
+    T3.toMain('A');
+    T3.bf('B', 'Damping Sphere');
+    const t3 = T3.bf('A', 'Ancient Tomb'), i1 = T3.bf('A', 'Island'), i2 = T3.bf('A', 'Island');
+    T3.cast('A', T3.hand('A', 'Divination'));
+    t.ok(t3.tapped && i1.tapped && i2.tapped, 'Divination paid with the Tomb\'s {C} and two Islands');
+    t.eq(T3.zone('A', 'hand').length >= 2, true, 'it resolved');
+  });
+
+  test('Cards: Lightning Runner — attacks: two energy, then pay eight to untap your creatures and have an additional combat', (mk, t) => {
+    t.auto('Lightning Runner');
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    M.toMain('A');
+    const lr = M.bf('A', 'Lightning Runner'), bear = M.bf('A', 'Grizzly Bears');
+    bear.summoningSick = false;
+    M.player('A').energy = 6;
+    let asked = null;
+    M.answer('declareAttackers', () => [{ attackerId: lr.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    M.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    M.toMain('A', 'endCombat');
+    t.ok(asked && /energy|\{E\}/i.test(asked.prompt), 'asked to pay: ' + (asked && asked.prompt));
+    t.eq(M.player('A').energy, 0, 'two energy got, eight paid');
+    t.no(lr.tapped, 'the Runner untapped'); t.no(bear.tapped, 'the Bears untapped');
+    t.eq(M.life('B'), 14, 'double strike 2+2, the Bears 2');
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    for (let k = 0; k < 60 && !(g.combatsThisTurn >= 2 && g.step === 'endCombat'); k++) { M.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    M.settle();
+    t.eq(g.combatsThisTurn, 2, 'an additional combat phase');
+    t.eq(M.life('B'), 12, 'the Bears attack again');
+    // too little energy: nothing asked, no untap
+    const M2 = mk({ library: Array(30).fill('Plains') });
+    M2.toMain('A');
+    const lr2 = M2.bf('A', 'Lightning Runner');
+    M2.player('A').energy = 3;
+    let asked2 = false;
+    M2.answer('declareAttackers', () => [{ attackerId: lr2.id, defenderId: 'B' }]);
+    M2.answer('confirm', () => { asked2 = true; return { yes: true }; });
+    M2.toMain('A', 'endCombat');
+    t.no(asked2, 'five energy: not offered');
+    t.eq(M2.player('A').energy, 5, 'the two energy got');
+    t.ok(lr2.tapped, 'still tapped');
+    t.eq(M2.g.combatsThisTurn, 1, 'no additional combat');
+  });
+
+  test('Cards: Storm of Souls — every creature card from your graveyard returns as a 1/1 Spirit with flying; the spell exiled', (mk, t) => {
+    t.auto('Storm of Souls');
+    const T = mk({ library: Array(20).fill('Plains') });
+    T.toMain('A');
+    const giant = T.grave('A', 'Hill Giant'), elf = T.grave('A', 'Llanowar Elves');
+    const bolt = T.grave('A', 'Lightning Bolt'), theirs = T.grave('B', 'Grizzly Bears');
+    const sos = T.hand('A', 'Storm of Souls');
+    T.mana('A', '4WW');
+    T.cast('A', sos);
+    for (const o of [giant, elf]) {
+      t.zone(o, 'battlefield', o.name + ' returned');
+      t.eq(T.g.powerOf(o) + '/' + T.g.toughnessOf(o), '1/1', o.name + ' is 1/1');
+      t.ok(T.g.hasKw(o, 'flying'), o.name + ' has flying');
+      t.ok(T.g._hasSubtype(o, 'Spirit') && T.g._hasCreatureType(o, T.g._hasSubtype(o, 'Giant') ? 'Giant' : 'Elf'), o.name + ' a Spirit in addition to its other types');
+    }
+    t.zone(bolt, 'graveyard', 'not a creature card');
+    t.zone(theirs, 'graveyard', 'only your graveyard');
+    t.zone(sos, 'exile', 'Storm of Souls exiled');
+  });
+
+  test('Cards: Angel of Jubilation — no life paid and no creature sacrificed to cast spells or activate abilities; other permanents still may be', (mk, t) => {
+    t.auto('Angel of Jubilation');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.toMain('A');
+    M.bf('B', 'Angel of Jubilation');
+    const elder = M.bf('A', 'Sakura-Tribe Elder'); elder.summoningSick = false;
+    M.bf('A', 'Grizzly Bears');
+    t.no(g.activateAbility('A', elder.id, 0, { auto: true }), 'Sakura-Tribe Elder may not sacrifice itself');
+    t.zone(elder, 'battlefield');
+    M.mana('A', 'B');
+    t.no(g.castSpell('A', M.hand('A', 'Village Rites').id, { auto: true }), 'no creature sacrificed to cast Village Rites');
+    t.no(g.castSpell('A', M.hand('A', 'Gitaxian Probe').id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'no life for Phyrexian mana');
+    t.eq(M.life('A'), 20);
+    M.player('A').pool.clear();
+    const wilds = M.bf('A', 'Evolving Wilds');
+    M.activate('A', wilds, 0);
+    t.zone(wilds, 'graveyard', 'a land may still be sacrificed');
+    const chest = M.bf('A', 'Mind Stone');
+    M.mana('A', '1');
+    M.activate('A', chest, 1);
+    t.zone(chest, 'graveyard', 'a noncreature artifact may still be sacrificed');
+    // gone: the costs can be paid again
+    g.moveObject(M.bfOf('B').find(o => o.name === 'Angel of Jubilation'), 'graveyard');
+    M.activate('A', elder, 0);
+    t.zone(elder, 'graveyard', 'the Angel gone, the Elder may be sacrificed');
+  });
 };

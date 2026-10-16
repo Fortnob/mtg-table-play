@@ -2032,6 +2032,8 @@
           if (col || e.orSymbol) amount += Number(e.n) || 1;
         }
       }
+      // Damping Sphere: a land tapped for two or more makes {C} only (dampLandMana)
+      if (amount >= 2 && ab.cost && ab.cost.tap && o && o.zone === 'battlefield' && (o.analysis() || {}).isLand && this._landManaDamped(o)) return { produces: new Set(['C']), any: false, amount: 1 };
       return { produces, any, amount: Math.max(amount, (produces.size || any) ? 1 : 0) };
     }
 
@@ -4782,6 +4784,8 @@
             if (e.srcTurn && !(this.activePlayer && this.activePlayer.id === src.controller)) continue;
             // Doc Aurlock, Aven Interrupter: only spells cast from those zones
             if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
+            // Damping Sphere: "for each other spell that player has cast this turn" — the caster's own (casterSpellsTurn)
+            if (e.casterSpellsTurn) { d += (Number(e.amount) || 0) * ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o).length; continue; }
             if (e.lessSymbols && less) less.push(...e.lessSymbols);
             // Eluge, the Shoreless Sea: "{U} (or {1}) less … for each land you control with a flood counter on it"
             if (e.lessOrGeneric && less) { const k = this._countValue(e.per, src.controller, src); for (let i = 0; i < k; i++) less.push(e.lessOrGeneric + '|1'); continue; }
@@ -6196,7 +6200,7 @@
     }
     /** Offering (CR 702.48): the permanents of that type this player could sacrifice for it. */
     _offeringPool(playerId, o, a) {
-      return this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && this._hasCreatureType(x, a.offering));
+      return this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && this._hasCreatureType(x, a.offering) && !this._sacCostBannedBy(x));
     }
     _flashFor(playerId, o) {
       const p = this.player(playerId);
@@ -6581,7 +6585,7 @@
         /* Emerge (CR 702.119): sacrifice a creature and pay the emerge cost
            less that creature's mana value */
         if (o.zone === 'hand' && arg && k === 'emerge' &&
-            this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
+            this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature && !this._sacCostBannedBy(x))) {
           out.push({ kind: 'cast', via: 'emerge', cost: arg, label: 'Emerge ' + arg });
         }
         // Cleave (CR 702.148): for the cleave cost, without the words in square brackets
@@ -8197,7 +8201,8 @@
       }
       /* Emerge: which creature is sacrificed, chosen with the cast */
       if (opts.via === 'emerge' && opts.emergeWith === undefined) {
-        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature);
+        // (Angel of Jubilation, Yasharn: none sacrificed to cast spells — _sacCostBannedBy)
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature && !this._sacCostBannedBy(x));
         if (!pool.length) return 'Emerge needs a creature of yours to sacrifice.';
         const mv = (x) => (x.card && x.card.cmc) || 0;
         if (decides || pool.length === 1) opts.emergeWith = pool.slice().sort((x, y) => mv(y) - mv(x) || this._cardValue(x) - this._cardValue(y))[0].id;
@@ -8908,7 +8913,7 @@
           /* The sacrifice is part of the cost, so it happens now. The
              smallest creature that is big enough goes. */
           const pool = this.battlefield.filter(x => x.controller === playerId &&
-            (x.analysis() || {}).isCreature && this.powerOf(x) >= ex.n);
+            (x.analysis() || {}).isCreature && this.powerOf(x) >= ex.n && !this._sacCostBannedBy(x));
           if (!pool.length) return this.fail(`No creature with power ${ex.n} or greater to sacrifice.`);
           pool.sort((x, y) => this.powerOf(x) - this.powerOf(y));
           chose.casualty = pool[0];
@@ -12185,10 +12190,22 @@
     _lifeSacCostBan() {
       return this.battlefield.find(o => !o.phasedOut && this._staticOp(o, 'noLifeSacCosts')) || null;
     }
-    /** What a cost's "Sacrifice a …" may take: under Yasharn, lands only. */
+    /** Whether a cost may sacrifice this permanent: under Yasharn lands only; Angel of Jubilation: "or sacrifice
+        creatures" — no creature (noLifeSacCosts sacWhat). The ban's source, when it can't. */
+    _sacCostBannedBy(x) {
+      if (!x) return null;
+      for (const o of this.battlefield) {
+        if (o.phasedOut) continue;
+        const e = this._staticOp(o, 'noLifeSacCosts');
+        if (!e) continue;
+        if (e.sacWhat === 'creature' ? (this.characteristics(x) || {}).isCreature : !(x.analysis() || {}).isLand) return o;
+      }
+      return null;
+    }
+    /** What a cost's "Sacrifice a …" may take: under Yasharn, lands only; under Angel of Jubilation, no creature. */
     _costSacPool(pid, spec, self, opts) {
       const pool = this._sacrificePool(pid, spec, self, opts);
-      return this._lifeSacCostBan() ? pool.filter(x => (x.analysis() || {}).isLand) : pool;
+      return this._lifeSacCostBan() ? pool.filter(x => !this._sacCostBannedBy(x)) : pool;
     }
     /** Why these card costs cannot be paid right now, or null if they can. */
     /** The Equipment attached to a permanent. */
@@ -12206,7 +12223,8 @@
       // Yasharn, Implacable Earth: no life, and no nonland permanent sacrificed, to cast spells or activate abilities
       const ban = (cost.sacSelf || cost.life || cost.lifePower || cost.lifeFrom) && this._lifeSacCostBan();
       if (ban) {
-        if (cost.sacSelf && self && !(self.analysis() || {}).isLand) return `${ban.name}: nonland permanents can't be sacrificed to cast spells or activate abilities.`;
+        const sb = cost.sacSelf && self && this._sacCostBannedBy(self);
+        if (sb) return `${sb.name}: ${this._staticOp(sb, 'noLifeSacCosts').sacWhat === 'creature' ? 'creatures' : 'nonland permanents'} can't be sacrificed to cast spells or activate abilities.`;
         const lifeK = cost.life === 'X' ? ((opts && opts.x) || 0) : (Number(cost.life) || 0);
         if (lifeK > 0 || cost.lifePower || cost.lifeFrom) return `${ban.name}: life can't be paid to cast spells or activate abilities.`;
       }
@@ -13810,6 +13828,10 @@
     /* "Whenever enchanted land is tapped for mana, its controller adds an
        additional {G}", "Whenever you tap a Swamp for mana, add an
        additional {B}": more mana, made alongside. */
+    /** Damping Sphere: a land tapped for two or more mana makes {C} instead, while one is out (dampLandMana). */
+    _landManaDamped(o) {
+      return !!o && this.battlefield.some(src => !src.phasedOut && this._staticOp(src, 'dampLandMana'));
+    }
     _extraManaOnTap(playerId, o, made) {
       const oa = o.analysis();
       if (!oa) return;
@@ -13817,6 +13839,17 @@
       /* Mana Reflection, Nyxbloom Ancient: it produces twice (three times)
          as much instead — a replacement, so before anything adds to it, and
          two of them multiply */
+      /* Damping Sphere: "If a land is tapped for two or more mana, it produces {C} instead of any other type and
+         amount." — first, before any doubling: the land's controller orders the replacements, and this way round
+         loses the least (dampLandMana) */
+      if (oa.isLand && this._landManaDamped(o)) {
+        const total = Object.values(made).reduce((k, v) => k + (Number(v) || 0), 0);
+        if (total >= 2) {
+          for (const c of Object.keys(made)) { if (made[c]) p.pool[c] = Math.max(0, (p.pool[c] || 0) - made[c]); made[c] = 0; }
+          p.pool.add('C'); made.C = 1;
+          this.logEvent('mana', `${o.name} produces {C} instead.`);
+        }
+      }
       let factor = 1;
       for (const src of this._withEmblems(this.battlefield)) {
         const e = this._staticOp(src, 'extraManaOnTap');
@@ -36953,7 +36986,9 @@
           let ids = r && r.marks[slot];
           const opp = this.opponentsOf(ctx.controller).find(p => !p.hasLost) || me;
           // Atris, Oracle of Half-Truths: "target opponent looks at the top three cards …" — they split them (separator 'target')
-          const sep = e.separator === 'target' ? (firstPlayer() || opp).id : e.separator === 'opponent' ? opp.id : ctx.controller;
+          // (Sauron's Ransom: "Choose an opponent. They look at …" — separator 'chosen')
+          const sep = e.separator === 'target' ? (firstPlayer() || opp).id : e.separator === 'opponent' ? opp.id
+            : e.separator === 'chosen' ? ((ctx.chosenPlayer && this.player(ctx.chosenPlayer)) || opp).id : ctx.controller;
           if (!ids) {
             const k = e.n && typeof e.n === 'object' && e.n.of === 'X' ? (n('X') || 0) + (e.n.plus || 0) : n(e.n);
             ids = lib.slice(0, Math.max(0, k || 0)).map(o => o.id);
