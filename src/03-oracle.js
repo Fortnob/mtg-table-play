@@ -2018,7 +2018,8 @@
         effects: [{ op: 'bite', biter: 'reflexObject', targets: [{ type: 'creature', upTo: true }], text: 'That creature deals damage equal to its power to up to one target creature.' }] }) },
     /* Ellie, Brick Master: "that attacking player creates a tapped 1/1 black Fungus Zombie creature token named Cordyceps
        Infected that's attacking that opponent." — the player attacked (attackingWho) */
-    { re: /^That attacking player creates (an? .+? creature token(?: named [A-Z][A-Za-z' ,-]+?)?) that'?s attacking that (?:opponent|player)\.?$/i,
+    // (Combat Calligrapher: "a tapped 2/1 white and black Inkling creature token with flying that's attacking that opponent")
+    { re: /^That attacking player creates (an? .+? creature token(?: named [A-Z][A-Za-z' ,-]+?| with [a-z ,]+?)?) that'?s attacking that (?:opponent|player)\.?$/i,
       make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.');
         return tok && tok.op === 'createToken' && tok.n === 1 ? Object.assign(tok, { who: 'triggerPlayer', attacking: true, attackingWho: 'attackedPlayer' }) : null; } },
     /* Soaring Lightbringer: "Whenever you attack a player, create a 1/1 white Glimmer enchantment creature token that's
@@ -4304,6 +4305,9 @@
        until end of turn, except it isn't legendary." — the one "Choose target creature you control" chose (yours) */
     { re: /^Each creature you control other than the chosen creature becomes a copy of that creature until end of turn, except it isn'?t legendary\.?$/i,
       make: () => ({ op: 'becomeCopyAll', duration: 'eot', yours: true, nonLegendary: true }) },
+    // Naga Fleshcrafter: "Each other creature you control becomes a copy of that creature until end of turn." — the target (yours)
+    { re: /^Each other creature you control becomes a copy of that creature until end of turn\.?$/i,
+      make: () => ({ op: 'becomeCopyAll', duration: 'eot', yours: true }) },
     // Nanogene Conversion: "Each other creature becomes a copy of that creature until end of turn, except it isn't legendary." — everyone's
     { re: /^Each other creature becomes a copy of that creature until end of turn, except it isn'?t legendary\.?$/i,
       make: () => ({ op: 'becomeCopyAll', duration: 'eot', nonLegendary: true }) },
@@ -10695,6 +10699,8 @@
     { re: /^Destroy (target (?:artifact|creature|enchantment|permanent|nonland permanent)) if its mana value is equal to (the amount of unspent mana you have)\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k ? { op: 'destroy', ifMv: k, targets: [targetSpec(m[1])] } : null; } },
     { re: /^Your opponents can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents' }) },
+    // Bilbo's Gambit: "If the gift was promised, players can't cast spells this turn." — everybody
+    { re: /^(?:Players|Each player) can'?t cast spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'all' }) },
     // Orim's Chant: "Target player can't cast spells this turn."
     { re: /^Target (player|opponent) can'?t cast spells this turn\.?$/i, make: (m) => ({ op: 'silence', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Render Silent: "Counter target spell. Its controller can't cast spells this turn."
@@ -17755,6 +17761,8 @@
     [/^(?:this creature|CARDNAME) has another activated ability$/i, () => ({ kind: 'selfHasOtherActivated' })],
     // Mirrex: "Activate only if this land entered this turn."
     [/^this (?:land|artifact|enchantment|permanent|Aura|Equipment|Vehicle|Saga) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
+    // Izzet Generatorium: "you've paid or lost four or more {E} this turn" (energyOutThisTurn)
+    [/^you'?ve paid or lost (\w+) or more \{E\} this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'energyOutThisTurn', n: num(m[1]) } : null)],
     // Messenger Hawk: "you've drawn two or more cards this turn"
     [/^you'?ve drawn (\w+) or more cards this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'drawnAtLeast', n: num(m[1]) } : null)],
     // Cosmos Elixir: "your life total is greater than your starting life total"
@@ -24347,6 +24355,9 @@
     // Bruvac the Grandiloquent: "If an opponent would mill one or more cards, they mill twice that many cards instead."
     { re: /^If an opponent would mill one or more cards, they mill twice that many cards instead\.?$/i,
       make: () => ({ op: 'replace', id: 'millDouble', event: 'mill', who: 'opponents', how: 'double' }) },
+    // Izzet Generatorium: "If you would get one or more {E} (energy counters), you get that many plus one {E} instead."
+    { re: /^If you would get one or more \{E\}(?: \(energy counters\))?, you get that many plus one \{E\} instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'energyPlus1', event: 'counters', who: 'you', players: true, playerOnly: true, how: 'add', n: 1, counter: 'energy' }) },
     // Winding Constrictor: "If you would get one or more counters, you get that many plus one of each of those kinds of counters instead."
     { re: /^If you would get one or more counters, you get that many plus one of each of those kinds of counters instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Player', event: 'counters', who: 'you', players: true, playerOnly: true, how: 'add', n: 1 }) },
@@ -26602,6 +26613,19 @@
             { op: 'continuous', layer: 4, scope, cond, addTypes: ['Creature'], addSubtypes: [m[4]] },
             { op: 'continuous', layer: 7, scope, cond, setPt: { p: +m[2], t: +m[3] } },
             { op: 'continuous', layer: 6, scope, cond, grant: kws, grantText: m[6] }] };
+        }, auto: true },
+      /* Kaito, Bane of Nightmares: "During your turn, as long as Kaito has one or more loyalty counters on him, he's a
+         3/4 Ninja creature and has hexproof." — still a planeswalker (yourTurn and selfCounters) */
+      { re: /^During your turn, as long as CARDNAME has one or more loyalty counters on (?:him|her|it|them), (?:he|she|it|they)(?:'s| is| are|'re) an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )*[A-Z][a-z]+) creature and (?:has|have) ([a-z ,]+?)\.?$/,
+        make: (m) => {
+          const kws = keywordList(m[4]);
+          if (!kws.length || !kws.every(kwKnown)) return null;
+          const scope = { self: true };
+          const cond = { kind: 'all', of: [{ kind: 'yourTurn' }, { kind: 'selfCounters', counter: 'loyalty', n: 1 }] };
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 4, scope, cond, addTypes: ['Creature'], addSubtypes: m[3].split(' ') },
+            { op: 'continuous', layer: 7, scope, cond, setPt: { p: +m[1], t: +m[2] } },
+            { op: 'continuous', layer: 6, scope, cond, grant: kws }] };
         }, auto: true },
       /* Tesak, Judith's Hellhound: "Other Dogs you control have unleash." — handed over as its words, so a Dog
          entering under it is asked about the counter, and can't block while it has one */

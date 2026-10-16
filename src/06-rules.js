@@ -9389,7 +9389,7 @@
           if (q && !q.hasLost) { this.changeLife(q, alt.oppGain); this.logEvent('life', `${q.name} gains ${alt.oppGain} life for ${p.name}'s ${o.name}.`); }
         }
         // Nissa, Worldsoul Speaker: "pay eight {E}"
-        if (alt.energy) { p.energy = Math.max(0, (p.energy || 0) - alt.energy); this.logEvent('counters', `${p.name} pays ${alt.energy} energy (${p.energy} left).`); }
+        if (alt.energy) { this._energyOut(p, Math.min(p.energy || 0, alt.energy)); p.energy = Math.max(0, (p.energy || 0) - alt.energy); this.logEvent('counters', `${p.name} pays ${alt.energy} energy (${p.energy} left).`); }
         if (alt.exileFromHand) {
           const pool = this._discardPool(playerId, alt.exileFromHand, o);
           const need = Math.min(pool.length, alt.exileFromHand.n || 1);
@@ -12317,7 +12317,7 @@
       const energyK = cost.energy ? this._costCount(cost.energy, opts, pid) : 0;
       if (energyK) {
         const pe = this.player(pid);
-        if (pe) { pe.energy = Math.max(0, (pe.energy || 0) - energyK); this.logEvent('counters', `${pe.name} pays ${energyK} energy (${pe.energy} left).`); }
+        if (pe) { this._energyOut(pe, Math.min(pe.energy || 0, energyK)); pe.energy = Math.max(0, (pe.energy || 0) - energyK); this.logEvent('counters', `${pe.name} pays ${energyK} energy (${pe.energy} left).`); }
       }
       const p = this.player(pid);
       const auto = !!(p && p.isBot) || !!opts.autoCost;
@@ -17470,6 +17470,8 @@
         // Tromokratis: "unless it's attacking or blocking"
         case 'selfInCombat': return !!src && src.zone === 'battlefield' && !!(src.attacking || (src.blocking && src.blocking.length));
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
+        // Izzet Generatorium: "you've paid or lost four or more {E} this turn" (energyOutThisTurn)
+        case 'energyOutThisTurn': return !!me && me.energyOutTurn === this.turn && (me.energyOutN || 0) >= (cond.n || 1);
         // Kellan, the Kid: "If you don't" — no spell was cast for free just before
         case 'noFreeCast': return !(ctx && ctx._freeCast);
         // Zurgo, Thunder's Decree: "During your end step"
@@ -18834,7 +18836,11 @@
       }
       // Aegar, the Freezing Flame: "is dealt excess damage" — combat or not, once what dealt it is noted
       if (excess > 0 && o.zone === 'battlefield' && a && (a.isCreature || a.isPlaneswalker)) this._fire('excessDamage', null, { object: o, objController: o.controller, amount: excess });
-      if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return amount; }
+      if (a && a.isPlaneswalker) {
+        this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`);
+        // (Kaito, Bane of Nightmares: a planeswalker that is a creature is dealt damage as a creature too — CR 120.3e)
+        if (!(this.characteristics(o) || {}).isCreature) return amount;
+      }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return amount; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
       // (Everlasting Torment: all damage as though its source had wither)
@@ -19149,6 +19155,13 @@
 
     /* All Will Be One: "Whenever you put one or more counters on a permanent or player" — a player's counters (poison,
        energy, experience, rad), and who put them */
+    /* Izzet Generatorium: "Activate only if you've paid or lost four or more {E} this turn." — energy gone this turn, for
+       whatever reason (energyOutTurn, energyOutN) */
+    _energyOut(p, k) {
+      if (!p || !(k > 0)) return;
+      if (p.energyOutTurn !== this.turn) { p.energyOutTurn = this.turn; p.energyOutN = 0; }
+      p.energyOutN += k;
+    }
     _playerCountersPut(p, kind, amount, putter) {
       this._fire('playerCountersPut', null, { player: p.id, playerId: p.id, kind, amount, putter });
     }
@@ -24842,7 +24855,7 @@
           if (got === SUSPEND) return SUSPEND;
           const k = Math.max(0, Math.min(most, Math.floor(Number(got && got.number) || 0)));
           if (!k) break;
-          me.energy -= k;
+          me.energy -= k; this._energyOut(me, k);
           this.logEvent('counters', `${me.name} pays ${k} energy (${me.energy}).`);
           this._spliceNext((e.then || []).map(x => (x.op === 'createToken' && /^X\/X$/i.test(String(x.pt || '')) ? Object.assign({}, x, { ptX: k }) : x)));
           break;
@@ -24850,7 +24863,7 @@
         case 'payEnergy': {
           const k = n(e.n) || 1;
           if ((me.energy || 0) < k) break;
-          me.energy -= k;
+          me.energy -= k; this._energyOut(me, k);
           this.logEvent('counters', `${me.name} pays ${k} energy (${me.energy}).`);
           break;
         }
@@ -28778,7 +28791,7 @@
           if (!yes) { this._spliceNext(e.otherwise); break; }
           if (pay.energy && !this._doneHere('energyPaid')) {
             if ((me.energy || 0) < pay.energy) { this._spliceNext(e.otherwise); break; }
-            me.energy -= pay.energy;
+            me.energy -= pay.energy; this._energyOut(me, pay.energy);
             this.logEvent('counters', `${me.name} pays ${pay.energy} energy (${me.energy} left).`);
             if (!pay.mana && pay.life == null && !pay.discard && !pay.sacrifice) { this._spliceNext(e.then); break; }
           }
@@ -29202,7 +29215,7 @@
             const costE = '{E}'.repeat(k);
             const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost: costE, remember: 'pay', prompt: e.prompt || `Pay ${costE} to keep ${it.name}?` });
             if (paidE === SUSPEND) return SUSPEND;
-            if (paidE) { payer.energy -= k; this.logEvent('rules', `${payer.name} pays ${costE}.`); } else this._spliceNext(e.then);
+            if (paidE) { payer.energy -= k; this._energyOut(payer, k); this.logEvent('rules', `${payer.name} pays ${costE}.`); } else this._spliceNext(e.then);
             break;
           }
           let cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');
@@ -29217,7 +29230,7 @@
             if ((payer.energy || 0) < k) { this._spliceNext(e.then); break; }
             const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost, remember: 'pay', prompt: e.prompt || `Pay ${cost}?` });
             if (paidE === SUSPEND) return SUSPEND;
-            if (paidE) { payer.energy -= k; this.logEvent('rules', `${payer.name} pays ${cost}.`); } else this._spliceNext(e.then);
+            if (paidE) { payer.energy -= k; this._energyOut(payer, k); this.logEvent('rules', `${payer.name} pays ${cost}.`); } else this._spliceNext(e.then);
             break;
           }
           const affordable = typeof cost === 'string'
@@ -33448,7 +33461,7 @@
           // (Xanathar, Guild Kingpin: the one opponent targeted)
           { const tq = e.who === 'target' ? firstPlayer() : null;
             const what = e.abilities ? "can't cast spells or activate abilities" : "can't cast spells";
-            this.logEvent('rules', tq ? `${tq.name} ${what} this turn.` : `${me.name}'s opponents ${what} this turn.`); }
+            this.logEvent('rules', tq ? `${tq.name} ${what} this turn.` : e.who === 'all' ? `Players ${what} this turn.` : `${me.name}'s opponents ${what} this turn.`); }
           break;
 
         case 'sortRevealed': {
@@ -38491,7 +38504,7 @@
         // Final Act: poison, energy, experience and the rest gone
         case 'clearPlayerCounters': {
           for (const p of this.opponentsOf(ctx.controller)) {
-            p.poison = 0; p.energy = 0; p.experience = 0;
+            this._energyOut(p, p.energy || 0); p.poison = 0; p.energy = 0; p.experience = 0;
             if (p.rad != null) p.rad = 0;
             this.logEvent('counters', `${p.name} loses all counters.`);
           }
@@ -43967,7 +43980,7 @@
           const canPayLife = ch.life ? (p && p.life > ch.life) : false;
           if (ch.energy) {
             if (data && data.pay && (p.energy || 0) >= ch.energy) {
-              p.energy -= ch.energy;
+              p.energy -= ch.energy; this._energyOut(p, ch.energy);
               this.logEvent('upkeep', `${p.name} pays ${ch.energy} energy for ${o.name}.`);
             } else {
               this.logEvent('sacrifice', `${p.name} does not pay; ${o.name} is sacrificed.`);
