@@ -79744,4 +79744,120 @@ module.exports = (test) => {
     t.eq(T.life('B'), 15, '5 to B through the Wall');
     t.no(wall.damage, 'none to the Wall');
   });
+  test('Cards: Shadow of Mortality — costs {X} less, where X is how far your life is below your starting life', (mk, t) => {
+    t.auto('Shadow of Mortality');
+    const T = mk();
+    const g = T.g;
+    const start = (g.config && g.config.startingLife) || 20;
+    const sh = T.hand('A', 'Shadow of Mortality');
+    T.player('A').life = start + 3;
+    t.eq(g._costDelta(sh, 'A'), 0, 'above the starting life: no discount');
+    T.player('A').life = start - 9;
+    t.eq(g._costDelta(sh, 'A'), -9, '9 below: {9} less');
+    T.player('A').life = start - 10;
+    T.mana('A', 'BB3');
+    T.cast('A', sh);
+    t.zone(sh, 'battlefield', '10 below: cast for {3}{B}{B}');
+  });
+
+  test('Cards: Surge to Victory — exiles the card, +X/+0, and each combat hit casts a free copy for the turn', (mk, t) => {
+    t.auto('Surge to Victory');
+    const T = mk({ library: Array(10).fill('Island') });
+    const g = T.g;
+    const div = T.grave('A', 'Divination');
+    const b1 = T.bf('A', 'Grizzly Bears');
+    const b2 = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'RR4');
+    T.cast('A', T.hand('A', 'Surge to Victory'), { targets: [div] });
+    t.zone(div, 'exile', 'the card exiled');
+    t.eq(g.powerOf(b1), 5, 'Divination is mana value 3: +3/+0');
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }]);
+    T.answer('confirm', { yes: true });
+    T.answer('confirm', { yes: false });
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'one copy cast (two cards), the other declined');
+    t.zone(div, 'exile', 'the card stays exiled');
+    t.ok(!T.zone('A', 'exile').some(x => x.isCopy && x.zone === 'exile'), 'no copy left behind');
+    // next turn: the emblem is gone
+    T.nextTurn('A');
+    t.eq(g.powerOf(b1), 2, 'the pump wore off');
+    const h1 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, h1, 'only this turn');
+  });
+
+  test("Cards: Prishe's Wanderings — a basic land or a Town onto the battlefield tapped, then a +1/+1 counter", (mk, t) => {
+    t.auto("Prishe's Wanderings");
+    const T = mk({ library: ['Island'] });
+    const g = T.g;
+    const ish = T.top('A', 'Ishgard, the Holy See');
+    T.bf('A', 'Llanowar Elves');
+    const bear = T.bf('A', 'Grizzly Bears');
+    let offered = null, tq = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [ish.id] }; });
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', "Prishe's Wanderings"));
+    const town = T.bfOf('A').find(x => x.name === 'Ishgard, the Holy See');
+    t.ok(offered && offered.includes('Island') && offered.includes('Ishgard, the Holy See'), 'basic lands and Towns offered');
+    t.ok(town && town.tapped, 'the Town, tapped');
+    t.ok(tq, 'the target chosen as the reflexive trigger goes on');
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'a +1/+1 counter on the creature chosen');
+    // nothing found: still a counter
+    const T2 = mk({ library: ['Lightning Bolt'] });
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', 'G2');
+    T2.cast('A', T2.hand('A', "Prishe's Wanderings"));
+    t.eq(b2.counters['+1/+1'] || 0, 1, 'searched, nothing found: the counter all the same');
+  });
+
+  test('Cards: Outrageous Robbery — the top X exiled face down; A plays them while exiled, with mana of any type', (mk, t) => {
+    t.auto('Outrageous Robbery');
+    const T = mk();
+    const g = T.g;
+    T.top('B', 'Swamp'); T.top('B', 'Matter Reshaper'); T.top('B', 'Forest'); T.top('B', 'Lightning Bolt');
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', 'Outrageous Robbery'), { x: 3, targets: ['B'] });
+    const ex = T.zone('B', 'exile');
+    t.eq(ex.map(o => o.name).sort().join(','), 'Forest,Lightning Bolt,Matter Reshaper', 'the top three exiled');
+    t.ok(ex.every(o => o.faceDownExile && o.lookableBy === 'A'), 'face down, A may look at them');
+    t.ok(ex.every(o => o.impulseBy === 'A' && o.impulseUntil > 9999), 'A may play them while they stay exiled');
+    T.nextTurn('B'); T.nextTurn('A');
+    const forest = ex.find(o => o.name === 'Forest');
+    T.playLand('A', forest);
+    t.zone(forest, 'battlefield', 'the land played');
+    T.mana('A', 'B');
+    T.cast('A', ex.find(o => o.name === 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'the Bolt cast with black mana');
+    const mr = ex.find(o => o.name === 'Matter Reshaper');
+    t.eq(g._anyColorCost('A', mr, '{2}{C}'), '{2}{1}', '{2}{C}: the colorless symbol paid with any type');
+    T.mana('A', 'W2');
+    T.cast('A', mr);
+    t.zone(mr, 'battlefield', 'cast with white mana');
+  });
+
+  test('Cards: Sylvan Offering — an X/X Treefolk for you and one opponent, X Elf Warriors for you and another', (mk, t) => {
+    t.auto('Sylvan Offering');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    let asked = 0;
+    T.answer('choose', (ch) => { asked++; t.eq(ch.purpose, 'chooseOpponent'); return { picks: ['B'] }; });
+    T.answer('choose', (ch) => { asked++; return { picks: ['C'] }; });
+    T.mana('A', 'G3');
+    T.cast('A', T.hand('A', 'Sylvan Offering'), { x: 3 });
+    t.eq(asked, 2, 'an opponent chosen for each');
+    const toks = (pid, sub) => g.battlefield.filter(o => o.isToken && o.controller === pid && new RegExp(sub).test(o.card.type_line || ''));
+    t.eq(toks('A', 'Treefolk').length, 1, 'A: a Treefolk');
+    t.eq(g.powerOf(toks('A', 'Treefolk')[0]), 3, 'X/X: 3/3');
+    t.eq(toks('B', 'Treefolk').length, 1, 'B: a Treefolk');
+    t.eq(g.toughnessOf(toks('B', 'Treefolk')[0]), 3, 'theirs 3/3 too');
+    t.eq(toks('C', 'Treefolk').length, 0, 'C: no Treefolk');
+    t.eq(toks('A', 'Elf').length, 3, 'A: three Elf Warriors');
+    t.eq(toks('C', 'Elf').length, 3, 'C: three Elf Warriors');
+    t.eq(toks('B', 'Elf').length, 0, 'B: none');
+  });
 };

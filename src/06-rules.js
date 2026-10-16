@@ -681,7 +681,7 @@
       // Nathan Drake, Treasure Hunter: "… to cast spells you don't own" (spendAnyNotOwned)
       if (o && o.owner !== pid && this._anyStaticOf(pid, 'spendAnyNotOwned')) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Hostage Taker: "mana of any type can be spent to cast that spell"
-      if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      if (o && o.impulseAnyMana === pid) return String(cost).replace(o.impulseAnyType ? /\{(?:2\/)?[WUBRGC](?:\/[WUBRG])?\}/g : /\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Tinybones, Bauble Burglar: "and mana of any type can be spent to cast those spells" (exiledCounter)
       // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library, too)
       if (o && (o.zone === 'exile' || o.zone === 'library') && o.owner !== pid && (this._playFromRule(pid, o, 'spell') || {}).anyMana) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
@@ -4322,7 +4322,7 @@
       for (const q of this.players) {
         for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c === o || (c.impulseGroup !== g && c.freeCastGroup !== g)) continue;
-          if (c.impulseGroup === g) { c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null; c.impulseLess = null; c.impulseUndaunted = null; }
+          if (c.impulseGroup === g) { c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAnyType = null; c.impulseAffinity = null; c.impulseLess = null; c.impulseUndaunted = null; }
           if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; c.freeCastGroup = null; }
         }
       }
@@ -4919,6 +4919,8 @@
       // Guardian Scalelord: "where X is this creature's power", as a target's cap (maxMvCount)
       if ((v.ofSelf === 'power' || v.ofSelf === 'toughness') && src) return (v.ofSelf === 'power' ? this.powerOf(src) : this.toughnessOf(src)) * mult;
       if (v.startingLife) return ((this.config && this.config.startingLife) || 20) * mult;
+      // Shadow of Mortality: how far your life total is below your starting life total (lifeBelowStart)
+      if (v.lifeBelowStart) return Math.max(0, ((this.config && this.config.startingLife) || 20) - ((this.player(pid) || {}).life || 0)) * mult;
       // Towering Titan: "the total toughness of other creatures you control" (totalStat)
       if (v.totalStat) {
         let sum = 0;
@@ -19396,7 +19398,7 @@
       /* A card that changes zones is a new object (CR 400.7): leave to play it from exile, and its being
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
-        o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
+        o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseAnyType = null; o.impulseFilter = null;
         o.impulseGroup = null; o.impulseAnotherOf = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null; o.impulseUndaunted = null;
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
@@ -23363,7 +23365,7 @@
           return (Number(tpP[v.targetPlayerStat]) || 0) * (v.mult || 1);
         }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
-        if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.sharedTypeMax || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.sharedTypeMax || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife || v.lifeBelowStart ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsHandAtMost || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.opponentsDamaged || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -33521,6 +33523,8 @@
             if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; if (group) c.freeCastGroup = group; }
             else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; if (group) c.impulseGroup = group; }
             if (e.anyMana) c.impulseAnyMana = pid;
+            // (Outrageous Robbery: "mana of any type" — colorless symbols too: impulseAnyType)
+            if (e.anyMana && e.anyType) c.impulseAnyType = true;
             // Arvinox, the Mind Flail: "you may cast permanent spells from among them" (impulseFilter)
             c.impulseFilter = e.filter || null;
             // Gandalf, Goblins' Bane (Flameshape): "if you control a Wizard" — asked each time it is played (impulseIfControl)
@@ -36546,7 +36550,10 @@
           const recent = e.fromRes ? (this._resExiled || []) : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
           // God-Eternal Kefnet: the card the trigger is about, the first one drawn this turn — wherever it went since (drawn)
           // (Zethi, Arcane Blademaster: one of the exiled cards with a kick counter, named — _forcedId)
-          let c = e._forcedId ? this.obj(e._forcedId) : e.of === 'drawn' ? this.obj((ctx.triggerData || {}).objectId) : this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
+          // (Surge to Victory: "copy the exiled card" — the one its emblem was linked to, while it stays in exile: linked)
+          let c = e._forcedId ? this.obj(e._forcedId) : e.of === 'drawn' ? this.obj((ctx.triggerData || {}).objectId)
+            : e.of === 'linked' ? this.obj(e.linkedId) : this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
+          if (e.of === 'linked' && (!c || c.zone !== 'exile')) break;
           if (e.of !== 'drawn' && (!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
             const kept = this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id);
             c = kept[kept.length - 1] || null;

@@ -1333,7 +1333,8 @@
     // Spinewoods Armadillo: "a basic land card or a Desert card" — either kind (orAlso, joined after the basics below)
     let orAlso = '';
     // (nothing said of the second kind alone — Starfield Shepherd's "or a creature card with mana value 1 or less" is not this)
-    if ((q = s.match(/^ or an? ([A-Za-z][-a-zA-Z']*(?: [a-z]+)?) card(?=,|$)/))) { orAlso = q[1].toLowerCase(); s = s.slice(q[0].length); }
+    // (Prishe's Wanderings: "a basic land card or Town card" — a subtype, no article)
+    if ((q = s.match(/^ or (?:an? ([A-Za-z][-a-zA-Z']*(?: [a-z]+)?)|([A-Z][-a-zA-Z']*)) card(?=,|$)/))) { orAlso = (q[1] || q[2]).toLowerCase(); s = s.slice(q[0].length); }
     // (Reach the Horizon: "up to two basic land cards and/or Town cards with different names" — either kind, any mix: andOr)
     let andOr = false;
     if (!orAlso && (q = s.match(/^ and\/or ([A-Z][-a-zA-Z']*) cards(?=,| with|$)/))) { orAlso = q[1].toLowerCase(); andOr = true; s = s.slice(q[0].length); }
@@ -3321,7 +3322,9 @@
     { re: /^If you cast a spell this way, (?:you )?pay life equal to its mana value rather than pay(?:ing)? its mana cost\.?$/i,
       make: () => ({ op: 'noop', payLifeRider: true }) },
     // (Bloodsoaked Insight: "If you cast a spell this way, mana of any type can be spent to cast it.")
-    { re: /^(?:Mana of any type can be spent to cast (?:a spell|spells) this way|If you cast a spell this way, mana of any type can be spent to cast it)\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
+    // (Outrageous Robbery: "If you cast a spell this way, you may spend mana as though it were mana of any type to cast it." —
+    // colorless symbols too: anyManaRider 'type')
+    { re: /^(?:Mana of any type can be spent to cast (?:a spell|spells) this way|If you cast a spell this way, mana of any type can be spent to cast it|If you cast a spell this way, you may spend mana as though it were mana of any type to cast (?:it|that spell))\.?$/i, make: () => ({ op: 'noop', anyManaRider: 'type' }) },
     // (Brainstealer Dragon: "If you cast a spell this way, you may spend mana as though it were mana of any color to cast it.")
     { re: /^If you cast a spell this way, you may spend mana as though it were mana of any colou?r to cast (?:it|that spell)\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
     // Durnan of the Yawning Portal: "That spell has undaunted." — on the leave before it (undauntedRider)
@@ -5684,6 +5687,9 @@
     // (Expensive Taste: "Exile the top two cards of target opponent's library face down.")
     { re: /^Exile the top (two|three|four|five|X|\d+) cards of target (opponent|player)'?s library( face down)?\.?$/i,
       make: (m) => Object.assign({ op: 'exileTop', who: 'target', n: num(m[1]), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }, m[3] ? { faceDown: true } : {}) },
+    // Outrageous Robbery: "Target opponent exiles the top X cards of their library face down." — the same, said of them
+    { re: /^Target (opponent|player) exiles the top (two|three|four|five|X|\d+) cards of their library( face down)?\.?$/i,
+      make: (m) => Object.assign({ op: 'exileTop', who: 'target', n: num(m[2]), targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }, m[3] ? { faceDown: true } : {}) },
     /* Lord of the Void: "exile the top seven cards of that player's library, then put a creature card from among them onto
        the battlefield under your control." — one of them, picked; the rest stay exiled (exiledNowToBattlefield one) */
     { re: /^Exile the top (two|three|four|five|six|seven|eight|nine|ten|\d+) cards of that player'?s library, then put an? ([a-z]+) card from among them onto the battlefield under your control\.?$/i,
@@ -7428,6 +7434,13 @@
     { re: /^When you do, distribute X (\+1\/\+1) counters among any number of target creatures, where X is the exiled creature'?s power\.?$/i,
       make: (m) => ({ op: 'reflexive', ifExiledThisWay: true, exiledPower: true, text: m[0], effects: [
         { op: 'countersDivided', n: 'triggerAmount', kind: m[1], anyFrom: Object.assign({}, targetSpec('target creature'), { upTo: true }) }] }) },
+    /* Prishe's Wanderings: "When you search your library this way, put a +1/+1 counter on target creature you control."
+       — the search always happens, so a reflexive trigger every time, its target chosen once the land is in (reflexive) */
+    { re: /^When you search your library this way, (.+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
+        return inner.auto && inner.effects.length ? { op: 'reflexive', effects: inner.effects, text: m[0] } : null;
+      } },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
     { re: /^When you do, (.+)$/i,
@@ -8881,6 +8894,13 @@
     // "You and that player each draw three cards": you, and the opponent chosen
     { re: /^You and that player each draw (\w+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerPlayer' }] }) },
+    // Sylvan Offering: "You and that player each create an X/X green Treefolk creature token." — you, and the opponent chosen
+    { re: /^You and that player each create (.+? creature tokens?(?: with [a-z ,]+)?)\.?$/i,
+      make: (m) => {
+        const tok = parseTokenSentence('Create ' + m[1] + '.');
+        if (!tok || tok.op !== 'createToken') return null;
+        return { op: 'sequence', list: [Object.assign({}, tok), Object.assign(JSON.parse(JSON.stringify(tok)), { who: 'triggerPlayer' })] };
+      } },
     // Nelly Borca, Impulsive Accuser: "you and the controller of those creatures each draw a card"
     { re: /^You and the controller of (?:those creatures|that creature) each draw (\w+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerObjController' }] }) },
@@ -9539,6 +9559,15 @@
         abilities: [{ kind: 'triggered', event: 'permAttacks', self: false, optional: false, auto: true, condition: null,
           objectIdIs: '$tgt', attacksYourOppPlayer: true, text: 'Whenever the chosen creature attacks one of your opponents, you draw a card.',
           effects: [{ op: 'draw', n: 1, who: 'you' }] }] }) },
+    /* Surge to Victory: "Whenever a creature you control deals combat damage to a player this turn, copy the exiled card.
+       You may cast the copy without paying its mana cost." — the card targeted and exiled, linked to an emblem for the
+       turn (castCopy of 'linked') */
+    { re: /^Whenever a creature you control deals combat damage to a player this turn, copy the exiled card\. You may cast the copy without paying its mana cost\.?$/i,
+      make: () => ({ op: 'getEmblem', thisTurn: true, name: 'Until end of turn', linkTarget: true,
+        emblemText: 'Whenever a creature you control deals combat damage to a player this turn, copy the exiled card. You may cast the copy without paying its mana cost.',
+        abilities: [{ kind: 'triggered', event: 'permCombatDamage', self: false, optional: false, auto: true, condition: null,
+          objFilter: { who: 'you', words: 'creature' }, text: 'Whenever a creature you control deals combat damage to a player, copy the exiled card. You may cast the copy without paying its mana cost.',
+          effects: [{ op: 'castCopy', of: 'linked', linkedId: '$tgt' }] }] }) },
     /* Okoye, Mighty and Adored: "put a +1/+1 counter on target creature. Whenever that creature attacks the monarch this
        turn, it gains double strike and trample until end of turn." — as Maeve's (attacksMonarch) */
     { re: /^Whenever that creature attacks the monarch this turn, it gains double strike and trample until end of turn\.?$/i,
@@ -15840,6 +15869,9 @@
     if (m) return { amount: -1, x: /total/i.test(m[1]) ? 'totalPower' : 'greatestPower', scope: scopeOf(m[2]) };
     m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is the number of (.+)$/i);
     if (m) { const c = countOf(m[1].replace(/s\b/, '')) || countOf(m[1]); return c ? { amount: -1, per: c } : null; }
+    // Shadow of Mortality: "If your life total is less than your starting life total, this spell costs {X} less to cast,
+    // where X is the difference." (lifeBelowStart)
+    if (/^If your life total is less than your starting life total, (?:this spell|CARDNAME) costs \{X\} less to cast, where X is the difference$/i.test(s)) return { amount: -1, per: { lifeBelowStart: true } };
     // Excalibur, Metalwork Colossus: "where X is the total mana value of … you control", and other amounts
     m = s.match(/^(?:This spell|CARDNAME) costs \{X\} less to cast, where X is (.+)$/i);
     if (m) { const a = amountOf(m[1]); return a && typeof a === 'object' ? { amount: -1, per: a } : null; }
@@ -16135,6 +16167,11 @@
 
       // Super-Adaptoid: "… put a haste counter on Super-Adaptoid. Do the same for flying, …" — read as one
       if (/^Do the same for /i.test(next)) {
+        const both = parseEffectSentence(s + ' ' + next);
+        if (both && !Array.isArray(both)) { effects.push(Object.assign(both, { text: s + ' ' + next })); i++; continue; }
+      }
+      // Surge to Victory: "Whenever … this turn, copy the exiled card. You may cast the copy …" — a trigger for the turn, read whole
+      if (next && /^Whenever [^.]+ this turn, /i.test(s)) {
         const both = parseEffectSentence(s + ' ' + next);
         if (both && !Array.isArray(both)) { effects.push(Object.assign(both, { text: s + ' ' + next })); i++; continue; }
       }
@@ -17247,6 +17284,7 @@
         const host = out.slice().reverse().find(x => x && (x.op === 'mayPlayExiled' || x.op === 'impulseLast'));
         if (!host || host.free || (e.undauntedRider && host.op !== 'mayPlayExiled')) { unrideable(); continue; }
         if (e.payLifeRider) host.payLife = true; else if (e.undauntedRider) host.undaunted = true; else host.anyMana = true;
+        if (e.anyManaRider === 'type') host.anyType = true;
         continue;
       }
       // Lembas: "its owner shuffles it" is the card itself only when nothing was aimed at before it
