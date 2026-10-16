@@ -888,7 +888,8 @@
     let ex = String(words).trim().replace(/\bit has ([a-z ]+?) and this ability$/i, 'it has $1, and it has this ability');
     while (ex) {
       let c;
-      if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
+      // (Sakashima's Student: "it's a Ninja in addition to its other creature types")
+      if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other (?:creature )?types/))) e.addTypes = c[1].split(' ');
       // Superior Spider-Man: "he's a 4/4 Spider Human Hero in addition to his other types" (copyPt)
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to (?:its|his|her) other types/))) {
         e.copyPt = c[1] + '/' + c[2]; e.addTypes = c[3].split(' ');
@@ -3604,11 +3605,20 @@
     { re: /^(?:Then )?(?:you may )?put up to (one|two|three|four) ([a-z, \/]*?)cards? from among (?:the milled cards|the cards milled this way) onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true, to: 'battlefield',
         prompt: `Choose up to ${m[1].toLowerCase()} ${(m[2].trim() || '')}${m[2].trim() ? ' ' : ''}card${num(m[1]) === 1 ? '' : 's'} from among the milled cards to put onto the battlefield${m[3] ? ' tapped' : ''}.` }, m[3] ? { tapped: true } : {}) },
+    // Fetch Quest: "Then put a creature, enchantment, or land card from among the milled cards onto the battlefield." — one, if there is one
+    { re: /^(?:Then )?put an? ((?:[a-z]+, )+(?:or )?[a-z]+) card from among (?:the milled cards|the cards milled this way) onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'takeFromMilled', n: 1, filter: m[1].split(/,? (?:or )?|, /).filter(Boolean).join(' or '), optional: false, to: 'battlefield',
+        prompt: `Put a ${m[1]} card from among the milled cards onto the battlefield.` }) },
     /* Gyruda, Doom of Depths: "Put a creature card with an even mana value from among the milled cards onto the
        battlefield under your control." — after "each player mills", anybody's card (anyOwner) */
     { re: /^(?:Then )?(you may )?put an? ([a-z]+ )?card with an (even|odd) mana value from among (?:the milled cards|the cards milled this way) onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: 1, filter: (m[2] || '').trim() || 'any', mvParity: m[3].toLowerCase(), anyOwner: true, optional: !!m[1], to: 'battlefield',
         prompt: `Put a ${(m[2] || '').trim() ? m[2].trim() + ' ' : ''}card with an ${m[3].toLowerCase()} mana value from among the milled cards onto the battlefield under your control.` }) },
+    /* Angel of Serenity: "exile up to three other target creatures from the battlefield and/or creature cards from
+       graveyards" — each target either (orGraveyard), held by it for "return the exiled cards" (held) */
+    { re: /^Exile up to (two|three|four|five) other target creatures from the battlefield and\/or creature cards from graveyards\.?$/i,
+      make: (m) => ({ op: 'exile', held: true, targets: Array.from({ length: num(m[1]) }, () => ({ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, another: true,
+        orGraveyard: { type: 'creature', filter: 'creature', zone: 'graveyard' } })) }) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     // Hama, the Bloodbender: "target opponent mills three cards"
     { re: /^Target opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
@@ -12086,6 +12096,11 @@
        choices are revealed, and that player sacrifices those creatures." (secretChooseSac) */
     { re: /^you and target opponent each secretly choose a creature that player controls\. Then those choices are revealed, and that player sacrifices those creatures\.?$/i,
       make: () => [{ op: 'secretChooseSac', targets: [{ type: 'player', opponent: true }] }] },
+    /* Prisoner's Dilemma: "Each opponent secretly chooses silence or snitch, then the choices are revealed. If each opponent
+       chose silence, CARDNAME deals 4 damage to each of them. If each opponent chose snitch, CARDNAME deals 8 damage to each
+       of them. Otherwise, CARDNAME deals 12 damage to each opponent who chose silence." (silenceOrSnitch) */
+    { re: /^Each opponent secretly chooses silence or snitch, then the choices are revealed\. If each opponent chose silence, CARDNAME deals (\d+) damage to each of them\. If each opponent chose snitch, CARDNAME deals (\d+) damage to each of them\. Otherwise, CARDNAME deals (\d+) damage to each opponent who chose silence\.?$/i,
+      make: (m) => [{ op: 'silenceOrSnitch', silence: +m[1], snitch: +m[2], mixed: +m[3] }] },
     /* Wheel of Misfortune: "Each player secretly chooses a number 0 or greater, then all players reveal those numbers
        simultaneously … deals damage equal to the highest number to each player who chose that number. Each player who
        didn't choose the lowest number discards their hand, then draws seven cards." (secretNumberWheel) */
@@ -18464,6 +18479,8 @@
     // the Curses: what the enchanted player does, and what is done to them
     { re: /^At the beginning of enchanted (?:player|opponent)'s draw step,? /i, event: 'eachDrawStep', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of enchanted (?:player|opponent)'s end step,? /i, event: 'eachEndStep', extra: { enchantedPlayer: true } },
+    // Shadow of the Second Sun: "At the beginning of each of enchanted player's postcombat main phases"
+    { re: /^At the beginning of each of enchanted (?:player|opponent)'s postcombat main phases,? /i, event: 'eachMain2', extra: { enchantedPlayer: true } },
     { re: /^Whenever enchanted (?:player|opponent) draws a card,? /i, event: 'anyDraw', extra: { enchantedPlayer: true } },
     { re: /^Whenever enchanted (?:player|opponent) casts (?:a|an) ([a-zA-Z ,-]*?)spell,? /i,
       event: 'anyCastSpell', extra: { enchantedPlayer: true }, filt: (m) => spellFilter(m[1]) },

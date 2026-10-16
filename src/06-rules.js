@@ -3446,7 +3446,11 @@
       // (Semblance Anvil, Chrome Mox: "you may exile a nonland card from your hand" — imprintFromHand)
       // (Cloudstone Curio: "you may return another permanent you control that shares a permanent type with it …" — returnOwn)
       const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'returnOwn' && !only.self) ||only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
-      const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
+      /* Angel of Serenity: "you may exile up to three other target creatures …" — every target "up to" and chosen as it went on
+         the stack: choosing them, or none, was the "may"; not asked again (aimedUpTo) */
+      const aimedUpTo = item.optional && !item._asked && only && !!item.targetSpecs && (only.targets || []).length > 0 &&
+        only.targets.every(sp => sp && sp.upTo) && !once;
+      const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked && !aimedUpTo
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
@@ -23761,6 +23765,8 @@
             // Titan's Presence: "if its power is less than or equal to the revealed card's power" (ifPowerAtMost)
             if (o && e.ifPowerAtMost != null && o.zone === 'battlefield' && this.powerOf(o) > n(e.ifPowerAtMost)) { this.logEvent('rules', `${o.name}'s power is too great.`); continue; }
             if (o) { this.moveObject(o, 'exile'); this._lastExiled = o.id; }
+            // Angel of Serenity: held, for "return the exiled cards" when it leaves (held)
+            if (o && e.held && src && o.zone === 'exile') o.heldBy = src.id;
             // Tasha, the Witch Queen: "and put a page counter on it" — on the card in exile
             if (o && e.counter && o.zone === 'exile') {
               o.counters = o.counters || {}; o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + 1; this.bumpBoard();
@@ -35967,6 +35973,28 @@
           }
           break;
         }
+        /* Prisoner's Dilemma: "Each opponent secretly chooses silence or snitch, then the choices are revealed." — nobody's
+           choice told until all are in; then the damage: all silence, all snitch, or only those who kept silent (silenceOrSnitch) */
+        case 'silenceOrSnitch': {
+          const opps = this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && p.id !== ctx.controller);
+          const words = ['silence', 'snitch'];
+          const picks = [];
+          for (const p of opps) {
+            const v = this._choose({ playerId: p.id, purpose: 'silenceOrSnitch', kind: 'options', min: 1, max: 1, forPlayer: ctx.controller,
+              options: words.map((w, i) => ({ i, label: U.titleCase(w) })),
+              prompt: `${src ? src.name + ': ' : ''}secretly choose silence or snitch. If every opponent chooses silence, each takes ${e.silence} damage; if every opponent chooses snitch, each takes ${e.snitch}; otherwise each who chose silence takes ${e.mixed}.` }, 'ss' + p.id);
+            if (v === SUSPEND) return SUSPEND;
+            picks.push({ p, pick: v && v.picks.length ? v.picks[0] : 0 });
+          }
+          if (!picks.length || this._doneHere('ssDone')) break;
+          for (const x of picks) this.logEvent('rules', `${x.p.name} chose ${words[x.pick]}.`);
+          const allSilent = picks.every(x => x.pick === 0), allSnitch = picks.every(x => x.pick === 1);
+          for (const x of picks) {
+            const k = allSilent ? e.silence : allSnitch ? e.snitch : x.pick === 0 ? e.mixed : 0;
+            if (k > 0 && !x.p.hasLost) this.dealDamageToPlayer(x.p, k, src);
+          }
+          break;
+        }
         /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed" —
            nobody's vote told until all are in; each fellowship voter then gives a creature of theirs (one for each such
            vote; one they have only, no question), which you gain control of for good and which can't attack its owner;
@@ -42998,6 +43026,9 @@
       }
       // Toralf, God of Fury: "other than that permanent" (notObject)
       if (spec.notObject) return this._legalTargetsFor(Object.assign({}, spec, { notObject: null }), controllerId, sourceId).filter(t => t.id !== spec.notObject);
+      // Angel of Serenity: "target creatures from the battlefield and/or creature cards from graveyards" — either (orGraveyard)
+      if (spec.orGraveyard) return this._legalTargetsFor(Object.assign({}, spec, { orGraveyard: null }), controllerId, sourceId)
+        .concat(this._legalTargetsFor(spec.orGraveyard, controllerId, sourceId));
       const out = [];
       /* "You have hexproof" keeps a player off the list of things an
          opponent's spell may point at (CR 702.11e). */

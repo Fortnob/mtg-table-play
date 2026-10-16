@@ -2351,6 +2351,12 @@
       const theirs = g.battlefield.filter(o => o.controller === s.forPlayer && (g.characteristics(o) || {}).isCreature).length;
       return { picks: [!mine || theirs >= 3 ? 0 : 1] };
     },
+    /* Prisoner's Dilemma: alone against it, silence (4 rather than 8); with other opponents, snitching is never worse */
+    silenceOrSnitch(s) {
+      const g = this.game;
+      const opps = g.opponentsOf(s.forPlayer != null ? s.forPlayer : this.pid).filter(p => !p.hasLost);
+      return { picks: [opps.length > 1 ? 1 : 0] };
+    },
     /* Seize the Spotlight: fame when it costs us nothing (no creature, or none worth stealing), else fortune */
     /* Master of Ceremonies: both get what is chosen, so what is worth most to us (each option's worth, from the engine);
        a full hand makes a card worth less */

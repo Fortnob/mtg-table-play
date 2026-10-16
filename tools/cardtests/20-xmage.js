@@ -74126,4 +74126,91 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Retether'));
     t.zone(r2, 'graveyard', 'nothing to enchant: remains');
   });
+  test('Cards: Prisoner\'s Dilemma — each opponent secretly chooses silence or snitch; the damage by what they chose', (mk, t) => {
+    t.auto('Prisoner\'s Dilemma');
+    const run = (b, c) => {
+      const T = mk({ players: ['A', 'B', 'C'] });
+      const seen = [];
+      for (const k of [b, c]) T.answer('choose', (ch) => { seen.push(ch); return { picks: [k] }; });
+      T.mana('A', '3RR');
+      T.cast('A', T.hand('A', 'Prisoner\'s Dilemma'));
+      t.eq(seen.map(ch => ch.playerId).join(','), 'B,C', 'each opponent asked');
+      t.ok(/secretly choose silence or snitch/.test(seen[0].prompt), seen[0].prompt);
+      return [20 - T.life('B'), 20 - T.life('C'), 20 - T.life('A')];
+    };
+    t.eq(run(0, 0).join(','), '4,4,0', 'both silent: 4 each');
+    t.eq(run(1, 1).join(','), '8,8,0', 'both snitch: 8 each');
+    t.eq(run(0, 1).join(','), '12,0,0', 'one silent: 12 to the silent one only');
+    // bots: alone, silence; with another opponent, snitch
+    for (const players of [['A', 'B', 'C'], ['A', 'B']]) {
+      const T = mk({ players });
+      const bots = {};
+      for (const pid of players.slice(1)) bots[pid] = new T.MTG.bots.BotPlayer(T.g, pid, 8);
+      for (let k = 1; k < players.length; k++) T.answer('choose', (ch) => bots[ch.playerId].chooseGeneric(ch));
+      T.mana('A', '3RR');
+      T.cast('A', T.hand('A', 'Prisoner\'s Dilemma'));
+      t.eq(20 - T.life('B'), players.length > 2 ? 8 : 4, players.length > 2 ? 'bots with another opponent: snitch' : 'a bot alone: silence');
+    }
+  });
+  test('Cards: Bramble Familiar // Fetch Quest — mill seven, then a creature, enchantment, or land card from among them onto the battlefield', (mk, t) => {
+    t.auto('Bramble Familiar // Fetch Quest');
+    const T = mk({ library: ['Lightning Bolt'] });
+    T.top('A', 'Lightning Bolt'); T.top('A', 'Rancor'); T.top('A', 'Craw Wurm'); T.top('A', 'Opt');
+    T.top('A', 'Forest'); T.top('A', 'Shock'); T.top('A', 'Divination');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort(); return { cardIds: [ch.cards.find(c => c.name === 'Craw Wurm').id] }; });
+    T.mana('A', '5GG');
+    const bf = T.hand('A', 'Bramble Familiar // Fetch Quest');
+    T.cast('A', bf, { face: 1 });
+    t.eq((offered || []).join(','), 'Craw Wurm,Forest,Rancor', 'a creature, enchantment, or land card');
+    t.ok(T.bfOf('A').some(o => o.name === 'Craw Wurm'), 'onto the battlefield');
+    t.eq(T.zone('A', 'graveyard').length, 6, 'the other six milled');
+    t.zone(bf, 'exile', 'on an adventure');
+  });
+  test('Cards: Shadow of the Second Sun — an additional beginning phase after each of the enchanted player\'s postcombat main phases', (mk, t) => {
+    t.auto('Shadow of the Second Sun');
+    const T = mk();
+    const sh = T.bf('A', 'Shadow of the Second Sun');
+    sh.attachedTo = 'B';
+    const land = T.bf('B', 'Forest');
+    T.nextTurn('B');
+    land.tapped = true;
+    const h0 = T.zone('B', 'hand').length;
+    T.toMain('B', 'end');
+    t.eq(T.zone('B', 'hand').length, h0 + 1, 'another draw step');
+    t.no(land.tapped, 'and another untap step');
+    // not on A's turn
+    T.nextTurn('A');
+    const ha = T.zone('A', 'hand').length;
+    T.toMain('A', 'end');
+    t.eq(T.zone('A', 'hand').length, ha, 'A: nothing extra');
+  });
+  test('Cards: Sakashima\'s Student — enters as a copy of any creature, and it is a Ninja too', (mk, t) => {
+    t.auto('Sakashima\'s Student');
+    const T = mk();
+    T.bf('B', 'Grizzly Bears');
+    const st = T.put('A', 'Sakashima\'s Student', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(st.name, 'Grizzly Bears', 'a copy');
+    t.ok(T.g._hasCreatureType(st, 'Ninja'), 'a Ninja');
+    t.ok(T.g._hasCreatureType(st, 'Bear'), 'and a Bear');
+  });
+  test('Cards: Angel of Serenity — up to three other target creatures and/or creature cards in graveyards exiled, back to their owners\' hands as it leaves', (mk, t) => {
+    t.auto('Angel of Serenity');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.grave('B', 'Hill Giant'), elves = T.grave('A', 'Llanowar Elves');
+    const bolt = T.grave('B', 'Lightning Bolt');
+    let opts = null;
+    T.answer('pickTarget', (ch) => { opts = ch.options[0].map(x => x.id); return { targets: [bear, giant, elves].map(x => ({ kind: 'object', id: x.id })) }; });
+    const angel = T.put('A', 'Angel of Serenity', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(opts && opts.includes(bear.id) && opts.includes(giant.id) && opts.includes(elves.id), 'creatures and creature cards in graveyards');
+    t.no(opts.includes(angel.id), 'not itself');
+    t.no(opts.includes(bolt.id), 'not a noncreature card');
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'choosing the targets was the "may": not asked again');
+    for (const x of [bear, giant, elves]) t.zone(x, 'exile', x.name + ' exiled');
+    T.g.moveObject(angel, 'graveyard'); T.resolve();
+    t.ok(T.zone('B', 'hand').includes(bear) && T.zone('B', 'hand').includes(giant), 'B\'s back to B\'s hand');
+    t.ok(T.zone('A', 'hand').includes(elves), 'A\'s to A\'s hand');
+  });
 };
