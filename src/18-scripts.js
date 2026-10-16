@@ -630,7 +630,7 @@
         kind: 'triggered', event: 'etb', self: true, auto: true,
         text: "When this creature enters, counter target activated or triggered ability from an artifact or enchantment source. If a permanent's ability is countered this way, destroy that permanent.",
         effects: [
-          { op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true, noSpells: true,
+          { op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true,
             sourceWords: 'artifact or enchantment' }] },
           { op: 'destroy', scope: 'counteredSource', words: 'artifact or enchantment' },
         ],
