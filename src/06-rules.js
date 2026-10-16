@@ -19574,6 +19574,18 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      // Titania's Song: the noncreature artifacts this static effect currently reaches keep
+      // its type, ability-loss and mana-value power/toughness changes until end of turn
+      // when the Song leaves. Snapshot targets while the continuous effect still exists.
+      const persistedStatics = from === 'battlefield' && toZone !== 'battlefield'
+        ? this._continuous().filter(entry => entry.src === o && entry.ef.persistOnLeavingEot)
+        : [];
+      const persistedTargets = new Map();
+      for (const entry of persistedStatics) for (const target of this.battlefield) {
+        if (target === o || target.phasedOut) continue;
+        const base = this._baseAnalysis(target);
+        if (base && this._contReaches(entry, target, base, null)) persistedTargets.set(target.id, entry.ef);
+      }
       // (where everybody could see it go from, face up: _knowAfterMove)
       const inSight = from !== 'hand' && from !== 'library' && !o.faceDown && !(from === 'exile' && o.faceDownExile);
       // Bad Wolf Bay (a plane): "cards can't enter from exile this turn" — they stay in exile
@@ -20113,6 +20125,24 @@
         if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
         if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
+        // Apply continuous effects whose text expressly says they survive the source leaving.
+        if (from === 'battlefield' && o.zone !== 'battlefield' && persistedTargets.size) {
+          let kept = 0;
+          for (const [id, effect] of persistedTargets) {
+            const target = this.obj(id);
+            if (!target || target.zone !== 'battlefield') continue;
+            const linger = Object.assign({}, effect);
+            delete linger.op; delete linger.layer; delete linger.scope; delete linger.persistOnLeavingEot;
+            linger.until = 'eot';
+            target.effects.push(linger);
+            target._chr = null;
+            kept++;
+          }
+          if (kept) {
+            this.bumpBoard();
+            this.logEvent('rules', `Titania's Song's effect continues until end of turn for ${kept} artifact permanent${kept === 1 ? '' : 's'}.`);
+          }
+        }
         this._lastLeft = o.id;
         this._fire('permLeaves', null, { object: o, objController: lastCtrl, fromZone: from, toZone });
         // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed"
@@ -20860,6 +20890,9 @@
           if (ab.commandOnly && o.zone !== 'command') continue;
           // "enters or attacks" is one ability that answers to either event
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
+          // "Whenever one or more of your opponents are attacked" is relative to this ability's controller.
+          if (event === 'opponentsAttacked' &&
+              !this.opponentsOf(o.controller).some(q => (data.attackedPlayers || []).includes(q.id))) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           // a graveyard ability works from there and nowhere else
           if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
