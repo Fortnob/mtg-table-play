@@ -4325,7 +4325,7 @@
           if (sp && sp.maxPowerOfObj) { const w = this.obj(sp.maxPowerOfObj); if (this.powerOf(o) > (w && w.zone === 'battlefield' ? this.powerOf(w) : (w ? w._lastPower || 0 : 0))) return false; }
         }
         if (o.zone === 'battlefield') {
-          if (this._hexproofBars(o) && o.controller !== item.controller) return false;
+          if (this._hexproofBars(o, item.controller) && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj, item.kind !== 'spell')) return false;
           if (item.obj && this._untargetableHit(o, item.obj, item.controller, item.kind !== 'spell')) return false;
 
@@ -9372,8 +9372,15 @@
 
     /** Does this permanent's hexproof keep other players' spells and abilities off it? Not a creature of an opponent of
         Nowhere to Run's controller: "as though they didn't have hexproof" (oppCreaturesExposed). */
-    _hexproofBars(o) {
-      return this.hasKw(o, 'hexproof') && !this._exposedCreature(o);
+    _hexproofBars(o, byPid) {
+      return this.hasKw(o, 'hexproof') && !this._exposedCreature(o) &&
+        !(byPid != null && (this.characteristics(o) || {}).isCreature && this._seesThroughHexproof(byPid, o.controller));
+    }
+    /** Detection Tower: "Until end of turn, your opponents and creatures your opponents control with hexproof can be the targets of
+        spells and abilities you control as though they didn't have hexproof." — for byPid, against this opponent (seeHexproofTurn) */
+    _seesThroughHexproof(byPid, pid) {
+      const p = byPid != null && this.player(byPid);
+      return !!p && p.seeHexproofTurn === this.turn && pid !== byPid && this.opponentsOf(byPid).some(q => q.id === pid);
     }
     /** Nowhere to Run: a creature an opponent of its controller controls — targetable through hexproof, its ward silent. */
     _exposedCreature(o) {
@@ -9682,7 +9689,8 @@
         if (o.controller !== item.controller) continue;
         // (Narset, Enlightened Exile: "Creatures you control have prowess" — given as well as printed, and gone with its abilities)
         if (o.phasedOut || !this.hasKw(o, 'prowess')) continue;
-        const n = Math.max(1, this._kwCount(o, 'prowess'));
+        // (Wizard's Staff, Veyran: a trigger like any other, so one that triggers an additional time — _extraTriggers)
+        const n = Math.max(1, this._kwCount(o, 'prowess')) * (1 + this._extraTriggers(o, 'youCastSpell', { object: item.obj, spell: item, playerId: item.controller }));
         for (let i = 0; i < n; i++) o.effects.push({ p: 1, t: 1, until: 'eot' });
         this.logEvent('keyword', `${o.name} gets +${n}/+${n} from prowess.`);
       }
@@ -11148,7 +11156,9 @@
     /** What an Aura arriving uncast could be attached to: anything it could legally enchant (not targeted, so hexproof is no bar). */
     _auraHosts(o, a) {
       if (a.auraSpec && (a.auraSpec.type === 'player' || a.auraSpec.type === 'opponent')) return [];
-      return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x));
+      return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x) &&
+        // (Retether: "Only creatures can be enchanted this way." — _hostOnly)
+        !(o._hostOnly && !this._cardFitsWords(x, o._hostOnly)));
     }
     /**
      * Harold and Bob, First Numens: a card coming back as an Aura it never printed ("It's an Aura enchantment with
@@ -27186,6 +27196,8 @@
         case 'ifDestroyed': {
           const la = this._lastAffected && this.obj(this._lastAffected.id);
           // (Kalitas, Bloodchief of Ghet: "If that creature dies this way" — into a graveyard: died)
+          // (Come Back Wrong: "If a creature card is put into a graveyard this way" — a card, that kind there: card)
+          if (e.card && la && (la.isToken || !this._cardFitsWords(la, e.card))) break;
           if (la && la.zone !== 'battlefield' && (!e.died || la.zone === 'graveyard')) this._spliceNext(e.then || []);
           break;
         }
@@ -39179,13 +39191,23 @@
             }
           }
           for (const c of cards) {
+            /* Retether: "Only creatures can be enchanted this way." — what it could enchant as the others arrive with it,
+               and none, it remains in the graveyard (auraHost; the host chosen as it enters: _hostOnly) */
+            if (e.auraHost) {
+              const ca = c.analysis() || {};
+              if (!ca.isAura || (ca.auraSpec && ca.auraSpec.zone && ca.auraSpec.zone !== 'battlefield')) continue;
+              const hosts = this._auraHosts(c, ca).filter(x => this._cardFitsWords(x, e.auraHost));
+              if (!hosts.length) continue;
+              c._hostOnly = e.auraHost;
+            }
             // (Shilgengar, Sire of Famine: "with a finality counter on it. Those creatures are Vampires …" — counter, enterEff)
             this.moveObject(c, 'battlefield', Object.assign({ controller: e.mine || e.yours ? ctx.controller : c.owner, tapped: !!(e.tapped) },
               e.enterEff ? { enterEffects: [Object.assign({}, e.enterEff)] } : {}));
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             if (e.counter && c.zone === 'battlefield') this.addCounters(c, e.counter, 1);
           }
-          this.logEvent('reanimate', `${cards.length} card${cards.length === 1 ? '' : 's'} return${cards.length === 1 ? 's' : ''} to the battlefield.`);
+          const back = e.auraHost ? cards.filter(c => c.zone === 'battlefield').length : cards.length;
+          this.logEvent('reanimate', `${back} card${back === 1 ? '' : 's'} return${back === 1 ? 's' : ''} to the battlefield.`);
           break;
         }
         /* Braids, Arisen Nightmare: you may sacrifice something; each
@@ -39405,6 +39427,11 @@
           // (Everybody Lives!: "Players gain hexproof until end of turn." — who 'each')
           for (const q of (e.who === 'each' ? this.players.filter(x => !x.hasLost) : [me])) q.hexproofTurn = this.turn;
           this.logEvent('keyword', e.who === 'each' ? 'Players gain hexproof until end of turn.' : `${me.name} gains hexproof until end of turn.`);
+          break;
+        // Detection Tower: hexproof of your opponents and their creatures no bar to yours, until end of turn (seeHexproofTurn)
+        case 'seeThroughHexproof':
+          me.seeHexproofTurn = this.turn;
+          this.logEvent('rules', `Until end of turn, ${me.name}'s spells and abilities can target ${me.name}'s opponents and their creatures as though they didn't have hexproof.`);
           break;
         /* Gift (CR 702.174): the opponent who was promised it gets it. */
         case 'giveGift': {
@@ -39960,9 +39987,16 @@
         }
       }
       for (const src of this.battlefield) {
-        if (src.phasedOut || (src.controller !== o.controller && o.attachedTo !== src.id)) continue;
+        if (src.phasedOut) continue;
         const e = this._staticOp(src, 'triggerDouble');
         if (!e) continue;
+        /* Wizard's Staff: "If a triggered ability of equipped creature triggers" — the creature it is on, whoever controls
+           either; a "when this creature dies" looks back to what was on it (CR 603.10a) (equipped) */
+        if (e.cause === 'equipped') {
+          if (src.attachedTo === o.id || (o.zone !== 'battlefield' && data.object === o && LEAVE.includes(event) && (o._lastAttachments || []).includes(src.id))) extra++;
+          continue;
+        }
+        if (src.controller !== o.controller && o.attachedTo !== src.id) continue;
         // (as long as Cloud is equipped; the Equipment's, whoever controls it)
         if (e.cause === 'selfOrEquipment') {
           if ((o === src || (o.attachedTo === src.id && isEquip(o))) && (src.attachments || []).some(id => isEquip(this.obj(id)))) extra++;
@@ -41112,6 +41146,7 @@
           if (a.isAura && !o.bestowed && o.zone === 'battlefield' && !o.attachedTo && o._needsHost) {
             o._needsHost = false;
             const hosts = this._auraHosts(o, a);
+            o._hostOnly = null;
             const pl = this.player(o.controller);
             if (hosts.length === 1 || (hosts.length && pl && pl.isBot)) { this._attachAura(o, hosts.length === 1 ? hosts[0] : this._bestAuraHost(o, a, hosts)); repeat = true; continue; }
             if (hosts.length) {
@@ -42971,7 +43006,7 @@
         .filter(p => !tsrc || !(this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)) || this._protSubtypeFrom(p.id, tsrc)))
         // Absolute Virtue: not by an opponent's spell or ability
         .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
-        .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn))
+        .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn) || this._seesThroughHexproof(controllerId, p.id))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
@@ -43006,7 +43041,7 @@
           const a = o.analysis();
           if (!a || o.phasedOut) continue;
           if (!MTG.oracle.matchesSpec(Object.assign({}, spec, { type: 'permanent' }), o, a, controllerId, this._specCtx())) continue;
-          if (o.controller !== controllerId && (this._hexproofBars(o) || this._shroudFor(o, controllerId))) continue;
+          if (o.controller !== controllerId && (this._hexproofBars(o, controllerId) || this._shroudFor(o, controllerId))) continue;
           out2.push({ kind: 'object', id: o.id, name: o.name });
         }
         return out2;
@@ -43030,7 +43065,7 @@
         // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
         if (spec.artifactOrMaxMv != null && !a.isArtifact && ((o.card && o.card.cmc) || 0) > spec.artifactOrMaxMv) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
-            (this._hexproofBars(o) || this._shroudFor(o, controllerId))) continue;
+            (this._hexproofBars(o, controllerId) || this._shroudFor(o, controllerId))) continue;
         // shroud: not even its own controller's (CR 702.18a)
         if (zone === 'battlefield' && this._shroudFor(o, controllerId)) continue;
         // protection: not by a spell or ability from a source with that quality (CR 702.16b)
@@ -44393,7 +44428,7 @@
         // Autumn Willow: shroud, though this player may target it this turn (shroudExceptFor)
         shroudOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'shroud') && !this._shroudFor(o, playerId) ? true : undefined,
         // Nowhere to Run: hexproof, but targetable "as though they didn't have hexproof" (oppCreaturesExposed)
-        hexproofOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'hexproof') && !this._hexproofBars(o) ? true : undefined,
+        hexproofOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'hexproof') && !this._hexproofBars(o, playerId) ? true : undefined,
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
         /* Kibo's Banana, Birds of Paradise, Arcane Signet: what tapping it by hand lets its controller choose (the

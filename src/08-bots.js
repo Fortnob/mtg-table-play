@@ -5561,7 +5561,7 @@
       const list = g.battlefield.filter(o => {
         if (o.controller === this.pid) return false;
         const a = o.analysis();
-        return a && (this._isCreature(o) || a.isPlaneswalker) && !g._hexproofBars(o) && !g.hasKw(o, 'shroud');
+        return a && (this._isCreature(o) || a.isPlaneswalker) && !g._hexproofBars(o, this.pid) && !g.hasKw(o, 'shroud');
       });
       if (!list.length) return null;
       list.sort((a, b) => this.threatValue(b) - this.threatValue(a));

@@ -3139,7 +3139,8 @@
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
-    { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
+    // (Summon: Ixion: "Exile target creature an opponent controls until this Saga leaves the battlefield.")
+    { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura|Saga)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
         /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
     // Hixus, Prison Warden: "exile that creature until Hixus leaves the battlefield" — the one the trigger is about
@@ -8232,6 +8233,9 @@
     /* Dawn's Truce, Veil of Summer: the player as well as their things,
        for the rest of the turn. */
     { re: /^You gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou' }) },
+    // Detection Tower: "Until end of turn, your opponents and creatures your opponents control with hexproof can be the targets of spells and abilities you control as though they didn't have hexproof." (seeThroughHexproof)
+    { re: /^Until end of turn, your opponents and creatures your opponents control with hexproof can be the targets of spells and abilities you control as though they didn'?t have hexproof\.?$/i,
+      make: () => ({ op: 'seeThroughHexproof' }) },
     // Everybody Lives!: "Players gain hexproof until end of turn." — every player (who 'each')
     { re: /^Players gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou', who: 'each' }) },
     /* "You may play that card this turn", "Until the end of your next turn,
@@ -13785,6 +13789,16 @@
         return tok && tok.op === 'createToken' ? [{ op: 'destroy', targets: [targetSpec(m[1])] },
           { op: 'ifDestroyed', died: true, then: [Object.assign(tok, { ptOfLast: true })] }] : null;
       } },
+    /* Retether: "Return each Aura card from your graveyard to the battlefield. Only creatures can be enchanted this way." —
+       an Aura with no creature to enchant stays where it is (auraHost) */
+    { re: /^Return each Aura card from your graveyard to the battlefield\. Only creatures can be enchanted this way\.?$/i,
+      make: () => [{ op: 'massReanimate', filter: 'Aura', yours: true, auraHost: 'creature' }] },
+    /* Come Back Wrong: "Destroy target creature. If a creature card is put into a graveyard this way, return it to the
+       battlefield under your control. Sacrifice it at the beginning of your next end step." — a card, in a graveyard,
+       still a creature card there (ifDestroyed died, card); the sacrifice only for what came back */
+    { re: /^Destroy (target creature)\. If a creature card is put into a graveyard this way, return it to the battlefield under your control\.(?: Sacrifice it at the beginning of your next end step\.)?$/,
+      make: (m) => [{ op: 'destroy', targets: [targetSpec(m[1])] },
+        { op: 'ifDestroyed', died: true, card: 'creature', then: [{ op: 'reanimate' }].concat(/Sacrifice it/.test(m[0]) ? [parseEffectSentence('Sacrifice it at the beginning of your next end step.')] : []) }] },
     /* Saw in Half: "If that creature dies this way, its controller creates two tokens that are copies of that creature,
        except their power is half that creature's power and their toughness is half that creature's toughness. Round
        up each time." — its controller as it left, its size as it last was, halved (halfPtOfLast) */
@@ -25598,6 +25612,9 @@
       // Cloud, Midgar Mercenary: "As long as Cloud is equipped, if a triggered ability of Cloud or an Equipment attached to it triggers, …" (selfOrEquipment)
       { re: /^As long as (?:CARDNAME|this creature) is equipped, if a triggered ability of (?:CARDNAME|this creature) or an Equipment attached to it triggers, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'selfOrEquipment' }, auto: true },
+      // Wizard's Staff: "If a triggered ability of equipped creature triggers, that ability triggers an additional time." (equipped)
+      { re: /^If a triggered ability of equipped creature triggers, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'equipped' }, auto: true },
       // Jasmine Boreal of the Seven: "Creatures you control with no abilities can't be blocked by creatures with abilities." (noAbilities)
       { re: /^Creatures you control with no abilities can'?t be blocked by creatures with abilities\.?$/i,
         eff: { op: 'groupEvasion', noAbilities: true }, auto: true },
