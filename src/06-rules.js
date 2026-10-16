@@ -3929,8 +3929,15 @@
     }
     /** Shanna, Sisay's Legacy: no ability an opponent controls may target it (an ability's source is on the battlefield) (oppAbilitiesCantTarget) */
     _oppAbilityCantTarget(o, source, controllerId) {
-      return !!(o && source && controllerId != null && controllerId !== o.controller && source.zone === 'battlefield' && source !== o &&
+      return !!(o && source && controllerId != null && controllerId !== o.controller && (source.zone === 'battlefield' || this._aimsAsAbility(source)) && source !== o &&
         this._staticOp(o, 'untargetableByOppAbilities'));
+    }
+    /* Is what aims from this source an ability rather than a spell? The trigger being put on the stack, or resolving,
+       says so: Ulamog, the Infinite Gyre's "When you cast this spell, destroy target permanent" comes from a spell on
+       the stack, and is a triggered ability all the same (CR 113.3c, 702.11d). */
+    _aimsAsAbility(source) {
+      const rc = this.resolving && this.resolving.ctx;
+      return !!(rc && rc.kind === 'ability' && source && (rc.obj === source || rc.objId === source.id));
     }
     /* Varolz, the Scar-Striped: "Each creature card in your graveyard has scavenge. The scavenge cost is equal to its
        mana cost." — one more scavenge, beside any of its own; {X} is 0, and no mana cost is no scavenge (CR 118.6).
@@ -4010,7 +4017,8 @@
       const n = (sa.colors || []).length;
       /* Volatile Stormdrake: "hexproof from activated and triggered abilities" — an ability, said so (isAbility), or one whose
          source isn't a spell being cast or on the stack */
-      const ability = isAbility != null ? !!isAbility : source.zone !== 'stack' && source.zone !== 'hand';
+      // (a "When you cast this spell" trigger, its source a spell, is an ability: _aimsAsAbility)
+      const ability = isAbility != null ? !!isAbility : this._aimsAsAbility(source) || (source.zone !== 'stack' && source.zone !== 'hand');
       return qs.some(q => (q === 'activated and triggered abilities' ? ability : q === 'monocolored' ? n === 1 : q === 'multicolored' ? n > 1 : q === 'colorless' ? n === 0
         : q === 'artifacts' ? !!sa.isArtifact : this._matchesProtection(q, source)));
     }

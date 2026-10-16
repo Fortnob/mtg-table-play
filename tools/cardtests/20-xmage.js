@@ -72574,4 +72574,37 @@ module.exports = (test) => {
     const cd = T2.hand('A', 'Cease // Desist');
     t.no(T2.g.castSpell('A', cd.id, { auto: true, targets: [{ kind: 'object', id: d1.id }, { kind: 'player', id: 'A' }] }), 'refused without skipped');
   });
+  /* Hexproof from activated and triggered abilities: a "When you cast this spell" trigger is an ability, though its source is a spell */
+  test('Cards: Volatile Stormdrake — Ulamog, the Infinite Gyre\'s cast trigger is not offered it, to a person or a bot; a spell still may target it', (mk, t) => {
+    t.auto('Volatile Stormdrake'); t.auto('Ulamog, the Infinite Gyre');
+    const T = mk();
+    const drake = T.bf('B', 'Volatile Stormdrake'), giant = T.bf('B', 'Hill Giant');
+    T.bf('B', 'Grizzly Bears');                       // (two legal choices, so the question is asked)
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+    T.mana('A', '11');
+    T.cast('A', T.hand('A', 'Ulamog, the Infinite Gyre'));
+    t.ok(q && q.purpose === 'triggerTargets', 'asked for the trigger\'s target');
+    const offered = ((q && q.options) || []).flat().map(x => x.id);
+    t.ok(offered.includes(giant.id), 'the Giant offered');
+    t.no(offered.includes(drake.id), 'the Stormdrake not offered');
+    t.zone(giant, 'graveyard');
+    t.zone(drake, 'battlefield');
+    // a bot: its choice is among those offered, never the Stormdrake
+    const T2 = mk();
+    const d2 = T2.bf('B', 'Volatile Stormdrake'); T2.bf('B', 'Grizzly Bears');
+    T2.player('A').isBot = true;
+    const bot = new T2.MTG.bots.BotPlayer(T2.g, 'A', 8);
+    T2.answer('pickTarget', (ch) => { bot.doChoice(ch); return null; });
+    T2.mana('A', '11');
+    try { T2.cast('A', T2.hand('A', 'Ulamog, the Infinite Gyre')); } catch (e) { /* the bot answered it already */ }
+    T2.resolve();
+    t.zone(d2, 'battlefield', 'the bot did not aim at the Stormdrake');
+    // a spell: Murder still may (hexproof from abilities only)
+    const T3 = mk();
+    const d3 = T3.bf('B', 'Volatile Stormdrake');
+    T3.mana('A', '1BB');
+    T3.cast('A', T3.hand('A', 'Murder'), { targets: [d3] });
+    t.zone(d3, 'graveyard', 'a spell may target it');
+  });
 };
