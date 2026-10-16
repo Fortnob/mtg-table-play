@@ -1767,4 +1767,163 @@ module.exports = (test) => {
     T.g.moveObject(g, 'battlefield', { controller: 'A' });
     t.zone(g, 'battlefield', 'next turn it can');
   });
+
+  // until A's postcombat main phase, with the stack empty (what triggered there resolved)
+  const toMain2 = (T) => {
+    const g = T.g;
+    for (let guard = 0; guard < 200; guard++) {
+      T.settle();
+      if (g.phase && g.phase.id === 'postcombat' && !g.stack.length && !g.pendingTriggers.length && !g.pendingChoice) return;
+      g.passPriority(g.priorityPlayer.id, true);
+    }
+    throw new Error('never reached the postcombat main phase');
+  };
+  test('Planes: Temple of Atropos — an additional beginning phase after the postcombat main phase', (mk, t) => {
+    t.auto('Temple of Atropos');
+    const T = onPlane(mk, 'Temple of Atropos');
+    // (not on the first turn, whose draw is skipped)
+    T.nextTurn('B'); T.nextTurn('A');
+    const land = T.bf('A', 'Forest', { tapped: true });
+    const hand0 = T.zone('A', 'hand').length;
+    toMain2(T);
+    // on into the extra beginning phase: untapped, a card drawn, then the end step of the same turn
+    const turn = T.g.turn;
+    for (let guard = 0; guard < 50 && !(T.g.step === 'end'); guard++) { T.settle(); T.g.passPriority(T.g.priorityPlayer.id, true); }
+    t.eq(T.g.turn, turn, 'the same turn');
+    t.no(land.tapped, 'untapped in the extra untap step');
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'a card drawn in the extra draw step');
+  });
+
+  test('Planes: Mycosynthwave — every card and spell colorless, every permanent an artifact', (mk, t) => {
+    t.auto('Mycosynthwave');
+    const T = onPlane(mk, 'Mycosynthwave');
+    const bolt = T.hand('A', 'Lightning Bolt'), bear = T.bf('B', 'Grizzly Bears');
+    t.ok(T.g._cardFitsWords(bolt, 'colorless card'), 'a card in hand is colorless');
+    t.no(T.g._cardFitsWords(bolt, 'red card'), 'not red');
+    t.ok(T.g._cardFitsWords(bear, 'artifact creature'), 'the Bears are an artifact');
+    t.no(T.g._cardFitsWords(bear, 'green creature'), 'and colorless');
+  });
+
+  test('Planes: The Cheetah Planet — chaos: Cats gain provoke; a Cat attacking makes a creature untap and block it', (mk, t) => {
+    t.auto('The Cheetah Planet');
+    const T = onPlane(mk, 'The Cheetah Planet');
+    const lions = T.bf('A', 'Savannah Lions'), bear = T.bf('A', 'Grizzly Bears');
+    const w = T.bf('B', 'Craw Wurm', { tapped: true });
+    chaos(T);
+    t.ok(T.g.hasKw(lions, 'provoke'), 'the Cat has provoke');
+    t.no(T.g.hasKw(bear, 'provoke'), 'not the Bears');
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('declareAttackers', () => [{ attackerId: lions.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: w.id, attackerIds: [lions.id] }]);
+    T.toMain('A', 'combatDamage');
+    t.no(w.tapped, 'the Wurm untapped');
+    t.ok((w.effects || []).some(e => e.mustBlockId === lions.id), 'and must block the Lions');
+    t.zone(lions, 'graveyard', 'blocked by the Wurm');
+  });
+
+  test('Planes: Jund — a black, red, or green creature spell gains devour 5 and devours as it enters', (mk, t) => {
+    t.auto('Jund');
+    const T = onPlane(mk, 'Jund');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears'), b3 = T.bf('A', 'Savannah Lions');
+    const giant = T.hand('A', 'Hill Giant');
+    T.mana('A', '3R');
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'devourEnter', 'asked as it enters'); return { picks: [b1.id, b2.id] }; });
+    T.cast('A', giant);
+    t.zone(giant, 'battlefield');
+    t.zone(b1, 'graveyard', 'devoured'); t.zone(b2, 'graveyard', 'devoured');
+    t.zone(b3, 'battlefield', 'not chosen');
+    t.eq(Number(giant.counters['+1/+1']) || 0, 10, 'five counters for each');
+    // a white creature spell: nothing
+    const lions = T.hand('A', 'Savannah Lions');
+    T.mana('A', 'W');
+    const asked = T.asked.length;
+    T.cast('A', lions);
+    t.eq(T.asked.filter(ch => ch.purpose === 'devourEnter').length, T.asked.slice(0, asked).filter(ch => ch.purpose === 'devourEnter').length, 'a white spell gains nothing');
+    t.eq(Object.keys(lions.counters).length, 0, 'no counters');
+  });
+
+  test('Planes: The Pit — each player chooses an Angel or a Demon; the Demon eats another creature each upkeep or deals 6', (mk, t) => {
+    t.auto('The Pit');
+    t.auto('Lord of the Pit');
+    const T = onPlane(mk, 'Gavony');
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'tokenChoice', 'A chooses'); t.ok(/Demon/.test(ch.options[1].label), ch.options[1].label); return { picks: [1] }; });
+    T.answer('choose', () => ({ picks: [0] }));
+    walkTo(T, 'The Pit');
+    const demon = tokensOf(T, 'A', 'Demon')[0], angel = tokensOf(T, 'B', 'Angel')[0];
+    t.ok(demon && T.g.powerOf(demon) === 6 && T.g.hasKw(demon, 'trample'), 'A has a 6/6 trampling Demon');
+    t.ok(angel && T.g.powerOf(angel) === 3 && T.g.hasKw(angel, 'flying'), 'B has a 3/3 flying Angel');
+    // A's upkeep with nothing else to sacrifice: 6 damage
+    T.nextTurn('B');
+    const life = T.life('A');
+    T.nextTurn('A');
+    t.zone(demon, 'battlefield', 'the Demon stays');
+    t.eq(T.life('A'), life - 6, 'six damage to A');
+    // with a Bears beside it: the Bears go
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(bear, 'graveyard', 'the Bears sacrificed');
+    t.eq(T.life('A'), life - 6, 'no damage this time');
+  });
+
+  test('Planes: Finally! Left-Handed Magic Cards — base power and toughness swapped to the printed ones; chaos: draw from the bottom', (mk, t) => {
+    t.auto('Finally! Left-Handed Magic Cards');
+    const T = onPlane(mk, 'Finally! Left-Handed Magic Cards');
+    const wall = T.bf('A', 'Wall of Stone'), giant = T.bf('B', 'Hill Giant');
+    t.eq(T.g.powerOf(wall), 8, 'the 0/8 Wall is an 8/0'); t.eq(T.g.toughnessOf(wall), 0, 'toughness 0');
+    T.g.checkStateBasedActions();
+    t.zone(wall, 'graveyard', 'and dies');
+    t.eq(T.g.powerOf(giant), 3, 'a 3/3 stays 3/3');
+    const elf = T.bf('B', 'Llanowar Elves');
+    // a modification after the base: +1/+1 counters still add
+    elf.counters['+1/+1'] = 1; elf._chr = null; T.g.bumpBoard();
+    t.eq(T.g.powerOf(elf), 2, '1/1 base, plus a counter');
+    const bear = T.bf('A', 'Gray Ogre');
+    t.eq(T.g.powerOf(bear) + '/' + T.g.toughnessOf(bear), '2/2', 'a 2/2 Ogre');
+    // chaos: the bottom card
+    const lib = T.zone('A', 'library');
+    const bottom = lib[lib.length - 1], top = lib[0];
+    chaos(T);
+    t.zone(bottom, 'hand', 'the bottom card drawn');
+    t.zone(top, 'library', 'not the top');
+    walkTo(T, 'Shiv');
+    t.eq(T.g.powerOf(giant), 3, 'gone with the plane'); t.eq(T.g.powerOf(elf), 2);
+    const w2 = T.bf('A', 'Wall of Stone');
+    t.eq(T.g.powerOf(w2) + '/' + T.g.toughnessOf(w2), '0/8', 'a Wall again');
+  });
+
+  test('Planes: Immersturm — a creature entering may deal damage equal to its power to a target its controller chooses', (mk, t) => {
+    t.auto('Immersturm');
+    const T = onPlane(mk, 'Immersturm');
+    const bear = T.bf('A', 'Grizzly Bears');
+    // B's creature enters on A's turn: A controls the trigger, B chooses the target
+    let who = null;
+    T.answer('pickTarget', (ch) => { who = ch.playerId; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    const g = T.bf('B', 'Hill Giant', { etb: true });
+    T.resolve();
+    t.eq(who, 'B', 'the creature\'s controller chooses');
+    t.zone(bear, 'graveyard', '3 damage to the Bears, from the Giant');
+    t.eq(T.g.stack.length, 0);
+    // A choosing nothing: nothing happens
+    T.answer('pickTarget', () => ({ targets: [] }));
+    const life = T.life('B');
+    T.bf('A', 'Hill Giant', { etb: true });
+    T.resolve();
+    t.eq(T.life('B'), life, 'declined');
+    t.zone(g, 'battlefield', 'nothing hit');
+  });
+
+  test('Planes: Grand Ossuary — a creature dying: its controller spreads counters equal to its power among their creatures', (mk, t) => {
+    t.auto('Grand Ossuary');
+    const T = onPlane(mk, 'Grand Ossuary');
+    const giant = T.bf('B', 'Hill Giant'), b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Llanowar Elves');
+    const mine = T.bf('A', 'Gray Ogre');
+    let who = null, offered = null;
+    T.answer('choose', (ch) => { who = ch.playerId; offered = ch.items.map(x => x.id); return { picks: [b1.id, b2.id] }; });
+    T.answer('choose', (ch) => { t.eq(ch.playerId, 'B', 'B divides'); return { picks: [1] }; });
+    T.g.moveObject(giant, 'graveyard');
+    T.resolve();
+    t.eq(who, 'B', 'the dead creature\'s controller chooses');
+    t.no(offered.includes(mine.id), 'only creatures they control');
+    t.eq((Number(b1.counters['+1/+1']) || 0) + '/' + (Number(b2.counters['+1/+1']) || 0), '1/2', 'three counters, split as B said');
+  });
 };

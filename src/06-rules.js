@@ -9818,6 +9818,16 @@
             kwTrig('training', twice);
           }
         }
+        /* The Cheetah Planet: "all Cats gain provoke until end of turn" — provoke handed out triggers as the printed one
+           does (MTG.oracle.provokeAbility); a printed one is among its own abilities already */
+        if (!a.keywordSet.has('provoke') && this.hasKw(o, 'provoke')) {
+          const pv = MTG.oracle.provokeAbility();
+          for (let k = 0; k < twice; k++) {
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: o.controller,
+              name: `${o.name} \u2014 Provoke`, effects: pv.effects, auto: true, abilityText: 'Provoke', optional: true,
+              triggerData: { event: 'attacks', objectId: o.id, player: this.player(o.attacking) ? o.attacking : (this.obj(o.attacking) || {}).controller } });
+          }
+        }
         /* The Ring, level 2: the Ring-bearer's attack rummages. */
         if (this._isRingBearer(o) && (this.player(o.controller) || {}).ringLevel >= 2) {
           const owner = this.player(o.controller);
@@ -10010,6 +10020,13 @@
           this.addCounters(o, '+1/+1', (a.devour === 'X' ? eaten.length : a.devour) * eaten.length);
           this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
         }
+      }
+      /* Jund: "it gains devour 5" — the spell given devour as it was cast devours as it enters (another instance beside a
+         printed one: each creature eaten counts for one of them) */
+      if (o._grantDevour) {
+        const k = o._grantDevour;
+        o._grantDevour = null;
+        if (o.enteredFrom === 'stack') this._devourOnEnter(o, k);
       }
       // Summon: Fenrir: "enters with an additional +1/+1 counter"
       // (Torgal, A Fine Hound: only as the spell they were promised to resolves — not a countered card brought back later)
@@ -15675,6 +15692,29 @@
       if (p.isBot) { const got = this._decideChoose(p.id, spec); this._exileGraveForCounters(o, (got && got.picks) || [], spec); return; }
       this.queueChoice(spec);
     }
+    /* Jund: "it gains devour 5. (As that creature enters, you may sacrifice any number of creatures. It enters with five
+       times that many +1/+1 counters on it.)" — asked as it enters (it stays while the question is open: _enteringPending) */
+    _devourOnEnter(o, k) {
+      const p = this.player(o.controller);
+      const pool = p ? this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature && this._canSacrifice(x)) : [];
+      if (!pool.length) return;
+      const spec = MTG.choice.normalize({ playerId: p.id, purpose: 'devourEnter', kind: 'objects', zone: 'battlefield',
+        items: this._chooseItems(pool), min: 0, max: pool.length, optional: true, objId: o.id, n: k,
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card, confirmLabel: 'Sacrifice', noneLabel: 'None',
+        prompt: `${o.name}: devour ${k} — sacrifice any number of creatures as it enters. It enters with ${k} +1/+1 counters for each one.` });
+      o._enteringPending = true;
+      if (p.isBot) { const got = this._decideChoose(p.id, spec); this._devourThese(o, (got && got.picks) || [], k); return; }
+      this.queueChoice(spec);
+    }
+    _devourThese(o, ids, k) {
+      o._enteringPending = false;
+      const eaten = (ids || []).map(id => this.obj(id)).filter(x => x && x !== o && x.zone === 'battlefield' && x.controller === o.controller);
+      if (!eaten.length) return;
+      this._sacrificeNow(o.controller, eaten, { controller: o.controller, obj: o });
+      o.devoured = (o.devoured || 0) + eaten.length;
+      if (o.zone === 'battlefield') this.addCounters(o, '+1/+1', k * eaten.length);
+      this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
+    }
     /* Dralnu, Lich Lord: "sacrifice that many permanents instead" — its controller chooses which, Dralnu among them;
        all of them when there are no more than that (damageSacrifice) */
     _damageSacrifice(o, k) {
@@ -17134,6 +17174,8 @@
       if (typeof v === 'number') return v;
       // Cranial Plating: "+1/+0 for each artifact you control" adds nothing to toughness
       if (typeof v === 'object' && v.mult === 0 && !v.plus) return 0;
+      // Finally! Left-Handed Magic Cards: "its printed toughness" — what its card says (a copy's: what it copies), * as 0
+      if (typeof v === 'object' && v.printed) { const a = o.analysis() || {}; const k = parseInt(v.printed === 'toughness' ? a.toughness : a.power, 10); return isNaN(k) ? 0 : k; }
       // Moraug: for each time this creature has attacked this turn
       if (typeof v === 'object' && v.attacksThisTurn) return (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) * (v.mult || 1);
       // Allosaurus Rider: "equal to 1 plus the number of lands you control"
@@ -17765,7 +17807,8 @@
       // (asked again while it is being worked out: nothing yet)
       this.__allColKey = this._boardKey; this.__allCol = null;
       let out = null;
-      for (const x of this.battlefield) {
+      // (Mycosynthwave, a plane: "All cards that aren't on the battlefield, spells, and permanents are colorless." — from the command zone)
+      for (const x of this._withEmblems(this.battlefield)) {
         if (x.phasedOut) continue;
         for (const ab of ((x.analysis() || {}).abilities || [])) {
           if (ab.kind !== 'static') continue;
@@ -18771,6 +18814,8 @@
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
         o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = keptCounters || {}; o.counterTs = null; o._stackKw = null; o._dealtDamage = false; o._dealtCombatDamage = false;
+        // (Jund's devour, given to the spell, goes with it onto the battlefield and nowhere else)
+        if (!(from === 'stack' && toZone === 'battlefield')) o._grantDevour = null;
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;
@@ -19259,7 +19304,8 @@
           p.drewFromEmpty = true; this.logEvent('draw', `${p.name} tried to draw from an empty library.`); break;
         }
         // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
-        const o = this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawFromBottom')) ? z.library.pop() : z.library.shift();
+        // (Finally! Left-Handed Magic Cards: "draw a card from the bottom of your library" — _drawBottom)
+        const o = this._drawBottom === p.id || this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawFromBottom')) ? z.library.pop() : z.library.shift();
         o.zone = 'hand';
         this._libraryTouched(p.id);
         // (Sylvan Library: "cards in your hand drawn this turn")
@@ -20405,6 +20451,15 @@
       return same.every(l => l.length) ? same : null;
     }
 
+    /** Who chooses this trigger's targets when it isn't its controller (an effect's aimBy), or null. */
+    _aimerOf(item) {
+      const td = (item && item.triggerData) || {};
+      let who = null;
+      const walk = (list) => { for (const f of (list || [])) { if (!f || who) continue; if (f.aimBy === 'triggerObjController') who = td.objController || null; walk(f.then); walk(f.list); } };
+      walk(item && item.effects);
+      const p = who && this.player(who);
+      return p && !p.hasLost ? p.id : null;
+    }
     /** Does this trigger, on the stack, have modes or targets to choose? */
     _aimNeeded(item) {
       return !!item && item.kind === 'ability' && item.triggered && !item.aimed && !(item.targets || []).length &&
@@ -20454,7 +20509,10 @@
     _aimTrigger(e, ctx, n) {
       const item = this.stack.find(s => s.id === e.stackId);
       if (!item || item.aimed) return null;
-      const pid = item.controller;
+      /* Grand Ossuary: "its controller distributes … among any number of target creatures they control"; Immersturm: "that
+         creature's controller may have it deal damage … to any target of their choice" — the player the trigger is about
+         chooses, and "you" in its targets is them (aimBy) */
+      const pid = this._aimerOf(item) || item.controller;
       const me = this.player(pid);
       const src = item.obj || (item.objId && this.obj(item.objId)) || null;
       const td = item.triggerData || {};
@@ -20680,7 +20738,9 @@
           const dmgN = f.op !== 'damageDivided' ? null : typeof f.n === 'number' ? f.n : f.n && f.n.scope ? this._countValue(f.n, pid, src || null)
             : f.n === 'X' ? (item.x || (src && src.chosenX) || (src && src.monstrous && td.event === 'becomesMonstrous' && src.monstrousX) || 0) : null;
           // (Yannik, Scavenging Sentinel: "distribute X +1/+1 counters among any number of target creatures" — no more of them than counters)
-          const ctrN = f.op !== 'countersDivided' ? null : typeof f.n === 'number' ? f.n : f.n === 'triggerAmount' ? (Number(td.amount) || 0) : null;
+          // (Grand Ossuary: "a number of +1/+1 counters equal to its power" — whatever it counts)
+          const ctrN = f.op !== 'countersDivided' ? null : typeof f.n === 'number' ? f.n : f.n === 'triggerAmount' ? (Number(td.amount) || 0)
+            : f.n && typeof f.n === 'object' ? Math.max(0, Number(n(f.n)) || 0) : null;
           const cap = dmgN != null ? Math.min(pool.length, dmgN) : ctrN != null ? Math.min(pool.length, ctrN) : pool.length;
           if (cap <= 0) continue;
           const got = this._choose(Object.assign({ playerId: pid, purpose: 'anyTargets', kind: 'objects', zone: u.spec.zone || 'battlefield', stackId: item.id,
@@ -22673,6 +22733,8 @@
             const ps = targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(p => p && !p.hasLost);
             for (const p of new Set(ps)) this._drawCards(p, cnt);
           }
+          // Finally! Left-Handed Magic Cards: "draw a card from the bottom of your library" — a draw, from there (_drawBottom)
+          else if (e.fromBottom) { this._drawBottom = me.id; try { this._drawCards(me, cnt); } finally { this._drawBottom = null; } }
           else this._drawCards(me, cnt);
           this._drawnThisWay = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0) - drewBefore;
           break;
@@ -23800,8 +23862,10 @@
           break;
         // "Sacrifice a creature. If you can't, sacrifice this artifact."
         case 'sacOrSelf': {
-          const any = this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut && this._matchesCategory(x, e.filter));
-          this._spliceNext([any ? { op: 'sacrificeChoice', n: 1, who: 'you', filter: e.filter, other: false } : { op: 'sacrificeSelf' }]);
+          // (Lord of the Pit: "a creature other than Lord of the Pit … If you can't, it deals 7 damage to you" — other, otherwise)
+          const any = this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut && this._matchesCategory(x, e.filter) &&
+            (!e.other || x !== src) && this._canSacrifice(x));
+          this._spliceNext(any ? [{ op: 'sacrificeChoice', n: 1, who: 'you', filter: e.filter, other: !!e.other }] : (e.otherwise || [{ op: 'sacrificeSelf' }]));
           break;
         }
         case 'tap':
@@ -31746,7 +31810,9 @@
           const objCap = objs.slice(0, total);
           if (objCap.length > 1 && total > objCap.length) {
             const rest = total - objCap.length;
-            const got = this._choose({ playerId: ctx.controller, purpose: 'divideCounters', kind: 'options', repeat: true, min: rest, max: rest,
+            // (Grand Ossuary: "its controller distributes" — the controller of the creature that died: aimBy)
+            const divider = (e.aimBy === 'triggerObjController' && this.player((ctx.triggerData || {}).objController)) ? (ctx.triggerData || {}).objController : ctx.controller;
+            const got = this._choose({ playerId: divider, purpose: 'divideCounters', kind: 'options', repeat: true, min: rest, max: rest,
               options: objCap.map((o, i) => ({ i, label: o.name, id: o.id })),
               prompt: `${ctx.name ? ctx.name + ': ' : ''}each gets one ${e.kind || '+1/+1'} counter; divide the other ${rest} among them.` }, 'divc');
             if (got === SUSPEND) return SUSPEND;
@@ -33656,6 +33722,15 @@
           if (!sp || sp.zone !== 'stack') break;
           sp._stackKw = [...new Set((sp._stackKw || []).concat(e.keywords || []))];
           this.logEvent('rules', `${sp.name} gains ${(e.keywords || []).join(' and ')}.`);
+          break;
+        }
+        // Jund: "it gains devour 5" — the creature spell the trigger is about devours as it enters (_devourOnEnter)
+        case 'spellGainsDevour': {
+          const td = ctx.triggerData || {};
+          const sp = (td.objectId && this.obj(td.objectId)) || null;
+          if (!sp || sp.zone !== 'stack') break;
+          sp._grantDevour = Math.max(sp._grantDevour || 0, Number(e.n) || 1);
+          this.logEvent('keyword', `${sp.name} gains devour ${Number(e.n) || 1}.`);
           break;
         }
         /* Arvinox, the Mind Flail: "exile the bottom card of each opponent's library face down" — you may look at what
@@ -40867,6 +40942,8 @@
           }
           if (ch.purpose === 'discardForKwCounters') { const o = this.obj(ch.objId); if (o) this._kwCountersFromDiscard(o, got.picks, ch.keywords); break; }
           if (ch.purpose === 'exileGraveForCounters') { const o = this.obj(ch.objId); if (o) this._exileGraveForCounters(o, got.picks, ch); break; }
+          // Jund: what the creature given devour eats as it enters
+          if (ch.purpose === 'devourEnter') { const o = this.obj(ch.objId); if (o) this._devourThese(o, got.picks, ch.n || 1); break; }
           if (ch.purpose === 'giveControl') { this._giveControl(this.obj(ch.objId), got.picks[0]); this.checkStateBasedActions(); break; }
           // Dralnu, Lich Lord: the permanents sacrificed instead of the damage
           if (ch.purpose === 'damageSacrifice') { this._damageSacrificeThese(this.obj(ch.objId) || { controller: playerId }, got.picks, ch.n || 1); break; }

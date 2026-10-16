@@ -39,6 +39,7 @@
 (function (MTG) {
   const { Game } = MTG.rules;
   const truncate = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '\u2026' : s; };
+  const U_cap = (s) => { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); };
 
   /** A plane or phenomenon card (Scryfall's planar layout). */
   function isPlanarCard(c) {
@@ -958,6 +959,32 @@
           this.logEvent('rules', `${me.name} can't sacrifice a creature.`);
           const r = this._planeswalk(pid, { ctx });
           return r === SUSPEND ? r : null;
+        }
+        /* The Pit: "each player creates their choice of a 3/3 white Angel creature token with flying or a 6/6 black Demon
+           creature token with …" — chosen in turn order from you, then all made together (e.tokens: the createToken ops) */
+        case 'eachTokenChoice': {
+          const toks = e.tokens || [];
+          if (!toks.length) return null;
+          const say = (tk) => `${tk.pt ? tk.pt + ' ' : ''}${(tk.colorWords || []).join(' and ')} ${tk.subtypes || ''}`.replace(/\s+/g, ' ').trim() +
+            ((tk.keywords || []).length ? ' with ' + tk.keywords.map(k => String(k).toLowerCase()).join(', ') : '') +
+            (tk.grantedText ? ` and "${tk.grantedText}"` : '');
+          const order = this.turnOrder.length ? this.turnOrder : this.players.map(q => q.id);
+          const at = Math.max(0, order.indexOf(pid));
+          const picks = [];
+          for (let k = 0; k < order.length; k++) {
+            const q = this.player(order[(at + k) % order.length]);
+            if (!q || q.hasLost) continue;
+            const got = this._choose({ playerId: q.id, purpose: 'tokenChoice', kind: 'options', min: 1, max: 1,
+              options: toks.map((tk, i) => ({ label: U_cap(say(tk)), value: i })),
+              // (for the bots: each token's size, and whether it asks something of you each turn)
+              tokenInfo: toks.map(tk => ({ pt: tk.pt || '', drawback: /sacrifice|damage to you|lose/i.test(tk.grantedText || '') })),
+              prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: which token do you create — ${toks.map(say).join(', or ')}?` }, 'pcTok' + q.id);
+            if (got === SUSPEND) return got;
+            const i = got && got.picks ? Number(got.picks[0]) || 0 : 0;
+            picks.push([q.id, toks[Math.min(Math.max(0, i), toks.length - 1)]]);
+          }
+          for (const [qid, tk] of picks) this._runEffect(Object.assign({}, tk), Object.assign({}, ctx, { controller: qid }));
+          return null;
         }
         default: return null;
       }

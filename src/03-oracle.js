@@ -86,7 +86,15 @@
      ability (provoke, graft, backup …): handed to another permanent, there
      is no such ability on it, so they can't be handed out yet. */
   // (read ahead is read off the Saga's own text as it is cast: Barbara Wright's grant would do nothing)
-  const PRINTED_ONLY = new Set(['provoke', 'graft', 'backup', 'devour', 'recover', 'ravenous', 'read ahead']);
+  // (provoke handed out — The Cheetah Planet's Cats — triggers as the printed one does: provokeAbility, the engine's attack)
+  const PRINTED_ONLY = new Set(['graft', 'backup', 'devour', 'recover', 'ravenous', 'read ahead']);
+  /* Provoke (CR 702.39): "Whenever this creature attacks, you may have target creature defending player controls untap
+     and block it if able." — printed, or handed out (the engine builds it for a creature given provoke) */
+  function provokeAbility() {
+    return { kind: 'triggered', event: 'attacks', self: true, optional: true, text: 'Provoke',
+      effects: [{ op: 'untap', targets: [Object.assign(targetSpec('target creature an opponent controls'), { upTo: true })] }, { op: 'mustBlockThis', scope: 'lastTarget' }],
+      auto: true };
+  }
   function kwKnown(k) {
     const w = String(k || '').trim();
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
@@ -5670,6 +5678,15 @@
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
     // Bad Wolf Bay: "cards can't enter from exile this turn"
     { re: /^Cards can'?t enter from exile this turn\.?$/i, make: () => ({ op: 'planar', what: 'noEnterFromExile' }) },
+    // Finally! Left-Handed Magic Cards: "draw a card from the bottom of your library" (fromBottom)
+    { re: /^Draw (a card|two cards|three cards) from the bottom of your library\.?$/i,
+      make: (m) => ({ op: 'draw', n: /^a /i.test(m[1]) ? 1 : num(m[1].split(' ')[0]), who: 'you', fromBottom: true }) },
+    // The Pit: "each player creates their choice of a 3/3 white Angel creature token with flying or a 6/6 black Demon creature token with …"
+    { re: /^Each player creates their choice of (an? \d+\/\d+ .+? creature token(?: with [^"]+?)?) or (an? \d+\/\d+ .+? creature token(?: with .+)?)\.?$/i,
+      make: (m) => {
+        const toks = [m[1], m[2]].map(x => parseTokenSentence('Create ' + x.replace(/\.$/, '') + '.'));
+        return toks.every(tk => tk && tk.op === 'createToken') ? { op: 'planar', what: 'eachTokenChoice', tokens: toks.map(tk => Object.assign({}, tk, { text: undefined })) } : null;
+      } },
     // Mount Keralia: "prevent all damage that planes named Mount Keralia would deal this game to permanents you control"
     { re: /^Prevent all damage that planes named CARDNAME would deal this game to permanents you control\.?$/i,
       make: () => ({ op: 'planar', what: 'hold', kind: 'planeShield', who: 'you', forGame: true }) },
@@ -5684,6 +5701,16 @@
       make: (m) => ({ op: 'planar', what: 'eachMayReturn', filter: m[1].toLowerCase() }) },
     // Gardens of Tranquil Repose: "Its controller scries 1." — the controller of the creature that died
     { re: /^Its controller (scries|surveils) (\d+|one|two)\.?$/i, make: (m) => ({ op: /scr/i.test(m[1]) ? 'scry' : 'surveil', n: num(m[2]), who: 'triggerPlayer' }) },
+    /* Grand Ossuary: "its controller distributes a number of +1/+1 counters equal to its power among any number of target
+       creatures they control" — the dead creature's controller chooses and divides (aimBy) */
+    { re: /^Its controller distributes a number of \+1\/\+1 counters equal to its power among any number of target creatures they control\.?$/i,
+      make: () => ({ op: 'countersDivided', n: { ofTrigger: 'power' }, kind: '+1/+1', aimBy: 'triggerObjController',
+        anyFrom: { type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you', upTo: true } }) },
+    /* Immersturm: "that creature's controller may have it deal damage equal to its power to any target of their choice" —
+       their choice of target, none if they like (aimBy, upTo) */
+    { re: /^(?:That creature'?s|Its) controller may have it deal damage equal to its power to any target of their choice\.?$/i,
+      make: () => ({ op: 'damage', n: { ofTrigger: 'power' }, fromTrigger: true, aimBy: 'triggerObjController',
+        targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true }] }) },
     // Time Distortion, Temple of Atropos: "reverse the game's turn order"
     { re: /^Reverse the game'?s turn order\.?$/i, make: () => ({ op: 'planar', what: 'reverseTurnOrder' }) },
     // Celestine Reef: "until a player planeswalks, you can't lose the game and your opponents can't win the game"
@@ -9641,6 +9668,8 @@
       make: () => ({ op: 'extraLoyalty' }) },
     // Unbound Flourishing: "double the value of X" — of the spell the trigger is about (doubleSpellX)
     { re: /^Double the value of X\.?$/i, make: () => ({ op: 'doubleSpellX' }) },
+    // Jund: "it gains devour 5" — the creature spell the trigger is about; it devours as it enters (spellGainsDevour)
+    { re: /^(?:It|That spell) gains devour (\d+)\.?$/i, make: (m) => ({ op: 'spellGainsDevour', n: +m[1] }) },
     // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." — the spell the trigger is about (spellGains)
     { re: /^That spell gains (deathtouch|lifelink)(?: and (deathtouch|lifelink))?\.?$/i,
       make: (m) => ({ op: 'spellGains', keywords: [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()) }) },
@@ -13656,6 +13685,10 @@
     // Eldrazi Monument: "Sacrifice a creature. If you can't, sacrifice this artifact."
     { re: /^Sacrifice an? (creature|artifact|land|permanent)\. If you can'?t, sacrifice (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
       make: (m) => [{ op: 'sacOrSelf', filter: m[1].toLowerCase() }] },
+    /* Lord of the Pit: "sacrifice a creature other than Lord of the Pit. If you can't, Lord of the Pit deals 7 damage to
+       you."; The Pit's Demon token: "sacrifice another creature. If you can't, this token deals 6 damage to you." */
+    { re: /^Sacrifice (?:another creature|a creature other than (?:CARDNAME|this creature|this token))\. If you can'?t, (?:CARDNAME|this creature|this token|it) deals (\d+) damage to you\.?$/i,
+      make: (m) => [{ op: 'sacOrSelf', filter: 'creature', other: true, otherwise: [{ op: 'damage', n: +m[1], toSelf: true }] }] },
     /* Egon, God of Death: "exile two cards from your graveyard. If you can't, sacrifice Egon and draw a card." — not a
        choice: done when there are enough (mayPay noAsk), and with fewer none go (exileGrave) */
     { re: /^Exile (a|an|one|two|three|four|five) ([a-z ]*?)cards? from your graveyard\. If you can'?t, (.+)$/i,
@@ -17963,6 +17996,9 @@
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
+    // Jund: "Whenever a player casts a creature spell that's black, red, or green," — the colours said after
+    { re: /^When(?:ever)? a player casts an? ([a-z]+ )?spell that'?s ((?:white|blue|black|red|green), (?:white|blue|black|red|green),? or (?:white|blue|black|red|green)), /i,
+      event: 'anyCastSpell', filt: (m) => spellFilter(m[2].toLowerCase() + ' ' + (m[1] || '')) },
 
     /* --- one ability, two ways to set it off --- */
     { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role))\s+enters(?: the battlefield)?(?:,| )/i,
@@ -20839,11 +20875,7 @@
     }
     /* Provoke (CR 702.39): as it attacks, a creature the defender controls
        may be untapped and made to block it */
-    if (out.keywords.some(k => k.keyword === 'Provoke')) {
-      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, optional: true, text: 'Provoke',
-        effects: [{ op: 'untap', targets: [Object.assign(targetSpec('target creature an opponent controls'), { upTo: true })] }, { op: 'mustBlockThis', scope: 'lastTarget' }],
-        auto: true });
-    }
+    if (out.keywords.some(k => k.keyword === 'Provoke')) out.abilities.push(provokeAbility());
     /* Myriad (CR 702.116): a copy attacking each other opponent, gone when
        combat ends */
     if (out.keywords.some(k => k.keyword === 'Myriad')) {
@@ -21924,6 +21956,11 @@
        permanents in layer 5, every other card and spell by its analysis (allCards) */
     { re: /^All cards that aren'?t on the battlefield, spells, and permanents are colorless\.?$/i,
       make: () => ({ op: 'continuous', layer: 5, scope: { who: 'all', what: 'permanent' }, setColors: [], allCards: true }) },
+    /* Finally! Left-Handed Magic Cards: "Each creature's base power is equal to its printed toughness." / "… base
+       toughness is equal to its printed power." — layer 7b, each its own ability (printed) */
+    { re: /^Each creature'?s base (power|toughness) is equal to its printed (power|toughness)\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'all', what: 'creature' },
+        setPt: /power/i.test(m[1]) ? { p: { printed: m[2].toLowerCase() } } : { t: { printed: m[2].toLowerCase() } } }) },
     // Leyline of the Guildpact: "Each nonland permanent you control is all colors."
     { re: /^(.+?) (?:is|are) all colors\.?$/i,
       make: (m) => {
@@ -25687,6 +25724,7 @@
     wardPrice,
     parseCost,
     scavengeAbility,
+    provokeAbility,
     parseEffects,
     parseEffectSentence,
     stripReminder,

@@ -2370,6 +2370,22 @@
     },
     /* Devour: tokens are fodder; real creatures stay */
     devour(s) { return { picks: (s.items || []).filter(x => { const o = this.game.obj(x.id); return o && o.isToken; }).map(x => x.id) }; },
+    // (Jund: devour handed to the spell, asked as it enters — the same)
+    devourEnter(s) { return this.devour(s); },
+    /* The Pit: "their choice of a 3/3 white Angel … or a 6/6 black Demon …" — the bigger one, unless it asks a
+       creature or life of us each turn and we have little to give */
+    tokenChoice(s) {
+      const info = s.tokenInfo || [];
+      const me = this.game.player(this.pid);
+      const mine = this.game.battlefield.filter(o => o.controller === this.pid && (this.game.characteristics(o) || {}).isCreature).length;
+      let best = 0, bestV = -Infinity;
+      info.forEach((x, i) => {
+        const [p, t] = String(x.pt || '0/0').split('/').map(n => parseInt(n, 10) || 0);
+        const v = p + t - (x.drawback && (mine < 3 || (me && me.life < 15)) ? 20 : 0);
+        if (v > bestV) { bestV = v; best = i; }
+      });
+      return { picks: [(s.options && s.options[best]) ? s.options[best].value : best] };
+    },
     /* Circle of Protection: the opponent's source most likely to hurt us
        this turn — an attacker, a spell on the stack, then their biggest creature */
     preventSource(s) {
