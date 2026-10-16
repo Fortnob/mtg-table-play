@@ -4426,6 +4426,9 @@
     // Safana, Calimport Cutthroat: "Create three of those tokens instead if you've completed a dungeon." (read as "If …, create …")
     { re: /^If (.+?), create (two|three|four) of those tokens instead\.?$/i,
       make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null; } },
+    // Increasing Vengeance: "If this spell was cast from a graveyard, copy that spell twice instead." — the copy before, twice (copyPrevTimes)
+    { re: /^If (.+?), copy that spell (twice|three times) instead\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'copySpell', copyPrevTimes: /twice/i.test(m[2]) ? 2 : 3 }] } } : null; } },
     /* Rite of Replication's kicker */
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
       make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
@@ -10788,8 +10791,9 @@
     const fromBf = /\s+that was put there from the battlefield this turn$/i.test(String(phrase));
     if (fromBf) phrase = String(phrase).replace(/\s+that was put there from the battlefield this turn$/i, '');
     // Night Nurse, Healer of Heroes: "target permanent card in your graveyard that was put there from anywhere this turn" (toGraveThisTurn)
-    const toGyNow = /\s+that was put there from anywhere this turn$/i.test(String(phrase));
-    if (toGyNow) phrase = String(phrase).replace(/\s+that was put there from anywhere this turn$/i, '');
+    // (Abyssal Harvester: "target creature card from a graveyard that was put there this turn" — the same)
+    const toGyNow = /\s+that was put there (?:from anywhere )?this turn$/i.test(String(phrase));
+    if (toGyNow) phrase = String(phrase).replace(/\s+that was put there (?:from anywhere )?this turn$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -13505,6 +13509,24 @@
         return tok && tok.op === 'createToken' ? [{ op: 'destroy', targets: [targetSpec(m[1])] },
           { op: 'ifDestroyed', died: true, then: [Object.assign(tok, { ptOfLast: true })] }] : null;
       } },
+    /* Saw in Half: "If that creature dies this way, its controller creates two tokens that are copies of that creature,
+       except their power is half that creature's power and their toughness is half that creature's toughness. Round
+       up each time." — its controller as it left, its size as it last was, halved (halfPtOfLast) */
+    { re: /^Destroy (target creature)\. If that creature dies this way, its controller creates two tokens that are copies of that creature, except their power is half that creature'?s power and their toughness is half that creature'?s toughness\. Round up each time\.?$/,
+      make: (m) => [{ op: 'destroy', targets: [targetSpec(m[1])] },
+        { op: 'ifDestroyed', died: true, then: [{ op: 'copyPermanent', n: 2, of: 'lastAffected', halfPtOfLast: true, toSourceController: true, grant: [] }] }] },
+    /* Abyssal Harvester: "Exile target creature card from a graveyard that was put there this turn. Create a token
+       that's a copy of it, except it's a Nightmare in addition to its other types. Then exile all other Nightmare tokens
+       you control." — the copy of the card exiled now (ifExiled); every Nightmare token of yours but the one just made
+       (exceptMade) */
+    { re: /^Exile target ([a-z]+) card from a graveyard that was put there this turn\. Create a token that'?s a copy of it, except it'?s an? ([A-Z][a-z]+) in addition to its other types\. Then exile all other \2 tokens you control\.?$/,
+      make: (m) => {
+        const sp = targetSpec('target ' + m[1] + ' that was put there this turn', 'graveyard');
+        if (!sp || sp.unknown) return null;
+        return [{ op: 'exile', targets: [Object.assign(sp, { zone: 'graveyard' })] },
+          { op: 'copyPermanent', n: 1, scope: 'lastTarget', ifExiled: true, addSubtypes: [m[2]], grant: [] },
+          { op: 'exileAll', scope: { who: 'you', token: true, what: 'permanent', subtype: m[2].toLowerCase() }, what: 'permanent', exceptMade: true }];
+      } },
     /* Melira, the Living Cure: "Choose another target creature or artifact. When it's put into a graveyard this turn,
        return that card to the battlefield under its owner's control." — the trigger yours, the card its owner's (retCtl) */
     { re: /^Choose (another target creature or artifact)\. When it'?s put into a graveyard this turn, return that card to the battlefield under its owner'?s control\.?$/i,
@@ -15436,6 +15458,18 @@
         }
       }
 
+      /* Rottenmouth Viper: "Then for each blight counter on it, each opponent loses 4 life unless that player sacrifices
+         a nonland permanent of their choice or discards a card." — the whole sentence once for each counter, each
+         time answered afresh (sequence times) */
+      const perCtr = s.match(/^(?:Then )?for each ([a-z]+) counter on (?:it|CARDNAME|this (?:creature|artifact|enchantment|permanent)), (each opponent .+ unless .+)$/i);
+      if (perCtr) {
+        const body = parseSentenceList([perCtr[2].charAt(0).toUpperCase() + perCtr[2].slice(1)]);
+        if (body.effects.length) {
+          effects.push({ op: 'sequence', times: { countersOnSelf: perCtr[1].toLowerCase() }, list: body.effects, text: s });
+          if (!body.auto) auto = false;
+          continue;
+        }
+      }
       // "... unless <someone> pays <cost>."
       // (Sivriss, Nightmare Speaker: "For each opponent, you mill a card, then return that card … unless that player pays 3 life" — read whole)
       const unless = /^For each opponent, you mill a card, then return that card from your graveyard to your hand unless that player pays \d+ life\.?$/i.test(s) ? null :
@@ -15901,6 +15935,14 @@
           delete x.copyPrevN;
           // (Safana, Calimport Cutthroat: "create three of those tokens instead" — Treasures, createNamedToken)
           if (prev && (prev.op === 'createToken' || prev.op === 'createNamedToken')) Object.assign(x, JSON.parse(JSON.stringify(prev)), { n: k });
+          else x.op = 'manual';
+        }
+        // (Increasing Vengeance: "copy that spell twice instead" — the copying the sentence before did, that many times: copyPrevTimes)
+        for (const x of e.insteadOf.effects) {
+          if (x.copyPrevTimes == null) continue;
+          const k = x.copyPrevTimes;
+          delete x.copyPrevTimes;
+          if (prev && prev.op === 'copySpell' && prev.times == null) Object.assign(x, JSON.parse(JSON.stringify(prev)), { times: k });
           else x.op = 'manual';
         }
         // (Court of Ardenvale: "return that card to the battlefield instead" — the same target)
@@ -17465,6 +17507,9 @@
     // Flourishing Defenses: "Whenever a -1/-1 counter is put on a creature" — once for each counter
     { re: /^Whenever an? ([+\-0-9/a-z]+) counter is put on a creature,? /i, event: 'countersPut',
       filt: () => ({ words: 'creature' }), extraOf: (m) => ({ counterKind: m[1].toLowerCase(), perAmount: true }) },
+    // Hollowmurk Siege: "Whenever a counter is put on a creature you control" — of any kind, once for each counter
+    { re: /^Whenever a counter is put on (a|another) creature you control,? /i, event: 'countersPut',
+      filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[1]) }), extra: { perAmount: true } },
     // Tavern Scoundrel, Zndrsplt: winning and losing coin flips
     { re: /^Whenever you win a coin flip,? /i, event: 'youWinFlip' },
     { re: /^Whenever you lose a coin flip,? /i, event: 'youLoseFlip' },

@@ -20545,7 +20545,8 @@
         }
         // a sequence is just more of this list: splice it in and carry on, so
         // anything inside it can suspend exactly like a top-level effect
-        if (e.op === 'sequence') {
+        // (Rottenmouth Viper: one said so many times over is counted as it comes up — times)
+        if (e.op === 'sequence' && e.times == null) {
           r.effects.splice(r.index, 1, ...(e._as || e._tp ? (e.list || []).map(x => Object.assign({}, x, e._as ? { _as: e._as } : {}, e._tp ? { _tp: e._tp } : {})) : (e.list || [])));
           continue;
         }
@@ -27625,6 +27626,8 @@
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // Grub, Notorious Auntie: "a copy of the blighted creature" — the one the counters just went on (copyBlighted)
           if (e.of === 'blighted') source = this._lastBlighted ? this.obj(this._lastBlighted) : null;
+          // Saw in Half: "copies of that creature" — the one just destroyed, as it last was (lastAffected)
+          if (e.of === 'lastAffected') source = this._lastAffected ? this.obj(this._lastAffected.id) : null;
           // Osgir, the Reconstructor: "copies of the exiled card" — the card exiled to pay, while it is still in exile (costExiled)
           if (e.of === 'costExiled') { const c0 = this.obj((ctx.costExiled || [])[0]); source = c0 && c0.zone === 'exile' ? c0 : null; if (!source) break; }
           // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
@@ -27649,8 +27652,16 @@
           // Hazel of the Rootbloom: "If that token is a Squirrel, instead create two tokens that are copies of it." (twiceIfType)
           // (Krothuss, Lord of the Deep: "a Kraken, Leviathan, Octopus, or Serpent" — any of a list)
           const cnt = e.twiceIfType && [].concat(e.twiceIfType).some(ty => this._hasCreatureType(source, ty)) ? 2 : nVar(e.n);
+          /* Saw in Half: "except their power is half that creature's power and their toughness is half that creature's
+             toughness. Round up each time." — its size as it last was (halfPtOfLast) */
+          if (e.halfPtOfLast) {
+            const on = source.zone === 'battlefield';
+            const pw = on ? this.powerOf(source) : Number(source._lastPower) || 0, tg = on ? this.toughnessOf(source) : Number(source._lastToughness) || 0;
+            e = Object.assign({}, e, { setPt: Math.ceil(pw / 2) + '/' + Math.ceil(tg / 2) });
+          }
           // "except the token isn't legendary" (Helm of the Host)
-          let card = this._copiable(source.card);
+          // (Saw in Half: a creature gone from the battlefield copied as it last was — _lkiCard)
+          let card = this._copiable(e.of === 'lastAffected' && source.zone !== 'battlefield' && source._lkiCard ? source._lkiCard.card : source.card);
           let faceUp = source.face || 0;
           if ((card.card_faces || []).length > 1) {
             const legend0 = /\bLegendary\b/.test(String(card.type_line || ''));
@@ -27738,7 +27749,9 @@
             attackingDef: e.attacking ? (e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id || null) : null,
             attachToId: e.attachToId || null };
           // (Isle of Vesuva, a plane: "its controller creates a token that's a copy of that creature" — toSourceController)
-          const maker = e.toSourceController && this.player(source.controller) ? source.controller : ctx.controller;
+          // (Saw in Half: "its controller" — as it left the battlefield, _leftController)
+          const srcCtl = source.zone === 'battlefield' ? source.controller : (source._leftController || source.controller);
+          const maker = e.toSourceController && this.player(srcCtl) ? srcCtl : ctx.controller;
           const made = this._copyTokenCount(maker, cnt, card.type_line, { method: '_copyTokenOne', args: [maker, card, faceUp, how] });
           for (let i = 0; i < made; i++) this._copyTokenOne(maker, card, faceUp, how, i, made);
           this.logEvent('token', `${me.name} copies ${source.name}.`);
@@ -32783,6 +32796,13 @@
 
         /* ===== added automation ===== */
         case 'sequence':
+          // Rottenmouth Viper: "for each blight counter on it, …" — the parts that many times over (times)
+          if (e.times != null) {
+            const k = Math.max(0, n(e.times) || 0), list = [];
+            for (let i = 0; i < k; i++) for (const f of (e.list || [])) list.push(JSON.parse(JSON.stringify(f)));
+            this._runEffect({ op: 'sequence', list }, ctx);
+            break;
+          }
           /* mid-resolution the parts go in line behind this one, so a part
              that stops to ask a question does not run the others twice */
           if (this.resolving) { this._spliceNext(e.list || []); break; }

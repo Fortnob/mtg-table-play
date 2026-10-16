@@ -71876,4 +71876,149 @@ module.exports = (test) => {
     U.mana('A', '2RW');
     t.no(U.g.castSpell('A', U.hand('A', 'Take the Bait').id, { auto: true, targets: [] }), 'only during combat on an opponent\'s turn');
   });
+  test('Cards: Saw in Half — the destroyed creature\'s controller gets two copies, half its size as it last was, rounded up', (mk, t) => {
+    t.auto('Saw in Half');
+    const T = mk();
+    const wurm = T.bf('B', 'Craw Wurm');   // 6/4
+    wurm.counters['+1/+1'] = 1;           // 7/5 as it dies
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Saw in Half'), { targets: [wurm.id] });
+    t.zone(wurm, 'graveyard');
+    const toks = T.bfOf('B').filter(o => o.name === 'Craw Wurm' && o.isToken);
+    t.eq(toks.length, 2, "two tokens, for the creature's controller");
+    t.eq(T.bfOf('A').filter(o => o.name === 'Craw Wurm').length, 0, 'none for the caster');
+    t.eq(T.g.powerOf(toks[0]) + '/' + T.g.toughnessOf(toks[0]), '4/3', 'half of 7/5, rounded up');
+    // indestructible: it doesn't die, so no tokens
+    const T2 = mk();
+    const ind = T2.bf('B', 'Darksteel Myr');
+    T2.mana('A', '2B');
+    T2.cast('A', T2.hand('A', 'Saw in Half'), { targets: [ind.id] });
+    t.zone(ind, 'battlefield');
+    t.eq(T2.bfOf('B').filter(o => o.isToken).length, 0, 'no copies');
+    // a creature of B's that A controls: the copies are A's (its controller as it died)
+    const T3 = mk();
+    const bear = T3.bf('B', 'Grizzly Bears');
+    bear.controller = 'A';
+    T3.mana('A', '2B');
+    T3.cast('A', T3.hand('A', 'Saw in Half'), { targets: [bear.id] });
+    const bt = T3.bfOf('A').filter(o => o.name === 'Grizzly Bears' && o.isToken);
+    t.eq(bt.length, 2, 'two for its controller');
+    t.eq(T3.g.powerOf(bt[0]) + '/' + T3.g.toughnessOf(bt[0]), '1/1', 'half of 2/2');
+    // a token dies: copies of it all the same
+    const T4 = mk();
+    const tk = T4.bf('B', 'Craw Wurm'); tk.isToken = true;
+    T4.mana('A', '2B');
+    T4.cast('A', T4.hand('A', 'Saw in Half'), { targets: [tk.id] });
+    t.eq(T4.bfOf('B').filter(o => o.name === 'Craw Wurm').length, 2, 'two copies of the token');
+  });
+  test('Cards: Rottenmouth Viper — a blight counter, then for each one each opponent loses 4 unless they sacrifice or discard, asked afresh each time', (mk, t) => {
+    t.auto('Rottenmouth Viper');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const ring = T.bf('B', 'Sol Ring'); T.bf('B', 'Forest');
+    const card = T.hand('C', 'Grizzly Bears');
+    // B sacrifices Sol Ring, C lets it happen
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'unlessSacrifice'); t.eq(ch.playerId, 'B'); t.no(ch.items.some(it => /Forest/.test(it.name || '')), 'not a land'); return { picks: [ring.id] }; });
+    T.answer('choose', (ch) => { t.eq(ch.playerId, 'C'); return { picks: [] }; });
+    const v = T.bf('A', 'Rottenmouth Viper', { etb: true }); T.resolve();
+    t.eq(v.counters.blight, 1, 'a blight counter');
+    t.zone(ring, 'graveyard', 'B sacrificed it');
+    t.eq(T.life('B'), 20); t.eq(T.life('C'), 16, 'C lost 4');
+    t.zone(card, 'hand');
+    // it attacks: two counters, so twice; C discards the first time and has nothing the second
+    T.nextTurn('A');
+    for (const p of ['B', 'C']) for (const c of T.zone(p, 'hand').slice()) T.g.moveObject(c, 'library');
+    const card2 = T.hand('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: v.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => { t.eq(ch.playerId, 'C'); return { picks: [card2.id] }; });
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.asked.filter(c => c.purpose === 'unlessSacrifice').length, 3, 'asked only who had something to give');
+    t.eq(v.counters.blight, 2, 'a second counter');
+    t.zone(card2, 'graveyard', 'C discarded');
+    t.eq(T.life('B'), 12, 'B lost 4 twice');
+    t.eq(T.life('C'), 12, 'C lost 4 once more');
+  });
+  test('Cards: Abyssal Harvester — exiles a creature card put into a graveyard this turn, copies it as a Nightmare, exiles your other Nightmare tokens', (mk, t) => {
+    t.auto('Abyssal Harvester');
+    const T = mk();
+    const harv = T.bf('A', 'Abyssal Harvester');
+    T.bf('A', 'Swamp');   // Nightmare is */* for Swamps
+    const oldTok = T.bf('A', 'Nightmare'); oldTok.isToken = true;
+    const shep = T.bf('A', 'Nightmare');
+    const old = T.grave('B', 'Craw Wurm');   // there from before this turn
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    t.zone(bear, 'graveyard');
+    T.activate('A', harv, 0, { targets: [bear.id] });
+    t.zone(bear, 'exile', 'the Bears exiled');
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Grizzly Bears');
+    t.ok(tok, 'a token copy, yours');
+    t.ok(T.g._hasCreatureType(tok, 'Nightmare') && T.g._hasCreatureType(tok, 'Bear'), 'a Nightmare Bear');
+    t.no(T.g.battlefield.includes(oldTok), 'the other Nightmare token exiled');
+    t.zone(shep, 'battlefield', 'a Nightmare card stays');
+    t.zone(old, 'graveyard');
+    // a card put there before this turn can't be targeted
+    harv.tapped = false;
+    t.no(T.g.activateAbility('A', harv.id, 0, { auto: true, targets: [{ kind: 'object', id: old.id }] }) && T.g.stack.length, 'not a card from an earlier turn');
+  });
+  test('Cards: Increasing Vengeance — copies your instant or sorcery spell; twice when cast from a graveyard', (mk, t) => {
+    t.auto('Increasing Vengeance');
+    const T = mk();
+    T.mana('A', 'R');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.mana('A', 'RR');
+    const iv = T.hand('A', 'Increasing Vengeance');
+    T.cast('A', iv, { targets: [T.stackTarget(bolt)] });
+    t.eq(T.life('B'), 20 - 3 - 3, 'the Bolt and one copy');
+    t.zone(iv, 'graveyard');
+    // flashback: two copies
+    T.mana('A', 'R');
+    const bolt2 = T.hand('A', 'Lightning Bolt');
+    T.cast('A', bolt2, { targets: ['B'], resolve: false });
+    T.mana('A', '3RR');
+    T.cast('A', iv, { via: 'flashback', targets: [T.stackTarget(bolt2)] });
+    t.eq(T.life('B'), 14 - 3 - 3 - 3, 'the Bolt and two copies');
+    t.zone(iv, 'exile', 'flashback exiles it');
+    // not an opponent's spell
+    const T2 = mk();
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: ['B'], resolve: false });
+    T2.g.passPriority('A');
+    T2.mana('B', 'R');
+    const bb = T2.hand('B', 'Lightning Bolt');
+    t.ok(T2.g.castSpell('B', bb.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), T2.g.lastError);
+    T2.g.passPriority('B');
+    T2.mana('A', 'RR');
+    t.no(T2.g.castSpell('A', T2.hand('A', 'Increasing Vengeance').id, { auto: true, targets: [T2.stackTarget(bb)] }), 'a spell you control only');
+  });
+  test('Cards: Hollowmurk Siege — Sultai draws once a turn when a counter goes on your creature; Abzan pumps an attacker with menace', (mk, t) => {
+    t.auto('Hollowmurk Siege');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.answer('mode', { modes: [0] });
+    T.mana('A', 'BG');
+    T.cast('A', T.hand('A', 'Hollowmurk Siege'));
+    const bear = T.bf('A', 'Grizzly Bears'), foe = T.bf('B', 'Savannah Lions');
+    const hand0 = T.zone('A', 'hand').length;
+    T.g.addCounters(foe, '+1/+1', 1); T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0, "not for an opponent's creature");
+    T.g.addCounters(bear, 'shield', 1); T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'any kind of counter: a card');
+    T.g.addCounters(bear, '+1/+1', 2); T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'only once each turn');
+    T.nextTurn('B');
+    const h1 = T.zone('A', 'hand').length;
+    T.g.addCounters(bear, '+1/+1', 1); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'again the next turn');
+    // Abzan
+    const T2 = mk();
+    T2.answer('mode', { modes: [1] });
+    T2.mana('A', 'BG');
+    T2.cast('A', T2.hand('A', 'Hollowmurk Siege'));
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.g.addCounters(b2, 'shield', 1); T2.resolve();
+    T2.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    T2.toMain('A', 'declareBlockers');
+    t.eq(b2.counters['+1/+1'], 1, 'a +1/+1 counter on the attacker');
+    t.ok(T2.g.hasKw(b2, 'menace'), 'menace');
+  });
 };
