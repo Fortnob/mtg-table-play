@@ -3181,6 +3181,9 @@
     { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura|Saga)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
         /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
+    // Palace Jailer: "exile target creature an opponent controls until an opponent becomes the monarch" (exileUntilMonarch)
+    { re: /^Exile (target [a-z ]+?) until an opponent becomes the monarch\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'exileUntilMonarch', targets: [sp] } : null; } },
     // Hixus, Prison Warden: "exile that creature until Hixus leaves the battlefield" — the one the trigger is about
     { re: /^Exile that creature until (?:CARDNAME|this creature) leaves the battlefield\.?$/i,
       make: () => ({ op: 'exileUntilLeaves', scope: 'triggerObject' }) },
@@ -7186,6 +7189,9 @@
         }
         return m[2] ? { op: 'sequence', list: [draw, { op: 'discard', n: num(m[2]), who: 'you' }] } : draw;
       } },
+    // Will of the Temur: "Target player draws cards equal to the greatest mana value among permanents you control."
+    { re: /^Target player draws cards equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'draw', n: k, who: 'target', targets: [{ type: 'player' }] } : null; } },
     { re: /^(Target player|Each opponent|You) mills? cards equal to (.+?)\.?$/i,
       make: (m) => {
         const k = amountOf(m[2]);
@@ -8915,6 +8921,11 @@
     // Angel of Destiny: "you and that player each gain that much life"
     { re: /^[Yy]ou and that player each gain that much life\.?$/, make: () => [{ op: 'gainLife', n: 'triggerAmount', who: 'you' }, { op: 'gainLife', n: 'triggerAmount', who: 'triggerPlayer' }] },
     { re: /^Each opponent loses the game\.?$/i, make: () => ({ op: 'winGame' }) },
+    // Nicol Bolas, Dragon-God: "Each opponent who doesn't control a legendary creature or planeswalker loses the game." (oppsWithout)
+    { re: /^Each opponent who doesn'?t control an? (legendary creature or planeswalker|[a-z]+(?: [a-z]+)?) loses the game\.?$/i,
+      make: (m) => ({ op: 'loseGame', who: 'oppsWithout', words: m[1].toLowerCase() }) },
+    // Nicol Bolas, Dragon-God: "Each opponent exiles a card from their hand or a permanent they control." (oppExileHandOrPerm)
+    { re: /^Each opponent exiles a card from their hand or a permanent they control\.?$/i, make: () => ({ op: 'oppExileHandOrPerm' }) },
 
     /* ===== counts that depend on the board ("... for each creature you control") ===== */
     // Glimmerpost: "you gain 1 life for each Locus on the battlefield"
@@ -9748,6 +9759,11 @@
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[3] + '/' + m[4], setColor: m[5], setType: m[6] },
         /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])] } : { scope: 'lastTarget' }, /^that card$/i.test(m[2]) ? { orTrigger: true } : {},
         m[1] ? { tapped: true } : {}) },
+    /* Will of the Temur: "Create a token that's a copy of target permanent, except it's a 4/4 Dragon creature with flying
+       in addition to its other types." — a creature besides what it was, that size, with flying */
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) creature with (flying|haste|trample|vigilance|reach) in addition to its other types\.?$/,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'copyPermanent', n: 1, grant: [U.titleCase(m[5])], setPt: m[2] + '/' + m[3],
+        addSubtypes: [m[4]], addTypes: ['Creature'], targets: [sp] } : null; } },
     /* Sauron, the Necromancer: "Create a tapped and attacking token that's a copy of that card, except it's a 3/3
        black Wraith with menace." — the card just exiled; menace part of what the copy is (nowOnly, addText) */
     { re: /^Create a tapped and attacking token that'?s a copy of that card, except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green) ([A-Z][a-z]+) with (flying|menace|haste|trample|deathtouch|lifelink)\.?$/,
@@ -22537,6 +22553,12 @@
         const scope = scopeOf(m[1].replace(/^Each (.+?)(permanent|creature|artifact)( you control)$/i, '$1$2s$3'));
         return scope ? { op: 'continuous', layer: 5, scope, setColors: ['W', 'U', 'B', 'R', 'G'] } : null;
       } },
+    /* Swift Reconfiguration: "Enchanted permanent is a Vehicle artifact with crew 5 and it loses all other card types."
+       — no creature types with them (setTypes), and crew to make it a creature again */
+    { re: /^Enchanted permanent is a Vehicle artifact with crew (\d+) and it loses all other card types\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [
+        { op: 'continuous', layer: 4, scope: { attached: true }, setTypes: ['Artifact'], addSubtypes: ['Vehicle'] },
+        { op: 'continuous', layer: 6, scope: { attached: true }, grantText: 'Crew ' + m[1] }] }) },
     /* Witness Protection: "Enchanted creature loses all abilities and is a
        green and white Citizen creature with base power and toughness 1/1
        named …" (the name is the table's to show, not a rule) */
@@ -22706,6 +22728,13 @@
           { op: 'continuous', layer: 6, scope, grant: [U.titleCase(m[4]), U.titleCase(m[5])] },
           { op: 'continuous', layer: 4, scope, addSubtypes: [m[6]] }] };
       } },
+    /* Encroaching Mycosynth: "Nonland permanents you control are artifacts in addition to their other types. The same is
+       true for permanent spells you control and nonland permanent cards you own that aren't on the battlefield." — on the
+       battlefield in layer 4, and everywhere else as the card is read (artifactsElsewhere) */
+    { re: /^Nonland permanents you control are artifacts in addition to their other types\. The same is true for permanent spells you control and nonland permanent cards you own that aren'?t on the battlefield\.?$/i,
+      make: () => { const scope = eachScope('Nonland permanents you control'); return scope ? { op: 'sequence', list: [
+        { op: 'continuous', layer: 4, scope, addTypes: ['Artifact'] },
+        { op: 'artifactsElsewhere' }] } : null; } },
     // Laughing Jasper Flint: "Creatures you control but don't own are Mercenaries in addition to their other types."
     { re: /^((?:[A-Za-z]+ )*[Cc]reatures [a-z' ]+?) are ([A-Z][a-z]+) in addition to their other types\.?$/,
       make: (m) => {
@@ -24310,6 +24339,9 @@
       { re: /^(?:CARDNAME|This creature) has all activated abilities of lands (you|your opponents) control except mana abilities\.?$/i,
         make: (m) => ({ op: 'borrowActivated', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', what: 'land', noMana: true }), auto: true },
       { re: /^Mana of any type can be spent to activate (?:CARDNAME|this creature)'s abilities\.?$/i, eff: { op: 'spendAnyTypeSelf' }, auto: true },
+      // Nicol Bolas, Dragon-God: "Nicol Bolas, Dragon-God has all loyalty abilities of all other planeswalkers on the battlefield." (loyaltyAbilities)
+      { re: /^(?:CARDNAME|This planeswalker) has all loyalty abilities of all other planeswalkers on the battlefield\.?$/i,
+        eff: { op: 'borrowActivated', who: 'all', what: 'planeswalker', loyaltyAbilities: true, noMana: true }, auto: true },
       // Experiment Kraj: "Experiment Kraj has all activated abilities of each other creature with a +1/+1 counter on it." (withCounter)
       { re: /^(?:CARDNAME|This creature) has all activated abilities of each other creature with an? (\+1\/\+1|[a-z]+) counter on it\.?$/i,
         make: (m) => ({ op: 'borrowActivated', who: 'all', withCounter: m[1].toLowerCase() }), auto: true },

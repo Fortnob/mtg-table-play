@@ -172,6 +172,16 @@
           base = this._chrAllA;
         }
       }
+      /* Encroaching Mycosynth: "permanent spells you control and nonland permanent cards you own that aren't on the
+         battlefield" are artifacts too (artifactsElsewhere) */
+      if (base && this.zone !== 'battlefield' && this.game && base.isPermanent && !base.isLand && !(base.types || []).includes('Artifact')) {
+        const ae = this.game._artifactsElsewhere();
+        const who = this.zone === 'stack' ? (this.controller || this.owner) : this.owner;
+        if (ae && ae.includes(who)) {
+          if (this._chrArtBase !== base) { this._chrArtBase = base; this._chrArtA = Object.assign({}, base, { types: (base.types || []).concat('Artifact'), isArtifact: true }); }
+          base = this._chrArtA;
+        }
+      }
       /* On the battlefield a permanent can be more than its printed text:
          an ability handed to it in quotation marks, a god that is not a
          creature while your devotion is short, a land Blood Moon has made a
@@ -3574,7 +3584,7 @@
     }
     _botCopyTargets(copy, specs, options, playerId) {
       const HARM = new Set(['damage', 'destroy', 'exile', 'bounce', 'counterSpell', 'counterUnless', 'tap', 'loseLife',
-        'discard', 'mill', 'fight', 'bite', 'groupBite', 'gainControl', 'exileUntilLeaves', 'sacrificeChoice', 'drain', 'handAttack',
+        'discard', 'mill', 'fight', 'bite', 'groupBite', 'gainControl', 'exileUntilLeaves', 'exileUntilMonarch', 'sacrificeChoice', 'drain', 'handAttack',
         'restrict', 'goad', 'toLibrary', 'damageDivided', 'selfBite']);
       const ops = [];
       const walk = (list) => {
@@ -17930,10 +17940,12 @@
           if (spec.withCounter && !(Number((x.counters || {})[spec.withCounter]) > 0)) continue;
           const xa = x.analysis();
           // (Sharkey, Tyrant of the Shire: "lands your opponents control" — what land; "except mana abilities" — noMana)
-          if (!xa || !(spec.what === 'land' ? xa.isLand : xa.isCreature)) continue;
+          // (Nicol Bolas, Dragon-God: "all other planeswalkers on the battlefield" — what planeswalker)
+          if (!xa || !(spec.what === 'land' ? xa.isLand : spec.what === 'planeswalker' ? xa.isPlaneswalker : xa.isCreature)) continue;
           if (spec.words && !this._cardFitsWords(x, spec.words)) continue;
           if (spec.otherName && xa.name === base.name) continue;
-          for (const ab of (xa.abilities || [])) if (ab.kind === 'activated' || ab.kind === 'loyalty') take(acts, ab);
+          // (Nicol Bolas, Dragon-God: "all loyalty abilities" — those only: loyaltyAbilities)
+          for (const ab of (xa.abilities || [])) if ((ab.kind === 'activated' && !spec.loyaltyAbilities) || ab.kind === 'loyalty') take(acts, ab);
           if (!spec.noMana) for (const ab of this.manaAbilitiesOf(x)) take(mana, ab);
         }
         if (acts.length || mana.length) res = { acts, mana, key: Array.from(seen).join('\u0001') + (spec.anyColor ? '|any' : '') };
@@ -18229,6 +18241,19 @@
     /** Something changed on the battlefield: recompute rather than remember. */
     bumpBoard() { this._boardEpoch = (this._boardEpoch || 0) + 1; }
     /** Mycosynth Lattice: the colours every card off the battlefield and every spell has now, or null (allCards). */
+    /** Encroaching Mycosynth: the players whose permanent spells and nonland permanent cards off the battlefield are artifacts too (artifactsElsewhere). */
+    _artifactsElsewhere() {
+      if (this.__artElseKey === this._boardKey) return this.__artElse;
+      // (asked again while it is being worked out: nothing yet)
+      this.__artElseKey = this._boardKey; this.__artElse = null;
+      let out = null;
+      for (const x of this.battlefield) {
+        if (x.phasedOut || !this._staticOp(x, 'artifactsElsewhere')) continue;
+        if (!(out = out || []).includes(x.controller)) out.push(x.controller);
+      }
+      this.__artElseKey = this._boardKey; this.__artElse = out;
+      return out;
+    }
     _allCardsColors() {
       if (this.__allColKey === this._boardKey) return this.__allCol;
       // (asked again while it is being worked out: nothing yet)
@@ -31553,6 +31578,17 @@
             for (const id of ids) { const lp = this.player(id); if (lp && !lp.hasLost) this.playerLoses(lp, `${(src && src.name) || 'a card'} said so`); }
             break;
           }
+          // Nicol Bolas, Dragon-God: "Each opponent who doesn't control a legendary creature or planeswalker" (oppsWithout)
+          if (e.who === 'oppsWithout') {
+            const fits = (x) => e.words === 'legendary creature or planeswalker'
+              ? ((this._matchesCategory(x, 'creature') && (((x.analysis() || {}).supertypes) || []).includes('Legendary')) || this._matchesCategory(x, 'planeswalker'))
+              : this._cardFitsWords(x, e.words);
+            for (const q of this.opponentsOf(me.id)) {
+              if (q.hasLost || this.battlefield.some(x => x.controller === q.id && !x.phasedOut && fits(x))) continue;
+              this.playerLoses(q, `${(src && src.name) || 'a card'} said so`);
+            }
+            break;
+          }
           const lp = e.who === 'triggerPlayer' ? triggerPlayer() : me; if (lp && !lp.hasLost) this.playerLoses(lp, 'a card said so'); break;
         }
         /* Etrata, the Silencer: "That player loses the game if they own three or more exiled cards with hit counters
@@ -32526,6 +32562,38 @@
         }
 
         /* ===== exile that is really imprisonment ===== */
+        /* Palace Jailer: "exile target creature an opponent controls until an opponent becomes the monarch" — held for
+           this player, back under its owner's control once one of their opponents takes the crown (exiledUntilMonarch) */
+        /* Nicol Bolas, Dragon-God: "Each opponent exiles a card from their hand or a permanent they control." — each
+           opponent's pick in turn order, the least they can spare (oppExileHandOrPerm) */
+        case 'oppExileHandOrPerm': {
+          const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+          for (let i = 0; i < opps.length; i++) {
+            const q = opps[i];
+            const pool = ((this.zones[q.id] || {}).hand || []).concat(this.battlefield.filter(x => x.controller === q.id && !x.phasedOut));
+            if (!pool.length) continue;
+            let pick = pool.length === 1 ? [pool[0].id] : this._ask({ type: 'pickCard', playerId: q.id, count: 1, purpose: 'exileHandOrPermanent', worst: true,
+              cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}exile a card from your hand or a permanent you control.` }, 'xhp' + i);
+            if (pick === SUSPEND) return SUSPEND;
+            const c = this.obj((pick || [])[0]);
+            const got = c && pool.includes(c) ? c : pool[0];
+            if (got.zone !== 'hand' && got.zone !== 'battlefield') continue;
+            this.moveObject(got, 'exile');
+            this.logEvent('exile', `${q.name} exiles ${got.name}.`);
+          }
+          break;
+        }
+        case 'exileUntilMonarch': {
+          for (const t of targets) {
+            if (!t || t.kind !== 'object') continue;
+            const o = this.obj(t.id);
+            if (!o || o.zone !== 'battlefield') continue;
+            this.moveObject(o, 'exile');
+            if (o.zone === 'exile') o.exiledUntilMonarch = ctx.controller;
+          }
+          break;
+        }
         case 'exileUntilLeaves': {
           // Hixus, Prison Warden: "exile that creature until Hixus leaves" — nothing, if Hixus has left already (CR 610.3c)
           if (e.scope === 'triggerObject' && (!src || src.zone !== 'battlefield')) break;
@@ -44354,6 +44422,16 @@
       this._fire('becomesMonarch', playerId, { player: playerId });
       // Garland, Royal Kidnapper: "Whenever an opponent becomes the monarch" — anyone's, told to every permanent
       this._fire('playerBecomesMonarch', null, { player: playerId });
+      // Palace Jailer: what was exiled "until an opponent becomes the monarch" — an opponent of the one it was exiled for
+      for (const o of Array.from(this.objects.values())) {
+        if (o.zone !== 'exile' || o.exiledUntilMonarch == null) continue;
+        const holder = o.exiledUntilMonarch;
+        if (holder === playerId || !this.opponentsOf(holder).some(q => q.id === playerId)) continue;
+        o.exiledUntilMonarch = null;
+        if (o.isToken) continue;
+        this.moveObject(o, 'battlefield', { controller: o.owner });
+        this.logEvent('zone', `${o.name} returns from exile: an opponent of ${(this.player(holder) || {}).name || holder} became the monarch.`);
+      }
       // (and what was held "for as long as they're the monarch" goes back: whileMonarch)
       this._refreshControl();
       this.touch();

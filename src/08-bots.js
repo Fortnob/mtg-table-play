@@ -368,7 +368,7 @@
         if (tg.nonland || (tg.anyOf && tg.anyOf.length >= 3)) v = 3.3;
         return v * narrow + (e.op === 'exile' ? 0.2 : 0);
       }
-      case 'exileUntilLeaves': return 3.0 * narrow;
+      case 'exileUntilLeaves': case 'exileUntilMonarch': return 3.0 * narrow;
       case 'bounce': return tg && tg.controller === 'you' ? 0.3 : 1.2 * narrow;
       case 'tap': return 0.4;
       case 'untap': return 0.2;
@@ -638,7 +638,7 @@
     }
     for (const e of all) {
       const tg = (e.targets || [])[0];
-      if ((e.op === 'destroy' || e.op === 'exile' || e.op === 'exileUntilLeaves') && hitsCreatures(tg)) out.add('removal');
+      if ((e.op === 'destroy' || e.op === 'exile' || e.op === 'exileUntilLeaves' || e.op === 'exileUntilMonarch') && hitsCreatures(tg)) out.add('removal');
       if (e.op === 'damage' && tg && tg.type !== 'player' && hitsCreatures(tg) && nval(e.n, 2) >= 2) out.add('removal');
       if ((e.op === 'fight' || e.op === 'bite' || e.op === 'damageByPower') && !a.isCreature) out.add('removal');
       if (e.op === 'sacrificeChoice' && e.who !== 'you') out.add('removal');
@@ -1520,7 +1520,7 @@
      ============================================================ */
 
   /* Effects that hurt whatever they are pointed at. */
-  const HARMFUL = new Set(['damage', 'destroy', 'exile', 'exileUntilLeaves', 'bounce', 'tap', 'loseLife', 'discard',
+  const HARMFUL = new Set(['damage', 'destroy', 'exile', 'exileUntilLeaves', 'exileUntilMonarch', 'bounce', 'tap', 'loseLife', 'discard',
     'mill', 'counterSpell', 'counterUnless', 'sacrificeChoice', 'gainControl', 'fight', 'bite', 'groupBite', 'damageByPower', 'goad',
     'cantBlock', 'cantAttack', 'restrict', 'drain', 'discardChosen', 'exileChosen', 'handAttack', 'damageDivided',
     'revealHand', 'tapAll', 'noUntap', 'stealAll',

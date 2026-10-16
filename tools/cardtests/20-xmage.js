@@ -75364,4 +75364,131 @@ module.exports = (test) => {
     U.mana('A', 'R');
     t.no(U.g.castSpell('A', b2.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'an instant: not castable');
   });
+
+  test('Cards: Nicol Bolas, Dragon-God — +1 draws and each opponent exiles a card from hand or a permanent; other planeswalkers\' loyalty abilities; −8', (mk, t) => {
+    t.auto('Nicol Bolas, Dragon-God');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    const nb = T.bf('A', 'Nicol Bolas, Dragon-God');
+    const bHand = T.hand('B', 'Grizzly Bears'), bLand = T.bf('B', 'Forest');
+    const cOnly = T.bf('C', 'Plains');
+    const acts = () => { const a = nb.analysis(); return a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'); };
+    const h0 = T.zone('A', 'hand').length;
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort().join(); return { cardIds: [bLand.id] }; });
+    T.activate('A', nb, 0);
+    t.eq(T.zone('A', 'hand').length - h0, 1, '+1: a card drawn');
+    t.eq(offered, 'Forest,Grizzly Bears', "B chooses among their hand and their permanents");
+    t.zone(bLand, 'exile', "B exiled the Forest");
+    t.zone(bHand, 'hand', 'the Bears stay');
+    t.zone(cOnly, 'exile', 'C, with one card only, exiles it');
+    // another planeswalker's loyalty abilities
+    T.nextTurn('B'); T.nextTurn('A');
+    T.bf('B', 'Ajani Goldmane');
+    const i = acts().findIndex(x => /gain 2 life/i.test(x.text || ''));
+    t.ok(i >= 0, "Bolas has Ajani Goldmane's +1");
+    const loy = nb.counters.loyalty;
+    T.activate('A', nb, i);
+    t.eq(T.life('A'), 22, 'A gains 2 life');
+    t.eq(nb.counters.loyalty, loy + 1, "Bolas's loyalty +1");
+    // −8: an opponent without a legendary creature or planeswalker loses
+    const U = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const n2 = U.bf('A', 'Nicol Bolas, Dragon-God', { counters: { loyalty: 9 } });
+    U.bf('B', 'Grizzly Bears');
+    U.bf('C', 'Isamaru, Hound of Konda');
+    U.activate('A', n2, 2);
+    t.ok(U.player('B').hasLost, 'B (no legendary creature) loses');
+    t.no(U.player('C').hasLost, 'C (Isamaru) stays');
+  });
+
+  test('Cards: Will of the Temur — a token copy that is a 4/4 Dragon with flying, or cards equal to the greatest mana value you control', (mk, t) => {
+    t.auto('Will of the Temur');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'U5');
+    T.cast('A', T.hand('A', 'Will of the Temur'), { modes: [0], targets: [bear] });
+    const tok = T.bfOf('A').find(o => o.isToken);
+    t.ok(tok && tok.name === 'Grizzly Bears', 'a copy of the Bears');
+    t.eq(tok && [g.powerOf(tok), g.toughnessOf(tok)].join('/'), '4/4', '4/4');
+    t.ok(tok && g.hasKw(tok, 'flying') && g._hasCreatureType(tok, 'Dragon') && g._hasCreatureType(tok, 'Bear'), 'a flying Dragon Bear');
+    // a land copied: a 4/4 Dragon land creature
+    const U = mk({ library: Array(20).fill('Island') });
+    const fo = U.bf('B', 'Forest');
+    U.mana('A', 'U5');
+    U.cast('A', U.hand('A', 'Will of the Temur'), { modes: [0], targets: [fo] });
+    const t2 = U.bfOf('A').find(o => o.isToken);
+    t.ok(t2 && U.g.characteristics(t2).isCreature && U.g._matchesCategory(t2, 'land'), 'a land creature');
+    // draw mode
+    const V = mk({ library: Array(20).fill('Island') });
+    V.bf('A', 'Craw Wurm'); V.bf('A', 'Grizzly Bears');
+    const hb = V.zone('B', 'hand').length;
+    V.mana('A', 'U5');
+    V.cast('A', V.hand('A', 'Will of the Temur'), { modes: [1], targets: ['B'] });
+    t.eq(V.zone('B', 'hand').length - hb, 6, 'B draws 6 (Craw Wurm)');
+  });
+
+  test('Cards: Encroaching Mycosynth — your nonland permanents, permanent spells and nonland permanent cards are artifacts; not lands, not others\'', (mk, t) => {
+    t.auto('Encroaching Mycosynth');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Encroaching Mycosynth');
+    const bear = T.bf('A', 'Grizzly Bears'), forest = T.bf('A', 'Forest'), theirs = T.bf('B', 'Grizzly Bears');
+    g.bumpBoard();
+    t.ok(g._matchesCategory(bear, 'artifact'), 'your creature is an artifact');
+    t.no(g._matchesCategory(forest, 'artifact'), 'a land is not');
+    t.no(g._matchesCategory(theirs, 'artifact'), "an opponent's creature is not");
+    const inHand = T.hand('A', 'Hill Giant'), inGy = T.grave('A', 'Craw Wurm'), bolt = T.hand('A', 'Lightning Bolt'), land = T.hand('A', 'Island');
+    const oppHand = T.hand('B', 'Hill Giant');
+    t.ok((inHand.analysis().types || []).includes('Artifact'), 'a creature card in hand is an artifact');
+    t.ok((inGy.analysis().types || []).includes('Artifact'), 'and in the graveyard');
+    t.no((bolt.analysis().types || []).includes('Artifact'), 'an instant is not');
+    t.no((land.analysis().types || []).includes('Artifact'), 'a land card is not');
+    t.no((oppHand.analysis().types || []).includes('Artifact'), "an opponent's card is not");
+  });
+
+  test('Cards: Palace Jailer — you become the monarch; a creature exiled until an opponent becomes the monarch', (mk, t) => {
+    t.auto('Palace Jailer');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Palace Jailer'), { targets: [bear] });
+    T.resolve();
+    t.ok(T.player('A').monarch, 'A is the monarch');
+    t.zone(bear, 'exile', 'the Bears exiled');
+    g.setMonarch('C');
+    t.zone(bear, 'battlefield', 'C (an opponent of A) became the monarch: back');
+    t.eq(bear.controller, 'B', "under its owner's control");
+    // A taking it again does not let a second one back
+    const U = mk({ players: ['A', 'B'] });
+    const b2 = U.bf('B', 'Grizzly Bears');
+    U.mana('A', 'WW2');
+    U.cast('A', U.hand('A', 'Palace Jailer'), { targets: [b2] });
+    U.resolve();
+    U.player('A').monarch = false;
+    U.g.setMonarch('A');
+    t.zone(b2, 'exile', 'A becoming the monarch again: still exiled');
+  });
+
+  test('Cards: Swift Reconfiguration — the enchanted creature is a Vehicle artifact with crew 5, no creature until crewed', (mk, t) => {
+    t.auto('Swift Reconfiguration');
+    const T = mk();
+    const g = T.g;
+    const wurm = T.bf('A', 'Craw Wurm');
+    const giant = T.bf('A', 'Hill Giant'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Swift Reconfiguration'), { targets: [wurm] });
+    g.bumpBoard();
+    t.no(g.characteristics(wurm).isCreature, 'not a creature');
+    t.ok(g._matchesCategory(wurm, 'artifact') && g._hasSubtype(wurm, 'Vehicle'), 'a Vehicle artifact');
+    t.no(g._hasCreatureType(wurm, 'Wurm'), 'no creature types');
+    const a = wurm.analysis();
+    const acts = a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+    const ci = acts.findIndex(x => /^Crew 5/.test(x.text || ''));
+    t.ok(ci >= 0, 'it has crew 5');
+    T.activate('A', wurm, ci, { tapIds: [giant.id, bear.id], crewIds: [giant.id, bear.id] });
+    t.ok(g.characteristics(wurm).isCreature, 'crewed: a creature');
+    t.eq(g.powerOf(wurm), 6, 'its own power');
+  });
 };
