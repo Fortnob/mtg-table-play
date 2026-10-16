@@ -8863,8 +8863,9 @@
          instance adds up, its own words not counted twice */
       const c = o.zone === 'battlefield' ? this.characteristics(o) : null;
       if (c) for (const w of c.keywords) {
-        const m = /^([a-z ]+?) (\d+)$/.exec(w);
-        if (m && m[1] === kw && !(a.keywordSet && a.keywordSet.has(w))) v += +m[2];
+        const m = /^([a-z ]+?) (\d+|x)$/.exec(w);
+        // (Infantry Shield: "mobilize X, where X is its power" — the only X a keyword is handed with)
+        if (m && m[1] === kw && !(a.keywordSet && a.keywordSet.has(w))) v += m[2] === 'x' ? Math.max(0, this.powerOf(o)) : +m[2];
       }
       return v;
     }
@@ -19394,6 +19395,15 @@
             const at = (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(Boolean);
             if (!at.some(x => x.attacking === o.attachedTo)) continue;
           }
+          // Tenuous Truce: you attacking the enchanted player or their planeswalker, or they you or yours (truceBroken)
+          if (ab.truceBroken) {
+            const foe = o.attachedTo && this.player(o.attachedTo) ? o.attachedTo : null;
+            const victim = data.playerId === o.controller ? foe : data.playerId === foe ? o.controller : null;
+            if (!foe || !victim) continue;
+            const at = (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(Boolean);
+            const hits = (d) => d === victim || (!!this.obj(d) && this.obj(d).controller === victim && !!(this.obj(d).analysis() || {}).isPlaneswalker);
+            if (!at.some(x => hits(x.attacking))) continue;
+          }
           // Tale of Katara and Toph: the first time it becomes tapped this turn
           if (ab.firstTapEachTurn && data.nth !== 1) continue;
           // Midnight Clock: only the counter that makes it twelve
@@ -26539,6 +26549,14 @@
             this._canSacrifice(x) && !(s0.other && src && x.id === src.id) && (!s0.filter || s0.filter === 'permanent' || this._cardFitsWords(x, s0.filter)))) break;
           // Artist's Talent: "you may discard a card. If you do, draw a card." — with an empty hand, the same
           if (s0 && s0.op === 'rummage' && (e.then || []).length === 1 && !e.who && !((this.zones[ctx.controller] || {}).hand || []).length) break;
+          // Nautiloid Ship: "you may put a creature card exiled with this Vehicle onto the battlefield" — none there, nothing to ask
+          if (s0 && s0.op === 'exiledWithToBattlefield' && !e.who && !(src && this._exiledWithPool(src, s0.words).length)) break;
+          // Court of Vantress: "choose up to one other target … you may create a token that's a copy of it" — none chosen: nothing to ask
+          if (s0 && (s0.op === 'copyPermanent' || s0.op === 'becomeCopy') && s0.scope === 'lastTarget' && !e.who &&
+            ((this.resolving && this.resolving.effects) || []).some(x => x && x.op === 'chooseTarget') &&
+            !targets.some(t => t && t.kind === 'object' && (this.obj(t.id) || {}).zone === 'battlefield')) break;
+          // Geode Golem: "you may cast your commander from the command zone …" — none there, nothing to ask
+          if (s0 && s0.op === 'castCommanderFree' && !e.who && !((this.zones[ctx.controller] || {}).command || []).some(c => c.isCommander && c.owner === ctx.controller)) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
           const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me)
             // (Minamo, a plane: "that player may draw a card" — the caster: triggerPlayer)
@@ -35085,6 +35103,22 @@
           this.logEvent('control', `${tp.name} gains control of ${src.name} until end of combat; it is attacking ${label(def)}.`);
           break;
         }
+        /* Geode Golem: "cast your commander from the command zone without paying its mana cost. (You still pay any
+           additional costs.)" — commander tax included (_castFree); with two commanders there, which one (castCommanderFree) */
+        case 'castCommanderFree': {
+          const cmd = ((this.zones[ctx.controller] || {}).command || []).filter(c => c.isCommander && c.owner === ctx.controller);
+          if (!cmd.length) { this.logEvent('rules', `${me.name} has no commander in the command zone.`); break; }
+          let c = cmd[0];
+          if (cmd.length > 1) {
+            const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'castCommanderWhich', values: cmd.map(x => x.id),
+              options: cmd.map((x, i) => ({ i, label: x.name })), prompt: `${src ? src.name + ': ' : ''}cast which commander without paying its mana cost?` }, 'ccw');
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            c = cmd[idx == null ? 0 : idx] || cmd[0];
+          }
+          this._castFree(ctx.controller, c);
+          break;
+        }
         /* Misleading Signpost: "you may reselect which player or permanent target attacking creature is attacking. (It
            can't attack its controller or their permanents.)" — any player or planeswalker but its controller's, or a battle
            it isn't protecting, whatever restricts or taxes attacks; still the creature that attacked, no attack trigger
@@ -38390,6 +38424,13 @@
         o.manaSpent = price ? MANA.cmc(price) : 0;
       }
       const fromZone = o.zone;
+      // (Geode Golem: a commander cast from the command zone — its tax was in the price; the next one costs {2} more: CR 903.8)
+      if (fromZone === 'command' && (o.isCommander || o.isSignature)) {
+        const lifeTax = this._commanderTax(o).life;
+        if (lifeTax) { this.changeLife(p, -lifeTax, 'cost'); this.logEvent('life', `${p.name} pays ${lifeTax} life rather than {${lifeTax}} for ${o.name}.`); }
+        const owner = this.player(o.owner) || p;
+        o.castFromCommandZone = true; owner.commanderCasts[o.id] = (owner.commanderCasts[o.id] || 0) + 1;
+      }
       o._leftExileWith = fromZone === 'exile' ? (o.exiledWithId || null) : null;
       this._removeFromZone(o);
       o.zone = 'stack';

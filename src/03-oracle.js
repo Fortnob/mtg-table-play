@@ -93,7 +93,10 @@
     // toxic N handed out: the engine adds every instance up (and so for these, Cyberman Patrol's afflict 3)
     // (Cayth, Famed Mechanist: "have fabricate 1" — fabricate is read off the keyword as it enters: grantFabricate)
     // (Blaster, Combat DJ: "have modular 1" — its counters read off the keyword as it enters, its trigger as it dies)
-    if (/^(?:toxic|firebending|annihilator|afflict|fabricate|modular) \d+$/i.test(w)) return true;
+    // (mobilize N handed out: its Warriors made as the creature attacks, every instance added up)
+    if (/^(?:toxic|firebending|annihilator|afflict|fabricate|modular|mobilize) \d+$/i.test(w)) return true;
+    // (Infantry Shield: "mobilize X, where X is its power" — X read off the creature as it attacks)
+    if (/^mobilize x$/i.test(w)) return true;
     // (Mishra, Tamer of Mak Fawa: 'have "Ward\u2014Sacrifice a permanent."' \u2014 any price the ward trigger can ask)
     const wardM = w.match(/^ward\s*(?:\u2014|-)\s*(.+)$/i);
     if (wardM && wardPrice(wardM[1])) return true;
@@ -3309,7 +3312,8 @@
       make: (m) => Object.assign({ op: 'reanimate', tapped: !!m[2], targets: [{ type: 'card', filter: m[1].toLowerCase(), zone: 'exile', exiledWithSource: true }] },
         m[3] ? { enterCounters: { kind: '+1/+1', n: m[3] === 'an' ? 1 : num(m[3]) } } : {}) },
     // Sisters of Stone Death: "Put a creature card exiled with Sisters of Stone Death onto the battlefield under your control." (one)
-    { re: /^Put an? ([a-z]+) card exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
+    // (Nautiloid Ship: "a creature card exiled with this Vehicle")
+    { re: /^Put an? ([a-z]+) card exiled with (?:CARDNAME|this (?:Vehicle|creature|artifact|enchantment|permanent)) onto the battlefield( tapped)? under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), one: true, tapped: !!m[2] }) },
     // (Witch-king of Angmar: "Tap him.")
     { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|him|her|~)\.?$/i,
@@ -9139,6 +9143,10 @@
     // (Together Forever: "Choose target creature with a counter on it.")
     { re: /^Choose ((?:another )?target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control| with a counter on it)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
+    // Court of Vantress: "choose up to one other target enchantment or artifact" — what "it" is in the sentences after
+    { re: /^Choose (up to one )?(other |another )?target ((?:enchantment|artifact|creature|land|planeswalker)(?: or (?:enchantment|artifact|creature|land|planeswalker))+)\.?$/i,
+      make: (m) => { const t = targetSpec('target ' + m[3].toLowerCase());
+        return t && !t.unknown ? { op: 'chooseTarget', targets: [Object.assign(t, m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] } : null; } },
     /* Super-Adaptoid: "If that creature has haste and Super-Adaptoid doesn't, put a haste counter on Super-Adaptoid. Do the
        same for flying, first strike, …" — the creature chosen before, each keyword in turn (copyKeywordCounters) */
     { re: /^If that creature has ([a-z ]+?) and CARDNAME doesn'?t, put an? \1 counter on CARDNAME\. Do the same for ([a-z ,]+?)\.?$/i,
@@ -9613,6 +9621,9 @@
       make: (m) => ({ op: 'copyThatSpell', addTypes: [m[3]], copyPt: m[1] + '/' + m[2] }) },
     { re: /^Copy it, except the copy is an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => ({ op: 'copyThatSpell', addTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] }) },
+    /* Geode Golem: "you may cast your commander from the command zone without paying its mana cost. (You still pay any
+       additional costs.)" — the tax too; which one, with partners (castCommanderFree) */
+    { re: /^Cast your commander from the command zone without paying its mana cost\.?$/i, make: () => ({ op: 'castCommanderFree' }) },
     // the Commander storms: "copy it for each time you've cast your commander from the command zone this game"
     { re: /^Copy (?:it|this spell) for each time you'?ve cast your commander from the command zone this game\.?$/i,
       make: () => ({ op: 'copyThatSpell', n: { commanderCasts: true } }) },
@@ -16194,6 +16205,8 @@
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
     [/^its toughness was less than (\d+)$/i, (m) => ({ kind: 'triggerToughnessBelow', n: +m[1] })],
     [/^you'?re the monarch$/i, () => ({ kind: 'monarch' })],
+    // Court of Vantress: "If you're not the monarch"
+    [/^you'?re not the monarch$/i, () => ({ kind: 'not', cond: { kind: 'monarch' } })],
     // Queen Marchesa: "if an opponent is the monarch"
     [/^an opponent is the monarch$/i, () => ({ kind: 'opponentMonarch' })],
     // Sneak: "if this creature's sneak cost was paid"
@@ -17252,6 +17265,10 @@
     { re: /^Whenever one or more creatures an opponent controls attack you and aren'?t blocked,? /i, event: 'attackedUnblocked' },
     // Struggle for Project Purity: "Whenever a player attacks you with one or more creatures" — "that many": those attacking you (attacksYouCount)
     { re: /^Whenever a player attacks you with one or more creatures,? /i, event: 'anyPlayerAttacks', extra: { attacksYouCount: true } },
+    /* Tenuous Truce: "When you attack enchanted opponent or a planeswalker they control or when they attack you or a
+       planeswalker you control," — either way between the two of you (truceBroken) */
+    { re: /^When you attack enchanted (?:opponent|player) or a planeswalker they control or when they attack you or a planeswalker you control,? /i,
+      event: 'anyPlayerAttacks', extra: { truceBroken: true } },
     // the curses of Commander 2017: "Whenever enchanted player is attacked"
     { re: /^Whenever enchanted player is attacked,? /i, event: 'anyPlayerAttacks', extra: { enchantedAttacked: true } },
     { re: /^Whenever a creature attacks enchanted (?:player|opponent),? /i, event: 'permAttacks', extra: { attacksEnchanted: true } },
@@ -23438,6 +23455,11 @@
       /* Changeling Outcast */
       { re: /^(?:This creature|CARDNAME) can'?t block and can'?t be blocked\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'cantBlock' }, { op: 'continuous', layer: 6, scope: { self: true }, grant: ['Unblockable'] }] }), auto: true },
+      /* Infantry Shield: "Equipped creature has menace and mobilize X, where X is its power." — "Mobilize X" handed out,
+         its X read off the creature as it attacks (_kwArg) */
+      { re: /^(Equipped|Enchanted) creature has (?:([a-z ,]+?),? and )?mobilize X, where X is its power\.?$/i,
+        make: (m) => { const kws = m[2] ? keywordList(m[2]) : [];
+          return kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws.concat('Mobilize X') } : null; }, auto: true },
       /* Brotherhood Regalia */
       { re: /^Equipped creature has ward (\{[^}]+\}), is an? ([A-Z][a-z]+) in addition to its other types, and can'?t be blocked\.?$/,
         make: (m) => ({ op: 'sequence', list: [

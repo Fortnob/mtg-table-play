@@ -71365,4 +71365,113 @@ module.exports = (test) => {
     t.eq(bear.controller, 'B', 'back at end of turn');
     t.eq(T.g.powerOf(bear), 2);
   });
+  test('Cards: Geode Golem — combat damage to a player: cast your commander from the command zone for nothing but its tax', (mk, t) => {
+    t.auto('Geode Golem');
+    const T = mk();
+    const golem = T.bf('A', 'Geode Golem');
+    const cmd = T.put('A', 'Craw Wurm', 'command'); cmd.isCommander = true;
+    T.player('A').commanderCasts[cmd.id] = 1;
+    T.bf('A', 'Forest'); T.bf('A', 'Forest');
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: golem.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.zone(cmd, 'battlefield', 'cast from the command zone');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Forest' && o.tapped).length, 2, 'its tax {2} paid');
+    t.eq(T.player('A').commanderCasts[cmd.id], 2, 'counted for the tax');
+    // no commander there: nothing asked
+    const T2 = mk();
+    const g2 = T2.bf('A', 'Geode Golem');
+    T2.answer('declareAttackers', () => [{ attackerId: g2.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.asked.filter(c => c.type === 'confirm').length, 0, 'no question without a commander');
+  });
+  test('Cards: Infantry Shield — equipped creature has menace and mobilize X, X its power', (mk, t) => {
+    t.auto('Infantry Shield');
+    const T = mk();
+    const giant = T.bf('A', 'Hill Giant');
+    const sh = T.bf('A', 'Infantry Shield');
+    sh.attachedTo = giant.id; giant.attachments.push(sh.id); T.g.bumpBoard();
+    t.ok(T.g.hasKw(giant, 'menace'), 'menace');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    const ws = T.bfOf('A').filter(o => o.isToken && o.name === 'Warrior');
+    t.eq(ws.length, 3, 'three Warriors (power 3)');
+    t.ok(ws.every(w => w.tapped && w.attacking === 'B'), 'tapped and attacking');
+    T.toMain('A', 'end'); T.resolve();
+    T.nextTurn('B');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Warrior').length, 0, 'sacrificed at the end step');
+  });
+  test('Cards: Tenuous Truce — both draw at the enchanted opponent\'s end step; an attack either way breaks it', (mk, t) => {
+    t.auto('Tenuous Truce');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    T.mana('A', '1W');
+    const tt = T.hand('A', 'Tenuous Truce');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.cast('A', tt, { targets: ['B'] });
+    t.eq(tt.attachedTo, 'B');
+    const a0 = T.zone('A', 'hand').length, b0 = T.zone('B', 'hand').length;
+    T.nextTurn('B');
+    const b1 = T.zone('B', 'hand').length;
+    T.nextTurn('C');
+    t.eq(T.zone('A', 'hand').length, a0 + 1, 'A drew at B\'s end step');
+    t.eq(T.zone('B', 'hand').length, b1 + 1, 'B drew too');
+    // C attacking A: nothing
+    const cb = T.bf('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: cb.id, defenderId: 'A' }]);
+    T.toMain('C', 'endCombat');
+    t.zone(tt, 'battlefield', 'another player attacking: still there');
+    // B attacks A: sacrificed
+    const bb = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('A'); T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat');
+    t.zone(tt, 'graveyard', 'B attacked A: sacrificed');
+  });
+  test('Cards: Nautiloid Ship — exiles a graveyard; combat damage to a player puts a creature card exiled with it onto the battlefield', (mk, t) => {
+    t.auto('Nautiloid Ship');
+    const T = mk();
+    const bear = T.grave('B', 'Grizzly Bears'), bolt = T.grave('B', 'Lightning Bolt');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    const ship = T.put('A', 'Nautiloid Ship', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(bear, 'exile'); t.zone(bolt, 'exile');
+    // crewed, attacking
+    T.nextTurn('B'); T.nextTurn('A');
+    ship.effects.push({ addTypes: ['Artifact', 'Creature'], until: 'eot' }); ship._chr = null; T.g.bumpBoard();
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: ship.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.zone(bear, 'battlefield', 'the Bears onto the battlefield');
+    t.eq(bear.controller, 'A', 'under A\'s control');
+    t.zone(bolt, 'exile', 'not a creature card');
+  });
+  test('Cards: Court of Vantress — as the monarch, a token copy of another enchantment or artifact; otherwise it may become a copy', (mk, t) => {
+    t.auto('Court of Vantress');
+    const T = mk({ library: Array(20).fill('Island') });
+    const arena = T.bf('A', 'Phyrexian Arena'), ring = T.bf('B', 'Sol Ring');
+    T.mana('A', '2UU');
+    const cv = T.hand('A', 'Court of Vantress');
+    T.cast('A', cv);
+    t.ok(T.player('A').monarch, 'the monarch');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ring.id }] }));
+    T.answer('confirm', { yes: true });
+    T.nextTurn('B'); T.g.setMonarch('A'); T.nextTurn('A');
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Sol Ring'), 'a token copy of Sol Ring');
+    t.eq(cv.name, 'Court of Vantress');
+    // not the monarch: the Court becomes a copy, keeping this ability
+    T.g.setMonarch('B');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: arena.id }] }));
+    T.answer('confirm', { yes: true });
+    T.nextTurn('B'); T.g.setMonarch('B'); T.nextTurn('A');
+    t.eq(cv.name, 'Phyrexian Arena', 'a copy of Phyrexian Arena');
+    // it kept this ability: next upkeep it asks again; choosing nothing, nothing more is asked
+    const life0 = T.life('A');
+    T.answer('pickTarget', () => ({ targets: [] }));
+    T.nextTurn('B'); T.g.setMonarch('B');
+    const q0 = T.asked.length;
+    T.nextTurn('A');
+    t.ok(T.asked.slice(q0).some(c => c.type === 'pickTarget'), 'asked for a target again');
+    t.eq(T.asked.slice(q0).filter(c => c.type === 'confirm').length, 0, 'no target: no question');
+    t.ok(T.life('A') <= life0 - 2, 'two Arenas now');
+  });
 };

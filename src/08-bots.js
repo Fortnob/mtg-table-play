@@ -3429,6 +3429,13 @@
         const pick = prices.find(o => /\{/.test(o.label)) || prices[0] || options[options.length - 1];
         return [pick ? pick.i : 0];
       }
+      // Geode Golem: the commander that costs the most, cast for nothing
+      if (ch.purpose === 'castCommanderWhich') {
+        const vals = ch.values || [];
+        const mv = (i) => { const o = g.obj(vals[i]); return (o && o.card && o.card.cmc) || 0; };
+        const best = options.slice().sort((x, y) => mv(y.i) - mv(x.i))[0];
+        return [best ? best.i : 0];
+      }
       // Noctis, Heir Apparent: back attacking — the opponent with the least life (never itself: Tahngarth, First Mate)
       if (ch.purpose === 'attackWhom') {
         const vals = ch.values || [];
