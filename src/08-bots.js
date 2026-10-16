@@ -4411,6 +4411,13 @@
           if (use.kind === 'cast' && use.via === 'freeHandOnce') { consider(o, use); continue; }
           // (Demon of Fate's Design: life for the mana, once a turn — while what is left is a safe amount)
           if (use.kind === 'cast' && use.via === 'grantLifeOnce') { if ((g.player(this.pid).life || 0) - ((use.alt && use.alt.life) || 0) >= 8) consider(o, use); continue; }
+          /* (Invigorate: "have an opponent gain 3 life" — free, when the mana is not there; the opponent with the most
+             life gains it: oppGain) */
+          if (use.kind === 'cast' && use.alt && use.alt.oppGain) {
+            const most = g.opponentsOf(this.pid).filter(q => !q.hasLost).sort((p, q) => q.life - p.life)[0];
+            if (most && use.alt.oppGainTo === most.id && !out.some(x => x.o.id === o.id && !x.via)) consider(o, use);
+            continue;
+          }
           if (use.kind !== 'cast' || !/^(morph|evoke|dash|blitz|warp|bestow|spectacle)$/.test(use.via)) continue;
           if (out.some(x => x.o.id === o.id && !x.via)) continue;
           consider(o, use);

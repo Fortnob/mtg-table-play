@@ -1781,6 +1781,10 @@
     // Boseiju, Who Shelters All: "If that mana is spent on an instant or sorcery spell, that spell can't be countered." (uncounterableSpell)
     { re: /^If that mana is spent on an? (instant or sorcery|creature|noncreature) spell, that spell can'?t be countered\.?$/i,
       make: (m) => ({ op: 'spendOnly', rider: 'uncounterable:' + m[1].toLowerCase(), open: true }) },
+    /* Study Hall: "When you spend this mana to cast your commander, scry X, where X is the number of times it's been cast
+       from the command zone this game." — a rider for a commander of yours, this cast counted (commander, spellCommanderCasts) */
+    { re: /^When you spend this mana to cast your commander, scry X, where X is the number of times it'?s been cast from the command zone this game\.?$/i,
+      make: (m) => ({ op: 'spendOnly', open: true, rider: { commander: true, effects: [{ op: 'scry', n: { spellCommanderCasts: true, mult: 1 } }], text: m[0] } }) },
     /* Opal Palace: "If you spend this mana to cast your commander, it enters with a number of additional +1/+1 counters
        on it equal to the number of times it's been cast from the command zone this game." (opalCommander) */
     { re: /^If you spend this mana to cast your commander, it enters with a number of additional \+1\/\+1 counters on it equal to the number of times it'?s been cast from the command zone this game\.?$/i,
@@ -4477,6 +4481,10 @@
        one that died, as it last was (triggerPowerLki); the tokens the sentence before made (copyPrevN) */
     { re: /^If the creature had power (\w+) or greater, create (two|three|four) of those tokens instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'noop', insteadOf: { cond: { kind: 'triggerPowerLki', n: num(m[1]) }, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null) },
+    /* Andúril, Flame of the West: "If that creature is legendary, instead create two of those tokens that are tapped and
+       attacking." — the tokens the sentence before made, attacking (copyPrevN, attacking) */
+    { re: /^If (.+?), instead create (two|three|four|five) of those tokens that are tapped and attacking\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'createToken', copyPrevN: num(m[2]), tapped: true, attacking: true }] } } : null; } },
     // Safana, Calimport Cutthroat: "Create three of those tokens instead if you've completed a dungeon." (read as "If …, create …")
     // (Increasing Devotion: "If this spell was cast from a graveyard, create ten of those tokens instead.")
     { re: /^If (.+?), create (two|three|four|five|six|seven|eight|nine|ten) of those tokens instead\.?$/i,
@@ -5667,6 +5675,10 @@
         if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
         return [a, b];
       } },
+    /* Titan's Presence: "Exile target creature if its power is less than or equal to the revealed card's power." — any
+       creature targeted, its power checked as this resolves (ifPowerAtMost) */
+    { re: /^Exile target creature if its power is less than or equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'exile', targets: [targetSpec('target creature')], ifPowerAtMost: k } : null; } },
     // The Hippodrome: "you may destroy target creature if its power is 0 or less" — a creature of power 0 or less
     { re: /^Destroy target creature if its power is 0 or less\.?$/i,
       make: () => ({ op: 'destroy', targets: [{ type: 'creature', filter: 'creature with power 0 or less', zone: 'battlefield', maxPower: 0 }] }) },
@@ -14723,6 +14735,8 @@
   function parseAltCost(line) {
     let s = String(line).trim().replace(/\.$/, '');
     let cond = null, m;
+    // Invigorate: "If you control a Forest, rather than pay this spell's mana cost, you may have an opponent gain 3 life." — the same, in another order
+    if ((m = s.match(/^If ([^,]+), rather than pay (this spell|CARDNAME)'?s mana cost, (you may .+)$/i))) s = 'If ' + m[1] + ', ' + m[3] + ' rather than pay ' + m[2] + "'s mana cost";
     if ((m = s.match(/^If (.+?), (you may .+)$/i))) {
       cond = altCond(m[1]);
       if (!cond) return null;
@@ -14750,6 +14764,8 @@
       let k;
       if ((k = part.match(/^pay ((?:\{[^}]+\})+)$/i))) alt.mana = k[1];
       else if ((k = part.match(/^pay (\d+) life$/i))) alt.life = +k[1];
+      // Invigorate: "have an opponent gain 3 life" — the opponent picked as the way to cast it (oppGain)
+      else if ((k = part.match(/^have an opponent gain (\d+) life$/i))) alt.oppGain = +k[1];
       else if ((k = part.match(/^exile (a|an|one|two) ([a-z ]+?) cards? from your hand$/i)))
         alt.exileFromHand = { n: num(k[1]), filter: k[2].trim() };
       // the Shoals: "exile a blue card with mana value X from your hand" — X is that card's
@@ -16659,6 +16675,8 @@
     [/^your life total is at least (\w+) greater than your starting life total$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lifeAboveStart', n: num(m[1]) } : null)],
     // Koll, the Forgemaster: "it was enchanted or equipped" — the creature that died, with what was on it as it went
     [/^it was (enchanted or equipped|enchanted|equipped)$/i, (m) => ({ kind: 'triggerObjWas', words: m[1].toLowerCase() })],
+    // Andúril, Flame of the West: "that creature is legendary" — the attacker the trigger is about (triggerObjWas, as it is now)
+    [/^that creature is (legendary)$/i, (m) => ({ kind: 'triggerObjWas', words: m[1].toLowerCase() })],
     // Blowfly Infestation: "it had a -1/-1 counter on it" — the creature that died, as it last was
     [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
     // Visions of Beyond: "a graveyard has twenty or more cards in it"
@@ -18787,6 +18805,8 @@
     { re: /^Whenever you attack with your commander,? /i, event: 'youAttack', extra: { attackersCommander: true } },
     // Ainok Strike Leader: "Whenever you attack with this creature and/or your commander" — either among the attackers (attackersCommander, orSelf)
     { re: /^Whenever you attack with (?:this creature|CARDNAME) and\/or your commander,? /i, event: 'youAttack', extra: { attackersCommander: true, orSelf: true } },
+    // Rabble Rousing: "Whenever you attack with one or more creatures," — any attack (not Jolene's "creatures with power 4 or greater")
+    { re: /^Whenever you attack with one or more creatures, /i, event: 'youAttack' },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Harbin, Vanguard Aviator: "Whenever you attack with five or more Soldiers" (attackersOfTypeMin)

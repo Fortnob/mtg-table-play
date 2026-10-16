@@ -6698,6 +6698,14 @@
           if (alt.life && (!me || me.life < alt.life || this._lifeFrozen(me) || this._lifeSacCostBan())) return;
           // (from the command zone, the commander tax on top — CR 903.8: Asmoranomardicadaistinaculdacar's {B/R})
           const tax = this._commanderTax(o).mana;
+          /* Invigorate: "you may have an opponent gain 3 life" — one way to cast it for each opponent, who is chosen
+             with it (oppGain, oppGainTo) */
+          if (alt.oppGain) {
+            for (const q of this.opponentsOf(playerId).filter(q => !q.hasLost))
+              out.push({ kind: 'cast', via: 'alt' + i + ':' + q.id, cost: tax ? this._addGeneric(alt.mana || '', tax) : alt.mana || '',
+                alt: Object.assign({}, alt, { oppGainTo: q.id }), label: `Have ${q.name} gain ${alt.oppGain} life` });
+            return;
+          }
           out.push({ kind: 'cast', via: 'alt' + i, cost: tax ? this._addGeneric(alt.mana || '', tax) : alt.mana || '', alt, label: alt.label });
         });
       }
@@ -9118,6 +9126,11 @@
       if (via && via.alt) {
         const alt = via.alt;
         if (alt.life) this.changeLife(playerId, -alt.life, 'cost');
+        // Invigorate: "have an opponent gain 3 life" — the one chosen with the way to cast it (oppGainTo)
+        if (alt.oppGain && alt.oppGainTo) {
+          const q = this.player(alt.oppGainTo);
+          if (q && !q.hasLost) { this.changeLife(q, alt.oppGain); this.logEvent('life', `${q.name} gains ${alt.oppGain} life for ${p.name}'s ${o.name}.`); }
+        }
         // Nissa, Worldsoul Speaker: "pay eight {E}"
         if (alt.energy) { p.energy = Math.max(0, (p.energy || 0) - alt.energy); this.logEvent('counters', `${p.name} pays ${alt.energy} energy (${p.energy} left).`); }
         if (alt.exileFromHand) {
@@ -9151,10 +9164,21 @@
           if (k) this.changeLife(playerId, -k, 'cost');
         }
         if (add.reveal) {
-          const shown = this._discardPool(playerId, add.reveal, o)[0];
-          if (shown) this.logEvent('rules', `${p.name} reveals ${shown.name}.`);
-          // Living Destiny: "the revealed card's mana value", read as the spell resolves
-          if (shown) item.revealedCost = { id: shown.id, name: shown.name, power: this.powerOf(shown), toughness: this.toughnessOf(shown), mv: (shown.card && shown.card.cmc) || 0 };
+          /* Titan's Presence: "reveal a colorless creature card from your hand" — the card is the player's pick (revealId, or
+             asked once the spell is on the stack when the cards differ); by itself or for a bot, the one with the most power,
+             then mana value (revealCost) */
+          const pool = this._discardPool(playerId, add.reveal, o);
+          const stat = (c) => ({ power: this.powerOf(c), toughness: this.toughnessOf(c), mv: (c.card && c.card.cmc) || 0 });
+          const best = pool.slice().sort((x, y) => (stat(y).power - stat(x).power) || (stat(y).mv - stat(x).mv))[0];
+          const named = opts.revealId && pool.find(x => x.id === opts.revealId);
+          const alike = new Set(pool.map(c => JSON.stringify(stat(c)))).size <= 1;
+          const shown = named || (opts.auto || p.isBot || alike ? best : null);
+          if (shown) this._revealCostShown(p, item, shown);
+          else if (pool.length) {
+            this.queueChoice({ type: 'pickCard', playerId, count: 1, purpose: 'revealCost', stackId: item.id,
+              candidates: pool.map(x => x.id), cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
+              prompt: `${o.name}: reveal ${this._aCard((add.reveal && add.reveal.filter) || 'card', 'card')} from your hand.` });
+          }
         }
         this._payThingCosts(playerId, Object.assign({}, add, { spellExile: true }), o, opts, item);
         if (addPick) this.logEvent('rules', `${p.name} pays the additional cost: ${addPick.label.toLowerCase()}.`);
@@ -10102,7 +10126,8 @@
         }
         for (const kw of kwFired) this._fire('yourAttackerTriggers', o.controller, { object: o, objController: o.controller, kwCopy: kw });
       }
-      this._fire('youAttack', pid, { attackers });
+      // (Rabble Rousing: "Whenever you attack with one or more creatures, create that many …" — how many attack: amount)
+      this._fire('youAttack', pid, { attackers, amount: attackers.length });
       this._fire('anyPlayerAttacks', null, { attackers, playerId: pid });
       /* Breena, the Demagogue: "Whenever a player attacks one of your opponents" — once for each player attacked,
          by creatures attacking that player (not their planeswalkers or battles) */
@@ -13137,11 +13162,18 @@
 
     /* What a spent mana promised beyond itself: Path of Ancestry scries
        when its mana casts a creature that shares a type with your commander. */
+    /** Living Destiny, Titan's Presence: the card revealed to cast the spell, its numbers kept for "the revealed card's …". */
+    _revealCostShown(p, item, shown) {
+      this.logEvent('rules', `${p.name} reveals ${shown.name}.`);
+      this._know([shown], '*');
+      item.revealedCost = { id: shown.id, name: shown.name, power: this.powerOf(shown), toughness: this.toughnessOf(shown), mv: (shown.card && shown.card.cmc) || 0 };
+    }
     _manaRider(rider, item, playerId) {
       // Scaled Nurturer: "When you spend this mana to cast a Dragon creature spell, you gain 2 life" — a trigger of its own
       if (rider && typeof rider === 'object' && Array.isArray(rider.effects)) {
         const so = item.obj;
-        if (!so || !this._cardFitsWords(so, rider.words || 'spell')) return;
+        // (Study Hall: "to cast your commander" — commander)
+        if (!so || (rider.commander ? !(so.isCommander && so.owner === playerId) : !this._cardFitsWords(so, rider.words || 'spell'))) return;
         if (rider.minMv != null && ((so.card && so.card.cmc) || 0) + this._xMv(item) < rider.minMv) return;
         this.pendingTriggers.push(Object.assign({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
           // (its words whole: the stack shows them all, wrapped)
@@ -22564,6 +22596,8 @@
           return v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length;
         }
         if (v && typeof v === 'object' && v.commanderCasts) return (me ? this._commanderCastCount(me.id) : 0) * (v.mult || 1);
+        // Study Hall: "the number of times it's been cast from the command zone this game" — the commander the mana paid for (spellCommanderCasts)
+        if (v && typeof v === 'object' && v.spellCommanderCasts) { const id = (ctx.triggerData || {}).objectId; return (me && id ? Number((me.commanderCasts || {})[id]) || 0 : 0) * (v.mult || 1); }
         // Stinging Study: "the mana value of a commander you own on the battlefield or in the command zone" — the one picked (commanderMv)
         if (v && typeof v === 'object' && v.commanderMv) {
           if (ctx._commanderMv != null) return ctx._commanderMv * (v.mult || 1);
@@ -23714,6 +23748,8 @@
             }
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
+            // Titan's Presence: "if its power is less than or equal to the revealed card's power" (ifPowerAtMost)
+            if (o && e.ifPowerAtMost != null && o.zone === 'battlefield' && this.powerOf(o) > n(e.ifPowerAtMost)) { this.logEvent('rules', `${o.name}'s power is too great.`); continue; }
             if (o) { this.moveObject(o, 'exile'); this._lastExiled = o.id; }
             // Tasha, the Witch Queen: "and put a page counter on it" — on the card in exile
             if (o && e.counter && o.zone === 'exile') {
@@ -41920,7 +41956,7 @@
             this.checkStateBasedActions();
             break;
           }
-          if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost' || ch.purpose === 'blightCost' || ch.purpose === 'beholdCost') {
+          if (ch.purpose === 'exileCost' || ch.purpose === 'returnCost' || ch.purpose === 'blightCost' || ch.purpose === 'beholdCost' || ch.purpose === 'revealCost') {
             const pool = (ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
             ids = ids.filter(id => (ch.candidates || []).includes(id)).slice(0, ch.count || 1);
             for (const o of this._cheapestFirst(pool)) { if (ids.length >= (ch.count || 1)) break; if (!ids.includes(o.id)) ids.push(o.id); }
@@ -41928,6 +41964,12 @@
           for (const id of ids.slice(0, ch.count || 1)) {
             const o = this.obj(id);
             if (!o) continue;
+            // Titan's Presence: the card revealed to cast it, picked (revealCost)
+            if (ch.purpose === 'revealCost') {
+              const st = this.stack.find(x => x.id === ch.stackId);
+              if (st && (ch.candidates || []).includes(o.id) && o.zone === 'hand') this._revealCostShown(this.player(playerId), st, o);
+              continue;
+            }
             if (ch.purpose === 'exileCost') {
               this.moveObject(o, 'exile');
               // the Shoals: X is the exiled card's mana value

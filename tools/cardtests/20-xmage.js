@@ -73901,4 +73901,126 @@ module.exports = (test) => {
     T2.mana('A', '1G');
     t.no(T2.g.castSpell('A', bears.id, { auto: true }), 'power 2: not from the top');
   });
+
+  test('Cards: Invigorate — with a Forest, free for an opponent gaining 3 life (which one, chosen with it); without one, only the mana', (mk, t) => {
+    t.auto('Invigorate');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Forest', { tapped: true });
+    const bear = T.bf('A', 'Grizzly Bears');
+    const inv = T.hand('A', 'Invigorate');
+    const uses = T.g.altUsesFor('A', inv.id).filter(u => u.kind === 'cast' && u.alt && u.alt.oppGain);
+    t.eq(uses.length, 2, 'one way for each opponent');
+    const toC = uses.find(u => u.alt.oppGainTo === 'C');
+    t.ok(/Have C gain 3 life/.test(toC.label), toC.label);
+    T.cast('A', inv, { via: toC.via, targets: [bear] });
+    t.eq(T.g.powerOf(bear), 6, '+4/+4');
+    t.eq(T.life('C'), 23, 'C gained 3'); t.eq(T.life('B'), 20, 'not B');
+    // no Forest: not offered
+    const T2 = mk();
+    const inv2 = T2.hand('A', 'Invigorate');
+    t.eq(T2.g.altUsesFor('A', inv2.id).filter(u => u.alt && u.alt.oppGain).length, 0, 'no Forest, no free way');
+  });
+
+  test('Cards: Titan\'s Presence — reveal a colorless creature card; the target exiled only if its power is at most the card\'s', (mk, t) => {
+    t.auto("Titan's Presence");
+    const T = mk();
+    const giant = T.bf('B', 'Hill Giant'), wurm = T.bf('B', 'Craw Wurm');
+    T.hand('A', 'Ornithopter'); const myr = T.hand('A', 'Phyrexian Walker');
+    const golem = T.hand('A', 'Juggernaut');
+    T.mana('A', '3');
+    T.cast('A', T.hand('A', "Titan's Presence"), { targets: [giant], revealId: golem.id });
+    t.zone(giant, 'exile', 'power 3 against Juggernaut\'s 5');
+    const T2 = mk();
+    const w2 = T2.bf('B', 'Craw Wurm');
+    const orn = T2.hand('A', 'Ornithopter');
+    T2.mana('A', '3');
+    T2.cast('A', T2.hand('A', "Titan's Presence"), { targets: [w2] });
+    t.zone(w2, 'battlefield', 'power 6 against Ornithopter\'s 0');
+    // the card picked: Ornithopter rather than Juggernaut, and the Giant stays
+    const T3 = mk();
+    const g3 = T3.bf('B', 'Hill Giant');
+    const o3 = T3.hand('A', 'Ornithopter'); T3.hand('A', 'Juggernaut');
+    T3.mana('A', '3');
+    T3.cast('A', T3.hand('A', "Titan's Presence"), { targets: [g3], revealId: o3.id });
+    t.zone(g3, 'battlefield', 'Ornithopter revealed: power 0');
+    // asked when the cards differ, cast by hand
+    const T4 = mk();
+    const g4 = T4.bf('B', 'Hill Giant');
+    T4.hand('A', 'Ornithopter'); const j4 = T4.hand('A', 'Juggernaut');
+    let q = null;
+    T4.answer('pickCard', (ch) => { q = ch; return { cardIds: [j4.id] }; });
+    T4.mana('A', '3');
+    const tp = T4.hand('A', "Titan's Presence");
+    t.ok(T4.g.castSpell('A', tp.id, { targets: [{ kind: 'object', id: g4.id }] }), T4.g.lastError);
+    T4.resolve();
+    t.ok(q && q.purpose === 'revealCost' && q.candidates.length === 2, 'asked which card to reveal');
+    t.zone(g4, 'exile', 'Juggernaut revealed: power 5');
+    void myr; void wurm; void orn;
+  });
+
+  test('Cards: Andúril, Flame of the West — two tapped flying Spirits as the equipped creature attacks; attacking too when it is legendary', (mk, t) => {
+    t.auto('Andúril, Flame of the West');
+    const run = (name) => {
+      const T = mk();
+      const c = T.bf('A', name);
+      const an = T.bf('A', 'Andúril, Flame of the West'); an.attachedTo = c.id; c.attachments = [an.id]; T.g.bumpBoard();
+      T.answer('declareAttackers', () => [{ attackerId: c.id, defenderId: 'B' }]);
+      T.toMain('A', 'declareAttackers'); T.resolve();
+      return { T, c, sp: T.bfOf('A').filter(o => o.isToken && T.g._hasCreatureType(o, 'Spirit')) };
+    };
+    const r1 = run('Grizzly Bears');
+    t.eq(r1.T.g.powerOf(r1.c), 5, '+3/+1');
+    t.eq(r1.sp.length, 2, 'two Spirits');
+    t.ok(r1.sp.every(o => o.tapped && r1.T.g.hasKw(o, 'flying')), 'tapped, flying');
+    t.ok(r1.sp.every(o => !o.attacking), 'not attacking');
+    const r2 = run('Isamaru, Hound of Konda');
+    t.eq(r2.sp.length, 2, 'two, not four');
+    t.ok(r2.sp.every(o => o.tapped && o.attacking === 'B'), 'tapped and attacking');
+  });
+
+  test('Cards: Study Hall — its mana casting your commander scries once for each cast from the command zone; another spell, nothing', (mk, t) => {
+    t.auto('Study Hall');
+    const T = mk({ library: Array(20).fill('Island') });
+    const sh = T.bf('A', 'Study Hall');
+    const cmd = T.put('A', 'Goblin Guide', 'command'); cmd.isCommander = true;
+    T.player('A').commanderCasts[cmd.id] = 1;
+    let q = null;
+    T.answer('scry', (ch) => { q = ch; return { top: (ch.cards || []).map(c => c.id), bottom: [] }; });
+    T.mana('A', '1');
+    t.ok(T.g.tapForMana('A', sh.id, 1, 'R'), 'tapped for red, paying {1}');
+    T.mana('A', '2');
+    T.cast('A', cmd);
+    t.zone(cmd, 'battlefield');
+    t.ok(q && (q.cards || []).length === 2, 'scry 2: cast twice from the command zone');
+    const U = mk({ library: Array(20).fill('Island') });
+    const sh2 = U.bf('A', 'Study Hall');
+    U.put('A', 'Goblin Guide', 'command').isCommander = true;
+    U.mana('A', '1');
+    U.g.tapForMana('A', sh2.id, 1, 'R');
+    U.cast('A', U.hand('A', 'Raging Goblin'));
+    t.eq(U.asked.filter(c => c.type === 'scry').length, 0, 'not the commander: no scry');
+  });
+
+  test('Cards: Rabble Rousing — a Citizen for each attacker; with ten creatures, the hidden card played for nothing', (mk, t) => {
+    t.auto('Rabble Rousing');
+    const T = mk({ library: Array(20).fill('Island') });
+    const rr = T.bf('A', 'Rabble Rousing');
+    const hid = T.put('A', 'Hill Giant', 'exile'); hid.faceDownExile = true; rr.hidden = hid.id;
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    const cit = () => T.bfOf('A').filter(o => o.isToken && T.g._hasCreatureType(o, 'Citizen'));
+    t.eq(cit().length, 2, 'two Citizens');
+    t.zone(hid, 'exile', 'four creatures: not yet');
+    t.no(hid.freeCastBy, 'not free to cast');
+    // ten creatures once the Citizens are made: the hidden card free to play
+    const U = mk({ library: Array(20).fill('Island') });
+    const r2 = U.bf('A', 'Rabble Rousing');
+    const h2 = U.put('A', 'Hill Giant', 'exile'); h2.faceDownExile = true; r2.hidden = h2.id;
+    const bs = []; for (let i = 0; i < 8; i++) bs.push(U.bf('A', 'Grizzly Bears'));
+    U.answer('declareAttackers', () => bs.slice(0, 2).map(b => ({ attackerId: b.id, defenderId: 'B' })));
+    U.toMain('A', 'declareAttackers'); U.resolve();
+    t.eq(U.bfOf('A').filter(o => (U.g.characteristics(o) || {}).isCreature).length, 10, 'ten creatures');
+    t.eq(h2.freeCastBy, 'A', 'the hidden card free to play');
+  });
 };
