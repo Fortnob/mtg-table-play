@@ -2126,8 +2126,12 @@
        life counted dearer as it runs low */
     villainous(s) {
       const life = this.me.life;
-      const harm = (o) => flatEffects(O.parseEffects(o.label || '').effects).reduce((k, e) =>
-        k + (e.op === 'loseLife' || e.op === 'damage' ? (Number(e.n) || 2) * (life <= (Number(e.n) || 2) * 3 ? 3 : 0.4) : Math.abs(effectWorth(e, 0)) || 1), 0);
+      // (Ensnared by the Mara: the card's own name in an option read back as CARDNAME; "the total mana value of those
+      // exiled cards" — four cards, guessed at 8)
+      const nm = String(s.sourceName || '').split(' \u2014 ')[0];
+      const nOf = (e) => Number(e.n) || (e.n && e.n.exiledMv ? 8 : 2);
+      const harm = (o) => flatEffects(O.parseEffects(nm ? String(o.label || '').split(nm).join('CARDNAME') : (o.label || '')).effects).reduce((k, e) =>
+        k + (e.op === 'loseLife' || e.op === 'damage' ? nOf(e) * (life <= nOf(e) * 3 ? 3 : 0.4) : Math.abs(effectWorth(e, 0)) || 1), 0);
       const opts = s.options || [];
       let best = 0;
       opts.forEach((o, i) => { if (harm(o) < harm(opts[best])) best = i; });

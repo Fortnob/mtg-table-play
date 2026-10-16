@@ -1110,6 +1110,8 @@
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower', 'noRegen', 'flagEot']
       .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent', 'becomeCopy'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
+    // Tiller Engine: "Whenever a land you control enters tapped, choose one — • Untap that land." — first, nothing before it
+    if (scope === 'triggerObject' && g0 && g0.scope === 'lastAffected' && (g0.op === 'untap' || g0.op === 'tap')) g0.scope = scope;
     // King of the Oathbreakers: "…becomes the target of a spell, it phases out." — the one the trigger is about
     if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'phaseOut' && !e.scope && !(e.targets || []).length && /^it phases out/i.test(e.text || '')) e.scope = 'triggerObject'; });
     // Swordsman, Sharp Scoundrel: "Whenever an equipped creature you control attacks, it connives." — that creature
@@ -5341,7 +5343,8 @@
        top of their library until they exile an instant or sorcery card"; Jodah, the Unifier: "Exile cards from the
        top of your library until you exile a legendary nonland card with lesser mana value." — lesser than the
        spell its trigger is about (untilWords) */
-    { re: /^(That player|Target opponent|Target player) exiles cards from the top of their library until they exile an? ((?:(?:non)?(?:legendary|artifact|creature|enchantment|instant|sorcery|planeswalker|permanent|land)(?:,? or |, | ))+)card\.?$/i,
+    // (Ensnared by the Mara: "They exile cards from the top of their library until they exile a nonland card" — the player facing the choice)
+    { re: /^(That player|Target opponent|Target player|They) exiles? cards from the top of their library until they exile an? ((?:(?:non)?(?:legendary|artifact|creature|enchantment|instant|sorcery|planeswalker|permanent|land)(?:,? or |, | ))+)card\.?$/i,
       make: (m) => {
         const w = m[2].trim().replace(/,? or |, /g, ' or ').toLowerCase();
         return /^target/i.test(m[1]) ? { op: 'exileTop', who: 'target', untilWords: w, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
@@ -5381,8 +5384,9 @@
     { re: /^Exile the top X cards of your library, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && !k.unread ? { op: 'impulse', n: k, play: false } : null; } },
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library."
-    { re: /^Exile the top (two|three|four|five|X|\d+) cards of target (opponent|player)'?s library\.?$/i,
-      make: (m) => ({ op: 'exileTop', who: 'target', n: num(m[1]), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
+    // (Expensive Taste: "Exile the top two cards of target opponent's library face down.")
+    { re: /^Exile the top (two|three|four|five|X|\d+) cards of target (opponent|player)'?s library( face down)?\.?$/i,
+      make: (m) => Object.assign({ op: 'exileTop', who: 'target', n: num(m[1]), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }, m[3] ? { faceDown: true } : {}) },
     { re: /^You may cast any number of (?:spells|instant and\/or sorcery spells)( with mana value (X|\d+) or less)? from among (?:them|those cards|the nonland cards exiled this way|cards exiled this way|the exiled cards) without paying their mana costs\.?$/i,
       make: (m) => Object.assign({ op: 'castFree' }, m[2] ? { maxMv: num(m[2]) } : {},
         /instant and\/or sorcery/i.test(m[0]) ? { filter: 'instant or sorcery' } : {}) },
@@ -6084,6 +6088,8 @@
     { re: /^You may look at that card for as long as it remains exiled\.?$/i, make: () => ({ op: 'lookLastExiled' }) },
     // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
     { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
+    // Expensive Taste: "You may look at and play those cards for as long as they remain exiled."
+    { re: /^You may look at and play (?:those cards|them) for as long as they remain exiled\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled' }) },
     // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
     // (Aerial Extortionist: "its owner may cast it" — castOnly)
     { re: /^For as long as (?:that card|it) remains exiled, its owner may (play|cast) it\.?$/i,
@@ -6686,6 +6692,10 @@
     // Palantír of Orthanc: "that player loses life equal to the total mana value of those cards"
     { re: /^That player loses life equal to the total mana value of those cards\.?$/i,
       make: () => ({ op: 'loseLife', who: 'triggerPlayer', n: { milledMv: true } }) },
+    /* Ensnared by the Mara: "that player exiles the top four cards of their library and Ensnared by the Mara deals damage
+       equal to the total mana value of those exiled cards to that player" (exiledMv: the cards just exiled) */
+    { re: /^(?:That player|They) exiles? the top (two|three|four|five|six|seven|\d+) cards of their library and CARDNAME deals damage equal to the total mana value of those exiled cards to that player\.?$/i,
+      make: (m) => [{ op: 'exileTop', who: 'triggerPlayer', n: num(m[1]) }, { op: 'damage', n: { exiledMv: true }, toTriggerPlayer: true }] },
     // Combustible Gearhulk: "this creature deals damage to that player equal to the total mana value of those cards" (the ones just milled)
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the total mana value of those cards\.?$/i,
       make: () => ({ op: 'damage', n: { milledMv: true }, toTriggerPlayer: true }) },
@@ -17853,9 +17863,9 @@
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
     /* --- the general shapes, watching for a kind of thing --- */
-    // Amulet of Vigor: "Whenever a permanent you control enters tapped"
-    { re: /^When(?:ever)? a permanent you control enters tapped,? /i, event: 'permEnters',
-      filt: () => ({ who: 'you', words: 'permanent' }), extra: { enteredTapped: true } },
+    // Amulet of Vigor: "Whenever a permanent you control enters tapped" (Tiller Engine: "a land you control")
+    { re: /^When(?:ever)? an? (permanent|land|creature|artifact) you control enters tapped,? /i, event: 'permEnters',
+      filt: (m) => ({ who: 'you', words: m[1].toLowerCase() }), extra: { enteredTapped: true } },
     // Doran, Besieged by Time: "Whenever a creature you control attacks or blocks"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks or blocks(?:,| )', 'i'),
       event: 'permAttacks', also: 'permBlocks', filt: (m) => subjectFilter(m[1]) },
@@ -25348,6 +25358,10 @@
       // Ormos, Archive Keeper: "If you would draw a card while your library has no cards in it, instead put five +1/+1 counters on Ormos."
       { re: /^If you would draw a card while your library has no cards in it, instead put (a|one|two|three|four|five|six|\d+) \+1\/\+1 counters? on CARDNAME\.?$/i,
         make: (m) => ({ op: 'countersOnEmptyDraw', n: num(m[1]) }), auto: true },
+      /* Out of the Tombs: "If you would draw a card while your library has no cards in it, instead return a creature card
+         from your graveyard to the battlefield. If you can't, you lose the game." (reanimateOnEmptyDraw) */
+      { re: /^If you would draw a card while your library has no cards in it, instead return a creature card from your graveyard to the battlefield\. If you can'?t, you lose the game\.?$/i,
+        eff: { op: 'reanimateOnEmptyDraw' }, auto: true },
       /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off
          (Karn, Argent Defender: "Artifacts and creatures entering the battlefield …") */
       { re: /^(Creatures|Permanents|Artifacts and creatures) entering(?: the battlefield)?( or dying)? don'?t cause abilities( of permanents your opponents control)? to trigger\.?$/i,
@@ -25425,6 +25439,11 @@
          putting it anywhere else."" — one leave for either; what it lets in leaves for exile (leaveExileAfter) */
       { re: /^Once during each of your turns, you may play a historic land or cast a historic permanent spell from your graveyard\. If you do, it gains "If this permanent would leave the battlefield, exile it instead of putting it anywhere else\."$/,
         eff: { op: 'playFrom', zone: 'graveyard', what: 'any', landFilter: 'historic land', spellFilter: 'historic permanent', duringYourTurn: true, oncePerTurn: true, leaveExileAfter: true }, auto: true },
+      /* Serra Paragon: "Once during each of your turns, you may play a land from your graveyard or cast a permanent spell
+         with mana value 3 or less from your graveyard. If you do, it gains "When this permanent is put into a graveyard
+         from the battlefield, exile it and you gain 2 life."" — one leave for either; the words handed to what it lets in (gainsText) */
+      { re: /^Once during each of your turns, you may play a land from your graveyard or cast a permanent spell with mana value (\d+) or less from your graveyard\. If you do, it gains "([^"]+)"$/,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'any', spellFilter: 'permanent', maxMv: +m[1], duringYourTurn: true, oncePerTurn: true, gainsText: m[2] }), auto: true },
       /* Arcade Gannon: "Once during each of your turns, you may cast an artifact or Human spell from your graveyard with
          mana value less than or equal to the number of quest counters on Arcade Gannon." — counted as it is cast (maxMvCounters) */
       { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell from your graveyard with mana value less than or equal to the number of ([a-z]+) counters on CARDNAME\.$/,

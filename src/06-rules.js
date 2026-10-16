@@ -4403,6 +4403,8 @@
       this._landPlayed(p, o, leave && leave.enterTappedAny ? { tapped: true } : null);
       // (The Eighth Doctor: a historic land played this way leaves for exile — leaveExileAfter)
       if (leave && leave.leaveExileAfter && o.zone === 'battlefield') o.leaveExile = true;
+      // (Serra Paragon: "it gains "When this permanent is put into a graveyard …"" — gainsText)
+      if (leave && leave.gainsText && o.zone === 'battlefield') { o.effects.push({ grantText: leave.gainsText, until: null }); this.bumpBoard(); }
       this.checkStateBasedActions();
       /* Playing a land is a special action and uses no stack, but a land that
          does something as it enters has just triggered. Those triggers go on
@@ -6102,7 +6104,7 @@
               if (!freeTypes.length) continue;
               return Object.assign({}, ef, { srcId: src.id, freeTypes });
             }
-            if (ef.oncePerTurn || ef.exileAfter || ef.oncePerKind || ef.finalityCast) return Object.assign({}, ef, { srcId: src.id });
+            if (ef.oncePerTurn || ef.exileAfter || ef.oncePerKind || ef.finalityCast || ef.gainsText) return Object.assign({}, ef, { srcId: src.id });
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Augur of Autumn, The Reality Chip: only while the condition holds
@@ -8919,6 +8921,7 @@
       o._enterFinality = null;
       o._enterTappedCast = null;
       o._leaveExileCast = null;
+      o._gainsTextCast = null;
       o._enterPlusCounters = 0;
       o._enterAttachCast = null;
       // (Hauken's Insight: a card exiled with it, cast by its leave — not by a leave of the card's own)
@@ -8955,6 +8958,8 @@
           if (lv.finalityCast) o._enterFinality = true;
           // The Eighth Doctor: "it gains "If this permanent would leave the battlefield, exile it instead …"" (leaveExileAfter)
           if (lv.leaveExileAfter) o._leaveExileCast = true;
+          // Serra Paragon: "If you do, it gains "When this permanent is put into a graveyard from the battlefield, …"" (gainsText)
+          if (lv.gainsText) o._gainsTextCast = lv.gainsText;
           // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
           if (lv.perType) {
             const pick = (((opts.choices || {}).permanentType || {}).picks || [])[0];
@@ -10212,6 +10217,7 @@
       // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
       if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
+      if (o._gainsTextCast) { const gt = o._gainsTextCast; o._gainsTextCast = null; if (o.enteredFrom === 'stack') { o.effects.push({ grantText: gt, until: null }); this.bumpBoard(); } }
       /* Galea, Kindler of Hope: the Equipment cast from the top of the library: "When this Equipment enters, attach it to
          target creature you control." — its target chosen as it goes on the stack */
       if (o._enterAttachCast) {
@@ -19510,6 +19516,25 @@
             this.addCounters(orm, '+1/+1', k);
             continue;
           }
+          /* Out of the Tombs: "instead return a creature card from your graveyard to the battlefield. If you can't, you
+             lose the game." — each draw from the empty library; a choice among two or more waits for its player, and the
+             draws after it wait with it (reanimateOnEmptyDraw, _drawWait) */
+          const ot = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'reanimateOnEmptyDraw'));
+          if (ot) {
+            const cs = z.graveyard.filter(c => (c.analysis() || {}).isCreature);
+            if (!cs.length) {
+              this.logEvent('rules', `${ot.name}: ${p.name} would draw from an empty library with no creature card in their graveyard to return, and loses the game.`);
+              this.playerLoses(p, ot.name + ': no creature card to return instead of drawing');
+              break;
+            }
+            if (cs.length === 1) { this._drawReanimate(p, ot.name, cs[0]); continue; }
+            this._drawWait = { pid: p.id, st: { left, extras, drawnNow }, silent: !!silent, cards: cs.map(o => o.id), src: ot.name, queue: [], resume: false };
+            this.queueChoice({ type: 'pickCard', purpose: 'drawReanimate', playerId: p.id, count: 1,
+              candidates: cs.map(o => o.id), cards: cs.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              sourceId: ot.id, sourceName: ot.name, sourceCard: ot.card,
+              prompt: `${ot.name}: instead of drawing from your empty library, return a creature card from your graveyard to the battlefield.` });
+            return;
+          }
           // Laboratory Maniac: the draw that would lose wins instead
           if (this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'winOnEmptyDraw'))) {
             this.logEvent('rules', `${p.name} would draw from an empty library, and wins the game instead.`);
@@ -19579,6 +19604,12 @@
       for (const c of shown) if (c !== hit) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
       this._libraryTouched(p.id);
       this.logEvent('reveal', `${srcName}: instead of drawing, ${p.name} reveals ${shown.map(c => c.name).join(', ') || 'nothing'}${hit ? ` and puts ${hit.name} into their hand` : ''}${shown.length > (hit ? 1 : 0) ? '; the rest go on the bottom' : ''}.`);
+    }
+    /** Out of the Tombs: the creature card returned instead of a draw from an empty library. */
+    _drawReanimate(p, srcName, c) {
+      if (!c || c.zone !== 'graveyard') return;
+      this.moveObject(c, 'battlefield', { controller: p.id });
+      this.logEvent('rules', `${srcName}: instead of drawing from an empty library, ${p.name} returns ${c.name} to the battlefield.`);
     }
     /** The look a draw waited on has been answered: the draws after it, in turn, then whatever was waiting on them. */
     _drawResume() {
@@ -22586,6 +22617,8 @@
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Ensnared by the Mara: "the total mana value of those exiled cards" — the ones just exiled
+        if (v && typeof v === 'object' && v.exiledMv) return (this._lastExiledList || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
         if (v && typeof v === 'object' && v.countersOnTrigger) {
           const tdC = ctx.triggerData || {};
@@ -28715,13 +28748,15 @@
               for (let r = 0; r <= extra; r++) queue.push({ p: q.id, r });
             }
           }
-          const opts = e.options || [];
+          // (Ensnared by the Mara: "… and Ensnared by the Mara deals damage …" — the card's own name in the option)
+          const opts = (e.options || []).map(o => Object.assign({}, o, { label: String(o.label || '').replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it') }));
           let head = null;
           while (queue.length && !head) { const x = queue[0]; queue = queue.slice(1); const q = this.player(x.p); if (q && !q.hasLost) head = { q, r: x.r }; }
           if (!head) break;
           const q = head.q, r = head.r;
           const got = this._choose({ playerId: q.id, purpose: 'villainous', kind: 'options', min: 1, max: 1,
-            options: opts.map((o, i) => ({ i, label: truncate(o.label || ('Option ' + (i + 1)), 90) })),
+            // (each option whole: Ensnared by the Mara's run long, and what is chosen is what is said)
+            options: opts.map((o, i) => ({ i, label: o.label || ('Option ' + (i + 1)) })),
             prompt: `${ctx.name ? ctx.name + ': ' : ''}you face a villainous choice${r ? ' again' : ''}. Choose one.` }, 'vc:' + q.id + (r ? ':' + r : ''));
           if (got === SUSPEND) return SUSPEND;
           const k = got && got.picks && got.picks.length ? got.picks[0] : 0;
@@ -34183,6 +34218,8 @@
               const c = lib[0];
               this.moveObject(c, 'exile');
               out.push(c.id);
+              // Expensive Taste: "Exile the top two cards of target opponent's library face down." — nobody sees them yet
+              if (e.faceDown && c.zone === 'exile') { c.faceDownExile = true; c.lookableBy = null; }
               // Evelyn, the Covetous: "with a collection counter on it"
               if (e.counter && c.zone === 'exile') { c.counters = c.counters || {}; c.counters[e.counter] = (Number(c.counters[e.counter]) || 0) + 1; this.bumpBoard(); }
               // Maralen, Fae Ascendant: "cards exiled with Maralen this turn" — which, and when (exiledBySrc)
@@ -41517,6 +41554,17 @@
             const look = ((w && w.cards) || ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
             this.pendingChoice = null;
             if (p) this._drawLookKeep(p, (w && w.src) || ch.sourceName || 'Tomorrow', look, ids.find(id => (ch.candidates || []).includes(id)), w && w.restTo);
+            this._drawResume();
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
+          // Out of the Tombs: the creature card returned instead of the draw; then the draws that waited on it (_drawWait)
+          if (ch.purpose === 'drawReanimate') {
+            const p = this.player(playerId);
+            const pick = this.obj(ids.find(id => (ch.candidates || []).includes(id)) || (ch.candidates || [])[0]);
+            this.pendingChoice = null;
+            if (p) this._drawReanimate(p, ch.sourceName || 'Out of the Tombs', pick);
             this._drawResume();
             if (!this.pendingChoice) this._nextChoice();
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
