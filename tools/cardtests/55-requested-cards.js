@@ -59,7 +59,21 @@ module.exports = (test) => {
     t.ok(T.g.battlefield.some(o => o.controller === 'A' && o.name === 'Map'), 'creates a Map token');
   });
 
-  for (const name of ["Anzrag's Rampage", "Titania's Song", "Call to the Kindred", "Tide Shaper", "Deeproot Historian", "Over the Edge"]) {
+  for (const name of ["Anzrag's Rampage", "Titania's Song", "Call to the Kindred", "Tide Shaper", "Deeproot Historian", "Over the Edge", "Avoid Fate"]) {
     test(name + ': card-specific automation is present', (mk, t) => { t.auto(name); });
   }
+  test('Avoid Fate counters an instant that targets a permanent you control', (mk, t) => {
+    t.auto('Avoid Fate');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.g.passPriority('A', true);
+    T.mana('B', 'R');
+    T.cast('B', bolt, { resolve: false, targets: [bear] });
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Avoid Fate'), { targets: [T.stackTarget(bolt)] });
+    t.zone(bolt, 'graveyard', 'Avoid Fate counters Lightning Bolt');
+    t.zone(bear, 'battlefield', 'the targeted permanent remains');
+  });
+
 };
