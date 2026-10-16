@@ -15302,7 +15302,8 @@ MTG.setGameSpeed = function (id) {
     let ex = String(words).trim().replace(/\bit has ([a-z ]+?) and this ability$/i, 'it has $1, and it has this ability');
     while (ex) {
       let c;
-      if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
+      // (Sakashima's Student: "it's a Ninja in addition to its other creature types")
+      if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other (?:creature )?types/))) e.addTypes = c[1].split(' ');
       // Superior Spider-Man: "he's a 4/4 Spider Human Hero in addition to his other types" (copyPt)
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to (?:its|his|her) other types/))) {
         e.copyPt = c[1] + '/' + c[2]; e.addTypes = c[3].split(' ');
@@ -16050,6 +16051,10 @@ MTG.setGameSpeed = function (id) {
       make: (m) => ({ op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2]), MANA.parse(m[3])] }) },
     { re: /^Add one mana of any color\.?$/i,
       make: () => ({ op: 'addManaAny', amount: 1 }) },
+    /* Victory Chimes: "A player of your choice adds {C}." — still a mana ability (no target); the player chosen goes with
+       the tap, like a colour (who 'chosen') */
+    { re: /^A player of your choice adds ((?:\{[WUBRGC]\})+)\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'chosen' }) },
     /* The Warring Triad: "Target player adds one mana of any color." — not a
        mana ability, as it targets (CR 605.1a); its controller picks the colour */
     { re: /^Target player adds (?:(one) mana of any|(two|three) mana of any one) color\.?$/i,
@@ -17050,6 +17055,14 @@ MTG.setGameSpeed = function (id) {
     // Zo-Zu the Punisher: "deals 2 damage to that land's controller"
     { re: /^(?:CARDNAME|This creature|[A-Z][A-Za-z-]+) deals (one|two|three|\d+) damage to that (?:land|creature|permanent|artifact)'?s controller\.?$/,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerObjController: true }) },
+    /* Phyresis Outbreak: "Then each creature your opponents control gets -1/-1 until end of turn for each poison counter its
+       controller has." — each by its own controller's count (perCtlPoison) */
+    { re: /^(?:Then )?each creature your opponents control gets -(\d+)\/-\1 until end of turn for each poison counter its controller has\.?$/i,
+      make: (m) => ({ op: 'pump', p: -m[1], t: -m[1], duration: 'eot', scope: { who: 'opponents', what: 'creature' }, perCtlPoison: true }) },
+    /* Deadly Tempest: "Each player loses life equal to the number of creatures they controlled that were destroyed this way."
+       — each their own (eachLoseSwept) */
+    { re: /^Each player loses life equal to the number of creatures they controlled that were destroyed this way\.?$/i,
+      make: () => ({ op: 'eachLoseSwept' }) },
     // Kaya's Wrath: "You gain life equal to the number of creatures you controlled that were destroyed this way."
     { re: /^You gain life equal to the number of creatures you controlled that were (?:destroyed|exiled) this way\.?$/i,
       make: () => ({ op: 'gainLife', who: 'you', n: 'lastSweptYours' }) },
@@ -17553,7 +17566,8 @@ MTG.setGameSpeed = function (id) {
 
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
-    { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
+    // (Summon: Ixion: "Exile target creature an opponent controls until this Saga leaves the battlefield.")
+    { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura|Saga)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
         /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
     // Hixus, Prison Warden: "exile that creature until Hixus leaves the battlefield" — the one the trigger is about
@@ -18017,11 +18031,20 @@ MTG.setGameSpeed = function (id) {
     { re: /^(?:Then )?(?:you may )?put up to (one|two|three|four) ([a-z, \/]*?)cards? from among (?:the milled cards|the cards milled this way) onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true, to: 'battlefield',
         prompt: `Choose up to ${m[1].toLowerCase()} ${(m[2].trim() || '')}${m[2].trim() ? ' ' : ''}card${num(m[1]) === 1 ? '' : 's'} from among the milled cards to put onto the battlefield${m[3] ? ' tapped' : ''}.` }, m[3] ? { tapped: true } : {}) },
+    // Fetch Quest: "Then put a creature, enchantment, or land card from among the milled cards onto the battlefield." — one, if there is one
+    { re: /^(?:Then )?put an? ((?:[a-z]+, )+(?:or )?[a-z]+) card from among (?:the milled cards|the cards milled this way) onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'takeFromMilled', n: 1, filter: m[1].split(/,? (?:or )?|, /).filter(Boolean).join(' or '), optional: false, to: 'battlefield',
+        prompt: `Put a ${m[1]} card from among the milled cards onto the battlefield.` }) },
     /* Gyruda, Doom of Depths: "Put a creature card with an even mana value from among the milled cards onto the
        battlefield under your control." — after "each player mills", anybody's card (anyOwner) */
     { re: /^(?:Then )?(you may )?put an? ([a-z]+ )?card with an (even|odd) mana value from among (?:the milled cards|the cards milled this way) onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: 1, filter: (m[2] || '').trim() || 'any', mvParity: m[3].toLowerCase(), anyOwner: true, optional: !!m[1], to: 'battlefield',
         prompt: `Put a ${(m[2] || '').trim() ? m[2].trim() + ' ' : ''}card with an ${m[3].toLowerCase()} mana value from among the milled cards onto the battlefield under your control.` }) },
+    /* Angel of Serenity: "exile up to three other target creatures from the battlefield and/or creature cards from
+       graveyards" — each target either (orGraveyard), held by it for "return the exiled cards" (held) */
+    { re: /^Exile up to (two|three|four|five) other target creatures from the battlefield and\/or creature cards from graveyards\.?$/i,
+      make: (m) => ({ op: 'exile', held: true, targets: Array.from({ length: num(m[1]) }, () => ({ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, another: true,
+        orGraveyard: { type: 'creature', filter: 'creature', zone: 'graveyard' } })) }) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     // Hama, the Bloodbender: "target opponent mills three cards"
     { re: /^Target opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
@@ -20083,7 +20106,8 @@ MTG.setGameSpeed = function (id) {
     { re: /^That player may gain (\d+) life\.?$/i, make: (m) => ({ op: 'may', who: 'triggerPlayer', then: [{ op: 'gainLife', n: +m[1], who: 'triggerPlayer' }] }) },
     /* Spectrox Mines, New New York: "create a Food token and a 2/2 black Human Rogue creature token" — two tokens of two
        kinds, each read as a sentence of its own */
-    { re: /^Create (an? [A-Z][a-z]+ token) and (an? .+? tokens?(?: with [a-z ,]+)?)\.?$/,
+    // (Reckoner Bankbuster: "and a 1/1 colorless Pilot creature token with "This token crews Vehicles …"")
+    { re: /^Create (an? [A-Z][a-z]+ token) and (an? .+? tokens?(?: with (?:[a-z ,]+|"[^"]+"))?)\.?$/,
       make: (m) => {
         const a = parseEffectSentence('Create ' + m[1] + '.'), b = parseEffectSentence('Create ' + m[2] + '.');
         if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
@@ -22646,6 +22670,9 @@ MTG.setGameSpeed = function (id) {
     /* Dawn's Truce, Veil of Summer: the player as well as their things,
        for the rest of the turn. */
     { re: /^You gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou' }) },
+    // Detection Tower: "Until end of turn, your opponents and creatures your opponents control with hexproof can be the targets of spells and abilities you control as though they didn't have hexproof." (seeThroughHexproof)
+    { re: /^Until end of turn, your opponents and creatures your opponents control with hexproof can be the targets of spells and abilities you control as though they didn'?t have hexproof\.?$/i,
+      make: () => ({ op: 'seeThroughHexproof' }) },
     // Everybody Lives!: "Players gain hexproof until end of turn." — every player (who 'each')
     { re: /^Players gain hexproof until end of turn\.?$/i, make: () => ({ op: 'hexproofYou', who: 'each' }) },
     /* "You may play that card this turn", "Until the end of your next turn,
@@ -26496,6 +26523,11 @@ MTG.setGameSpeed = function (id) {
        choices are revealed, and that player sacrifices those creatures." (secretChooseSac) */
     { re: /^you and target opponent each secretly choose a creature that player controls\. Then those choices are revealed, and that player sacrifices those creatures\.?$/i,
       make: () => [{ op: 'secretChooseSac', targets: [{ type: 'player', opponent: true }] }] },
+    /* Prisoner's Dilemma: "Each opponent secretly chooses silence or snitch, then the choices are revealed. If each opponent
+       chose silence, CARDNAME deals 4 damage to each of them. If each opponent chose snitch, CARDNAME deals 8 damage to each
+       of them. Otherwise, CARDNAME deals 12 damage to each opponent who chose silence." (silenceOrSnitch) */
+    { re: /^Each opponent secretly chooses silence or snitch, then the choices are revealed\. If each opponent chose silence, CARDNAME deals (\d+) damage to each of them\. If each opponent chose snitch, CARDNAME deals (\d+) damage to each of them\. Otherwise, CARDNAME deals (\d+) damage to each opponent who chose silence\.?$/i,
+      make: (m) => [{ op: 'silenceOrSnitch', silence: +m[1], snitch: +m[2], mixed: +m[3] }] },
     /* Wheel of Misfortune: "Each player secretly chooses a number 0 or greater, then all players reveal those numbers
        simultaneously … deals damage equal to the highest number to each player who chose that number. Each player who
        didn't choose the lowest number discards their hand, then draws seven cards." (secretNumberWheel) */
@@ -28199,6 +28231,20 @@ MTG.setGameSpeed = function (id) {
         return tok && tok.op === 'createToken' ? [{ op: 'destroy', targets: [targetSpec(m[1])] },
           { op: 'ifDestroyed', died: true, then: [Object.assign(tok, { ptOfLast: true })] }] : null;
       } },
+    /* Another Round: "Exile any number of creatures you control, then return them to the battlefield under their owner's
+       control. Then repeat this process X more times." — chosen afresh each time (blinkAnyRepeat) */
+    { re: /^Exile any number of creatures you control, then return them to the battlefield under their owner'?s control\. Then repeat this process X more times\.?$/i,
+      make: () => [{ op: 'blinkAnyRepeat', filter: 'creature', more: 'X' }] },
+    /* Retether: "Return each Aura card from your graveyard to the battlefield. Only creatures can be enchanted this way." —
+       an Aura with no creature to enchant stays where it is (auraHost) */
+    { re: /^Return each Aura card from your graveyard to the battlefield\. Only creatures can be enchanted this way\.?$/i,
+      make: () => [{ op: 'massReanimate', filter: 'Aura', yours: true, auraHost: 'creature' }] },
+    /* Come Back Wrong: "Destroy target creature. If a creature card is put into a graveyard this way, return it to the
+       battlefield under your control. Sacrifice it at the beginning of your next end step." — a card, in a graveyard,
+       still a creature card there (ifDestroyed died, card); the sacrifice only for what came back */
+    { re: /^Destroy (target creature)\. If a creature card is put into a graveyard this way, return it to the battlefield under your control\.(?: Sacrifice it at the beginning of your next end step\.)?$/,
+      make: (m) => [{ op: 'destroy', targets: [targetSpec(m[1])] },
+        { op: 'ifDestroyed', died: true, card: 'creature', then: [{ op: 'reanimate' }].concat(/Sacrifice it/.test(m[0]) ? [parseEffectSentence('Sacrifice it at the beginning of your next end step.')] : []) }] },
     /* Saw in Half: "If that creature dies this way, its controller creates two tokens that are copies of that creature,
        except their power is half that creature's power and their toughness is half that creature's toughness. Round
        up each time." — its controller as it left, its size as it last was, halved (halfPtOfLast) */
@@ -31242,7 +31288,8 @@ MTG.setGameSpeed = function (id) {
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     // the depletion lands: "if there are no depletion counters on this land"
-    [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
+    // (Reckoner Bankbuster: "if there are no charge counters on this Vehicle")
+    [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|this Vehicle|CARDNAME)$/i,
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Risona, Asari Commander: "if it doesn't have an indestructible counter on it"
     [/^(?:it|this creature|CARDNAME) doesn'?t have an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
@@ -32864,6 +32911,8 @@ MTG.setGameSpeed = function (id) {
     // the Curses: what the enchanted player does, and what is done to them
     { re: /^At the beginning of enchanted (?:player|opponent)'s draw step,? /i, event: 'eachDrawStep', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of enchanted (?:player|opponent)'s end step,? /i, event: 'eachEndStep', extra: { enchantedPlayer: true } },
+    // Shadow of the Second Sun: "At the beginning of each of enchanted player's postcombat main phases"
+    { re: /^At the beginning of each of enchanted (?:player|opponent)'s postcombat main phases,? /i, event: 'eachMain2', extra: { enchantedPlayer: true } },
     { re: /^Whenever enchanted (?:player|opponent) draws a card,? /i, event: 'anyDraw', extra: { enchantedPlayer: true } },
     { re: /^Whenever enchanted (?:player|opponent) casts (?:a|an) ([a-zA-Z ,-]*?)spell,? /i,
       event: 'anyCastSpell', extra: { enchantedPlayer: true }, filt: (m) => spellFilter(m[1]) },
@@ -40012,6 +40061,9 @@ MTG.setGameSpeed = function (id) {
       // Cloud, Midgar Mercenary: "As long as Cloud is equipped, if a triggered ability of Cloud or an Equipment attached to it triggers, …" (selfOrEquipment)
       { re: /^As long as (?:CARDNAME|this creature) is equipped, if a triggered ability of (?:CARDNAME|this creature) or an Equipment attached to it triggers, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'selfOrEquipment' }, auto: true },
+      // Wizard's Staff: "If a triggered ability of equipped creature triggers, that ability triggers an additional time." (equipped)
+      { re: /^If a triggered ability of equipped creature triggers, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'equipped' }, auto: true },
       // Jasmine Boreal of the Seven: "Creatures you control with no abilities can't be blocked by creatures with abilities." (noAbilities)
       { re: /^Creatures you control with no abilities can'?t be blocked by creatures with abilities\.?$/i,
         eff: { op: 'groupEvasion', noAbilities: true }, auto: true },
@@ -44131,6 +44183,16 @@ MTG.setGameSpeed = function (id) {
         }
       };
       walk(ab.effects);
+      /* Victory Chimes: "A player of your choice adds {C}." — you, or another player still in the game: the mana, then
+         '>' and that player's id (to, label) */
+      const chosenTo = effects.find(e => e.op === 'addMana' && e.who === 'chosen');
+      if (chosenTo) {
+        const keyOf = (chosenTo.symbols || []).map(letter).join('') || 'C';
+        const mana = (chosenTo.symbols || []).map(s => '{' + s + '}').join('');
+        out.push({ key: keyOf, mana, label: 'You' });
+        for (const p of this._turnOrderFrom(pid)) if (p.id !== pid && !p.hasLost) out.push({ key: keyOf + '>' + p.id, mana, to: p.id, label: p.name });
+        return out.length > 1 ? out : [];
+      }
       // "Add two mana in any combination of {U}, {B}, and/or {R}" (Relic of Sauron): one effect a mana — each
       // combination a bundle, the k-th effect taking the k-th letter
       const singles = effects.filter(e => e.op === 'addManaChoice' && e.n == null && (e.choices || []).every(ch => ch.length === 1));
@@ -44197,7 +44259,8 @@ MTG.setGameSpeed = function (id) {
         colour one of them has; anything else is ignored (the engine chooses as it would have). */
     _legalManaChoice(pid, o, ab, want) {
       if (want == null || want === '') return undefined;
-      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}$/.test(want)) return undefined;
+      // (Victory Chimes: 'C>B' — the mana, then the player who adds it)
+      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}(?:>[^>\s]{1,80})?$/.test(want)) return undefined;
       const opts = this.manaChoicesFor(pid, o, ab);
       if (!opts.length) return want;
       if (opts.some(x => x.key === want)) return want;
@@ -44214,7 +44277,7 @@ MTG.setGameSpeed = function (id) {
       const CHOOSY = /^(addManaAny|addManaAmong|addManaChoice|addManaX|addManaDevotion|addManaChosen|chooseColor|ifCond|sequence)$/;
       const out = [];
       list.forEach((ab, i) => {
-        if (!(ab.effects || []).some(e => e && CHOOSY.test(e.op))) return;
+        if (!(ab.effects || []).some(e => e && (CHOOSY.test(e.op) || (e.op === 'addMana' && e.who === 'chosen')))) return;
         const options = this.manaChoicesAt(playerId, o, i);
         if (options.length > 1) out.push({ i, options });
       });
@@ -45561,7 +45624,11 @@ MTG.setGameSpeed = function (id) {
       // (Semblance Anvil, Chrome Mox: "you may exile a nonland card from your hand" — imprintFromHand)
       // (Cloudstone Curio: "you may return another permanent you control that shares a permanent type with it …" — returnOwn)
       const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'returnOwn' && !only.self) ||only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
-      const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
+      /* Angel of Serenity: "you may exile up to three other target creatures …" — every target "up to" and chosen as it went on
+         the stack: choosing them, or none, was the "may"; not asked again (aimedUpTo) */
+      const aimedUpTo = item.optional && !item._asked && only && !!item.targetSpecs && (only.targets || []).length > 0 &&
+        only.targets.every(sp => sp && sp.upTo) && !once;
+      const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked && !aimedUpTo
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
@@ -46440,7 +46507,7 @@ MTG.setGameSpeed = function (id) {
           if (sp && sp.maxPowerOfObj) { const w = this.obj(sp.maxPowerOfObj); if (this.powerOf(o) > (w && w.zone === 'battlefield' ? this.powerOf(w) : (w ? w._lastPower || 0 : 0))) return false; }
         }
         if (o.zone === 'battlefield') {
-          if (this._hexproofBars(o) && o.controller !== item.controller) return false;
+          if (this._hexproofBars(o, item.controller) && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj, item.kind !== 'spell')) return false;
           if (item.obj && this._untargetableHit(o, item.obj, item.controller, item.kind !== 'spell')) return false;
 
@@ -51487,8 +51554,15 @@ MTG.setGameSpeed = function (id) {
 
     /** Does this permanent's hexproof keep other players' spells and abilities off it? Not a creature of an opponent of
         Nowhere to Run's controller: "as though they didn't have hexproof" (oppCreaturesExposed). */
-    _hexproofBars(o) {
-      return this.hasKw(o, 'hexproof') && !this._exposedCreature(o);
+    _hexproofBars(o, byPid) {
+      return this.hasKw(o, 'hexproof') && !this._exposedCreature(o) &&
+        !(byPid != null && (this.characteristics(o) || {}).isCreature && this._seesThroughHexproof(byPid, o.controller));
+    }
+    /** Detection Tower: "Until end of turn, your opponents and creatures your opponents control with hexproof can be the targets of
+        spells and abilities you control as though they didn't have hexproof." — for byPid, against this opponent (seeHexproofTurn) */
+    _seesThroughHexproof(byPid, pid) {
+      const p = byPid != null && this.player(byPid);
+      return !!p && p.seeHexproofTurn === this.turn && pid !== byPid && this.opponentsOf(byPid).some(q => q.id === pid);
     }
     /** Nowhere to Run: a creature an opponent of its controller controls — targetable through hexproof, its ward silent. */
     _exposedCreature(o) {
@@ -51797,7 +51871,8 @@ MTG.setGameSpeed = function (id) {
         if (o.controller !== item.controller) continue;
         // (Narset, Enlightened Exile: "Creatures you control have prowess" — given as well as printed, and gone with its abilities)
         if (o.phasedOut || !this.hasKw(o, 'prowess')) continue;
-        const n = Math.max(1, this._kwCount(o, 'prowess'));
+        // (Wizard's Staff, Veyran: a trigger like any other, so one that triggers an additional time — _extraTriggers)
+        const n = Math.max(1, this._kwCount(o, 'prowess')) * (1 + this._extraTriggers(o, 'youCastSpell', { object: item.obj, spell: item, playerId: item.controller }));
         for (let i = 0; i < n; i++) o.effects.push({ p: 1, t: 1, until: 'eot' });
         this.logEvent('keyword', `${o.name} gets +${n}/+${n} from prowess.`);
       }
@@ -53263,7 +53338,9 @@ MTG.setGameSpeed = function (id) {
     /** What an Aura arriving uncast could be attached to: anything it could legally enchant (not targeted, so hexproof is no bar). */
     _auraHosts(o, a) {
       if (a.auraSpec && (a.auraSpec.type === 'player' || a.auraSpec.type === 'opponent')) return [];
-      return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x));
+      return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x) &&
+        // (Retether: "Only creatures can be enchanted this way." — _hostOnly)
+        !(o._hostOnly && !this._cardFitsWords(x, o._hostOnly)));
     }
     /**
      * Harold and Bob, First Numens: a card coming back as an Aura it never printed ("It's an Aura enchantment with
@@ -65055,7 +65132,10 @@ MTG.setGameSpeed = function (id) {
             this.logEvent('mana', `Each player adds ${e.symbols.map(x => '{' + x + '}').join('')}.`);
             break;
           }
-          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : e.who === 'active' ? (this.activePlayer || me) : me;
+          // (Victory Chimes: "A player of your choice adds {C}." — the player sent with the tap, after the mana: 'C>B'; else you — who 'chosen')
+          const chosenTo = e.who === 'chosen' && typeof ctx.manaChoice === 'string' && ctx.manaChoice.includes('>') ? this.player(ctx.manaChoice.split('>')[1]) : null;
+          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : e.who === 'active' ? (this.activePlayer || me)
+            : chosenTo && !chosenTo.hasLost ? chosenTo : me;
           const times = e.times ? Math.max(0, n(e.times) || 0) : 1;
           if (!times) break;
           for (let k = 0; k < times; k++) for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
@@ -65866,6 +65946,8 @@ MTG.setGameSpeed = function (id) {
             // Titan's Presence: "if its power is less than or equal to the revealed card's power" (ifPowerAtMost)
             if (o && e.ifPowerAtMost != null && o.zone === 'battlefield' && this.powerOf(o) > n(e.ifPowerAtMost)) { this.logEvent('rules', `${o.name}'s power is too great.`); continue; }
             if (o) { this.moveObject(o, 'exile'); this._lastExiled = o.id; }
+            // Angel of Serenity: held, for "return the exiled cards" when it leaves (held)
+            if (o && e.held && src && o.zone === 'exile') o.heldBy = src.id;
             // Tasha, the Witch Queen: "and put a page counter on it" — on the card in exile
             if (o && e.counter && o.zone === 'exile') {
               o.counters = o.counters || {}; o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + 1; this.bumpBoard();
@@ -66505,8 +66587,10 @@ MTG.setGameSpeed = function (id) {
           break;
         case 'pump': {
           // "until your next turn": gone as that player's next turn begins
-          const apply = (o) => o.effects.push(e.duration === 'nextTurn' ? { p: n(e.p), t: n(e.t), until: null, untilTurnOf: ctx.controller }
-            : { p: n(e.p), t: n(e.t), until: e.duration === 'eot' ? 'eot' : null });
+          // (Phyresis Outbreak: "for each poison counter its controller has" — each creature its own number: perCtlPoison)
+          const per = (o) => (e.perCtlPoison ? (Number((this.player(o.controller) || {}).poison) || 0) : 1);
+          const apply = (o) => { const k = per(o); if (!k) return; o.effects.push(e.duration === 'nextTurn' ? { p: n(e.p) * k, t: n(e.t) * k, until: null, untilTurnOf: ctx.controller }
+            : { p: n(e.p) * k, t: n(e.t) * k, until: e.duration === 'eot' ? 'eot' : null }); };
           if (e.scope === 'allCreatures') {
             for (const o of this.battlefield) { const oa = o.analysis(); if (oa && oa.isCreature) apply(o); }
           } else applyToScope(e, apply);
@@ -68343,6 +68427,16 @@ MTG.setGameSpeed = function (id) {
           this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal${e.anyTarget ? '' : ' ' + me.name} this turn is prevented.`);
           break;
         }
+        // Deadly Tempest: each player loses life for their own creatures the sweep just destroyed (eachLoseSwept)
+        case 'eachLoseSwept': {
+          const gone = (this._lastAffectedAll || []).filter(g => (this.obj(g.id) || {}).zone !== 'battlefield');
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            if (p.hasLost) continue;
+            const k = gone.filter(g => g.controller === p.id).length;
+            if (k > 0) this.changeLife(p, -k);
+          }
+          break;
+        }
         // Starfall Invocation: one of the cards that sweep put into your graveyard
         case 'returnSwept': {
           const pool = (this._lastSwept || []).map(id => this.obj(id))
@@ -69020,6 +69114,28 @@ MTG.setGameSpeed = function (id) {
           this.emit('sfx', 'blink');
           break;
         }
+        /* Another Round: "Exile any number of creatures you control, then return them to the battlefield under their owner's
+           control. Then repeat this process X more times." — each time its own pick, out together and back together (blinkAnyRepeat) */
+        case 'blinkAnyRepeat': {
+          const times = 1 + Math.max(0, Number(n(e.more)) || 0);
+          for (let k = 0; k < times; k++) {
+            const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'creature'));
+            if (!pool.length) break;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'blinkAny', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+              min: 0, max: pool.length, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}exile any number of creatures you control, then return them to the battlefield${times > 1 ? ` (${k + 1} of ${times})` : ''}.` }, 'bar' + k);
+            if (got === SUSPEND) return SUSPEND;
+            if (this._doneHere('bar' + k)) continue;
+            const list = pool.filter(x => ((got && got.picks) || []).includes(x.id) && x.zone === 'battlefield');
+            for (const x of list) this.moveObject(x, 'exile');
+            for (const x of list) {
+              const back = this.obj(x.id) || x;
+              if (back.zone === 'exile') this.moveObject(back, 'battlefield', { controller: back.owner || back.controller });
+            }
+            if (list.length) { this.logEvent('blink', `${list.map(x => x.name).join(', ')} ${list.length > 1 ? 'flicker' : 'flickers'} out and return.`); this.emit('sfx', 'blink'); }
+          }
+          break;
+        }
         /* Fortune, Loyal Steed: "exile it and up to one creature that saddled it this turn, then return those cards to
            the battlefield under their owner's control" — it, while it is still the one that attacked (sinceTs), and
            the one picked, out together and back together */
@@ -69301,6 +69417,8 @@ MTG.setGameSpeed = function (id) {
         case 'ifDestroyed': {
           const la = this._lastAffected && this.obj(this._lastAffected.id);
           // (Kalitas, Bloodchief of Ghet: "If that creature dies this way" — into a graveyard: died)
+          // (Come Back Wrong: "If a creature card is put into a graveyard this way" — a card, that kind there: card)
+          if (e.card && la && (la.isToken || !this._cardFitsWords(la, e.card))) break;
           if (la && la.zone !== 'battlefield' && (!e.died || la.zone === 'graveyard')) this._spliceNext(e.then || []);
           break;
         }
@@ -78070,6 +78188,28 @@ MTG.setGameSpeed = function (id) {
           }
           break;
         }
+        /* Prisoner's Dilemma: "Each opponent secretly chooses silence or snitch, then the choices are revealed." — nobody's
+           choice told until all are in; then the damage: all silence, all snitch, or only those who kept silent (silenceOrSnitch) */
+        case 'silenceOrSnitch': {
+          const opps = this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && p.id !== ctx.controller);
+          const words = ['silence', 'snitch'];
+          const picks = [];
+          for (const p of opps) {
+            const v = this._choose({ playerId: p.id, purpose: 'silenceOrSnitch', kind: 'options', min: 1, max: 1, forPlayer: ctx.controller,
+              options: words.map((w, i) => ({ i, label: U.titleCase(w) })),
+              prompt: `${src ? src.name + ': ' : ''}secretly choose silence or snitch. If every opponent chooses silence, each takes ${e.silence} damage; if every opponent chooses snitch, each takes ${e.snitch}; otherwise each who chose silence takes ${e.mixed}.` }, 'ss' + p.id);
+            if (v === SUSPEND) return SUSPEND;
+            picks.push({ p, pick: v && v.picks.length ? v.picks[0] : 0 });
+          }
+          if (!picks.length || this._doneHere('ssDone')) break;
+          for (const x of picks) this.logEvent('rules', `${x.p.name} chose ${words[x.pick]}.`);
+          const allSilent = picks.every(x => x.pick === 0), allSnitch = picks.every(x => x.pick === 1);
+          for (const x of picks) {
+            const k = allSilent ? e.silence : allSnitch ? e.snitch : x.pick === 0 ? e.mixed : 0;
+            if (k > 0 && !x.p.hasLost) this.dealDamageToPlayer(x.p, k, src);
+          }
+          break;
+        }
         /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed" —
            nobody's vote told until all are in; each fellowship voter then gives a creature of theirs (one for each such
            vote; one they have only, no question), which you gain control of for good and which can't attack its owner;
@@ -81294,13 +81434,23 @@ MTG.setGameSpeed = function (id) {
             }
           }
           for (const c of cards) {
+            /* Retether: "Only creatures can be enchanted this way." — what it could enchant as the others arrive with it,
+               and none, it remains in the graveyard (auraHost; the host chosen as it enters: _hostOnly) */
+            if (e.auraHost) {
+              const ca = c.analysis() || {};
+              if (!ca.isAura || (ca.auraSpec && ca.auraSpec.zone && ca.auraSpec.zone !== 'battlefield')) continue;
+              const hosts = this._auraHosts(c, ca).filter(x => this._cardFitsWords(x, e.auraHost));
+              if (!hosts.length) continue;
+              c._hostOnly = e.auraHost;
+            }
             // (Shilgengar, Sire of Famine: "with a finality counter on it. Those creatures are Vampires …" — counter, enterEff)
             this.moveObject(c, 'battlefield', Object.assign({ controller: e.mine || e.yours ? ctx.controller : c.owner, tapped: !!(e.tapped) },
               e.enterEff ? { enterEffects: [Object.assign({}, e.enterEff)] } : {}));
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             if (e.counter && c.zone === 'battlefield') this.addCounters(c, e.counter, 1);
           }
-          this.logEvent('reanimate', `${cards.length} card${cards.length === 1 ? '' : 's'} return${cards.length === 1 ? 's' : ''} to the battlefield.`);
+          const back = e.auraHost ? cards.filter(c => c.zone === 'battlefield').length : cards.length;
+          this.logEvent('reanimate', `${back} card${back === 1 ? '' : 's'} return${back === 1 ? 's' : ''} to the battlefield.`);
           break;
         }
         /* Braids, Arisen Nightmare: you may sacrifice something; each
@@ -81520,6 +81670,11 @@ MTG.setGameSpeed = function (id) {
           // (Everybody Lives!: "Players gain hexproof until end of turn." — who 'each')
           for (const q of (e.who === 'each' ? this.players.filter(x => !x.hasLost) : [me])) q.hexproofTurn = this.turn;
           this.logEvent('keyword', e.who === 'each' ? 'Players gain hexproof until end of turn.' : `${me.name} gains hexproof until end of turn.`);
+          break;
+        // Detection Tower: hexproof of your opponents and their creatures no bar to yours, until end of turn (seeHexproofTurn)
+        case 'seeThroughHexproof':
+          me.seeHexproofTurn = this.turn;
+          this.logEvent('rules', `Until end of turn, ${me.name}'s spells and abilities can target ${me.name}'s opponents and their creatures as though they didn't have hexproof.`);
           break;
         /* Gift (CR 702.174): the opponent who was promised it gets it. */
         case 'giveGift': {
@@ -82075,9 +82230,16 @@ MTG.setGameSpeed = function (id) {
         }
       }
       for (const src of this.battlefield) {
-        if (src.phasedOut || (src.controller !== o.controller && o.attachedTo !== src.id)) continue;
+        if (src.phasedOut) continue;
         const e = this._staticOp(src, 'triggerDouble');
         if (!e) continue;
+        /* Wizard's Staff: "If a triggered ability of equipped creature triggers" — the creature it is on, whoever controls
+           either; a "when this creature dies" looks back to what was on it (CR 603.10a) (equipped) */
+        if (e.cause === 'equipped') {
+          if (src.attachedTo === o.id || (o.zone !== 'battlefield' && data.object === o && LEAVE.includes(event) && (o._lastAttachments || []).includes(src.id))) extra++;
+          continue;
+        }
+        if (src.controller !== o.controller && o.attachedTo !== src.id) continue;
         // (as long as Cloud is equipped; the Equipment's, whoever controls it)
         if (e.cause === 'selfOrEquipment') {
           if ((o === src || (o.attachedTo === src.id && isEquip(o))) && (src.attachments || []).some(id => isEquip(this.obj(id)))) extra++;
@@ -83227,6 +83389,7 @@ MTG.setGameSpeed = function (id) {
           if (a.isAura && !o.bestowed && o.zone === 'battlefield' && !o.attachedTo && o._needsHost) {
             o._needsHost = false;
             const hosts = this._auraHosts(o, a);
+            o._hostOnly = null;
             const pl = this.player(o.controller);
             if (hosts.length === 1 || (hosts.length && pl && pl.isBot)) { this._attachAura(o, hosts.length === 1 ? hosts[0] : this._bestAuraHost(o, a, hosts)); repeat = true; continue; }
             if (hosts.length) {
@@ -85078,6 +85241,9 @@ MTG.setGameSpeed = function (id) {
       }
       // Toralf, God of Fury: "other than that permanent" (notObject)
       if (spec.notObject) return this._legalTargetsFor(Object.assign({}, spec, { notObject: null }), controllerId, sourceId).filter(t => t.id !== spec.notObject);
+      // Angel of Serenity: "target creatures from the battlefield and/or creature cards from graveyards" — either (orGraveyard)
+      if (spec.orGraveyard) return this._legalTargetsFor(Object.assign({}, spec, { orGraveyard: null }), controllerId, sourceId)
+        .concat(this._legalTargetsFor(spec.orGraveyard, controllerId, sourceId));
       const out = [];
       /* "You have hexproof" keeps a player off the list of things an
          opponent's spell may point at (CR 702.11e). */
@@ -85086,7 +85252,7 @@ MTG.setGameSpeed = function (id) {
         .filter(p => !tsrc || !(this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)) || this._protSubtypeFrom(p.id, tsrc)))
         // Absolute Virtue: not by an opponent's spell or ability
         .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
-        .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn))
+        .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn) || this._seesThroughHexproof(controllerId, p.id))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
@@ -85121,7 +85287,7 @@ MTG.setGameSpeed = function (id) {
           const a = o.analysis();
           if (!a || o.phasedOut) continue;
           if (!MTG.oracle.matchesSpec(Object.assign({}, spec, { type: 'permanent' }), o, a, controllerId, this._specCtx())) continue;
-          if (o.controller !== controllerId && (this._hexproofBars(o) || this._shroudFor(o, controllerId))) continue;
+          if (o.controller !== controllerId && (this._hexproofBars(o, controllerId) || this._shroudFor(o, controllerId))) continue;
           out2.push({ kind: 'object', id: o.id, name: o.name });
         }
         return out2;
@@ -85145,7 +85311,7 @@ MTG.setGameSpeed = function (id) {
         // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
         if (spec.artifactOrMaxMv != null && !a.isArtifact && ((o.card && o.card.cmc) || 0) > spec.artifactOrMaxMv) continue;
         if (zone === 'battlefield' && o.controller !== controllerId &&
-            (this._hexproofBars(o) || this._shroudFor(o, controllerId))) continue;
+            (this._hexproofBars(o, controllerId) || this._shroudFor(o, controllerId))) continue;
         // shroud: not even its own controller's (CR 702.18a)
         if (zone === 'battlefield' && this._shroudFor(o, controllerId)) continue;
         // protection: not by a spell or ability from a source with that quality (CR 702.16b)
@@ -86508,7 +86674,7 @@ MTG.setGameSpeed = function (id) {
         // Autumn Willow: shroud, though this player may target it this turn (shroudExceptFor)
         shroudOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'shroud') && !this._shroudFor(o, playerId) ? true : undefined,
         // Nowhere to Run: hexproof, but targetable "as though they didn't have hexproof" (oppCreaturesExposed)
-        hexproofOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'hexproof') && !this._hexproofBars(o) ? true : undefined,
+        hexproofOpen: o.zone === 'battlefield' && !blank(o) && this.hasKw(o, 'hexproof') && !this._hexproofBars(o, playerId) ? true : undefined,
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
         /* Kibo's Banana, Birds of Paradise, Arcane Signet: what tapping it by hand lets its controller choose (the
@@ -95223,6 +95389,22 @@ MTG.setGameSpeed = function (id) {
       const theirs = g.battlefield.filter(o => o.controller === s.forPlayer && (g.characteristics(o) || {}).isCreature).length;
       return { picks: [!mine || theirs >= 3 ? 0 : 1] };
     },
+    /* Another Round: every creature of ours with an enters ability, and anything else ours a blink does good to
+       (tapped, shrunk, enchanted by an opponent) */
+    blinkAny(s) {
+      const g = this.game;
+      const picks = (s.items || []).map(it => g.obj(it.id)).filter(o => o && o.controller === this.pid && !o.isToken && (
+        ((o.analysis() || {}).abilities || []).some(ab => ab.kind === 'triggered' && /^etb$|Etb$/.test(ab.event || '') && ab.self !== false) ||
+        o.tapped || (o.attachments || []).some(id => { const x = g.obj(id); return x && x.controller !== this.pid; }) ||
+        Object.keys(o.counters || {}).some(k => /^-/.test(k) && o.counters[k] > 0))).map(o => o.id);
+      return { picks };
+    },
+    /* Prisoner's Dilemma: alone against it, silence (4 rather than 8); with other opponents, snitching is never worse */
+    silenceOrSnitch(s) {
+      const g = this.game;
+      const opps = g.opponentsOf(s.forPlayer != null ? s.forPlayer : this.pid).filter(p => !p.hasLost);
+      return { picks: [opps.length > 1 ? 1 : 0] };
+    },
     /* Seize the Spotlight: fame when it costs us nothing (no creature, or none worth stealing), else fortune */
     /* Master of Ceremonies: both get what is chosen, so what is worth most to us (each option's worth, from the engine);
        a full hand makes a card worth less */
@@ -98433,7 +98615,7 @@ MTG.setGameSpeed = function (id) {
       const list = g.battlefield.filter(o => {
         if (o.controller === this.pid) return false;
         const a = o.analysis();
-        return a && (this._isCreature(o) || a.isPlaneswalker) && !g._hexproofBars(o) && !g.hasKw(o, 'shroud');
+        return a && (this._isCreature(o) || a.isPlaneswalker) && !g._hexproofBars(o, this.pid) && !g.hasKw(o, 'shroud');
       });
       if (!list.length) return null;
       list.sort((a, b) => this.threatValue(b) - this.threatValue(a));
@@ -127909,7 +128091,8 @@ Sideboard
       const opts = (((o.manaChoices || []).find(m => m.i === i)) || {}).options || [];
       const go = (key) => this.send(Object.assign({ kind: 'mana', objId: o.id, index: i }, key ? { choice: key } : {}));
       if (opts.length < 2) return go(null);
-      if (this.paying) return go(this._manaChoiceForPay(o, opts));
+      // (Victory Chimes: while paying, the mana is yours — the options that hand it to another player are left out)
+      if (this.paying) { const mine = opts.filter(x => !x.to); return go(mine.length < 2 ? ((mine[0] || {}).key || null) : this._manaChoiceForPay(o, mine)); }
       this._askManaChoice(o, opts, go);
     }
 
@@ -127973,11 +128156,13 @@ Sideboard
       const name = (o.card && o.card.name) || 'Mana';
       const key = 'manapick:' + o.id + ':' + opts.map(x => x.key).join(',');
       const done = (k) => { this.asking = null; this.render(); MTG.sfx('click'); go(k); };
-      this.asking = { base: key, key, escape: true, build: () => this.panel(`${escapeHtml(name)}: add which mana?`,
-        opts.length === 5 ? 'Any colour.' : 'Choose what it adds.',
-        el('div', { class: 'mana-picks', role: 'group', 'aria-label': 'Mana to add' }, opts.map((x, k) => el('button', {
-          type: 'button', class: 'mana-pick' + (x.key.length > 1 || x.mana.length > 3 ? ' wide' : ''),
-          html: MTG.mana.html(x.mana), title: 'Add ' + x.mana, 'aria-label': 'Add ' + x.mana, 'data-mana': x.key,
+      // (Victory Chimes: "A player of your choice adds {C}." — who adds it, each option labelled)
+      const who = opts.some(x => x.to);
+      this.asking = { base: key, key, escape: true, build: () => this.panel(`${escapeHtml(name)}: ${who ? 'who adds the mana?' : 'add which mana?'}`,
+        who ? 'Choose the player who adds it.' : opts.length === 5 ? 'Any colour.' : 'Choose what it adds.',
+        el('div', { class: 'mana-picks', role: 'group', 'aria-label': who ? 'Player who adds the mana' : 'Mana to add' }, opts.map((x, k) => el('button', {
+          type: 'button', class: 'mana-pick' + (x.label || x.key.length > 1 || x.mana.length > 3 ? ' wide' : ''),
+          html: MTG.mana.html(x.mana) + (x.label ? ' ' + escapeHtml(x.label) : ''), title: x.label ? (x.to ? x.label + ' adds ' : 'You add ') + x.mana : 'Add ' + x.mana, 'aria-label': x.label ? (x.to ? x.label + ' adds ' : 'You add ') + x.mana : 'Add ' + x.mana, 'data-mana': x.key,
           autofocus: k === 0 ? true : null, onclick: () => done(x.key),
         }))),
         [{ label: 'Cancel', fn: () => { this.asking = null; this.render(); } }], { card: o.card, cls: 'mana-ask' }) };
