@@ -76370,4 +76370,86 @@ module.exports = (test) => {
     t.ok(bugs.every(o => g.hasKw(o, 'flying') && g._matchesCategory(o, 'artifact') && g.powerOf(o) === 1), '1/1 artifact fliers');
     t.eq(g.zones.A.graveyard.length, 1, 'your own graveyard untouched');
   });
+
+  test('Cards: Afterlife from the Loam — up to one creature card from each graveyard, yours included, as Zombies', (mk, t) => {
+    t.auto('Afterlife from the Loam');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const mine = T.grave('A', 'Grizzly Bears'), theirs = T.grave('B', 'Hill Giant'), skip = T.grave('C', 'Craw Wurm');
+    T.answer('choose', (ch) => ({ picks: [ch.items[0].id] })).answer('choose', (ch) => ({ picks: [ch.items[0].id] })).answer('choose', { picks: [] });
+    T.mana('A', 'BBB5');
+    T.cast('A', T.hand('A', 'Afterlife from the Loam'), { delveIds: [] });
+    t.zone(mine, 'battlefield', 'your Bears');
+    t.zone(theirs, 'battlefield', "B's Giant");
+    t.zone(skip, 'graveyard', "none of C's chosen");
+    t.eq(theirs.controller, 'A', 'under your control');
+    t.ok(g._hasCreatureType(theirs, 'Zombie') && g._hasCreatureType(theirs, 'Giant'), 'a Zombie Giant');
+    t.ok(g._hasCreatureType(mine, 'Zombie'), 'your Bears a Zombie too');
+  });
+
+  test('Cards: Scroll of Fate — {T}: manifest a card from your hand', (mk, t) => {
+    t.auto('Scroll of Fate');
+    const T = mk();
+    const g = T.g;
+    const scroll = T.bf('A', 'Scroll of Fate');
+    const bear = T.hand('A', 'Grizzly Bears'), isle = T.hand('A', 'Island');
+    T.answer('choose', (ch) => ({ picks: [ch.items.find(it => it.id === isle.id).id] }));
+    T.activate('A', scroll, 0);
+    t.zone(isle, 'battlefield', 'the Island chosen, onto the battlefield');
+    t.ok(isle.faceDown, 'face down');
+    t.eq(g.powerOf(isle), 2, 'a 2/2');
+    t.no(isle.cloaked, 'manifested, not cloaked (no ward)');
+    t.zone(bear, 'hand', 'the other card stays');
+    t.ok(scroll.tapped, 'tapped');
+  });
+
+  test('Cards: Sword of the Squeak — +1/+1 for each creature you control with base power or toughness 1', (mk, t) => {
+    t.auto('Sword of the Squeak');
+    const T = mk();
+    const g = T.g;
+    const sword = T.bf('A', 'Sword of the Squeak');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Savannah Lions'); T.bf('A', 'Hill Giant'); T.bf('B', 'Llanowar Elves');
+    const eq = sword.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^Equip/.test(x.text));
+    T.mana('A', '2');
+    T.activate('A', sword, eq, { targets: [bear] });
+    t.eq(sword.attachedTo, bear.id, 'equipped');
+    t.eq(g.powerOf(bear), 4, '1/1 Elves and 2/1 Lions: +2');
+    t.eq(g.toughnessOf(bear), 4, 'and +2 toughness');
+  });
+
+  test("Cards: Portent — target player's top three in any order, a shuffle if you like; a card next upkeep", (mk, t) => {
+    t.auto('Portent');
+    const T = mk();
+    const g = T.g;
+    const c1 = T.top('B', 'Hill Giant'), c2 = T.top('B', 'Craw Wurm'), c3 = T.top('B', 'Grizzly Bears');
+    // top now: Bears, Wurm, Giant
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === 'B')] }));
+    T.answer('arrange', (ch) => { t.eq(ch.ofPlayer, 'B', "B's library"); return { top: [c1.id, c3.id, c2.id] }; });
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Portent'), { targets: ['B'] });
+    t.eq(g.zones.B.library.slice(0, 3).map(o => o.name).join(','), 'Hill Giant,Grizzly Bears,Craw Wurm', 'in the order chosen, not shuffled');
+    t.ok(T.asked.some(q => q.type === 'confirm' && q.purpose === 'haveShuffle'), 'asked about the shuffle');
+    const hand = g.zones.A.hand.length;
+    T.nextTurn('B');
+    t.eq(g.zones.A.hand.length, hand + 1, 'a card at the next upkeep');
+  });
+
+  test('Cards: The Ooze — a Mutagen token for each +1/+1 counter on a creature of yours that leaves', (mk, t) => {
+    t.auto('The Ooze');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'The Ooze');
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    const plain = T.bf('A', 'Hill Giant');
+    const theirs = T.bf('B', 'Craw Wurm', { counters: { '+1/+1': 3 } });
+    const muts = () => T.bfOf('A').filter(o => o.isToken && /Mutagen/.test(o.name)).length;
+    g.moveObject(bear, 'hand'); T.resolve();
+    t.eq(muts(), 2, 'two counters: two Mutagens (bounced counts as leaving)');
+    g.moveObject(plain, 'graveyard'); T.resolve();
+    t.eq(muts(), 2, 'no counters: nothing');
+    g.moveObject(theirs, 'graveyard'); T.resolve();
+    t.eq(muts(), 2, "an opponent's creature: nothing");
+  });
 };

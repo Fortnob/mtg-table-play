@@ -27845,24 +27845,40 @@
            in any order." */
         case 'arrangeTop': {
           const k = Math.max(1, n(e.n) || 1);
-          const cards = this._topOfLibrary(ctx.controller, k);
+          // Portent: "target player's library" — theirs, ordered by you (whose 'target')
+          const lp = e.whose === 'target' ? firstPlayer() : me;
+          if (!lp) break;
+          const cards = this._topOfLibrary(lp.id, k);
           if (!cards.length) break;
           // the cards this player last put on top in this very order, untouched since: they stay as they are
-          if (this._keepsSeenOnTop(ctx.controller, 'arrange', cards)) {
+          if (lp === me && !e.mayShuffle && this._keepsSeenOnTop(ctx.controller, 'arrange', cards)) {
             this.logEvent('rules', `${me.name} keeps ${cards.length === 1 ? '1 card' : cards.length + ' cards'} on top (seen already).`);
             break;
           }
-          const order = this._ask({ type: 'arrange', playerId: ctx.controller, count: cards.length, cards,
-            prompt: `Put the top ${cards.length === 1 ? 'card' : cards.length + ' cards'} back in any order.` }, 'arr');
+          const order = this._ask(Object.assign({ type: 'arrange', playerId: ctx.controller, count: cards.length, cards,
+            prompt: lp === me ? `Put the top ${cards.length === 1 ? 'card' : cards.length + ' cards'} back in any order.`
+              : `Put the top ${cards.length === 1 ? 'card' : cards.length + ' cards'} of ${lp.name}'s library back in any order.` },
+            lp === me ? {} : { ofPlayer: lp.id }), 'arr');
           if (order === SUSPEND) return SUSPEND;
-          const z = this.zones[ctx.controller];
+          const z = this.zones[lp.id];
           const top = z.library.slice(0, cards.length);
           const want = ((order && order.top) || []).map(id => top.find(o => o.id === id)).filter(Boolean);
           for (const o of top) if (!want.includes(o)) want.push(o);
           z.library.splice(0, top.length, ...want);
           for (const o of want) { o.knownTo = null; this._setKnown(o, [ctx.controller]); }
-          this._rememberKeptOnTop(ctx.controller, 'arrange', want.map(o => o.id));
-          this.logEvent('rules', `${me.name} puts the top ${top.length} back in the order they choose.`);
+          if (lp === me) this._rememberKeptOnTop(ctx.controller, 'arrange', want.map(o => o.id));
+          this.logEvent('rules', `${me.name} puts the top ${top.length}${lp === me ? '' : ' of ' + lp.name + "'s library"} back in the order they choose.`);
+          // Portent: "You may have that player shuffle." (mayShuffle)
+          if (e.mayShuffle) {
+            const sh = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'haveShuffle',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}have ${lp === me ? 'yourself' : lp.name} shuffle ${lp === me ? 'your' : 'their'} library?` }, 'arrSh');
+            if (sh === SUSPEND) return SUSPEND;
+            if (sh) {
+              this.rng.shuffle(z.library);
+              this._forgetOrder(z.library);
+              this.logEvent('rules', `${lp.name} shuffles their library.`);
+            }
+          }
           break;
         }
         case 'setLife': {
@@ -39728,7 +39744,7 @@
             if (hand.length > 1) {
               const got = this._choose({ playerId: me.id, purpose: 'manifestFromHand', kind: 'objects', zone: 'hand',
                 items: this._chooseItems(hand), min: 1, max: 1, prefer: 'worst',
-                prompt: `${ctx.name ? ctx.name + ': ' : ''}cloak a card from your hand. It is put onto the battlefield face down as a 2/2 creature with ward {2}; a creature card can be turned face up any time for its mana cost.` }, 'cloak');
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.manifest ? 'manifest' : 'cloak'} a card from your hand. It is put onto the battlefield face down as a 2/2 creature${e.manifest ? '' : ' with ward {2}'}; a creature card can be turned face up any time for its mana cost.` }, 'cloak');
               if (got === SUSPEND) return SUSPEND;
               const pick = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && hand.includes(x));
               if (pick) c = pick;
@@ -39738,9 +39754,10 @@
             c = this.zones[me.id].library[0];
             if (!c) break;
           }
-          this._manifestCard(c, me.id, true);
+          // (Scroll of Fate: "Manifest a card from your hand." — no ward: manifest)
+          this._manifestCard(c, me.id, !e.manifest);
           this._lastPut = c.id;
-          this.logEvent('rules', `${me.name} cloaks a card from their ${e.from === 'hand' ? 'hand' : 'library'}.`);
+          this.logEvent('rules', `${me.name} ${e.manifest ? 'manifests' : 'cloaks'} a card from their ${e.from === 'hand' ? 'hand' : 'library'}.`);
           break;
         }
         /* Kozilek, the Broken Reality: "up to two target players each manifest two cards from their hands. For each
@@ -40398,6 +40415,17 @@
           bp = sets.length ? sets[sets.length - 1].setPt.p : (parseInt(oa.power, 10) || 0);
         } else bp = (this.characteristics(o) || {}).basePower || 0;
         if (bp !== sc.basePower) return false;
+      }
+      // (Sword of the Squeak: "with base power or toughness 1" — either, worked out the same way: basePowerOrToughness)
+      if (sc.basePowerOrToughness != null) {
+        let bp, bt;
+        if (inLayers) {
+          const sets = (o.effects || []).filter(e => e && e.setPt);
+          const sp = sets.filter(e => typeof e.setPt.p === 'number'), st = sets.filter(e => typeof e.setPt.t === 'number');
+          bp = sp.length ? sp[sp.length - 1].setPt.p : (parseInt(oa.power, 10) || 0);
+          bt = st.length ? st[st.length - 1].setPt.t : (parseInt(oa.toughness, 10) || 0);
+        } else { const ch = this.characteristics(o) || {}; bp = ch.basePower || 0; bt = ch.baseToughness || 0; }
+        if (bp !== sc.basePowerOrToughness && bt !== sc.basePowerOrToughness) return false;
       }
       // (Duskana, the Rage Mother: "with base power and toughness 2/2" — the toughness the same way)
       if (sc.baseToughness != null) {

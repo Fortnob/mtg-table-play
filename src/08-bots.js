@@ -3320,6 +3320,8 @@
         case 'arrange': {
           // best first is the order you want to draw them in
           const ids = (ch.cards || []).slice().sort((x, y) => this.drawValue(g.obj(y.id)) - this.drawValue(g.obj(x.id))).map(c => c.id);
+          // (Portent: an opponent's library — the worst first: ofPlayer)
+          if (ch.ofPlayer && ch.ofPlayer !== this.pid && g.opponentsOf(this.pid).some(p => p.id === ch.ofPlayer)) ids.reverse();
           return g.resolveChoice(who, { top: ids });
         }
 
@@ -3435,6 +3437,8 @@
       }
       // a Treasure spent for mana: a bot is never asked, and would say yes (sacMana)
       if (ch.purpose === 'sacMana') return true;
+      // Portent: the cards were just put in the order the bot wanted — no shuffle (haveShuffle)
+      if (ch.purpose === 'haveShuffle') return false;
       // Nick Fury, Agent of S.H.I.E.L.D.: a double-faced Hero put onto the battlefield — its other face is the point
       if (ch.purpose === 'transformTaken') return true;
       // Atemsis, All-Seeing: revealing a hand of six mana values wins

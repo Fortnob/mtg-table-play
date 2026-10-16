@@ -232,7 +232,7 @@ const CHOICES = {
   sacrifice: choice({ count: nat, filter: opt(maybe(str)), candidates: opt(arr(id)), optional: opt(bool) }),
   scry: choice({ count: nat, cards: arr(ChoiceCard) }),
   surveil: choice({ count: nat, cards: arr(ChoiceCard) }),
-  arrange: choice({ count: opt(nat), cards: arr(ChoiceCard), look: opt(bool) }),
+  arrange: choice({ count: opt(nat), cards: arr(ChoiceCard), look: opt(bool), ofPlayer: opt(id) }),
   orderTriggers: choice({ cards: arr(obj({ id, name: opt(str), ids: opt(arr(id, { min: 2 })) }), { min: 2 }) }),
   pickCard: choice({ count: nat, cards: arr(ChoiceCard), optional: opt(bool), candidates: opt(arr(id)), fromLibrary: opt(bool) }),
   pickTarget: choice({ specs: arr(S.plainObj, { min: 1 }), options: arr(arr(Target)), count: nat }),

@@ -3691,6 +3691,10 @@
     // Mahadi: "Create a Treasure token for each creature that died this turn."
     { re: /^Create (?:a|an|one) (tapped )?(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Gold|Shard) token for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? Object.assign({ op: 'createNamedToken', n: c, token: m[2] }, m[1] ? { tapped: true } : {}) : null; } },
+    /* The Ooze: "create a Mutagen token for each +1/+1 counter on it" — the counters the creature the trigger is about had,
+       as it left (countersOnTrigger of a kind) */
+    { re: /^Create (?:a|an|one) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Gold|Shard|Mutagen) token for each (\+1\/\+1|[a-z]+) counter on (?:it|that creature)\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', n: { countersOnTrigger: true, counter: m[2].toLowerCase(), mult: 1 }, token: m[1] }) },
     // (Aerid Konstrari: "create a Heartwood token")
     { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Mutagen|Heartwood) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
@@ -8018,6 +8022,8 @@
        Cryptic Coat: "Cloak the top card of your library" (cloak) */
     { re: /^Cloak the top card of your library\.?$/i, make: () => ({ op: 'cloak', from: 'top' }) },
     { re: /^Cloak a card from your hand\.?$/i, make: () => ({ op: 'cloak', from: 'hand' }) },
+    // Scroll of Fate: "Manifest a card from your hand." — the same without the ward (cloak, manifest)
+    { re: /^Manifest a card from your hand\.?$/i, make: () => ({ op: 'cloak', from: 'hand', manifest: true }) },
     // Etrata, Deadly Fugitive: "cloak the top card of that player's library" — the player hit's card, under your control (libOf)
     { re: /^Cloak the top card of that player'?s library\.?$/i, make: () => ({ op: 'manifest', cloak: true, libOf: 'triggerPlayer' }) },
     // Orochi Soul-Reaver: "manifest the top card of that player's library" — theirs, under your control (libOf)
@@ -14692,6 +14698,17 @@
     // Mondassian Colony Ship, Cyber Conversion: "turn target creature face down. It becomes (It's) a 2/2 Cyberman artifact creature."
     { re: /^Turn target creature face down\. It(?: becomes| is|'s) a 2\/2 ([a-z]+) artifact creature\.?$/i,
       make: (m) => [{ op: 'turnFaceDown', as: 'Artifact Creature — ' + m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }] },
+    /* Portent, Natural Selection: "Look at the top three cards of target player's library, then put them back in any
+       order. You may have that player shuffle." — that player's library, ordered by you, then shuffled if you like
+       (arrangeTop whose target, mayShuffle) */
+    { re: /^Look at the top (two|three|four|five|\d+) cards of target player'?s library, then put them back in any order\. You may have that player shuffle\.?$/i,
+      make: (m) => [{ op: 'arrangeTop', n: num(m[1]), whose: 'target', mayShuffle: true, targets: [{ type: 'player' }] }] },
+    /* Afterlife from the Loam: "For each player, choose up to one target creature card in that player's graveyard. Put those
+       cards onto the battlefield under your control. They're Zombies in addition to their other types." — yours too
+       (perOpponentFrom everyPlayer; the type as they enter: enterEff) */
+    { re: /^For each (player|opponent), choose up to one target creature card in that player'?s graveyard\. Put those cards onto the battlefield under your control\. They'?re ([A-Z][a-z]+)s? in addition to their other types\.?$/i,
+      make: (m) => [{ op: 'reanimate', enterEff: { addSubtypes: [singularType(m[2])] },
+        perOpponentFrom: Object.assign({ type: 'creature', filter: 'creature card', zone: 'graveyard', upTo: true }, /player/i.test(m[1]) ? { everyPlayer: true } : {}) }] },
     /* The Moonbase: "for each opponent, choose up to one target creature card in that player's graveyard. Put those cards
        onto the battlefield face down under your control. They're 2/2 Cyberman artifact creatures." */
     { re: /^For each opponent, choose up to one target creature card in that player'?s graveyard\. Put those cards onto the battlefield face down under your control\. They'?re 2\/2 ([A-Z][a-z]+) artifact creatures\.?$/i,
@@ -22204,6 +22221,8 @@
     }
     // Zinnia, Valley's Voice: "other creatures you control with base power 1" (basePower)
     if ((mm0 = rest.match(/ with base power (\d+)$/i))) { sc.basePower = +mm0[1]; rest = rest.slice(0, mm0.index); }
+    // Sword of the Squeak: "each creature you control with base power or toughness 1" — either one (basePowerOrToughness)
+    if ((mm0 = rest.match(/ with base power or toughness (\d+)$/i))) { sc.basePowerOrToughness = +mm0[1]; rest = rest.slice(0, mm0.index); }
     // Duskana, the Rage Mother: "each creature you control with base power and toughness 2/2" (baseToughness too)
     if ((mm0 = rest.match(/ with base power and toughness (\d+)\/(\d+)$/i))) { sc.basePower = +mm0[1]; sc.baseToughness = +mm0[2]; rest = rest.slice(0, mm0.index); }
     // Zar Ojanen, Scion of Efrava: "with toughness less than the number of basic land types among lands you control" (toughnessBelow)

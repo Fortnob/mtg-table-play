@@ -486,7 +486,7 @@ declare namespace MTG {
   interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean; /** Doomfall: the chosen permanent is exiled, not sacrificed */ exileInstead?: boolean;
     /** differentNames: no two of the permanents sacrificed may share a name (Transmutation Font). */ differentNames?: boolean }
   interface ScryChoice extends ChoiceBase { type: 'scry' | 'surveil'; count: number; cards: ChoiceCard[] }
-  interface ArrangeChoice extends ChoiceBase { type: 'arrange'; count?: number; cards: ChoiceCard[]; look?: boolean }
+  interface ArrangeChoice extends ChoiceBase { type: 'arrange'; count?: number; cards: ChoiceCard[]; look?: boolean; /** Portent: whose library, when not the chooser's */ ofPlayer?: Id }
   /** `ids`: the same trigger more than once, put in as one, side by side (their order can't matter) */
   interface OrderTriggersChoice extends ChoiceBase { type: 'orderTriggers'; cards: Array<{ id: Id; name?: string; card?: Card | null; ids?: Id[] }> }
   interface PickCardChoice extends ChoiceBase {
