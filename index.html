@@ -43490,8 +43490,10 @@ MTG.setGameSpeed = function (id) {
       if (hand.length > maxHand) {
         // bots discard their worst cards
         const toss = hand.slice().sort((a, b) => this._cardValue(a) - this._cardValue(b)).slice(0, hand.length - maxHand);
-        for (const o of toss) this.moveObject(o, 'graveyard');
+        // (discarded like a person's: madness exiles it instead, and "whenever you discard" sees it — _discardOne)
+        for (const o of toss) this._discardOne(ap.id, o, 'cost');
         this.logEvent('discard', `${ap.name} discards ${toss.length} to hand size.`);
+        for (const o of toss) this._afterDiscard(ap.id, o);
       }
       this._finishCleanup();
     }
@@ -44738,6 +44740,8 @@ MTG.setGameSpeed = function (id) {
         if (!item._cloneAsked && this._askCloneChoice(item, o, a)) return;
         // Xantcha, Sleeper Agent: the opponent it enters under, asked before it arrives (entersUnderOpponent)
         if (!item._enterAsked && this._askEnterUnder(item, o)) return;
+        // Mox Diamond: the land card it is discarded for, and where that goes, before it would enter (moxDiamond)
+        if (!item._moxAsked && this._askMoxDiamond(item, o)) return;
         o.wasCast = this.turn;
         // the Myojin: "if you cast it from your hand"
         o.castFromZone = item.fromZone || null;
@@ -44930,6 +44934,79 @@ MTG.setGameSpeed = function (id) {
         sourceId: o.id, sourceName: o.name, sourceCard: o.card,
         prompt: `${o.name} enters under the control of an opponent of your choice. Choose an opponent.` });
       return true;
+    }
+    /**
+     * Mox Diamond: "If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto
+     * the battlefield. If you don't, put it into its owner's graveyard." — a replacement, so it is settled before the Mox
+     * arrives (it never enters without the discard: no "enters" trigger sees it). Its discard is an effect's, not a
+     * cost (Library of Leng applies; madness too) — asked here as the spell resolves, the spell waiting (_moxWait):
+     * which land, for a person with more than one (a bot takes its cheapest), then where it goes if that is a choice.
+     * What was settled is o._mox, read as it enters (_moxEnter).
+     */
+    _askMoxDiamond(item, o) {
+      if (!this._staticOp(o, 'moxDiamond')) return false;
+      item._moxAsked = true;
+      const p = this.player(item.controller);
+      const lands = this._moxLands(item.controller);
+      o._mox = null;
+      if (!p || !lands.length) return false;
+      if (!p.isBot && lands.length > 1) {
+        this._moxWait = item;
+        this.queueChoice({ type: 'pickCard', playerId: p.id, count: 1, optional: true, purpose: 'moxDiamond', moxWait: true,
+          objId: o.id, candidates: lands.map(c => c.id), cards: lands.map(c => ({ id: c.id, name: c.name, card: c.card })),
+          sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+          prompt: `Discard a land card to put ${o.name} onto the battlefield? If you don't, it goes to the graveyard instead.` });
+        return true;
+      }
+      return this._moxWay(item, o, this._cheapestFirst(lands)[0]);
+    }
+    /** The land cards in a hand Mox Diamond may be discarded for. */
+    _moxLands(pid) { return ((this.zones[pid] || {}).hand || []).filter(c => (c.analysis() || {}).isLand); }
+    /** The land chosen: where it goes when that is its player's choice (Library of Leng), asked while the spell waits. */
+    _moxWay(item, o, land) {
+      const ways = this._discardWays(item.controller, land, 'effect');
+      const opts = this._discardOptions(ways);
+      o._mox = { land: land.id, way: ways.length && opts.length === 1 ? opts[0] : null, ways };
+      if (!ways.length || opts.length === 1) return false;
+      this._moxWait = item;
+      const ch = this._discardQuestion(item.controller, land, ways);
+      this.queueChoice(Object.assign(ch.type === 'confirm' ? ch : MTG.choice.normalize(ch), { moxWait: true }));
+      return true;
+    }
+    /** An answer for the Mox: the land picked (null: none, and it goes to the graveyard), or where that land goes. */
+    _moxAnswered(land, way) {
+      const item = this._moxWait;
+      this._moxWait = null;
+      const o = item && item.obj;
+      if (!item || !o || o.zone !== 'stack') return;
+      if (way) {
+        if (o._mox) o._mox.way = this._discardChosen(o._mox.ways || [], way.ch, way.ans);
+      } else if (!land) o._mox = { land: null, declined: true };
+      else if (this._moxWay(item, o, land)) return;
+      this._resolveSpell(item);
+    }
+    /**
+     * As a Mox Diamond would enter (moveObject): the land discarded — the one settled as it resolved (o._mox), or, put
+     * there some other way, its controller's cheapest — and it enters; none, and it goes to its owner's graveyard instead.
+     * Returns where it goes.
+     */
+    _moxEnter(o, pid) {
+      const plan = o._mox;
+      o._mox = null;
+      const p = this.player(pid);
+      const lands = this._moxLands(pid);
+      let land = plan && plan.land ? lands.find(c => c.id === plan.land) : null;
+      if (!land && !(plan && plan.declined)) land = this._cheapestFirst(lands)[0] || null;
+      if (!land) {
+        this.logEvent('rules', `${o.name}: ${p ? p.name : 'Its controller'} discards no land card, so it goes to its owner's graveyard instead.`);
+        return 'graveyard';
+      }
+      const way = plan && plan.land === land.id ? plan.way : this._discardSettledWay(pid, land, 'effect');
+      this._discardMove(pid, [{ c: land, way }]);
+      this.logEvent('discard', `${p ? p.name : 'Somebody'} discards ${land.name} for ${o.name}.`);
+      this._lastDiscarded = [land.id];
+      this._afterDiscard(pid, land);
+      return 'battlefield';
     }
     /** Who it enters under: the opponent chosen, or — for a bot, or arriving other than cast — the one with the most life. */
     _enterUnderPick(o, would) {
@@ -47254,7 +47331,8 @@ MTG.setGameSpeed = function (id) {
          (cascade, "you may cast it without paying its mana cost") ignores
          when it could normally be cast (CR 608.2g). */
       // (suspend: the last time counter off in the upkeep, cast then and there — Lotus Bloom, Amy Pond's cards)
-      const midway = opts === 'cascade' || opts === 'resolution' || opts === 'suspend';
+      // (madness: cast as its trigger resolves — CR 702.35a)
+      const midway = opts === 'cascade' || opts === 'resolution' || opts === 'suspend' || opts === 'madness';
       // Drannith Magistrate: nothing from anywhere but the hand
       // Void Winnower: "Your opponents can't cast spells with even mana values."
       for (const q of this.opponentsOf(playerId)) {
@@ -48063,7 +48141,7 @@ MTG.setGameSpeed = function (id) {
         }
       }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
-        escape: null, unearth: 'exile', madness: null };
+        escape: null, unearth: 'exile' };
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword) continue;
         const k = ab.keyword.toLowerCase();
@@ -48080,6 +48158,11 @@ MTG.setGameSpeed = function (id) {
               fetch: /^basic ?land$/.test(typed[1]) ? 'basic land' : typed[1],
               label: ab.keyword + ' ' + cyc });
           }
+        }
+        /* Madness: cast from exile for its madness cost, only as its trigger resolves (madnessOpen: madnessCast) — not
+           from the graveyard, and not later */
+        if (k === 'madness' && arg && o.zone === 'exile' && o.madnessOpen && o.owner === playerId) {
+          out.push({ kind: 'cast', via: 'madness', cost: arg, label: 'Madness ' + arg });
         }
         if (o.zone === 'graveyard' && Object.prototype.hasOwnProperty.call(GRAVE, k) && arg) {
           /* Escape prints two costs in one clause: the mana, and a number
@@ -48901,8 +48984,10 @@ MTG.setGameSpeed = function (id) {
         return this.fail(`Not enough mana to transmute (${use.cost}).`);
       }
       const mv = (o.card && o.card.cmc) || 0;
-      this.moveObject(o, 'graveyard');
+      // ("[Cost], Discard this card:" — a discard, CR 702.53a: madness and "whenever you discard" see it)
+      this._discardOne(playerId, o, 'cost');
       this.logEvent('rules', `${this.player(playerId).name} transmutes ${o.name}.`);
+      this._afterDiscard(playerId, o);
       this._runEffects([{ op: 'tutor', n: 1, to: 'hand', mv,
         prompt: `Search your library for a card with mana value ${mv}.` }],
       { controller: playerId, obj: o, name: o.name }, null, 'transmute');
@@ -48921,22 +49006,19 @@ MTG.setGameSpeed = function (id) {
     }
 
     /**
-     * Madness (CR 702.35): a card discarded with madness can be cast for
-     * its madness cost instead of lying in the graveyard. The offer is
-     * made once, to the player who discarded it, and only when they could
-     * actually pay.
+     * Madness (CR 702.35a): "When this card is exiled this way, its owner may cast it by paying [cost] rather than
+     * paying its mana cost. If that player doesn't, they put this card into their graveyard." — a trigger of its
+     * owner's, for a card the discard sent into exile (madnessExiled: _discardWays); the cast is made as it resolves
+     * (madnessCast).
      */
     _offerMadness(playerId, o) {
-      if (!o || o.zone !== 'graveyard') return;
-      const a = o.trueAnalysis ? o.trueAnalysis() : o.analysis();
-      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' &&
-        /^madness$/i.test(x.keyword || '') && x.arg);
-      if (!ab) return;
-      if (!this.couldPay(playerId, ab.arg, this.manaSources(playerId))) return;
-      this.queueChoice({
-        type: 'confirm', playerId, purpose: 'madness', objId: o.id, cost: ab.arg, payMana: ab.arg,
-        prompt: `Cast ${o.name} for its madness cost (${ab.arg})?`,
-      });
+      if (!o || o.zone !== 'exile' || !o.madnessExiled) return;
+      const cost = this._madnessCost(o);
+      if (!cost) return;
+      this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+        controller: o.owner, name: `${o.name} — madness`, auto: true, effects: [{ op: 'madnessCast' }],
+        abilityText: `When this card is exiled this way, its owner may cast it by paying ${cost} rather than paying its mana cost. If that player doesn't, they put this card into their graveyard.`,
+        triggerData: { event: 'madness', objectId: o.id } });
     }
 
     /**
@@ -49072,13 +49154,22 @@ MTG.setGameSpeed = function (id) {
        is discarded. It never touches the graveyard, so nothing that watches the graveyard sees it; it is still
        discarded, so the discard triggers fire (_afterDiscard). Only a discard as something resolves: a cost (cycling,
        "Discard a card:") and the cleanup step's discard are not made by an effect. Each way is one row of
-       DISCARD_INSTEAD below — another "instead of into your graveyard" is another row. */
-    /** The ways this card, being discarded from pid's hand, may go instead of the graveyard: { to, may, srcId, srcName, counters }. */
-    _discardWays(pid, o) {
+       DISCARD_INSTEAD below — another "instead of into your graveyard" is another row; a row marked `every` replaces
+       every discard, costs and the cleanup's included (madness). */
+    /**
+     * The ways this card, being discarded from pid's hand, may go instead of the graveyard: { to, may, srcId, srcName,
+     * counters }. `how`: 'cost' for a discard no effect makes (a cost, the cleanup step's), 'effect' for one an effect
+     * makes outside a resolution (Mox Diamond's, as it would enter); otherwise an effect's while something resolves.
+     */
+    _discardWays(pid, o, how) {
       const r = this.resolving;
-      if (!r || !o || o.zone !== 'hand') return [];
-      const cause = r.ctx && r.ctx.controller;
+      if (!o || o.zone !== 'hand') return [];
+      const effect = how === 'effect' || (how !== 'cost' && !!r);
+      const cause = r && r.ctx && r.ctx.controller;
       const DISCARD_INSTEAD = [
+        /* Madness (CR 702.35a): "If a player would discard this card, that player discards it, but exiles it instead of
+           putting it into their graveyard" — the card's own, for any discard (madnessExile; its trigger: _offerMadness) */
+        { own: true, has: (c) => !!this._madnessCost(c), to: 'exile', may: false, every: true, label: 'Into exile (madness)' },
         /* Obstinate Baloth, Wilt-Leaf Liege: "If a spell or ability an opponent controls causes you to discard this card,
            put it onto the battlefield instead of putting it into your graveyard." — the card's own (discardToBattlefield;
            Dodecapod: "with two +1/+1 counters on it" — counters) */
@@ -49089,14 +49180,30 @@ MTG.setGameSpeed = function (id) {
       ];
       const ways = [];
       for (const row of DISCARD_INSTEAD) {
+        if (!row.every && !effect) continue;
         if (row.when && !row.when()) continue;
-        const src = row.own ? (this._staticOp(o, row.op) ? o : null)
+        const src = row.own ? ((row.has ? row.has(o) : this._staticOp(o, row.op)) ? o : null)
           : this.battlefield.find(x => x.controller === pid && !x.phasedOut && this._staticOp(x, row.op));
         if (!src || ways.some(w => w.to === row.to)) continue;
-        const e = this._staticOp(src, row.op) || {};
-        ways.push({ to: row.to, may: row.may, srcId: src.id, srcName: src.name, counters: e.counters || 0 });
+        const e = (row.op && this._staticOp(src, row.op)) || {};
+        const w = { to: row.to, may: row.may, srcId: src.id, srcName: src.name, counters: e.counters || 0 };
+        if (row.label) w.label = row.label;
+        ways.push(w);
       }
       return ways;
+    }
+    /** Madness (CR 702.35): the card's madness cost, or null. */
+    _madnessCost(o) {
+      const a = o && (o.trueAnalysis ? o.trueAnalysis() : o.analysis());
+      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^madness$/i.test(x.keyword || '') && x.arg);
+      return ab ? ab.arg : null;
+    }
+    /** One card discarded where it goes by itself: the graveyard, or a way that must be taken (madness) — `how` as for
+        _discardWays ('cost': cycling, channel, an additional cost, the cleanup step). The caller calls _afterDiscard. */
+    _discardOne(pid, c, how) {
+      if (!c || c.zone !== 'hand') return false;
+      this._discardMove(pid, [{ c, way: this._discardSettledWay(pid, c, how) }]);
+      return true;
     }
     /** What may be chosen for this card: the ways, with the graveyard among them while every way is a "may" (CR 616.1). */
     _discardOptions(ways) {
@@ -49110,9 +49217,9 @@ MTG.setGameSpeed = function (id) {
         return { type: 'confirm', playerId: pid, purpose: 'discardToTop', objId: o.id, sourceId: w.srcId, sourceName: w.srcName,
           prompt: `${w.srcName}: put ${o.name} on top of your library instead of into your graveyard?` };
       }
-      const say = { graveyard: 'Into your graveyard', library: 'On top of your library', battlefield: 'Onto the battlefield' };
+      const say = { graveyard: 'Into your graveyard', library: 'On top of your library', battlefield: 'Onto the battlefield', exile: 'Into exile' };
       return { kind: 'options', playerId: pid, purpose: 'discardInstead', objId: o.id, sourceId: o.id, sourceName: o.name, min: 1, max: 1,
-        options: opts.map(w => ({ label: say[w.to] + (w.srcName && w.srcId !== o.id ? ` (${w.srcName})` : ''), key: w.to })),
+        options: opts.map(w => ({ label: w.label || (say[w.to] + (w.srcName && w.srcId !== o.id ? ` (${w.srcName})` : '')), key: w.to })),
         prompt: `${o.name} is discarded: where does it go instead of into your graveyard?` };
     }
     /** The way an answer chose (null: the graveyard). */
@@ -49133,8 +49240,8 @@ MTG.setGameSpeed = function (id) {
       return plan === SUSPEND ? SUSPEND : this._discardMove(pid, plan);
     }
     /** The way a card goes when its player has no choice in it: a way that must be taken, or null (the graveyard). */
-    _discardSettledWay(pid, c) {
-      const ways = this._discardWays(pid, c);
+    _discardSettledWay(pid, c, how) {
+      const ways = this._discardWays(pid, c, how);
       const opts = this._discardOptions(ways);
       return ways.length && opts.length === 1 ? opts[0] : null;
     }
@@ -49170,6 +49277,11 @@ MTG.setGameSpeed = function (id) {
           this.moveObject(c, 'battlefield', { controller: c.owner });
           if (way.counters && c.zone === 'battlefield') this.addCounters(c, '+1/+1', way.counters);
           this.logEvent('rules', `${c.name} is put onto the battlefield instead of into the graveyard.`);
+        } else if (way.to === 'exile') {
+          // Madness: exiled instead, and its trigger goes on once the discard is done (madnessExiled: _offerMadness)
+          this.moveObject(c, 'exile');
+          if (c.zone === 'exile') c.madnessExiled = true;
+          this.logEvent('rules', `${c.name} is exiled instead of put into the graveyard (madness).`);
         }
       }
       return plan.map(x => x.c);
@@ -49326,7 +49438,8 @@ MTG.setGameSpeed = function (id) {
       if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts))) {
         return this.fail(`Not enough mana to cycle (${use.cost}).`);
       }
-      this.moveObject(o, 'graveyard');
+      // (a discard: madness exiles it instead — _discardOne)
+      this._discardOne(playerId, o, 'cost');
       this.logEvent('cycle', `${this.player(playerId).name} cycles ${o.name}.`);
       // Yidaro, Wandering Monster: "If you've cycled a card named Yidaro … four or more times this game" — by name (cycledNames)
       { const cp = this.player(playerId); cp.cycledNames = Object.assign({}, cp.cycledNames); cp.cycledNames[o.name] = (cp.cycledNames[o.name] || 0) + 1; cp.cycledTurn = this.turn; }
@@ -49424,7 +49537,7 @@ MTG.setGameSpeed = function (id) {
         this.moveObject(o, 'exile');
         this.logEvent('ability', `${this.player(playerId).name} exiles ${o.name} from their hand.`);
       } else if (!a.channel.keep) {
-        this.moveObject(o, 'graveyard');
+        this._discardOne(playerId, o, 'cost');
         this._afterDiscard(playerId, o);
       }
       // (and not the X of some earlier cast of the card, which "X" would otherwise fall back on)
@@ -50658,7 +50771,7 @@ MTG.setGameSpeed = function (id) {
       o.bargainedTurn = bargained ? this.turn : null;
 
       if (toDiscard) {
-        this.moveObject(toDiscard, 'graveyard');
+        this._discardOne(playerId, toDiscard, 'cost');
         this.logEvent('discard', `${p.name} discards ${toDiscard.name}.`);
         this._afterDiscard(playerId, toDiscard);
       }
@@ -50667,7 +50780,7 @@ MTG.setGameSpeed = function (id) {
         if (x && x.zone === 'battlefield') this._sacrificeNow(playerId, [x], null);
       }
       if (toDiscardN.length) {
-        for (const c of toDiscardN) this.moveObject(c, 'graveyard');
+        for (const c of toDiscardN) this._discardOne(playerId, c, 'cost');
         this.logEvent('discard', `${p.name} discards ${toDiscardN.map(c => c.name).join(' and ')} to cast ${o.name}.`);
         for (const c of toDiscardN) this._afterDiscard(playerId, c);
       }
@@ -51920,7 +52033,7 @@ MTG.setGameSpeed = function (id) {
           if (ef.op !== 'etbTappedUnlessLands' && ef.op !== 'etbTappedUnlessType' &&
               ef.op !== 'etbTappedUnlessPay' && ef.op !== 'etbTappedUnlessLife' &&
               ef.op !== 'etbTappedUnlessOpponents' && ef.op !== 'etbTappedUnlessReveal' &&
-              ef.op !== 'etbAsCopy' && ef.op !== 'etbTappedUnlessCond' && ef.op !== 'moxDiamond') continue;
+              ef.op !== 'etbAsCopy' && ef.op !== 'etbTappedUnlessCond') continue;
           // a land told to enter untapped is not asked whether it enters tapped
           if (o._keepUntapped && /^etbTapped/.test(ef.op)) continue;
           this._runEffect(ef, { controller: o.controller, obj: o, name: o.name });
@@ -53963,7 +54076,7 @@ MTG.setGameSpeed = function (id) {
         plan = this._discardPlan(pid, cards, 'n' + (this._discardSeq = (this._discardSeq || 0) + 1));
         if (plan === SUSPEND) return SUSPEND;
       } else if (effect && this._discardWaitFor(pid, cards, { kind: 'discardNow', stackId: (item && item.id) || null })) return;
-      else plan = cards.map(c => ({ c, way: effect ? this._discardSettledWay(pid, c) : null }));
+      else plan = cards.map(c => ({ c, way: this._discardSettledWay(pid, c, effect ? undefined : 'cost') }));
       const gone = [];
       for (const x of plan) {
         gone.push({ id: x.c.id, name: x.c.name, mv: (x.c.card && x.c.card.cmc) || 0 });
@@ -60560,7 +60673,7 @@ MTG.setGameSpeed = function (id) {
       if (from === 'graveyard' && toZone !== 'graveyard') { o.graveAdvBy = null; o.flashbackGrant = null; }
       // (Bell Borca, Spectral Sergeant: a new object has nothing noted for it)
       if (from === 'battlefield' && toZone !== 'battlefield' && o._notedMv) o._notedMv = null;
-      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; }
+      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; o.madnessExiled = false; o.madnessOpen = false; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
       if (o._exileFromStack) {
@@ -60572,6 +60685,10 @@ MTG.setGameSpeed = function (id) {
         if (from === 'stack' && toZone === 'graveyard') { toZone = 'library'; opts = Object.assign({}, opts, { toBottom: true }); }
         if (toZone !== 'stack') o._bottomFromStack = false;
       }
+      /* Mox Diamond: "If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto
+         the battlefield. If you don't, put it into its owner's graveyard." — settled here, before it arrives (_moxEnter) */
+      if (toZone === 'battlefield' && from !== 'battlefield' && this._staticOp(o, 'moxDiamond'))
+        toZone = this._moxEnter(o, opts.controller != null ? opts.controller : (o.controller || o.owner));
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null, markCounterN = 1;
       let exiledWith = null;
@@ -60596,10 +60713,16 @@ MTG.setGameSpeed = function (id) {
           /* A finality counter (CR 122.1h): a permanent with one on it that
              would go to the graveyard from the battlefield is exiled. */
           if (from === 'battlefield' && toZone === 'graveyard' && (Number((o.counters || {}).finality) || 0) > 0) toZone = 'exile';
+          /* Magma Spray, Disintegrate: "If that creature would die this turn, exile it instead." — however it would die
+             (destroyed, sacrificed, no toughness left), not only of lethal damage (_exileOnDeath) */
+          if (from === 'battlefield' && toZone === 'graveyard' && this._exileOnDeath && this._exileOnDeath.has(o.id) &&
+              (this.characteristics(o) || {}).isCreature) toZone = 'exile';
         }
         // Whip of Erebos: "if it would leave the battlefield, exile it instead"
         if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && (o.leaveExile || this._staticOp(o, 'leaveExileSelf'))) toZone = 'exile';
       }
+      // (gone from the battlefield, it is a new object: "that creature" is not it any more — _exileOnDeath)
+      if (from === 'battlefield' && toZone !== 'battlefield' && this._exileOnDeath) this._exileOnDeath.delete(o.id);
       // a card taken from a library or put into one: what its owner knew of its top is out of date (_keepsSeenOnTop)
       if (from === 'library' || toZone === 'library') this._libraryTouched(o.owner);
       // (Desdemona, Freedom's Edge: escape it was given is gone once it leaves the graveyard — escapeGrant)
@@ -60737,6 +60860,10 @@ MTG.setGameSpeed = function (id) {
       }
       // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
       if (toZone === 'battlefield') o.enteredFrom = from;
+      /* A commander put into a graveyard from anywhere else — discarded, milled (from the battlefield it went home
+         instead, above): its owner may put it into the command zone, a state-based action (CR 903.9a: _commandersHome) */
+      if (toZone === 'graveyard' && from !== 'graveyard' && o.isCommander) o._cmdToGrave = true;
+      else if (o._cmdToGrave) o._cmdToGrave = false;
 
       // reset per-zone state
       /* Who controlled it as it left matters to anything watching ("a
@@ -75105,24 +75232,6 @@ MTG.setGameSpeed = function (id) {
           if ((e.then || []).length) this._spliceNext(e.then);
           break;
         }
-        /* Mox Diamond: a land card discarded, or the Mox goes to the graveyard */
-        case 'moxDiamond': {
-          if (!src || src.zone !== 'battlefield') break;
-          const lands = this.zones[ctx.controller].hand.filter(c => (c.analysis() || {}).isLand);
-          if (!lands.length) { this.moveObject(src, 'graveyard'); this.logEvent('rules', `${src.name} has no land to discard and goes to the graveyard.`); break; }
-          if (me.isBot || lands.length === 1) {
-            const c = this._cheapestFirst(lands)[0];
-            if (this._discardThese(ctx.controller, [c], 'mox') === SUSPEND) return SUSPEND;
-            this._afterDiscard(ctx.controller, c);
-            this.logEvent('discard', `${me.name} discards ${c.name} for ${src.name}.`);
-            break;
-          }
-          this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true, purpose: 'moxDiamond',
-            objId: src.id, candidates: lands.map(c => c.id), cards: lands.map(c => ({ id: c.id, name: c.name, card: c.card })),
-            prompt: `Discard a land card to keep ${src.name}? If you don't, it goes to the graveyard.` });
-          break;
-        }
-
         /* "This land enters tapped unless you control a legendary creature" */
         case 'etbTappedUnlessCond': {
           if (!src) break;
@@ -79106,6 +79215,39 @@ MTG.setGameSpeed = function (id) {
           }
           break;
         }
+        /* Madness: "its owner may cast it by paying [cost] rather than paying its mana cost. If that player doesn't, they
+           put this card into their graveyard." — still the card exiled this way (madnessExiled); asked only when the cost
+           could be paid (madnessOpen: the cast it offers, altUsesFor) */
+        case 'madnessCast': {
+          const x = src;
+          if (!x || x.zone !== 'exile' || !x.madnessExiled) break;
+          const pid = x.owner, q = this.player(pid);
+          const cost = this._madnessCost(x);
+          let cast = false;
+          if (cost && q && !q.hasLost) {
+            x.madnessOpen = true;
+            const can = this.canCast(pid, x.id, 'madness');
+            const use = can.ok ? this.altUsesFor(pid, x.id).find(u => u.kind === 'cast' && u.via === 'madness') : null;
+            const price = use ? use.cost || '' : cost;
+            const payable = !!use && this.couldPay(pid, price, this.manaSources(pid));
+            const yes = payable ? this._ask({ type: 'confirm', playerId: pid, purpose: 'madness', objId: x.id, cost: price, payMana: price,
+              prompt: `Cast ${x.name} for its madness cost (${price || '{0}'})? If you don't, it goes to your graveyard.` }, 'mad') : null;
+            if (yes === SUSPEND) { x.madnessOpen = false; return SUSPEND; }
+            const go = payable && yes && yes.yes !== false;
+            // its targets (and modes), chosen as it is cast; none it could take, and it isn't cast
+            const tg = go ? this._askSpellTargets(pid, x, 'madT') : null;
+            if (tg === SUSPEND) { x.madnessOpen = false; return SUSPEND; }
+            // (open while the cast asks its questions; leaving exile closes it — moveObject)
+            if (go && tg) cast = this.castSpell(pid, x.id, { via: 'madness', auto: true, targets: tg }) !== false;
+            if (!cast) x.madnessOpen = false;
+            if (payable && yes && yes.yes !== false && !cast) this.logEvent('rules', `${x.name} could not be cast for its madness cost.`);
+          }
+          if (!cast && x.zone === 'exile') {
+            this.moveObject(x, 'graveyard');
+            this.logEvent('zone', `${q ? q.name : 'Its owner'} puts ${x.name} into their graveyard.`);
+          }
+          break;
+        }
         /* Alaundo the Seer: "exile a card from your hand and put a number of time counters on it equal to its mana value.
            It gains "When the last time counter is removed from this card, …"" — the card marked (timeCastBy) */
         case 'exileHandTimeCounters': {
@@ -82314,6 +82456,22 @@ MTG.setGameSpeed = function (id) {
     }
 
     /* ---------- state-based actions (CR 704) ---------- */
+    /** CR 903.9a: "If a commander is in a graveyard … and that object was put into that zone since the last time
+        state-based actions were checked, its owner may put it into the command zone." — yes, as the setting says
+        (commanderToZone, the same answer as for a commander leaving the battlefield). True when one went. */
+    _commandersHome() {
+      let moved = false;
+      for (const p of this.players) {
+        for (const c of ((this.zones[p.id] || {}).graveyard || []).slice()) {
+          if (!c._cmdToGrave) continue;
+          c._cmdToGrave = false;
+          if (!c.isCommander || MTG.settings.commanderToZone === false) continue;
+          this.moveObject(c, 'command');
+          if (c.zone === 'command') { this.logEvent('rules', `${c.name} goes from ${p.name}'s graveyard to the command zone.`); moved = true; }
+        }
+      }
+      return moved;
+    }
     checkStateBasedActions() {
       this._unattachWatch();
       // a destruction noted but never carried out (a replacement kept it) is forgotten (_destroyPending)
@@ -82347,6 +82505,7 @@ MTG.setGameSpeed = function (id) {
         }
 
         this._sagaCleanup();
+        if (this._commandersHome()) repeat = true;
         // Planechase: a face-up phenomenon with nothing left to do sends the planar controller on (CR 704.6f)
         if (this.config.planechase && this._planarSba()) repeat = true;
 
@@ -82852,7 +83011,7 @@ MTG.setGameSpeed = function (id) {
       const id = w && w.stackId;
       if (!id) return false;
       const r = this.resolving;
-      return !!((r && r.ctx && r.ctx.id === id) || this.__resItem === id || (this._cloneWait && this._cloneWait.id === id) || (this._enterWait && this._enterWait.id === id));
+      return !!((r && r.ctx && r.ctx.id === id) || this.__resItem === id || (this._cloneWait && this._cloneWait.id === id) || (this._enterWait && this._enterWait.id === id) || (this._moxWait && this._moxWait.id === id));
     }
     /** Control `pid` while the stack item `stackId` resolves (from now, if it is the one resolving). */
     _controlWhileResolving(byId, pid, src, stackId) {
@@ -83147,6 +83306,13 @@ MTG.setGameSpeed = function (id) {
           }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           // a card being discarded with more than one way to go instead of the graveyard, for a discard answered (_discardWait)
+          if (ch.purpose === 'discardInstead' && ch.moxWait) {
+            this.pendingChoice = null;
+            this._moxAnswered(this.obj(ch.objId), { ch, ans: { picks: got.picks } });
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'discardInstead' && ch.discardWait) {
             this.pendingChoice = null;
             this._discardWaitAnswer(ch, { picks: got.picks });
@@ -83249,10 +83415,14 @@ MTG.setGameSpeed = function (id) {
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
           }
+          // Mox Diamond: the land card it would be discarded for, picked as the spell resolves (_moxWait)
           if (ch.purpose === 'moxDiamond') {
-            const mox = this.obj(ch.objId);
-            const ok = ids.some(id => (ch.candidates || []).includes(id) && (this.obj(id) || {}).zone === 'hand');
-            if (!ok && mox && mox.zone === 'battlefield') { this.moveObject(mox, 'graveyard'); this.logEvent('rules', `${mox.name} goes to the graveyard.`); }
+            const land = this.obj(ids.find(id => (ch.candidates || []).includes(id) && (this.obj(id) || {}).zone === 'hand'));
+            this.pendingChoice = null;
+            this._moxAnswered(land || null, null);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
           }
           /* A card cost is paid in full, from the cards it allows. */
           /* A clone was waiting to hear what it copies: it resolves now. */
@@ -83341,13 +83511,6 @@ MTG.setGameSpeed = function (id) {
               if (ch.setX) { const st = this.stack.find(x => x.id === ch.stackId); if (st) { st.x = (o.card && o.card.cmc) || 0; if (st.obj) st.obj.chosenX = st.x; } }
               continue;
             }
-            if (ch.purpose === 'moxDiamond') {
-              if (o.zone === 'hand' && (ch.candidates || []).includes(o.id)) {
-                this.moveObject(o, 'graveyard'); this._afterDiscard(playerId, o);
-                ch._kept = true;
-              }
-              continue;
-            }
             if (ch.purpose === 'returnCost') {
               const sp = ch.sourceId && this.obj(ch.sourceId);
               if (sp) sp._returnedMv = (o.card && o.card.cmc) || 0;
@@ -83411,6 +83574,13 @@ MTG.setGameSpeed = function (id) {
           }
           /* Library of Leng: where a card being discarded goes — for a discard answered, waiting on it (_discardWait); for
              an effect that discards, the effect has the answer (_discardThese) */
+          if (ch.purpose === 'discardToTop' && ch.moxWait) {
+            this.pendingChoice = null;
+            this._moxAnswered(this.obj(ch.objId), { ch, ans: !!(data && data.yes) });
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'discardToTop') {
             if (!ch.discardWait) break;
             this.pendingChoice = null;
@@ -83418,12 +83588,6 @@ MTG.setGameSpeed = function (id) {
             if (!this.pendingChoice) this._nextChoice();
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
-          }
-          if (ch.purpose === 'madness') {
-            const o = this.obj(ch.objId);
-            if (!o || !(data && data.yes)) break;
-            this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [], sacOk: (ch.sacMana && ch.sacMana.n) || 0 });
-            break;
           }
           // Paradigm: a copy of the exiled card, cast for nothing (it is not a card)
           if (ch.purpose === 'paradigm') {
@@ -84883,7 +85047,8 @@ MTG.setGameSpeed = function (id) {
       }
       // (an effect's discard, not the cleanup's: where each card goes instead is asked first — _discardWaitFor)
       if (ch.type === 'discard' && this._discardWaitFor(playerId, pick, { kind: 'answer', stackId: ch.stackId || null })) return;
-      for (const o of pick) { this._discardMove(playerId, [{ c: o, way: ch.type === 'discard' ? this._discardSettledWay(playerId, o) : null }]); tossed.push(o); }
+      // (the cleanup step's discard: only what replaces every discard — madness)
+      for (const o of pick) { this._discardMove(playerId, [{ c: o, way: this._discardSettledWay(playerId, o, ch.type === 'discard' ? undefined : 'cost') }]); tossed.push(o); }
       const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
       if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
       this._lastDiscarded = tossed.map(o => o.id);
@@ -93703,7 +93868,10 @@ MTG.setGameSpeed = function (id) {
        Leng): onto the battlefield first, then the top of the library as a Library of Leng question would be answered */
     discardInstead(s) {
       const keys = (s.options || []).map(o => o.key);
+      // (madness with Library of Leng: into exile to cast it cheap when its madness cost can be paid)
+      const g = this.game, o = s.objId ? g.obj(s.objId) : null, mad = o && g._madnessCost(o);
       const k = keys.indexOf('battlefield') >= 0 ? keys.indexOf('battlefield')
+        : keys.indexOf('exile') >= 0 && mad && g.couldPay(this.pid, mad, this.manaSources()) ? keys.indexOf('exile')
         : keys.indexOf('library') >= 0 && this.confirmChoice({ type: 'confirm', purpose: 'discardToTop', objId: s.objId, playerId: this.pid }) ? keys.indexOf('library')
         : keys.indexOf('graveyard');
       return { picks: [Math.max(0, k)] };
@@ -95849,6 +96017,8 @@ MTG.setGameSpeed = function (id) {
         if (this.playLandIfUseful()) return true;
         // no land to play, and a landcycler to go and get one with
         if (main1 && this.useFromHand('landDrop')) return true;
+        // a channel that wins the game this turn (Sokenzan's hasty Spirits, Otawara taking the last blocker), first
+        if (main1 && this.useFromHand('win')) return true;
         // Planechase: the free roll of the planar die first, before the turn's mana is spent (rollPlanar)
         if (main1 && this.rollPlanar(true)) return true;
         if (move && move.cast && this.castChoice(move.cast, this.availableMana(true))) return true;
@@ -96017,7 +96187,8 @@ MTG.setGameSpeed = function (id) {
      * landcycler fetches a land when short of them, channel is used when what it does beats the card kept, forecast
      * every upkeep it is worth its price, and a Ninja swaps for an unblocked attacker when it is worth more there.
      * Paid from untapped sources only, never a Treasure. `window`: 'upkeep' and 'blockers' (our own), 'landDrop' (a
-     * first main phase with a land drop and no land), 'main1', 'main2', 'theirEnd'. Each use is tried once a step, so
+     * first main phase with a land drop and no land), 'win' (the first main phase: only a channel that wins the game,
+     * _channelWins), 'main1', 'main2', 'theirEnd'. Each use is tried once a step, so
      * a refusal can't loop.
      */
     useFromHand(window) {
@@ -96118,6 +96289,9 @@ MTG.setGameSpeed = function (id) {
       }
       const targets = this.chooseTargetsForEffects(ch.effects || [], o);
       if (targets === null) return null;
+      // a channel that wins the game this turn (_channelWins) is used first, before the turn's mana goes on anything else
+      if (!use.forecast && !ch.keep && this._channelWins(o, a)) return { v: 20, targets };
+      if (window === 'win') return null;
       const what = this._effectsHere(flat);
       if (what <= 0) return null;
       // forecast and "Reveal this card" keep the card; the rest give it up
@@ -96188,6 +96362,15 @@ MTG.setGameSpeed = function (id) {
         this._did('land', backs[0]);
         return true;
       }
+      // a channel land worth more channeled than played (Boseiju, Otawara: _channelOverLand) is kept for that
+      if (!theirs.length && lands.some(o => o.zone === 'hand')) {
+        const ctx = this._handCtx();
+        const kept = lands.filter(o => o.zone === 'hand' && this._channelOverLand(o, ctx));
+        if (kept.length) {
+          lands = lands.filter(o => !kept.includes(o));
+          if (!lands.length) return false;
+        }
+      }
       const need = this.colorNeeds();
       const useNow = this._wouldUseUntapped();
       let pick;
@@ -96196,6 +96379,49 @@ MTG.setGameSpeed = function (id) {
       if (!g.playLand(this.pid, pick.id)) return false;
       this._did('land', pick);
       return true;
+    }
+
+    /**
+     * A land card with channel (Boseiju, Who Endures; Otawara, Soaring City; Sokenzan) kept in hand for its channel
+     * rather than played as the land drop: when its channel can be paid now and either wins the game this turn
+     * (_channelWins) or, with lands enough without it, is worth using (as useFromHand weighs it).
+     */
+    _channelOverLand(o, ctx) {
+      const g = this.game;
+      const a = o.analysis();
+      if (!a || !a.isLand || !a.channel) return false;
+      const use = (g.altUsesFor(this.pid, o.id) || []).find(u => u.kind === 'cycle' && u.channel);
+      if (!use || !/^(?:\{[^}X]+\})*$/.test(use.cost || '') || (use.cost && !g.couldPay(this.pid, use.cost, this.manaSources()))) return false;
+      if (this._channelWins(o, a)) return true;
+      if (ctx.lands + ctx.handLands - 1 < ctx.need) return false;
+      const c = this._handUseWorth(o, a, use, 'main1', ctx);
+      return !!(c && c.v > 0.3);
+    }
+    /**
+     * Does this card's channel win the game this turn: in our first main phase, the creatures that can attack (with
+     * Sokenzan's hasty tokens) deal an opponent their life with none of their creatures left untapped to block — the
+     * one it takes away (Otawara's bounce) not counted?
+     */
+    _channelWins(o, a) {
+      const g = this.game;
+      if (!a.channel || g.activePlayer.id !== this.pid || !g.isMain || g.phaseIndex !== 1) return false;
+      const open = (list) => flatEffects(list).flatMap(e => (e.op === 'sequence' ? open(e.list || []) : [e]));
+      const flat = open(a.channel.effects || []);
+      let power = 0;
+      for (const c of this.myCreatures()) if (g.canAttack(c)) power += Math.max(0, g.powerOf(c));
+      const tok = flat.find(e => e.op === 'createToken' && e.pt);
+      const hasty = tok && ((tok.keywords || []).some(k => /^haste$/i.test(k)) ||
+        flat.some(e => e.op === 'grantLast' && (e.keywords || []).some(k => /^haste$/i.test(k))));
+      if (hasty) power += nval(tok.n, 1) * (parseInt(String(tok.pt).split('/')[0], 10) || 0);
+      let gone = null;
+      if (flat.some(e => /^(?:bounce|destroy|exile)$/.test(e.op) && (e.targets || []).length)) {
+        const t = this.chooseTargetsForEffects(a.channel.effects || [], o);
+        const x = t && t[0] && t[0].kind === 'object' ? g.obj(t[0].id) : null;
+        if (x && x.controller !== this.pid && this._isCreature(x)) gone = x;
+      }
+      if (!hasty && !gone) return false;
+      return g.opponentsOf(this.pid).some(q => !q.hasLost && power >= q.life &&
+        !g.battlefield.some(x => x.controller === q.id && x !== gone && !x.tapped && !x.phasedOut && this._isCreature(x)));
     }
 
     /** Would one more untapped mana this turn let us cast something better? */
