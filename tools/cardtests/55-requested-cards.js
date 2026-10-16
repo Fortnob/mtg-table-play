@@ -25,6 +25,19 @@ module.exports = (test) => {
     t.zone(bear, 'battlefield', 'the targeted permanent remains');
   });
 
+  test('Avoid Fate also counters an Aura spell targeting your permanent', (mk, t) => {
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const aura = T.hand('B', 'Curiosity');
+    T.g.passPriority('A', true);
+    T.mana('B', 'U');
+    T.cast('B', aura, { resolve: false, targets: [bear] });
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Avoid Fate'), { targets: [T.stackTarget(aura)] });
+    t.zone(aura, 'graveyard', 'Avoid Fate counters the Aura spell');
+    t.zone(bear, 'battlefield', 'the creature remains');
+  });
+
   test("Anzrag's Rampage destroys only opposing artifacts and returns its creature", (mk, t) => {
     const T = mk();
     const ownRing = T.bf('A', 'Sol Ring');
@@ -149,7 +162,7 @@ module.exports = (test) => {
     const enchanted = T.bf('A', 'Grizzly Bears');
     const bear = T.top('A', 'Grizzly Bears');
     const wurm = T.top('A', 'Craw Wurm');
-    T.mana('A', 'U2');
+    T.mana('A', 'U3');
     T.cast('A', T.hand('A', 'Call to the Kindred'), { targets: [enchanted] });
     T.answer('choose', ch => ({ picks: ch.items.filter(x => x.name === 'Grizzly Bears').map(x => x.id) }));
     T.g._fire('yourUpkeep', 'A', { playerId: 'A' });
