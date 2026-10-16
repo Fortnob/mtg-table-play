@@ -6922,6 +6922,12 @@
           if (!out.some(u => u.via === 'warp' && u.cost === gw.cost)) out.push({ kind: 'cast', via: 'warp', cost: gw.cost, label: 'Warp ' + gw.cost });
         }
       }
+      // Deeproot Historian grants retrace to matching nonland cards in your graveyard.
+      if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand &&
+          !out.some(u => u.via === 'retrace') &&
+          fbGrant('grantRetrace', e => !e.words || this._cardFitsWords(o, e.words))) {
+        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
+      }
       // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
           this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
@@ -14637,6 +14643,8 @@
         }
         this.emit('sfx', 'attack');
         this._attackKeywords(declarations.map(d => this.obj(d.attackerId)).filter(Boolean));
+        const attackedPlayers = [...new Set(declarations.filter(d => this.player(d.defenderId)).map(d => d.defenderId))];
+        if (attackedPlayers.length) this._fire('opponentsAttacked', null, { attackedPlayers });
         this.logEvent('combat', `${this.player(playerId).name} attacks with ${declarations.map(d => this.obj(d.attackerId).name).join(', ')}.`);
       } else if (this._atkStepTrig === this.turn) {
         // (Noctis, Heir Apparent: something waits on this step — the step goes on: _atkStepTrig)
@@ -18590,7 +18598,7 @@
       for (let i = 0; i < statics.length; i++) {
         const entry = statics[i];
         const ef = entry.ef;
-        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt || ef.setPtFromExiledWith)) continue;
+        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.setPtFromMv || ef.pt || ef.switchPt || ef.setPtFromExiledWith)) continue;
         if (!this._contReaches(entry, o, a, lb)) continue;
         // Greymond, Avacyn's Stalwart: "have each of the chosen abilities" — the ones chosen as it entered (grantChosen)
         const grant = ef.grantChosen ? ((entry.src && entry.src.chosenKeywords) || [])
@@ -18598,7 +18606,7 @@
         if (grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
-        if (ef.setPtFromMv && (o.analysis() || {}).isArtifact && !(o.analysis() || {}).isCreature) {
+        if (ef.setPtFromMv && ((o.trueAnalysis ? o.trueAnalysis() : o.analysis()) || {}).isArtifact && !((o.trueAnalysis ? o.trueAnalysis() : o.analysis()) || {}).isCreature) {
           const mv = Number((o.card || {}).cmc) || 0;
           (ef.cda ? defining : setting).push({ ts: entry.ts, set: { p: mv, t: mv } });
         }
@@ -20737,6 +20745,9 @@
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
+        // Party Dude triggers only for attacks against one or more opponents of this Class's controller.
+        if (event === 'opponentsAttacked' &&
+            !this.opponentsOf(o.controller).some(p => (data.attackedPlayers || []).includes(p.id))) return;
         // Keranos, God of Storms: "Reveal the first card you draw on each of your turns."
         if (ab.revealDrawn && data.object) { this._know(data.object, '*'); this.logEvent('reveal', `${(this.player(o.controller) || {}).name} reveals ${data.object.name}.`); }
         /* "One or more creatures die" is one trigger for the lot of them,
@@ -24592,6 +24603,14 @@
           break;
         }
         case 'destroy':
+          // Green Slime: destroy the permanent whose activated or triggered ability was countered.
+          if (e.scope === 'counteredSource') {
+            const x = this._counteredSrc && this.obj(this._counteredSrc);
+            if (x && x.zone === 'battlefield' && (!e.words || this._cardFitsWords(x, e.words))) {
+              this._spliceNext([Object.assign({}, e, { scope: null, targets: [{ kind: 'object', id: x.id }] })]);
+            }
+            break;
+          }
           // "Destroy this enchantment."
           if (e.scope === 'self') {
             if (src && src.zone === 'battlefield' && !this.hasKw(src, 'indestructible') && !this._totemArmor(src) && !this._regenerated(src)) this.moveObject(src, 'graveyard');
@@ -25197,6 +25216,16 @@
           // (Hakbal of the Surging Soul: each Merfolk, named by id — exploreEach)
           const who = e.objId ? this.obj(e.objId) : t0 ? this.obj(t0.id) : src;
           if ((t0 || e.objId) && !(who && who.zone === 'battlefield')) break;
+          // Topography Tracker: each tracker adds one whole explore, with its own reveal and choice.
+          if (who && !e._topographyApplied) {
+            const extras = this.battlefield.filter(o => o.controller === who.controller && !o.phasedOut &&
+              this._staticOp(o, 'exploreAdditional')).length;
+            if (extras) {
+              this._spliceNext(Array.from({ length: Math.min(10, extras + 1) },
+                () => Object.assign({}, e, { _topographyApplied: true })));
+              break;
+            }
+          }
           const top = z.library[0];
           const ta = top.analysis();
           // Wildgrowth Walker: "whenever a creature you control explores" (Nicanzil, Current Conductor: "explores a land card" — exploredLand)
@@ -33293,6 +33322,7 @@
           const legal = group.filter(o => !e.filter || this._matchesFilter(o, e.filter));
           const want = Math.min(Math.max(0, n(e.n)), legal.length);
           let taken = [];
+          this._lastPut = null;
           if (legal.length && want) {
             const picked = this._choose({ playerId: ctx.controller, purpose: 'takeFromExiled', kind: 'objects', zone: 'exile',
               panel: true, reveal: true, items: this._chooseItems(legal),
@@ -33306,8 +33336,12 @@
             if (o.zone === 'battlefield') this._takenOntoBf.push(o.id);
           }
           this._lastAffected = taken.length ? { kind: 'object', id: taken[taken.length - 1].id } : null;
-          if (taken.length) this._noteLastAffected(taken.map(o => ({ kind: 'object', id: o.id })));
+          if (taken.length) {
+            this._lastPut = taken[taken.length - 1].id;
+            this._noteLastAffected(taken.map(o => ({ kind: 'object', id: o.id })));
+          }
           this._lastExiledList = group.filter(o => !taken.includes(o)).map(o => o.id);
+          if (taken.length && e.then && e.then.length) this._spliceNext(e.then);
           break;
         }
 
@@ -33343,6 +33377,10 @@
               const tp = this.obj((ctx.triggerData || {}).objectId);
               const theirs = tp ? this._cardTypesOf(tp) : [];
               if (!this._cardTypesOf(o).some(x => theirs.includes(x))) return false;
+            }
+            if (e.sharesCreatureTypeWithAttached) {
+              const host = src && src.attachedTo && this.obj(src.attachedTo);
+              if (!host || !this._shareCreatureType(o, host)) return false;
             }
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
@@ -35017,7 +35055,17 @@
           }
           if (!pool.length) break;
           const z = this.zones[ctx.controller].library;
-          const order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          let order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          if (e.op === 'restToBottom' && e.anyOrder && pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'restToBottomOrder', kind: 'objects',
+              zone: 'library', panel: true, reveal: true, ordered: true, items: this._chooseItems(pool),
+              min: pool.length, max: pool.length,
+              prompt: 'Choose the order of these cards on the bottom of your library, from topmost to bottommost.' }, 'restBottomOrder');
+            if (got === SUSPEND) return SUSPEND;
+            const ids = (got && (got.order || got.picks)) || [];
+            const arranged = ids.map(id => this.obj(id)).filter(x => pool.includes(x));
+            order = arranged.concat(pool.filter(x => !arranged.includes(x)));
+          }
           for (const o of order) {
             this._removeFromZone(o);
             if (e.op === 'restToGraveyard') { o.zone = 'library'; this.moveObject(o, 'graveyard'); }
