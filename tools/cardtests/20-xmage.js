@@ -81167,4 +81167,128 @@ module.exports = (test) => {
     const picks = ai.chooseTargetsForEffects(bot.analysis().abilities[0].effects, bot) || [];
     t.eq(picks.length, 1, "the bot: B's one Bobblehead, one target");
   });
+
+  test('Cards: Relentless Dead — dies: pay {B} to return it; pay X, X the mana value of another Zombie card targeted, to reanimate it', (mk, t) => {
+    t.auto('Relentless Dead');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const rd = T.bf('A', 'Relentless Dead');
+    for (let i = 0; i < 3; i++) T.bf('A', 'Swamp');
+    const gc = T.grave('A', 'Gravecrawler'), wc = T.grave('A', 'Walking Corpse'), bear = T.grave('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = ch.options[0].map(x => x.id); return { targets: [ch.options[0].find(x => x.id === wc.id)] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [rd] });
+    t.ok(offered && offered.includes(gc.id) && offered.includes(wc.id), 'any other Zombie creature card in your graveyard');
+    t.no(offered.includes(bear.id) || offered.includes(rd.id), 'not a Bears, not itself');
+    const ask = T.asked.find(c => c.type === 'confirm' && /X is 2/.test(c.prompt || ''));
+    t.ok(ask, 'X is the mana value of the card targeted: {2}, asked as a yes or no');
+    t.no(T.asked.some(c => c.purpose === 'mayPayX'), 'no number to choose');
+    t.zone(wc, 'battlefield', 'Walking Corpse returned');
+    t.zone(rd, 'hand', '{B} paid: Relentless Dead back to hand');
+    t.zone(gc, 'graveyard', 'the other Zombie stays');
+    // not enough mana for the target's mana value: nothing
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.toMain('A');
+    const rd2 = T2.bf('A', 'Relentless Dead');
+    const big = T2.grave('A', 'Walking Corpse'); T2.grave('A', 'Gravecrawler');
+    T2.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === big.id)] }));
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: [rd2] });
+    t.zone(big, 'graveyard', 'no mana: the Zombie stays');
+    t.zone(rd2, 'graveyard', 'nor {B} for itself');
+  });
+
+  test('Cards: Cache Grab — mill four, a permanent card to hand; a Food if you control a Squirrel or took one', (mk, t) => {
+    t.auto('Cache Grab');
+    const run = (names, pickName, squirrel) => {
+      const T = mk({ library: Array(20).fill('Island') });
+      T.toMain('A');
+      if (squirrel) T.bf('A', 'Squirrel Mob');
+      const cards = names.map(n => T.top('A', n));
+      const pick = cards.find(c => c.name === pickName);
+      T.answer('pickCard', (ch) => ({ cardIds: pick ? [pick.id] : [] }));
+      T.mana('A', '1G');
+      T.cast('A', T.hand('A', 'Cache Grab'));
+      return { T, pick, food: T.bfOf('A').filter(o => o.isToken && o.name === 'Food').length };
+    };
+    const a = run(['Grizzly Bears', 'Lightning Bolt', 'Island', 'Squirrel Mob'], 'Squirrel Mob');
+    t.zone(a.pick, 'hand', 'the Squirrel card to hand');
+    t.eq(a.food, 1, 'took a Squirrel: a Food');
+    const b = run(['Grizzly Bears', 'Lightning Bolt', 'Island', 'Squirrel Mob'], 'Grizzly Bears');
+    t.zone(b.pick, 'hand', 'the Bears to hand');
+    t.eq(b.food, 0, 'no Squirrel taken, none controlled: no Food');
+    const c = run(['Grizzly Bears', 'Lightning Bolt', 'Island', 'Hill Giant'], 'Hill Giant', true);
+    t.eq(c.food, 1, 'controlling a Squirrel: a Food');
+  });
+
+  test("Cards: Arcane Heist — cast an instant or sorcery card from an opponent's graveyard free, exiled after; cipher", (mk, t) => {
+    t.auto('Arcane Heist');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const div = T.grave('B', 'Divination'); T.grave('B', 'Lightning Bolt');
+    const mine = T.grave('A', 'Opt');
+    const heist = T.hand('A', 'Arcane Heist');
+    const spec = heist.analysis().abilities[0].effects[0].targets[0];
+    const legal = T.g._legalTargetsFor(spec, 'A', heist.id).map(x => x.id);
+    t.ok(legal.includes(div.id) && !legal.includes(mine.id), "an opponent's graveyard only");
+    T.answer('choose', { picks: [bear.id] });
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', '2UU');
+    T.cast('A', heist, { targets: [div] });
+    t.eq(T.zone('A', 'hand').length, hand - 1 + 2, 'Divination cast for free: two cards');
+    t.zone(div, 'exile', 'exiled instead of going to their graveyard');
+    t.zone(heist, 'exile', 'cipher: encoded');
+    t.ok((bear.encoded || []).includes(heist.id), 'on the Bears');
+  });
+
+  test('Cards: Infesting Radroach — an opponent mills a nonland card: back to hand from your graveyard', (mk, t) => {
+    t.auto('Infesting Radroach');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const rr = T.grave('A', 'Infesting Radroach');
+    T.top('A', 'Grizzly Bears'); T.top('A', 'Hill Giant');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Thought Scour'), { targets: ['A'] });
+    t.zone(rr, 'graveyard', 'you milling: nothing');
+    T.top('B', 'Island'); T.top('B', 'Island');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Thought Scour'), { targets: ['B'] });
+    t.zone(rr, 'graveyard', 'B milled only lands: nothing');
+    T.top('B', 'Grizzly Bears'); T.top('B', 'Hill Giant');
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Thought Scour'), { targets: ['B'] });
+    t.zone(rr, 'hand', 'B milled nonland cards: returned to hand');
+    t.eq(T.asked.filter(c => c.type === 'confirm' && /mills a nonland card/.test(c.prompt || '')).length, 1, 'asked once, not again once it is gone');
+  });
+
+  test('Cards: Verdant Command — counters a loyalty ability, not another activated ability', (mk, t) => {
+    t.auto('Verdant Command');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.nextTurn('B');
+    const jace = T.bf('B', 'Jace Beleren', { counters: { loyalty: 3 } });
+    const vc = T.hand('A', 'Verdant Command');
+    const spec = vc.analysis().abilities[0].effects[0].modes[1].effects[0].targets[0];
+    const handA = T.zone('A', 'hand').length, handB = T.zone('B', 'hand').length;
+    T.activate('B', jace, 0, { resolve: false });
+    t.eq(jace.counters.loyalty, 5, '+2 paid');
+    const item = T.g.stack[T.g.stack.length - 1];
+    t.ok(T.g._legalTargetsFor(spec, 'A', vc.id).some(x => x.id === item.id), 'the loyalty ability is a target');
+    T.g.passPriority('B', true);
+    T.mana('A', '1G');
+    const life = T.life('A');
+    T.cast('A', vc, { modes: [1, 3], targets: [{ kind: 'stack', id: item.id }, 'A'] });
+    t.eq(T.zone('A', 'hand').length, handA - 1, 'countered: nobody draws');
+    t.eq(T.zone('B', 'hand').length, handB, 'B neither');
+    t.eq(T.life('A'), life + 3, 'and A gains 3 life');
+    t.eq(jace.counters.loyalty, 5, 'the loyalty stays paid');
+    // an activated ability that is not a loyalty ability: no target
+    T.mana('B', 'G');
+    const elf = T.bf('B', 'Llanowar Elves');
+    const fl = T.bf('B', 'Mother of Runes');
+    T.activate('B', fl, 0, { targets: [elf], resolve: false });
+    const it2 = T.g.stack[T.g.stack.length - 1];
+    t.no(T.g._legalTargetsFor(spec, 'A', vc.id).some(x => x.id === it2.id), "Mother of Runes's ability: not a loyalty ability");
+  });
 };

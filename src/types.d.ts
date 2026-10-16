@@ -157,6 +157,8 @@ declare namespace MTG {
     countered: boolean;
     /** a triggered ability (false for a spell or an activated ability) */
     triggered?: boolean;
+    /** Verdant Command: a planeswalker's loyalty ability (said only of one) */
+    loyalty?: true;
     /** a spell's or a triggered ability's modes, chosen as it was put on the stack, each mode's words whole
         (left out when it has none); everyone sees them */
     modes?: string[];

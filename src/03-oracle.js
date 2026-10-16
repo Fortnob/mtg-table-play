@@ -2458,7 +2458,8 @@
         { op: 'counters', kind: '+1/+1', n: num(m[2]), scope: 'lastTarget' }] } : null; } },
     // Chthonian Nightmare: "Return target creature card with mana value X from your graveyard to the battlefield."
     // (Rydia, Summoner of Mist: "target Saga card with mana value X … with a finality counter on it")
-    { re: /^Return (target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
+    // (Relentless Dead: "return another target Zombie creature card with mana value X" — not this one)
+    { re: /^Return ((?:another )?target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? Object.assign({ op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] },
         m[4] ? { counter: m[4].toLowerCase() } : {}) : null; } },
     // Yuna, Hope of Spira: "return up to one target enchantment card from your graveyard to the battlefield with a finality counter on it"
@@ -9034,6 +9035,9 @@
     { re: /^Counter target (activated or triggered|activated|triggered) ability(?: you don'?t control)?\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
         /^activated or/i.test(m[1]) ? {} : { abilityKind: m[1].toLowerCase() }, /don'?t control/i.test(m[0]) ? { controller: 'opponent' } : {})] }) },
+    // Verdant Command: "Counter target loyalty ability of a planeswalker." (abilityKind loyalty)
+    { re: /^Counter target loyalty ability of a planeswalker\.?$/i,
+      make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true, abilityKind: 'loyalty' }] }) },
     // Ayesha Tanaka: "Counter target activated ability from an artifact source unless that ability's controller pays {W}."
     { re: /^Counter target (activated or triggered|activated|triggered) ability(?: from an? (artifact|creature|enchantment|land) source)? unless (?:its|that ability'?s) controller pays (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i,
       make: (m) => ({ op: 'counterUnless', cost: m[3], targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
@@ -14446,8 +14450,8 @@
     /* Goblin Dark-Dwellers, Memory Plunder: "you may cast target instant or
        sorcery card with mana value 3 or less from your graveyard without
        paying its mana cost. If that spell would be put into your graveyard,
-       exile it instead." — now, as this resolves */
-    { re: /^(?:You may )?cast (?:up to one )?target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from (your|a|an opponent'?s|that player'?s|target opponent'?s) graveyard without paying its mana cost\.(?: If that (?:spell|card) would be put into (?:your|a|its owner'?s|a player'?s) graveyard,? exile it instead\.)?$/i,
+       exile it instead." — now, as this resolves (Arcane Heist: "into their graveyard") */
+    { re: /^(?:You may )?cast (?:up to one )?target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from (your|a|an opponent'?s|that player'?s|target opponent'?s) graveyard without paying its mana cost\.(?: If that (?:spell|card) would be put into (?:your|a|its owner'?s|a player'?s|their) graveyard,? exile it instead\.)?$/i,
       make: (m) => {
         const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
         const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard' },
@@ -17888,7 +17892,8 @@
     // Breena, the Demagogue: "if that opponent has more life than another of your opponents" — the one attacked (attackedNotLeastLife)
     [/^that opponent has more life than another of your opponents$/i, () => ({ kind: 'attackedNotLeastLife' })],
     // Bridge from Below: "if this card is in your graveyard" — where it works from
-    [/^(?:this card|CARDNAME) is in your graveyard$/i, () => ({ kind: 'selfInGraveyard' })],
+    // (Infesting Radroach: "if this creature is in your graveyard")
+    [/^(?:this card|this creature|CARDNAME) is in your graveyard$/i, () => ({ kind: 'selfInGraveyard' })],
     // Jace, Wielder of Mysteries: "if your library has no cards in it"
     [/^your library has no cards in it$/i, () => ({ kind: 'libraryEmpty' })],
     // Adamant: "at least three white mana was spent to cast this spell"; "five or more mana was spent to cast that spell"
@@ -17988,6 +17993,11 @@
     /* Grixis Grimblade, the Runemarks: "you control another multicolored
        permanent", "you control a black or green permanent" — any group the
        scope words can describe */
+    // Cache Grab: "you control a Squirrel or returned a Squirrel card to your hand this way" — either (tookThisWay)
+    [/^you control an? ([A-Z][a-z]+) or returned an? \1 card to your hand this way$/, (m) => {
+      const a = condOf('you control a ' + m[1]);
+      return a ? { kind: 'any', of: [a, { kind: 'tookThisWay', words: m[1].toLowerCase() }] } : null;
+    }],
     // Doctor Doom: "you control an artifact creature or a Plan" — either one (controlEither)
     [/^you control an? ([A-Za-z]+ [A-Za-z]+) or an? ([A-Za-z]+)$/i, (m) => {
       const a = condOf('you control a ' + m[1]), b = condOf('you control a ' + m[2]);
@@ -18943,6 +18953,9 @@
       event: 'cardMilled', extraOf: (m) => Object.assign({ batch: true }, (m[1] || m[2]) ? { spellFilter: (m[1] || m[2]).trim().toLowerCase() } : {}) },
     { re: /^Whenever a player mills an? (nonland |creature |land |artifact )?card,? /i,
       event: 'cardMilled', extraOf: (m) => (m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
+    // Infesting Radroach: "Whenever an opponent mills a nonland card" — once for each, the miller an opponent (activatorIsOpponent)
+    { re: /^Whenever an opponent mills an? (nonland |creature |land |artifact )?card,? /i,
+      event: 'cardMilled', extraOf: (m) => Object.assign({ activatorIsOpponent: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     /* Orvar, Psychic Purge, Metrognome, Guerrilla Tactics: "When a spell or ability an opponent controls
        causes you to discard this card" — from the graveyard it went to (discardedByOpponent) */
     { re: /^When a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME),? /i,
@@ -22852,9 +22865,13 @@
       if (/^At the beginning of [^,]+, if this card is exiled\b/i.test(ab.text)) { ab.fromExile = true; out.exileTriggers = true; continue; }
       if (/^When(?:ever)? (?:this creature|CARDNAME|this card) (?:dies|is put into)/i.test(ab.text)) continue;
       // (Syrix, Carrier of the Flame: "cast this card from your graveyard")
-      if (/\b(?:return|exile|cast) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
+      // (Infesting Radroach: "if this creature is in your graveyard")
+      if (/\b(?:return|exile|cast) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|this creature|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
         ab.fromGraveyard = true;
         out.graveTriggers = true;
+        // (Infesting Radroach: "if this creature is in your graveyard, you may return it to your hand" — "it" is this card)
+        if (ab.condition && ab.condition.kind === 'selfInGraveyard')
+          ab.effects = (ab.effects || []).map(e => (e && e.op === 'returnItToHand' && !e.ownerHand ? { op: 'selfFromGraveyard', to: 'hand', text: e.text } : e));
       }
     }
 

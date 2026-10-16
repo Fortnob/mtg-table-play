@@ -2746,6 +2746,7 @@
       this._exchangeLost = 0;   // (Mister Negative: "If you lost life this way" — by the exchange)
       this._lastDamageDealt = 0;
       this._lastExcess = 0; this._excessOn = {};
+      this._tookThisWay = [];
       this._dealtThisWay = [];
       this._madeThisResolution = [];
       this._exiledNow = [];
@@ -11449,6 +11450,8 @@
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
         x: opts.x || 0,
       };
+      // (Verdant Command: "Counter target loyalty ability of a planeswalker" — which this is)
+      if (ab.kind === 'loyalty') item.loyalty = true;
       if (fromTreasure) item.manaFromTreasure = fromTreasure;
       if (spentBy.length) item.manaSpentBy = spentBy;
       if (costExiled && costExiled.length) item.costExiled = costExiled;
@@ -16938,6 +16941,8 @@
       switch (cond.kind) {
         // Gathering Place: "if this land entered this turn or if you control a basic land"
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
+        // Cache Grab: "returned a Squirrel card to your hand this way" — a card this resolution put into the hand
+        case 'tookThisWay': return (this._tookThisWay || []).some(id => { const c = this.obj(id); return !!c && c.zone === 'hand' && this._cardFitsWords(c, cond.words); });
         /* Meld (CR 701.42): Gisela, the Broken Blade's "if you both own and control Gisela and a creature
            named Bruna, the Fading Light" (meldPair) */
         case 'meldPair': {
@@ -25482,6 +25487,8 @@
             // Lluwen, Imperfect Naturalist: "on top of your library"
             if (e.to === 'top') { this.moveObject(o, 'library'); took++; this.logEvent('rules', `${me.name} puts ${o.name} on top of their library.`); continue; }
             this.moveObject(o, 'hand'); took++; this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`);
+            // (Cache Grab: "returned a Squirrel card to your hand this way" — tookThisWay)
+            (this._tookThisWay || (this._tookThisWay = [])).push(o.id);
           }
           // Ostrich-Horse: "If you don't, put a +1/+1 counter on this creature."
           if (!took && e.otherwise) this._spliceNext(e.otherwise);
@@ -28765,6 +28772,27 @@
           if (pay.mana && /\{X\}/i.test(pay.mana) && !e.noAsk && pay.life == null && !pay.discard && !pay.sacrifice && !pay.energy &&
               !pay.tapUntapped && !pay.removeCounter && !pay.removeEach && !pay.removeAmong && !pay.exileTriggerCard) {
             const restCost = String(pay.mana).replace(/\{X\}/gi, '');
+            /* Relentless Dead: "you may pay {X}. If you do, return another target Zombie creature card with mana value X"
+               — the target, chosen as the trigger went on the stack, names X: that much, a yes or no (xOfTarget) */
+            const xEff = (e.then || []).find(x => x && Array.isArray(x._tslot) && (x.targets || []).some(sp => sp && sp.mv === 'X'));
+            if (xEff && ctx.targetSpecs) {
+              const xt = (ctx.targets || [])[xEff._tslot[(xEff.targets || []).findIndex(sp => sp && sp.mv === 'X')]];
+              const live = ctx.resolvedTargets || ctx.targets || [];
+              const xo = xt && xt.kind === 'object' && live.some(r => r && r.kind === xt.kind && r.id === xt.id) ? this.obj(xt.id) : null;
+              const k = xo ? Math.max(0, (xo.card && xo.card.cmc) || 0) : 0;
+              const costK = '{' + k + '}' + restCost;
+              if (!xo || !this.couldPay(ctx.controller, costK, this.manaSources(ctx.controller))) { this._spliceNext(e.otherwise); break; }
+              const yesX = this._ask({ type: 'confirm', playerId: ctx.controller, payMana: costK,
+                prompt: `${(src && src.name) || ctx.name || 'Effect'}: pay ${costK} (X is ${k}, the mana value of ${xo.name})? ${whole(String(e.text || '').replace(/^you may pay \{X\}\.\s*/i, ''), 110)}` }, 'qx');
+              if (yesX === SUSPEND) return SUSPEND;
+              const sacK = yesX ? this._sacAskFirst(ctx.controller, costK, 'qxs') : false;
+              if (sacK === SUSPEND) return SUSPEND;
+              if (!yesX || !sacK || !this.payMana(ctx.controller, costK, { auto: true })) { this._spliceNext(e.otherwise); break; }
+              ctx.x = k;
+              this.logEvent('rules', `${me.name} pays X = ${k}.`);
+              this._spliceNext(e.then);
+              break;
+            }
             const srcsX = this.manaSources(ctx.controller);
             let capX = 0;
             // (Mortarion, Daemon Primarch: "X can't be greater than the amount of life you lost this turn" — xCap)
@@ -45030,7 +45058,7 @@
           .filter(st => (st.kind === 'spell' ? !spec.noSpells && this._spellMatches(st, spec, controllerId) &&
               // Drown in the Loch: no more than the cards in its controller's graveyard
               !(spec.mvAtMostCtlGy && ((st.obj && st.obj.card && st.obj.card.cmc) || 0) > ((this.zones[st.controller] || {}).graveyard || []).length)
-            : !!spec.abilities && (!spec.abilityKind || (spec.abilityKind === 'triggered') === !!st.triggered) &&
+            : !!spec.abilities && (!spec.abilityKind || (spec.abilityKind === 'loyalty' ? !!st.loyalty : (spec.abilityKind === 'triggered') === !!st.triggered)) &&
               // Tawnos, Urza's Apprentice: "from an artifact source"; The Peregrine Dynamo: "another legendary source that's not a commander"
               !(spec.sourceWords && !(st.obj && this._cardFitsWords(st.obj, spec.sourceWords))) &&
               !(spec.sourceOther && st.objId === sourceId) && !(spec.sourceNotCommander && st.obj && st.obj.isCommander) &&
@@ -46608,6 +46636,8 @@
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
           // what a target spec may ask of it: a triggered ability or not, and the face a spell was cast as
           triggered: !!s.triggered,
+          // (Verdant Command: "target loyalty ability of a planeswalker" — said only of one)
+          loyalty: s.loyalty ? true : undefined,
           // a spell's or a triggered ability's modes, chosen as it was put on the stack (_keepModes, _aimTrigger): everyone's to see
           modes: s.modes && s.modes.length ? s.modes.slice() : undefined,
           // one of three or more of the same trigger put on the stack together (_batchTriggers), and whether it is a "you may"

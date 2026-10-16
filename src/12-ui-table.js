@@ -3111,7 +3111,8 @@
       if (spec.controller === 'opponent' && s.controller === this.meId) return false;
       if (s.kind === 'ability') {
         if (!spec.abilities) return false;
-        if (spec.abilityKind) return (spec.abilityKind === 'triggered') === !!s.triggered;
+        // (Verdant Command: "target loyalty ability of a planeswalker")
+        if (spec.abilityKind) return spec.abilityKind === 'loyalty' ? !!s.loyalty : (spec.abilityKind === 'triggered') === !!s.triggered;
         return true;
       }
       if (spec.noSpells) return false;

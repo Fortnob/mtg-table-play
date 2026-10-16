@@ -151,6 +151,8 @@ const StackItemView = obj({
   cardId: maybe(str), card: maybe(Card), objId: maybe(id),
   targets: opt(arr(Target)), abilityText: opt(maybe(str)), countered: bool,
   triggered: opt(bool), face: opt(maybe(int)), textNow: opt(maybe(str)),
+  // Verdant Command: a planeswalker's loyalty ability
+  loyalty: opt(lit(true)),
   /* a spell's or a triggered ability's modes, chosen as it went on the stack: public, whole */
   modes: opt(arr(str)),
   /* one of three or more of the same trigger put on the stack together, and whether it is optional */
