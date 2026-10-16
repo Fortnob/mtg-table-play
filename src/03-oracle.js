@@ -940,6 +940,8 @@
       // Kinzu of the Bleak Coven: "it's 1/1 and has toxic 1"; Volrath, the Shapestealer: "it's 7/5" — that size
       // (setPt for a token copy, copyPt for a permanent or spell becoming a copy), and the keyword with its number
       else if ((c = ex.match(/^(?:it|he|she)'?s (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
+      // Endless Evil: "except the token is 1/1"
+      else if ((c = ex.match(/^the token is (\d+)\/(\d+)(?=,? and |$)/))) { e.setPt = c[1] + '/' + c[2]; e.copyPt = c[1] + '/' + c[2]; }
       else if ((c = ex.match(/^(?:it )?has (toxic|afflict|bushido|rampage|annihilator) (\d+)(?=,? and |$)/i))) (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1).toLowerCase() + ' ' + c[2]);
       // Flesh Duplicate: "it has vanishing 3 if that creature doesn't have vanishing" (addTextUnlessKw)
       else if ((c = ex.match(/^it has (vanishing|fading) (\d+) if that creature doesn'?t have (vanishing|fading)(?=,? and |$)/i)) && c[1].toLowerCase() === c[3].toLowerCase())
@@ -3578,6 +3580,14 @@
     /* the same for any other kind of target ("target permanent you
        control", "target legendary creature"), with keywords the table
        knows */
+    // Seasoned Dungeoneer: "target attacking Cleric, Rogue, Warrior, or Wizard gains protection from creatures until end of turn" — any of those types
+    { re: /^([Tt]arget (?:attacking |blocking )?[A-Z][a-z]+(?:, [A-Z][a-z]+)+,? or [A-Z][a-z]+) gains ([a-z ,]+) until end of turn\.?$/,
+      make: (m) => {
+        const kws = keywordList(m[2]);
+        if (!kws.length || !kws.every(k => kwKnown(k) || /^protection from /i.test(k))) return null;
+        const spec = targetSpec(m[1]);
+        return spec && !spec.unknown && (spec.subtypes || []).length ? { op: 'grantKeyword', keywords: kws, duration: 'eot', targets: [spec] } : null;
+      } },
     // (Urdnan, Dromoka Warrior: "target attacking creature with a +1/+1 counter on it gains first strike …")
     // (The Master, Mesmerist: "target creature an opponent controls with power less than or equal to The Master's power gains skulk …")
     { re: /^((?:Another )?[Tt]arget [a-z ]+?(?: with an? [+\-0-9/a-z]+ counter on it| with power less than (?:or equal to )?CARDNAME'?s power)?) gains ([a-z ,]+) until end of turn\.?$/i,
@@ -5545,6 +5555,9 @@
        legendary, and it has haste for good. */
     { re: /^Create a token that'?s a copy of equipped creature(, except (?:the token|it) isn'?t legendary)?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', of: 'attached', nonLegendary: !!m[1] }) },
+    // Endless Evil: "create a token that's a copy of enchanted creature, except the token is 1/1" — the creature it is on (of attached)
+    { re: /^Create a token that'?s a copy of enchanted creature(?:, except (the token is \d+\/\d+|it'?s \d+\/\d+|(?:the token|it) isn'?t legendary))?\.?$/i,
+      make: (m) => { const e = { op: 'copyPermanent', of: 'attached' }; return !m[1] || copyExceptions(m[1], e) ? e : null; } },
     // Ghastly Mimicry: "create a token that's a copy of enchanted creature, except it's a Spirit in addition to its other types"
     { re: /^Create a token that'?s a copy of enchanted creature, except (it'?s an? [A-Z][a-z]+ in addition to its other types)\.?$/i,
       make: (m) => {
@@ -9469,6 +9482,13 @@
       { op: 'goad', scope: 'lastGroup' }] },
     // Kros, Defense Contractor: "Whenever you put one or more counters on a creature you don't control, tap that creature and goad it." (triggerObject)
     { re: /^Tap that creature and goad it\.?$/i, make: () => [{ op: 'tap', scope: 'triggerObject' }, { op: 'goad', scope: 'triggerObject' }] },
+    // Death Kiss: "goad up to X target creatures your opponents control" — X its monstrosity's (multi X)
+    { re: /^Goad up to (X|one|two|three|four|five) target creatures? (your opponents control|an opponent controls)\.?$/i,
+      make: (m) => {
+        const one = () => Object.assign(targetSpec('target creature an opponent controls'), { distinct: true, upTo: true });
+        return m[1].toUpperCase() === 'X' ? { op: 'goad', targets: [Object.assign(one(), { multi: { count: 'X', exact: false } })] }
+          : { op: 'goad', targets: Array.from({ length: num(m[1]) }, one) };
+      } },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     // Kitt Kanto, Mayhem Diva: "Goad that creature." — the one just targeted
@@ -12177,6 +12197,13 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Pyre of Heroes: "Search your library for a creature card that shares a creature type with the sacrificed creature and
+       has mana value equal to 1 plus that creature's mana value. Put that card onto the battlefield, then shuffle."
+       (mvOfSacrificedPlus, sharesTypeWithSacrificed) */
+    { re: /^Search your library for an? ([a-z]+) card that shares a creature type with the sacrificed creature and has mana value equal to (1|2|one|two) plus that creature'?s mana value\. Put that card onto the battlefield, then shuffle\.( Activate only as a sorcery\.)?$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', mvOfSacrificedPlus: num(m[2]), sharesTypeWithSacrificed: true,
+        prompt: `Search your library for ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card that shares a creature type with the sacrificed creature and has mana value ${num(m[2])} more.` }]
+        .concat(m[3] ? [{ op: 'noop' }] : []) },
     /* Descendants' Fury: "you may sacrifice one of them. If you do, reveal cards from the top of your library until you
        reveal a creature card that shares a creature type with the sacrificed creature. Put that card onto the battlefield
        and the rest on the bottom of your library in a random order." — one of the creatures the trigger is about (ofBatch) */
@@ -17257,6 +17284,13 @@
     const modal = parseModal(cleaned);
     if (modal) return modal;
     const res = parseSentenceList(splitSentences(cleaned));
+    /* Seasoned Dungeoneer: "target attacking Cleric, … gains protection from creatures until end of turn. It explores." —
+       "it" the creature the sentence before aimed at, not this one (ofTarget) */
+    if (res && res.effects) res.effects.forEach((e, i) => {
+      const prev = res.effects[i - 1];
+      if (e && e.op === 'explore' && !e.targets && /^It explores\.?$/i.test(e.text || '') && prev && (prev.targets || []).length === 1 &&
+          ['creature', 'permanent'].includes(prev.targets[0].type)) e.ofTarget = true;
+    });
     /* Bebop, The Ice Dancer: "draw X cards, where X is …. If you do, you lose X
        life." — an X the reading left as it was, after one it filled, is the same
        number (xCarry) */
@@ -18403,6 +18437,9 @@
        for each opponent attacked, "those creatures" the ones at them or their planeswalkers (anyAttacksPlayerOrPw) */
     { re: /^Whenever one or more creatures attack one of your opponents or a planeswalker they control,? /i,
       event: 'anyAttacksPlayerOrPw', extra: { attackedIsYourOpponent: true } },
+    // Death Kiss: "Whenever a creature an opponent controls attacks one of your opponents" — the player, not a planeswalker (attacksYourOppPlayer)
+    { re: /^Whenever a creature an opponent controls attacks one of your opponents,? /i, event: 'permAttacks', aboutObject: true,
+      filt: () => ({ who: 'opponent', words: 'creature' }), extra: { attacksYourOppPlayer: true } },
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
@@ -21677,7 +21714,9 @@
         // (Shigeki, Jukai Visionary: a channel cost with {X} in it, X chosen as it is channeled — channelX)
         (ab.kind === 'castModifier' && ab.keyword === 'Channel' && !!out.channel && /\{X\}/.test(out.channel.cost || '')) ||
         // (Orcus, Prince of Undeath: "When Orcus enters, …" — the X paid for it, which the permanent remembers)
-        (ab.kind === 'triggered' && ab.event === 'etb' && ab.self && /\{X\}/.test(out.manaCost || ''));
+        (ab.kind === 'triggered' && ab.event === 'etb' && ab.self && /\{X\}/.test(out.manaCost || '')) ||
+        // (Death Kiss: "When this creature becomes monstrous, goad up to X target creatures" — the X of its monstrosity)
+        (ab.kind === 'triggered' && ab.event === 'becomesMonstrous' && ab.self && (out.abilities || []).some(x => x.kind === 'activated' && (x.effects || []).some(e => e.op === 'monstrosity' && e.n === 'X')));
       // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
       // (Zethi, Arcane Blademaster: "where X is the number of times Zethi was kicked" — its own enters trigger: timesKicked)
       // (Orca, Siege Demon: "damage equal to its power divided as you choose among any number of targets" — its power as it died: ofTrigger)
@@ -24549,6 +24588,9 @@
          land type", and what is that type afterwards */
       { re: /^As (?:CARDNAME|this (?:land|Aura|enchantment|permanent)) enters(?: the battlefield)?,? choose a basic land type\.?(?: Then you may pay (\d+) life\. If you don'?t, it enters tapped\.?)?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'chooseLandTypeOnEnter' }, { op: 'etbTappedUnlessLife', life: +m[1] }] } : { op: 'chooseLandTypeOnEnter' }), auto: true },
+      // Thran Portal: "Mana abilities of this land cost an additional 1 life to activate." (manaLifeTax)
+      { re: /^Mana abilities of (?:this land|CARDNAME) cost an additional (\d+) life to activate\.?$/i,
+        make: (m) => ({ op: 'manaLifeTax', n: +m[1] }), auto: true },
       { re: /^(This land|CARDNAME|Enchanted land) is the chosen type( in addition to its other types)?\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 4, scope: /^enchanted/i.test(m[1]) ? { attached: true, what: 'land' } : { self: true, what: 'land' },
           chosenLandType: true, addOnly: !!m[2] }), auto: true },

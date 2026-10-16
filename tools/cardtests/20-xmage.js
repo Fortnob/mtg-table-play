@@ -79199,4 +79199,106 @@ module.exports = (test) => {
     T2.bf('A', 'Burning-Rune Demon', { etb: true }); T2.resolve();
     t.zone(b2, 'library', 'declined: no search');
   });
+
+  test('Cards: Thran Portal — the chosen basic land type; its mana costs 1 life more, tapped by hand or to pay', (mk, t) => {
+    t.auto('Thran Portal');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.answer('mode', (ch) => ({ modes: [ch.types.indexOf('Mountain')] }));
+    const tp = T.put('A', 'Thran Portal', 'battlefield', { etb: true });
+    t.eq(tp.chosenType, 'Mountain', 'chosen');
+    t.no(tp.tapped, 'two or fewer other lands: untapped');
+    const life = T.life('A');
+    t.ok(T.g.tapForMana('A', tp.id, 0), 'tapped by hand');
+    t.eq(T.player('A').pool.R || 0, 1, '{R}');
+    t.eq(T.life('A'), life - 1, 'and 1 life');
+    T.g.player('A').pool.clear();
+    T.nextTurn('A');
+    const l2 = T.life('A');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.ok(tp.tapped, 'tapped to pay for Bolt');
+    t.eq(T.life('A'), l2 - 1, '1 life for it');
+  });
+
+  test('Cards: Seasoned Dungeoneer — you attack: target attacking Cleric, Rogue, Warrior or Wizard gains protection from creatures and explores', (mk, t) => {
+    t.auto('Seasoned Dungeoneer');
+    const T = mk({ library: Array(20).fill('Island') });
+    const sd = T.bf('A', 'Seasoned Dungeoneer');
+    const piker = T.bf('A', 'Goblin Piker');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.top('A', 'Hill Giant');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = ch.options[0].map(x => x.id); return { targets: [ch.options[0].find(x => x.id === piker.id)] }; });
+    T.answer('declareAttackers', () => [sd, piker, bear].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    t.ok(offered && offered.includes(sd.id) && !offered.includes(bear.id), 'a Warrior, not a Bear');
+    t.ok(T.g.hasKw(piker, 'protection from creatures'), 'protection from creatures');
+    t.eq(piker.counters['+1/+1'] || 0, 1, 'the Goblin explores: a nonland card, a counter on it');
+    t.eq(sd.counters['+1/+1'] || 0, 0, 'not the Dungeoneer');
+  });
+
+  test('Cards: Endless Evil — each upkeep a 1/1 token copy of the enchanted creature; back to hand when a Horror it enchants dies', (mk, t) => {
+    t.auto('Endless Evil');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const giant = T.bf('A', 'Hill Giant');
+    const ee = T.bf('A', 'Endless Evil');
+    ee.attachedTo = giant.id; giant.attachments = (giant.attachments || []).concat(ee.id);
+    T.nextTurn('A');
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Hill Giant');
+    t.ok(tok, 'a token copy of the Giant');
+    t.eq(T.g.powerOf(tok), 1, '1/1'); t.eq(T.g.toughnessOf(tok), 1, '1/1');
+    t.eq(T.g.powerOf(giant), 3, 'the Giant as it was');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Doom Blade'), { targets: [giant] });
+    t.zone(ee, 'graveyard', 'not a Horror: Endless Evil stays in the graveyard');
+    const h = T.bf('A', 'Nether Horror');
+    const ee2 = T.bf('A', 'Endless Evil');
+    ee2.attachedTo = h.id; h.attachments = (h.attachments || []).concat(ee2.id);
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [h] });
+    t.zone(ee2, 'hand', 'a Horror: back to its owner\'s hand');
+  });
+
+  test('Cards: Pyre of Heroes — sacrifice a creature: a creature card sharing a type with it, of 1 more mana value, onto the battlefield', (mk, t) => {
+    t.auto('Pyre of Heroes');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const pyre = T.bf('A', 'Pyre of Heroes');
+    const elf = T.bf('A', 'Llanowar Elves');
+    T.bf('A', 'Grizzly Bears');
+    const bearsLib = T.top('A', 'Grizzly Bears'), vis = T.top('A', 'Elvish Visionary'), arch = T.top('A', 'Elvish Archdruid');
+    T.answer('sacrifice', { cardIds: [elf.id] });
+    T.mana('A', '2');
+    const a = pyre.analysis();
+    T.activate('A', pyre, a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated')).findIndex(x => (x.effects || []).some(e => e.op === 'tutor')));
+    t.zone(elf, 'graveyard', 'the Elf sacrificed');
+    t.zone(vis, 'battlefield', 'an Elf of mana value 2');
+    t.zone(bearsLib, 'library', 'not a Bear of mana value 2');
+    t.zone(arch, 'library', 'not an Elf of mana value 3');
+  });
+
+  test('Cards: Death Kiss — an opponent\'s creature attacking one of your opponents has its power doubled; monstrous: goad up to X', (mk, t) => {
+    t.auto('Death Kiss');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    T.toMain('A');
+    const dk = T.bf('A', 'Death Kiss');
+    const b1 = T.bf('B', 'Hill Giant'), b2 = T.bf('B', 'Grizzly Bears'), c1 = T.bf('C', 'Centaur Courser');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = ch; return { targets: [{ kind: 'object', id: b1.id }, { kind: 'object', id: c1.id }] }; });
+    T.mana('A', '22R');
+    const a = dk.analysis();
+    T.activate('A', dk, a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated')).findIndex(x => (x.effects || []).some(e => e.op === 'monstrosity')), { x: 2 });
+    t.eq(dk.counters['+1/+1'], 2, 'monstrosity 2');
+    t.ok(b1.goadedBy === 'A', 'the Giant goaded');
+    t.ok(c1.goadedBy === 'A', 'the Courser goaded');
+    t.no(b2.goadedBy === 'A', 'not the Bears');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'C' }, { attackerId: b2.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'declareBlockers');
+    t.eq(T.g.powerOf(b1), 6, 'attacking C, one of A\'s opponents: power doubled');
+    t.eq(T.g.powerOf(b2), 2, 'attacking A: not');
+  });
 };

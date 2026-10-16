@@ -1954,7 +1954,15 @@
         }
       }
       if (c && (c.grantMana || []).length) list = list.concat(c.grantMana);
-      return list;
+      return lost ? list : list.map(ab => this._manaLifeTaxed(o, ab));
+    }
+    /** Thran Portal: "Mana abilities of this land cost an additional 1 life to activate." — the ability with that life added (manaLifeTax). */
+    _manaLifeTaxed(o, ab) {
+      const tax = ab && o && o.zone === 'battlefield' ? this._staticOp(o, 'manaLifeTax') : null;
+      if (!tax || ab._lifeTaxed) return ab;
+      const cost = Object.assign({ mana: '', other: [] }, ab.cost || {});
+      cost.life = (Number(cost.life) || 0) + (Number(tax.n) || 0);
+      return Object.assign({}, ab, { cost, _lifeTaxed: true });
     }
 
     /**
@@ -5196,6 +5204,12 @@
       return out;
     }
 
+    /** Descendants' Fury, Pyre of Heroes: does this card share a creature type with the one sacrificed, as it was then (_sacrificeNow's record)? */
+    _sharesTypeWithSnap(c, sac) {
+      if (!c || !sac) return false;
+      if (sac.everyCreatureType) return this._hasCreatureType(c, '*') || ((c.analysis() || {}).subtypes || []).some(t => this._isCreatureType(t));
+      return (sac.subtypes || []).filter(t => this._isCreatureType(t)).some(t => this._hasCreatureType(c, t));
+    }
     _hasCreatureType(o, type) {
       const a = o.analysis();
       if (!a || !type) return false;
@@ -11122,6 +11136,8 @@
       const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
       let ab = all[abilityIndex];
       if (!ab) return this.fail('No such ability.');
+      // (Thran Portal: a mana ability of it costs 1 life more — manaLifeTax)
+      if (abilityIndex < a.manaAbilities.length) ab = this._manaLifeTaxed(o, ab);
       /* Bullseye, Death Dealer: "Sacrifice an artifact or discard a nonland card" — which price, asked before anything is
          paid when both can be; the activation starts again with the answer (choice, costChoice) */
       if (ab.cost && ab.cost.choice) {
@@ -21603,7 +21619,7 @@
             delete one.multi;
             const cm = mc.count;
             const ks = cm && cm.timesKicked && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
-            const xv = cm === 'X' ? (item.x || (src && src.chosenX) || 0) : cm === 'triggerAmount' ? (Number(td.amount) || 0)
+            const xv = cm === 'X' ? (item.x || (src && src.chosenX) || (src && src.monstrous && td.event === 'becomesMonstrous' && src.monstrousX) || 0) : cm === 'triggerAmount' ? (Number(td.amount) || 0)
               : cm && cm.timesKicked ? ((ks && ks.kickedTimes) || 0) * (cm.mult || 1) : typeof cm === 'number' ? cm : Math.max(0, Number(n(cm)) || 0);
             const opts = legal(one);
             const k = Math.min(Math.max(0, xv), opts.length);
@@ -22703,7 +22719,8 @@
           delete one.multi;
           const cm = aimed[xm].multi.count;
           const ks = cm && cm.timesKicked && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
-          const xv = cm === 'X' ? (ctx.x || (src && src.chosenX) || 0) : cm && cm.timesKicked ? (ctx.kicked || (ks && ks.kickedTimes) || 0) * (cm.mult || 1)
+          // (Death Kiss: "goad up to X target creatures" as it becomes monstrous — that monstrosity's X)
+          const xv = cm === 'X' ? (ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0) : cm && cm.timesKicked ? (ctx.kicked || (ks && ks.kickedTimes) || 0) * (cm.mult || 1)
             : (Number(td.amount) || 0);
           const k = Math.min(Math.max(0, xv), this._legalTargetsFor(one, ctx.controller, src ? src.id : null).length);
           aimed.splice(xm, 1, ...Array.from({ length: k }, () => one));
@@ -24872,7 +24889,9 @@
           const z = this.zones[ctx.controller];
           if (!z || !z.library.length) break;
           // "target creature you control explores" (a Map): that one, not the source
-          const t0 = e.targets && e.targets.length ? targets.find(t => t.kind === 'object') : null;
+          // (Seasoned Dungeoneer: "… target attacking Cleric … It explores." — the one the sentence before aimed at: ofTarget)
+          const t0 = (e.targets && e.targets.length) || e.ofTarget ? targets.find(t => t.kind === 'object') : null;
+          if (e.ofTarget && !t0) break;
           // (Hakbal of the Surging Soul: each Merfolk, named by id — exploreEach)
           const who = e.objId ? this.obj(e.objId) : t0 ? this.obj(t0.id) : src;
           if ((t0 || e.objId) && !(who && who.zone === 'battlefield')) break;
@@ -26664,9 +26683,7 @@
             if (e.sharesCreatureTypeWithSacrificed) {
               const sac = (ctx.sacrificed || this._lastSacrificed || [])[0];
               if (!sac) continue;
-              const types = (sac.subtypes || []).filter(t => this._isCreatureType(t));
-              sacKin = (c) => (sac.everyCreatureType ? this._hasCreatureType(c, '*') || ((c.analysis() || {}).subtypes || []).some(t => this._isCreatureType(t))
-                : types.some(t => this._hasCreatureType(c, t)));
+              sacKin = (c) => this._sharesTypeWithSnap(c, sac);
             }
             if (e.sharesCreatureTypeWithIt) {
               const x = ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || firstObj();
@@ -27398,6 +27415,8 @@
               const sac = (ctx.sacrificed || this._lastSacrificed || [])[0];
               if (!sac || mvOf(c) !== sac.mv + e.mvOfSacrificedPlus) return false;
             }
+            // Pyre of Heroes: "that shares a creature type with the sacrificed creature" — its types as it was sacrificed
+            if (e.sharesTypeWithSacrificed && !this._sharesTypeWithSnap(c, (ctx.sacrificed || this._lastSacrificed || [])[0])) return false;
             // Shield-Wall Sentinel, Isperia: "a creature card with defender (flying)" (tutorKeyword)
             if (e.withKeyword && !(ca && ca.keywordSet && ca.keywordSet.has(e.withKeyword))) return false;
             // "an instant card or a card with flash"
