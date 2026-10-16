@@ -81700,4 +81700,129 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, hand + 1, 'one damage: one card');
   });
+
+  test('Cards: Valkyrie\'s Call — a nontoken non-Angel creature of yours dies: back with a +1/+1 counter, flying, an Angel too', (mk, t) => {
+    t.auto('Valkyrie\'s Call');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('A', 'Valkyrie\'s Call');
+    const bear = T.bf('A', 'Grizzly Bears');
+    g.moveObject(bear, 'graveyard');
+    T.resolve();
+    const back = T.bfOf('A').find(o => o.name === 'Grizzly Bears');
+    t.ok(back, 'the Bears returned');
+    t.eq(back && back.counters['+1/+1'], 1, 'with a +1/+1 counter');
+    t.ok(back && g.hasKw(back, 'flying'), 'flying');
+    t.ok(back && g._hasCreatureType(back, 'Angel') && g._hasCreatureType(back, 'Bear'), 'an Angel in addition to its other types');
+    // now an Angel: it stays dead the second time
+    g.moveObject(back, 'graveyard');
+    T.resolve();
+    t.no(T.bfOf('A').some(o => o.name === 'Grizzly Bears'), 'an Angel now: not returned again');
+    const theirs = T.bf('B', 'Hill Giant');
+    g.moveObject(theirs, 'graveyard');
+    T.resolve();
+    t.no(T.bfOf('B').some(o => o.name === 'Hill Giant'), 'not an opponent\'s creature');
+  });
+
+  test('Cards: Reverse the Polarity — counter all other spells; or switch power and toughness; or nothing can be blocked', (mk, t) => {
+    t.auto('Reverse the Polarity');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+    T.mana('A', '1UU');
+    T.cast('A', T.hand('A', 'Reverse the Polarity'), { modes: [0], resolve: false });
+    T.resolve();
+    t.eq(T.life('B'), 20, 'both Bolts countered');
+    t.eq(T.zone('A', 'graveyard').filter(o => o.name === 'Lightning Bolt').length, 2, 'into the graveyard');
+    const wall = T.bf('B', 'Wall of Omens'), turtle = T.bf('B', 'Horned Turtle');
+    T.mana('A', '1UU');
+    T.cast('A', T.hand('A', 'Reverse the Polarity'), { modes: [1] });
+    t.eq(g.powerOf(turtle) + '/' + g.toughnessOf(turtle), '4/1', 'switched: the Turtle is 4/1');
+    t.zone(wall, 'graveyard', 'the Wall, 4/0, dies');
+  });
+
+  test('Cards: Nahiri\'s Resolve — your end step: exile any of your nontoken artifacts and creatures, back at your next upkeep', (mk, t) => {
+    t.auto('Nahiri\'s Resolve');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('A', 'Nahiri\'s Resolve');
+    const bear = T.bf('A', 'Grizzly Bears'), stone = T.bf('A', 'Mind Stone'), elf = T.bf('A', 'Llanowar Elves');
+    const borrowed = T.bf('B', 'Hill Giant'); borrowed.controller = 'A';
+    let offered = null;
+    T.answer('choose', (ch) => { offered = ch; return { picks: [bear.id, stone.id, borrowed.id] }; });
+    T.toMain('A', 'end');
+    T.resolve();
+    t.ok(offered && offered.items.length === 4, 'the Bears, the Elves, the Mind Stone and the borrowed Giant offered');
+    t.zone(bear, 'exile'); t.zone(stone, 'exile'); t.zone(borrowed, 'exile');
+    t.zone(elf, 'battlefield', 'the Elves left alone');
+    T.nextTurn('B');
+    t.zone(bear, 'exile', 'not at an opponent\'s upkeep');
+    T.nextTurn('A');
+    T.resolve();
+    t.zone(bear, 'battlefield', 'back at your next upkeep'); t.zone(stone, 'battlefield');
+    t.zone(borrowed, 'battlefield', 'the Giant too');
+    t.eq(borrowed.controller, 'B', 'under its owner\'s control');
+    t.eq(g.powerOf(bear), 3, 'creatures you control get +1/+0');
+  });
+
+  test('Cards: Earth Kingdom General — +1/+1 counters put on a creature: you may gain that much life, once each turn', (mk, t) => {
+    t.auto('Earth Kingdom General');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('A', 'Earth Kingdom General');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    g.addCounters(bear, '+1/+1', 3, { by: 'A' });
+    T.resolve();
+    t.eq(T.life('A'), 23, 'three counters: three life');
+    g.addCounters(bear, '+1/+1', 2, { by: 'A' });
+    T.resolve();
+    t.eq(T.life('A'), 23, 'only once each turn');
+  });
+
+  test('Cards: Teyo, Geometric Tactician — −2: until your next turn each player may attack only the nearest opponent that way', (mk, t) => {
+    t.auto('Teyo, Geometric Tactician');
+    const T = mk({ players: ['A', 'B', 'C', 'D'], library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    const teyo = T.bf('A', 'Teyo, Geometric Tactician');
+    teyo.counters.loyalty = 4;
+    T.answer('choose', (ch) => ({ picks: [1] }));
+    T.activate('A', teyo, 1);
+    t.eq(g.nearestAttack && g.nearestAttack.dir, 'right', 'right chosen');
+    const defs = (pid) => g._legalDefenders(pid).filter(d => d.kind === 'player').map(d => d.id).join(',');
+    t.eq(defs('A'), 'D', 'A may attack only the player to its right');
+    t.eq(defs('C'), 'B', 'C too: the one to its right');
+    T.nextTurn('B');
+    t.eq(defs('B'), 'A', 'still on B\'s turn');
+    T.nextTurn('A');
+    t.eq(defs('A'), 'B,C,D', 'gone at your next turn');
+  });
+
+  test('Cards: March of the Canonized — your upkeep with devotion to white and black of seven or more: a 4/3 flying Vampire Demon', (mk, t) => {
+    t.auto('March of the Canonized');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    T.mana('A', '2WW');
+    T.cast('A', T.hand('A', 'March of the Canonized'), { x: 2 });
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Vampire').length, 2, 'X=2: two 1/1 Vampires');
+    const demons = () => T.bfOf('A').filter(o => o.isToken && /Vampire Demon/.test(o.name));
+    T.nextTurn('B'); T.nextTurn('A'); T.resolve();
+    t.eq(demons().length, 0, 'devotion 2: nothing');
+    T.bf('A', 'Sorin, Vengeful Bloodlord');   // {2}{W}{B}
+    T.bf('A', 'Gray Merchant of Asphodel');   // {3}{B}{B}
+    T.bf('A', 'Serra Angel');                 // {3}{W}{W}
+    T.nextTurn('B'); T.nextTurn('A'); T.resolve();
+    const d = demons();
+    t.eq(d.length, 1, 'devotion 8: a Vampire Demon');
+    t.ok(d[0] && g.powerOf(d[0]) === 4 && g.toughnessOf(d[0]) === 3 && g.hasKw(d[0], 'flying'), '4/3 flying');
+  });
 };

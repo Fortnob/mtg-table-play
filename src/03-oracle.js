@@ -2897,6 +2897,9 @@
       make: (m) => ({ op: 'manual', enterRider: { setPt: { p: +m[2], t: +m[3] }, addTypes: ['Creature'], minX: +m[1] } }) },
     // Hellcat, Undying Vigilante: "She loses all abilities and gains haste." — as the card returned enters (enterRider)
     { re: /^(?:It|He|She|They) lose(?:s)? all abilities and gains? haste\.?$/, make: () => ({ op: 'manual', enterRider: { loseAll: true, keywords: ['Haste'] } }) },
+    // Valkyrie's Call: "It has flying and is an Angel in addition to its other types." — as the card returned enters (enterRider)
+    { re: /^It has ([a-z]+) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? { op: 'manual', enterRider: { addSubtypes: [m[2]], keywords: kws } } : null; } },
     // Ghost Vacuum: "Each of them is a 1/1 Spirit in addition to its other types." — as they enter (enterRider)
     // (Storm of Souls: "Each of them is a 1/1 Spirit with flying in addition to its other types." — and flying)
     { re: /^Each of them is an? (\d+)\/(\d+) ([A-Z][a-z]+)(?: with ([a-z ,]+?))? in addition to its other types\.?$/,
@@ -8260,6 +8263,21 @@
     { re: /^When target creature is put into your graveyard this turn, return that card to the battlefield\.?$/i,
       make: () => ({ op: 'grantDiesReturn', tapped: false, ownedBy: 'you', targets: [{ type: 'creature' }] }) },
     { re: /^Choose target creature\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'creature' }] }) },
+    // Reverse the Polarity: "Counter all other spells." — every spell left on the stack (allOther)
+    { re: /^Counter all other spells\.?$/i, make: () => ({ op: 'counterSpell', allOther: true }) },
+    // Earth Kingdom General: "you may gain that much life" — as many as the trigger is about (triggerAmount)
+    { re: /^Gain that much life\.?$/, make: () => ({ op: 'gainLife', n: 'triggerAmount', who: 'you' }) },
+    /* Teyo, Geometric Tactician: "Until your next turn, each player may attack only the nearest opponent in the last
+       chosen direction and planeswalkers controlled by that opponent." — the direction just chosen (attackNearestUntil) */
+    { re: /^Until your next turn, each player may attack only the nearest opponent in the last chosen direction and planeswalkers controlled by that opponent\.?$/i,
+      make: () => ({ op: 'attackNearestUntil' }) },
+    /* Nahiri's Resolve: "exile any number of nontoken artifacts and/or creatures you control" — anyone's you control,
+       picked as it resolves, for "Return those cards …" (exileAnyOwn anyOwner) */
+    { re: /^Exile any number of nontoken artifacts and\/or creatures you control\.?$/i,
+      make: () => ({ op: 'exileAnyOwn', filter: 'nontoken artifact or creature', anyOwner: true }) },
+    // (Nahiri's Resolve: "Return those cards to the battlefield under their owner's control at the beginning of your next upkeep.")
+    { re: /^Return those cards to the battlefield under their owner'?s'? control at the beginning of your next upkeep\.?$/i,
+      make: () => ({ op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true, subject: 'exiledNow', name: 'Return them at your next upkeep', effects: [{ op: 'returnThat' }] }) },
     // Curious Herd, Haunt the Network: "Choose target opponent." — "that player" in what follows
     { re: /^Choose target opponent\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'player', opponent: true }] }) },
     /* Evercoat Ursine: "you may play one of them without paying its mana cost" — one of the cards hidden under it,
@@ -17862,6 +17880,9 @@
     // Beza: "an opponent has more life than you", "an opponent has more cards in hand than you"
     [/^an opponent has more life than you$/i, () => ({ kind: 'opponentMoreLife' })],
     [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
+    // March of the Canonized: "if your devotion to white and black is seven or greater" (devotionAtLeast)
+    [/^your devotion to (white|blue|black|red|green)(?: and (white|blue|black|red|green))? is (\w+) or greater$/i, (m) => (typeof num(m[3]) === 'number'
+      ? { kind: 'devotionAtLeast', n: num(m[3]), colors: [m[1], m[2]].filter(Boolean).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c.toLowerCase()]) } : null)],
     // Aerial Surveyor: "if defending player controls more lands than you" — the player this attacks (defendingMoreLands)
     [/^defending player controls more lands than you$/i, () => ({ kind: 'defendingMoreLands' })],
     // Akuta, Born of Ash: "you have more cards in hand than each opponent"

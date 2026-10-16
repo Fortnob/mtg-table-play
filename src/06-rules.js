@@ -14211,9 +14211,12 @@
          planeswalkers controlled by that opponent." — each one in play narrows it (attackOnlyNearest) */
       const order = this.turnOrder.filter(id => { const q = this.player(id); return q && !q.hasLost; });
       const foes = new Set(this.opponentsOf(attackerPid).map(q => q.id));
-      for (const s of this.battlefield) {
-        if (s.phasedOut || !this._staticOp(s, 'attackOnlyNearest')) continue;
-        const step = s.chosenDirection === 'right' ? -1 : 1;
+      // (Teyo, Geometric Tactician: "Until your next turn, … in the last chosen direction" — nearestAttack, the latest only)
+      const dirs = this.battlefield.filter(s => !s.phasedOut && this._staticOp(s, 'attackOnlyNearest')).map(s => s.chosenDirection);
+      const na = this.nearestAttack;
+      if (na && this._beforeNextTurnOf(na.pid, na.taken)) dirs.push(na.dir);
+      for (const dir of dirs) {
+        const step = dir === 'right' ? -1 : 1;
         const i = order.indexOf(attackerPid);
         let near = null;
         for (let k = 1; i >= 0 && k < order.length && !near; k++) {
@@ -17779,6 +17782,8 @@
           const p = this.player(((ctx && ctx.triggerData) || {}).player), me2 = this.player(ctx && ctx.controller);
           return !!p && !!me2 && p.life > me2.life;
         }
+        // March of the Canonized: "if your devotion to white and black is seven or greater" (devotionAtLeast)
+        case 'devotionAtLeast': return !!me && this._devotionTo(me.id, cond.colors || []) >= cond.n;
         // Aerial Surveyor: "if defending player controls more lands than you" — the player it attacks (defendingMoreLands)
         case 'defendingMoreLands': {
           const td = (ctx && ctx.triggerData) || {};
@@ -24739,7 +24744,9 @@
         case 'counterSpell': {
           // "counter that spell" in a cast trigger: the spell it is about
           const td = ctx.triggerData || {};
-          const which = e.thatSpell && !targets.some(t => t.kind === 'stack') && td.stackId ? [{ kind: 'stack', id: td.stackId }] : targets;
+          // (Reverse the Polarity: "Counter all other spells." — every spell still on the stack: allOther)
+          const which = e.allOther ? this.stack.filter(s => s.kind === 'spell').map(s => ({ kind: 'stack', id: s.id }))
+            : e.thatSpell && !targets.some(t => t.kind === 'stack') && td.stackId ? [{ kind: 'stack', id: td.stackId }] : targets;
           // (Tishana's Tidebinder: "an ability of an artifact … countered this way" — whose it was: counteredSource)
           this._counteredSrc = null;
           for (const t of which) {
@@ -26073,6 +26080,13 @@
           // (Pramikon, Sky Rampart: "As Pramikon enters, choose left or right." — the permanent keeps it)
           if (src && src.zone === 'battlefield') src.chosenDirection = dir;
           this.logEvent('rules', `${me.name} chooses ${dir}.`);
+          break;
+        }
+        /* Teyo, Geometric Tactician: "Until your next turn, each player may attack only the nearest opponent in the last
+           chosen direction …" — kept by the game, the latest replacing any before it (nearestAttack) */
+        case 'attackNearestUntil': {
+          this.nearestAttack = { dir: ctx.chosenDirection || 'left', pid: ctx.controller, taken: me.turnsTaken || 0 };
+          this.logEvent('rules', `Until ${me.name}'s next turn, each player may attack only the nearest opponent to the ${this.nearestAttack.dir}.`);
           break;
         }
         /* Aminatou, the Fateshifter: "Each player gains control of all nonland permanents other than Aminatou
@@ -33982,7 +33996,8 @@
            exiled for "Return those cards …" (exiledNow) */
         case 'exileAnyOwn': {
           // (The Master, Formed Anew: "exile a creature you control" — yours to control, one at most: one)
-          const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && (e.one || o.owner === ctx.controller) &&
+          // (Nahiri's Resolve: "you control" — whoever owns them: anyOwner)
+          const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && (e.one || e.anyOwner || o.owner === ctx.controller) &&
             this._cardFitsWords(o, e.filter || 'nonland permanent'));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: e.one ? 'bodyThief' : 'flickerAny', kind: 'objects', zone: 'battlefield',
