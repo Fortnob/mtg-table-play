@@ -134,6 +134,13 @@
           }
           break;
         }
+        /* V.A.T.S.: "any number of target creatures with equal toughness" — every pick the same value of `key` */
+        case 'same': {
+          const key = c.key || 'name';
+          const vals = entries.filter(Boolean).map(e => e[key]);
+          if (vals.some(v => v !== vals[0])) return c.reason || `They must all have the same ${label || key}.`;
+          break;
+        }
         case 'sum': {
           const total = entries.reduce((k, e) => k + num(e && e[c.key]), 0);
           // (Slaughter the Strong: a power below 0 brings the total back down — the most holds for the whole answer: finalMax)

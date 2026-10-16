@@ -1890,6 +1890,23 @@
       const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
       return cards.length ? { picks: [cards[0].id] } : null;
     },
+    /* V.A.T.S.: "any number of target creatures with equal toughness" — the toughness whose creatures are worth most
+       to pick, all those worth picking (only with a 'same' constraint; otherwise the general way) */
+    anyTargets(s) {
+      const same = (s.constraints || []).find(c => c && c.kind === 'same');
+      if (!same) return null;
+      const key = same.key || 'name';
+      const groups = new Map();
+      for (const it of (s.items || [])) {
+        const v = this._chooseScore(s, it.id);
+        if (v <= 0) continue;
+        const g = groups.get(it[key]) || { sum: 0, ids: [] };
+        g.sum += v; g.ids.push(it.id);
+        groups.set(it[key], g);
+      }
+      const best = [...groups.values()].sort((x, y) => y.sum - x.sum)[0];
+      return { picks: best ? best.ids.slice(0, s.max != null ? s.max : best.ids.length) : [] };
+    },
     /* Call the Spirit Dragons: the Dragon offered first, the one that keeps the most Dragons apart (toward five) */
     colorCounter(s) {
       const it = (s.items || [])[0];

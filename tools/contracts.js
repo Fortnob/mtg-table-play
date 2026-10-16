@@ -215,7 +215,7 @@ const ChooseItem = obj({ id, name: opt(maybe(str)), card: opt(maybe(Card)) });
 /* ids and cards: a pile of cards an option stands for (Fact or Fiction's piles), cards in the same order as ids */
 const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weight: opt(num), ids: opt(arr(id)), cards: opt(arr(maybe(Card))) });
 const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
-const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'unionAtLeast', 'eachAtMost', 'sum', 'shareColour', 'mana', 'pays'), key: opt(str), min: opt(num), max: opt(num),
+const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'unionAtLeast', 'eachAtMost', 'same', 'sum', 'shareColour', 'mana', 'pays'), key: opt(str), min: opt(num), max: opt(num),
   with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str), finalMax: opt(bool),
   /* Word of Command: the cost the lands picked have to pay, and the spell they pay for ('pays') */
   cost: opt(str), forObj: opt(maybe(id)) });

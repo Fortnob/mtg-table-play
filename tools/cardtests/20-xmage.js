@@ -78779,4 +78779,107 @@ module.exports = (test) => {
     T.activate('A', oo, 1, { targets: ['B'] });
     t.eq(T.life('B'), 19, 'pinged');
   });
+
+  test("Cards: Ugin's Mastery — a colorless creature spell manifests; attacking with total power 6 turns one face up", (mk, t) => {
+    t.auto("Ugin's Mastery");
+    const T = mk({ library: Array(10).fill('Island') });
+    const g = T.g;
+    T.bf('A', "Ugin's Mastery");
+    const top = T.top('A', 'Grizzly Bears');
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    t.zone(top, 'battlefield', 'the top card manifested');
+    t.ok(top.faceDown, 'face down');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Llanowar Elves'));
+    t.eq(g.battlefield.filter(x => x.faceDown).length, 1, 'a green creature spell: nothing more');
+    // attacking with total power 4: nothing
+    T.nextTurn('A');
+    const bear = T.bf('A', 'Grizzly Bears'), ogre = T.bf('A', 'Gray Ogre');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: ogre.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(top.faceDown, 'total power 4: still face down');
+    // total power 6: turned face up
+    T.nextTurn('A');
+    const wurm = T.bf('A', 'Craw Wurm');
+    let q = null;
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => { q = ch; return { picks: [top.id] }; });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(q && q.prompt, 'You may turn a face-down creature you control face up.');
+    t.no(T.asked.some(ch => ch.type === 'confirm' && /face up/.test(ch.prompt || '')), 'no yes-or-no before the pick');
+    t.no(top.faceDown, 'turned face up');
+    t.eq(g.powerOf(top), 2, 'a Grizzly Bears');
+  });
+
+  test('Cards: V.A.T.S. — destroy any number of creatures with equal toughness', (mk, t) => {
+    t.auto('V.A.T.S.');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('B', 'Grizzly Bears'), ogre = T.bf('B', 'Gray Ogre'), giant = T.bf('B', 'Hill Giant');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return T.MTG.bots.answerChoose(g, 'A', ch); });
+    T.mana('A', 'BB2');
+    T.cast('A', T.hand('A', 'V.A.T.S.'));
+    t.ok(q && (q.constraints || []).some(c => c.kind === 'same'), 'all of one toughness');
+    t.eq(T.MTG.choice.check(q, { picks: [bear.id, giant.id] }).ok, false, 'toughness 2 and 3 together: refused');
+    t.zone(bear, 'graveyard', 'the bot takes the two of toughness 2');
+    t.zone(ogre, 'graveyard');
+    t.zone(giant, 'battlefield', 'not the Giant');
+    // a different toughness slipped in is left alone
+    const b2 = T.bf('B', 'Grizzly Bears'), g2 = T.bf('B', 'Hill Giant');
+    T.answer('choose', () => ({ picks: [giant.id, g2.id] }));
+    T.mana('A', 'BB2');
+    T.cast('A', T.hand('A', 'V.A.T.S.'));
+    t.zone(giant, 'graveyard'); t.zone(g2, 'graveyard', 'two Giants');
+    t.zone(b2, 'battlefield', 'the Bears stays');
+  });
+
+  test('Cards: Reluctant Role Model — tapped at your second main phase: a flying, lifelink, or +1/+1 counter', (mk, t) => {
+    t.auto('Reluctant Role Model');
+    const T = mk();
+    const g = T.g;
+    const rr = T.bf('A', 'Reluctant Role Model');
+    T.toMain('A', 'main');
+    T.answer('declareAttackers', () => [{ attackerId: rr.id, defenderId: 'B' }]);
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; const i = (ch.options || []).findIndex(o => /lifelink/i.test(o.label)); return { picks: [i] }; });
+    for (let i = 0; i < 40 && !(g.phase && g.phase.id === 'postcombat'); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.resolve();
+    t.ok(q, 'asked which counter');
+    t.eq(rr.counters.lifelink, 1, 'a lifelink counter');
+    t.ok(g.hasKw(rr, 'lifelink'));
+    // untapped: nothing
+    T.nextTurn('A');
+    const n0 = Object.keys(rr.counters).length;
+    for (let i = 0; i < 40 && !(g.phase && g.phase.id === 'postcombat'); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.resolve();
+    t.eq(Object.keys(rr.counters).length, n0, 'untapped: no counter');
+    // it dies: its counters go to another creature
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    g.destroy ? g.destroy(rr) : g.moveObject(rr, 'graveyard');
+    T.resolve();
+    t.eq(bear.counters.lifelink, 1, 'the lifelink counter moves to the Bears');
+  });
+
+  test('Cards: Coin of Mastery — a +1/+1 counter for each mana from an artifact spent on a creature; makes Treasure', (mk, t) => {
+    t.auto('Coin of Mastery');
+    const T = mk();
+    const g = T.g;
+    const coin = T.bf('A', 'Coin of Mastery');
+    const ms = T.bf('A', 'Mind Stone');
+    t.ok(g.tapForMana('A', ms.id, 0), g.lastError);
+    T.mana('A', 'G');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.eq(bear.counters['+1/+1'], 1, 'one mana from Mind Stone: one counter');
+    T.mana('A', 'G1');
+    const b2 = T.hand('A', 'Grizzly Bears');
+    T.cast('A', b2);
+    t.eq(b2.counters['+1/+1'] || 0, 0, 'no artifact mana: none');
+    T.activate('A', coin, 0);
+    t.ok(T.bfOf('A').some(x => x.isToken && x.name === 'Treasure'), 'a Treasure');
+  });
 };

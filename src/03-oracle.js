@@ -2818,7 +2818,8 @@
         return kinds.every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, scope: 'self' } : null;
       } },
     // Me, the Immortal: "put your choice of a +1/+1, first strike, vigilance, or menace counter on Me" (kindChoice)
-    { re: /^Put your choice of an? ((?:[+\-0-9/a-z ]+?, )+)or ([+\-0-9/a-z ]+?) counter on (?:CARDNAME|this creature)\.?$/i,
+    // (Reluctant Role Model: "put a flying, lifelink, or +1/+1 counter on it" — the same choice)
+    { re: /^Put (?:your choice of )?an? ((?:[+\-0-9/a-z ]+?, )+)or ([+\-0-9/a-z ]+?) counter on (?:CARDNAME|this creature|it)\.?$/i,
       make: (m) => {
         const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
         return kinds.every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, scope: 'self' } : null;
@@ -5080,6 +5081,8 @@
     /* Zimone, Mystery Unraveler: "you may turn a permanent you control face up" — any face-down one, for nothing;
        none face down, nothing asked (turnFaceUpFree) */
     { re: /^You may turn a permanent you control face up\.?$/i, make: () => ({ op: 'turnFaceUpFree' }) },
+    // Ugin's Mastery: "you may turn a face-down creature you control face up" (creatureOnly)
+    { re: /^(?:You may )?turn a face-down creature you control face up\.?$/i, make: () => ({ op: 'turnFaceUpFree', creatureOnly: true }) },
     // Ixidor, Reality Sculptor: "Turn target face-down creature face up." — anyone's (turnFaceUpTarget)
     { re: /^Turn target face-down creature face up\.?$/i, make: () => ({ op: 'turnFaceUpTarget', targets: [targetSpec('target face-down creature')] }) },
     // Kaust, Eyes of the Glade: "Turn target face-down attacking creature you control face up."
@@ -13457,6 +13460,11 @@
         { op: 'reflexive', ifSacrificed: true, whenText: m[0].replace(/^[^.]+\. /, ''), effects: [
           { op: 'tap', targets: [Object.assign(targetSpec('target ' + m[2].toLowerCase()), { distinct: true, multi: { count: 'triggerAmount', exact: false } })] },
           { op: 'draw', n: 'triggerAmount', who: 'you' }] }] },
+    /* V.A.T.S.: "Choose any number of target creatures with equal toughness. Destroy the chosen creatures." — picked as
+       it resolves, all of one toughness (anySame) */
+    { re: /^Choose any number of target creatures with equal toughness\. Destroy the chosen creatures\.?$/i,
+      make: () => [{ op: 'destroy', anyFrom: { type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true }, anySame: 'toughness',
+        anyPrompt: 'choose any number of target creatures with equal toughness to destroy' }] },
     /* Call the Spirit Dragons: "for each color, put a +1/+1 counter on a Dragon you control of that color. If you put
        +1/+1 counters on five Dragons this way, you win the game." (colorCounter) */
     { re: /^[Ff]or each color, put a \+1\/\+1 counter on an? ([A-Z][a-z]+) you control of that color\. If you put \+1\/\+1 counters on five \1s this way, you win the game\.?$/,
@@ -19579,6 +19587,8 @@
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
     // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
     { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
+    // Ugin's Mastery: "Whenever you attack with creatures with total power 6 or greater" (attackersTotalPower)
+    { re: /^Whenever you attack with creatures with total power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersTotalPower: +m[1] }) },
     // Akiri, Fearless Voyager: "Whenever you attack a player with one or more equipped creatures" (attackersFit)
     // (Interceptor, Shadow's Hound: "with one or more legendary creatures")
     { re: /^Whenever you attack (a player )?with one or more (equipped|enchanted|modified|legendary) creatures,? /, event: 'youAttack',
@@ -26332,6 +26342,9 @@
       // Kalain, Reclusive Painter: "Other creatures you control enter with an additional +1/+1 counter on them for each mana from a Treasure spent to cast them." (perTreasureMana)
       { re: /^Other creatures you control enter with an additional \+1\/\+1 counter on them for each mana from a Treasure spent to cast them\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', perTreasureMana: true }, auto: true },
+      // Coin of Mastery: "Each creature you control enters with an additional +1/+1 counter on it for each mana from an artifact source spent to cast it." (perArtifactMana)
+      { re: /^Each creature you control enters with an additional \+1\/\+1 counter on it for each mana from an artifact source spent to cast it\.?$/i,
+        eff: { op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', perArtifactMana: true }, auto: true },
       // Gorma, the Gullet: "Nontoken creatures you control enter with an additional +1/+1 counter on them for each creature that died under your control this turn." (perCount)
       { re: /^Nontoken creatures you control enter with an additional \+1\/\+1 counter on them(?: for each ([a-z ]+ this turn))?\.?$/,
         make: (m) => { const pc = m[1] ? countOf(m[1]) : null; return m[1] && !pc ? null : Object.assign({ op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', nontoken: true }, pc ? { perCount: pc } : {}); }, auto: true },

@@ -3539,7 +3539,8 @@
       // (Mairsil, the Pretender: "you may exile an artifact or creature card from your hand or graveyard …" — exileHandGraveCounter)
       // (Semblance Anvil, Chrome Mox: "you may exile a nonland card from your hand" — imprintFromHand)
       // (Cloudstone Curio: "you may return another permanent you control that shares a permanent type with it …" — returnOwn)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'returnOwn' && !only.self) ||only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
+      // (Ugin's Mastery: "you may turn a face-down creature you control face up" — turnFaceUpFree)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'turnFaceUpFree' || (only.op === 'returnOwn' && !only.self) ||only.op === 'exileAnyOwn' || only.op === 'becomeExiledWithCopy' || only.op === 'exileHandGraveCounter' || only.op === 'imprintFromHand' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.from === 'selfFromGrave' || only.pickOne))) && !once;
       /* Angel of Serenity: "you may exile up to three other target creatures …" — every target "up to" and chosen as it went on
          the stack: choosing them, or none, was the "may"; not asked again (aimedUpTo) */
       const aimedUpTo = item.optional && !item._asked && only && !!item.targetSpecs && (only.targets || []).length > 0 &&
@@ -10639,6 +10640,8 @@
         else if (ex.perCount) k = Math.max(0, this._countValue(ex.perCount, s0.controller, s0));
         // Kalain, Reclusive Painter: "for each mana from a Treasure spent to cast them" — cast, and just now
         else if (ex.perTreasureMana) k = o.enteredFrom === 'stack' ? (o.manaFromTreasure || 0) : 0;
+        // Coin of Mastery: "for each mana from an artifact source spent to cast it" (perArtifactMana)
+        else if (ex.perArtifactMana) k = o.enteredFrom === 'stack' ? (o.manaFromArtifact || 0) : 0;
         else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
@@ -20983,6 +20986,8 @@
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
           if (ab.attackersMinPower != null && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && x.controller === o.controller && this.player(x.attacking) && this.powerOf(x) >= ab.attackersMinPower; })) continue;
+          // Ugin's Mastery: "with creatures with total power 6 or greater" — this player's attackers, their power added up (attackersTotalPower)
+          if (ab.attackersTotalPower != null && ((this.combat && this.combat.attackers) || []).reduce((k, id) => { const x = this.obj(id); return k + (x && x.controller === o.controller ? Math.max(0, this.powerOf(x)) : 0); }, 0) < ab.attackersTotalPower) continue;
           // Killian, Decisive Mentor: an attacker, whoever's, enchanted by an Aura this one's controller controls (attackersAuraYours)
           if (ab.attackersAuraYours && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
             return x && (x.attachments || []).some(aid => { const au = this.obj(aid); return au && au.zone === 'battlefield' && au.controller === o.controller && !!(au.analysis() || {}).isAura; }); })) continue;
@@ -22566,14 +22571,20 @@
         const ctrN = e.op !== 'countersDivided' ? null : typeof e.n === 'number' ? e.n : e.n === 'triggerAmount' ? (Number((ctx.triggerData || {}).amount) || 0) : null;
         const cap = dmgN != null ? Math.min(pool.length, dmgN) : ctrN != null ? Math.min(pool.length, ctrN) : pool.length;
         if (cap <= 0) return null;
+        // (V.A.T.S.: "any number of target creatures with equal toughness" — all of one toughness: anySame)
+        const sameKey = e.anySame === 'toughness' ? 'toughness' : null;
+        const items0 = e.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) }))
+          : sameKey ? this._chooseItems(pool).map(it => Object.assign(it, { toughness: this.toughnessOf(this.obj(it.id)) })) : this._chooseItems(pool);
         const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
-          items: e.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
+          items: items0, min: 0, max: cap, optional: true,
           harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
           prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.anyPrompt || `choose any number of ${e.anyFrom.filter || 'targets'}`}${e.anyTotalMv != null ? ` with total mana value ${tmvN} or less` : ''}.` },
-        e.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: tmvN, label: 'total mana value' }] } : {}), 'anyt');
+        e.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: tmvN, label: 'total mana value' }] }
+          : sameKey ? { constraints: [{ kind: 'same', key: sameKey, label: sameKey }] } : {}), 'anyt');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
         let picks = got.picks;
+        if (sameKey) { const t0 = this.obj(picks[0]); const v0 = t0 ? this.toughnessOf(t0) : null; picks = picks.filter(id => { const o = this.obj(id); return o && this.toughnessOf(o) === v0; }); }
         if (e.anyTotalMv != null) { let sum = 0; picks = picks.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > tmvN) return false; sum += v; return true; }); }
         targets = picks.map(id => ({ kind: 'object', id }));
         const warded = this._wardOnResolve(ctx, targets, 'anyt');
@@ -36199,11 +36210,13 @@
           const pool = this.battlefield.filter(x => {
             if (x.phasedOut || !x.faceDown || x.controller !== ctx.controller || this._faceUpHeld(x)) return false;
             const real = (x.trueAnalysis ? x.trueAnalysis() : null) || {};
+            // (Ugin's Mastery: "a face-down creature you control" — creatureOnly)
+            if (e.creatureOnly && !(this.characteristics(x) || {}).isCreature) return false;
             return !real.isInstant && !real.isSorcery;
           });
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'turnFaceUpFree', kind: 'objects', zone: 'battlefield',
-            items: this._chooseItems(pool), min: 0, max: 1, prefer: 'best', prompt: 'You may turn a permanent you control face up.' }, 'tfu');
+            items: this._chooseItems(pool), min: 0, max: 1, prefer: 'best', prompt: e.creatureOnly ? 'You may turn a face-down creature you control face up.' : 'You may turn a permanent you control face up.' }, 'tfu');
           if (got === SUSPEND) return SUSPEND;
           const x = got && (got.picks || []).length ? this.obj(got.picks[0]) : null;
           if (!x || !pool.includes(x) || !x.faceDown || x.zone !== 'battlefield') break;
