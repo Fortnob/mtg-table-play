@@ -15900,6 +15900,8 @@
         if (ef.toOpponent && ev.victimController === src.controller) return false;
         // Lightning, Army of One: "to that player or a permanent that player controls" (staggerDouble)
         if (ef.victimPlayer && ev.victimController !== ef.victimPlayer) return false;
+        // Sawhorn Nemesis: "to the chosen player or a permanent they control" — the player chosen as it entered (victimChosen)
+        if (ef.victimChosen && !(src.chosenPlayer && ev.victimController === src.chosenPlayer)) return false;
         // Jeska, Thrice Reborn: "that creature" — the one chosen, while it is still the same object (sourceId)
         if (ef.sourceId && !(ev.source && ev.source.id === ef.sourceId && ev.source.zone === 'battlefield' && ev.source.ts === ef.sourceTs)) return false;
         // Gisela: "to you or a permanent you control"
@@ -19141,6 +19143,8 @@
       // toxic (CR 702.164): combat damage to a player gives poison counters as well
       const tox = combat && source ? this._toxicTotal(source) : 0;
       if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount + tox, source.controller); return amount; }
+      // Phyrexian Unlife: "As long as you have 0 or less life, all damage is dealt to you as though its source had infect."
+      if (p.life <= 0 && this._anyStaticOf(p.id, 'damageAsInfectAtZero')) { this.addPoison(p, amount + tox, source ? source.controller : null); return amount; }
       if (tox) this.addPoison(p, tox, source.controller);
       /* Damage to a player is life lost: the same replacements apply
          (Bloodletter of Aclazotz), and it raises the attacker's speed. */
@@ -33065,11 +33069,16 @@
             holder._nthRes.counts[key] = (holder._nthRes.counts[key] || 0) + 1;
             if (holder._nthRes.counts[key] !== e.nthResolution) break;
           }
+          // Espers to Magicite: "choose up to one target creature card exiled this way" — only among those cards (amongExiled, onlyIds)
+          const exIds = e.amongExiled ? (this._lastExiledList || []).filter(id => (this.obj(id) || {}).zone === 'exile') : null;
+          if (e.amongExiled && !exIds.length) break;
           const rText = String(e.whenText || e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
             effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN }))
-              : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
+              : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura }))
+              : exIds ? (e.effects || []).map(x => x.targets ? Object.assign({}, x, { targets: x.targets.map(sp => Object.assign({}, sp, { onlyIds: exIds })) }) : x)
+              : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
               putOne ? { objectId: putOne } : {},
               sacN ? { amount: sacN } : {}, discN ? { amount: discN } : {}, e.exiledPower ? { amount: exPow } : {},
@@ -45139,6 +45148,8 @@
         return this._legalTargetsFor(Object.assign({}, spec, { exiledWithSource: false }), controllerId, sourceId)
           .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && !!sourceId && x.exiledWithId === sourceId; });
       }
+      // (Espers to Magicite: "target creature card exiled this way" — those cards only: onlyIds)
+      if (spec.onlyIds) return this._legalTargetsFor(Object.assign({}, spec, { onlyIds: null }), controllerId, sourceId).filter(t => spec.onlyIds.includes(t.id));
       // Callidus Assassin: "with the same name as this creature"
       if (spec.sameNameAsSource && sourceId) {
         const s0 = this.obj(sourceId);

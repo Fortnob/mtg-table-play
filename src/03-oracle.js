@@ -12441,6 +12441,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Espers to Magicite: "Exile each opponent's graveyard. When you do, choose up to one target creature card exiled this
+       way. Create a token that's a copy of that card, except it's an artifact and it loses all other card types." — a
+       reflexive trigger, its target among the cards just exiled (amongExiled); supertypes kept (setCardTypes) */
+    { re: /^Exile each opponent'?s graveyard\. (When you do, choose up to one target creature card exiled this way\.) Create a token that'?s a copy of that card, except it'?s an artifact and it loses all other card types\.?$/i,
+      make: (m) => [{ op: 'exileGraveyard', who: 'opponents' }, { op: 'reflexive', amongExiled: true, whenText: m[1], effects: [
+        { op: 'copyPermanent', n: 1, grant: [], setCardTypes: 'Artifact', targets: [{ type: 'creature', filter: 'creature card', zone: 'exile', upTo: true }] }] }] },
     /* Pyre of Heroes: "Search your library for a creature card that shares a creature type with the sacrificed creature and
        has mana value equal to 1 plus that creature's mana value. Put that card onto the battlefield, then shuffle."
        (mvOfSacrificedPlus, sharesTypeWithSacrificed) */
@@ -18954,7 +18960,8 @@
     // Sefris of the Hidden Ways: "Whenever you complete a dungeon"
     { re: /^Whenever you complete a dungeon,? /i, event: 'youCompleteDungeon' },
     // The Lord of the Rings: the Ring tempting you, and the Ring-bearer you name
-    { re: /^Whenever the Ring tempts you,? /i, event: 'youRingTempted' },
+    // (Ringwraiths: "When the Ring tempts you, return this card from your graveyard to your hand.")
+    { re: /^When(?:ever)? the Ring tempts you,? /i, event: 'youRingTempted' },
     { re: /^Whenever you choose a creature as your Ring-bearer,? /i, event: 'youChooseRingBearer' },
     // Baral, Lullmage Mentor
     { re: /^Whenever a spell or ability you control counters a spell,? /i, event: 'youCounterSpell' },
@@ -23590,7 +23597,8 @@
       make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'all', what: 'creature' },
         setPt: /power/i.test(m[1]) ? { p: { printed: m[2].toLowerCase() } } : { t: { printed: m[2].toLowerCase() } } }) },
     // Leyline of the Guildpact: "Each nonland permanent you control is all colors."
-    { re: /^(.+?) (?:is|are) all colors\.?$/i,
+    // (Fallaji Wayfarer: "CARDNAME is all colors. This ability doesn't affect its color identity." — the identity stays the printed one)
+    { re: /^(.+?) (?:is|are) all colors(?:\. This ability doesn'?t affect its color identity)?\.?$/i,
       make: (m) => {
         // "Each nonland permanent you control" is the group, said one at a time
         const scope = scopeOf(m[1].replace(/^Each (.+?)(permanent|creature|artifact)( you control)$/i, '$1$2s$3'));
@@ -24446,6 +24454,9 @@
     { re: /^If a source would deal damage to (a permanent or player|an opponent), it deals double that damage(?: to that (?:permanent or player|player))? instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dmgdouble', event: 'damage', who: 'any', how: 'double' },
         /opponent/i.test(m[1]) ? { toOpponent: true, toPlayerOnly: true } : {}) },
+    // Sawhorn Nemesis: "If a source would deal damage to the chosen player or a permanent they control, it deals double that damage instead." (victimChosen)
+    { re: /^If a source would deal damage to the chosen player or a permanent they control, it deals double that damage instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgdoubleChosen', event: 'damage', who: 'any', how: 'double', victimChosen: true }) },
     // Gisela, Blade of Goldnight: double to opponents and theirs, half (rounded down) to you and yours
     { re: /^If a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage to that player or permanent instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgdoubleOpp', event: 'damage', who: 'any', how: 'double', toOpponent: true }) },
@@ -26618,6 +26629,8 @@
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'handSizeSet', who: 'opponents', cond: c, n: 7, minus: { typesInGraveyards: 'you' } } : null; }, auto: true },
       // Phyrexian Unlife, Transcendence: "You don't lose the game for having 0 or less life."
       { re: /^You don'?t lose the game for having 0 or less life\.?$/i, eff: { op: 'noLoseForLife' }, auto: true },
+      // Phyrexian Unlife: "As long as you have 0 or less life, all damage is dealt to you as though its source had infect."
+      { re: /^As long as you have 0 or less life, all damage is dealt to you as though its source had infect\.?$/i, eff: { op: 'damageAsInfectAtZero' }, auto: true },
       // Lair of the Hydra: "If you control two or more other lands, this land enters tapped."
       { re: /^If you control (two|three|four) or more other lands, (?:this land|CARDNAME) enters(?: the battlefield)? tapped\.?$/i,
         make: (m) => ({ op: 'etbTappedUnlessLands', n: num(m[1]) - 1 }), auto: true },

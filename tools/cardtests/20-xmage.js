@@ -81825,4 +81825,97 @@ module.exports = (test) => {
     t.eq(d.length, 1, 'devotion 8: a Vampire Demon');
     t.ok(d[0] && g.powerOf(d[0]) === 4 && g.toughnessOf(d[0]) === 3 && g.hasKw(d[0], 'flying'), '4/3 flying');
   });
+  test('Cards: Espers to Magicite — exile each opponent\'s graveyard; a token copy of a creature card exiled this way, an artifact only', (mk, t) => {
+    t.auto('Espers to Magicite');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    T.toMain('A');
+    const giant = T.grave('B', 'Hill Giant'), angel = T.grave('B', 'Serra Angel'), shock = T.grave('B', 'Shock');
+    const mine = T.grave('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.options || [])[0].map(x => x.id).sort(); return { targets: [{ kind: 'object', id: angel.id }] }; });
+    T.mana('A', '3B');
+    T.cast('A', T.hand('A', 'Espers to Magicite'));
+    for (const o of [giant, angel, shock]) t.zone(o, 'exile', o.name + ' exiled');
+    t.zone(mine, 'graveyard', 'my own graveyard stays');
+    t.eq(JSON.stringify(offered), JSON.stringify([giant.id, angel.id].sort()), 'only the creature cards exiled this way are offered');
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Serra Angel');
+    t.ok(tok, 'a token copy of Serra Angel');
+    t.ok(tok.analysis().isArtifact && !g.characteristics(tok).isCreature, 'an artifact, no longer a creature');
+    t.eq(tok.card.type_line, 'Artifact', 'no creature types left');
+    t.ok(/Flying/.test(String(tok.card.oracle_text || '')), 'its abilities kept');
+    // nothing to copy: no creature card in their graveyards
+    const U = mk({ library: Array(20).fill('Swamp') });
+    U.toMain('A');
+    U.grave('B', 'Shock');
+    U.mana('A', '3B');
+    U.cast('A', U.hand('A', 'Espers to Magicite'));
+    t.no(U.bfOf('A').some(o => o.isToken), 'no creature card: no token');
+    t.no(U.asked.some(c => c.type === 'pickTarget'), 'nothing asked');
+  });
+  test('Cards: Fallaji Wayfarer — all colors; multicolored spells you cast have convoke', (mk, t) => {
+    t.auto('Fallaji Wayfarer');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const fw = T.bf('A', 'Fallaji Wayfarer');
+    t.eq(fw.analysis().colors.slice().sort().join(''), 'BGRUW', 'all five colours');
+    t.eq(fw.analysis().colorIdentity.join(''), 'G', 'its colour identity still green');
+  });
+  test('Cards: Phyrexian Unlife — no loss at 0 or less life, and damage to you then comes as poison counters', (mk, t) => {
+    t.auto('Phyrexian Unlife');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    T.toMain('A');
+    T.bf('A', 'Phyrexian Unlife');
+    T.player('A').life = 1;
+    const shock = (who) => { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [who] }); };
+    shock('A');
+    t.eq(T.life('A'), -1, 'above 0 life: damage is life lost');
+    t.eq(T.player('A').poison || 0, 0, 'no poison yet');
+    t.no(T.player('A').hasLost, 'A has not lost');
+    shock('A');
+    t.eq(T.life('A'), -1, 'at 0 or less: no life lost');
+    t.eq(T.player('A').poison, 2, 'two poison counters instead');
+    // B has no Unlife
+    T.player('B').life = 2;
+    shock('B');
+    t.ok(T.player('B').hasLost && !(T.player('B').poison > 0), 'B loses at 0 life, no poison');
+  });
+  test('Cards: Ringwraiths — when the Ring tempts you, it returns from your graveyard to your hand', (mk, t) => {
+    t.auto('Ringwraiths');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.toMain('A');
+    const rw = T.grave('A', 'Ringwraiths');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Claim the Precious'), { targets: [giant] });
+    t.zone(giant, 'graveyard', 'the Giant destroyed');
+    t.zone(rw, 'hand', 'the Ring tempted me: Ringwraiths back in hand');
+    // not from the battlefield: there it stays
+    const U = mk({ library: Array(20).fill('Swamp') });
+    U.toMain('A');
+    const rw2 = U.bf('A', 'Ringwraiths');
+    const g2 = U.bf('B', 'Hill Giant');
+    U.mana('A', '1BB');
+    U.cast('A', U.hand('A', 'Claim the Precious'), { targets: [g2] });
+    t.zone(rw2, 'battlefield', 'on the battlefield it stays');
+  });
+  test('Cards: Sawhorn Nemesis — choose a player as it enters; damage to them and their permanents is doubled', (mk, t) => {
+    t.auto('Sawhorn Nemesis');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Mountain') });
+    const g = T.g;
+    T.toMain('A');
+    T.answer('*', (ch) => ({ picks: [ch.items ? ch.items.find(i => i.id === 'B' || i.value === 'B' || i.label === 'B').id : 'B'], value: 'B', choice: 'B' }));
+    const sn = T.bf('A', 'Sawhorn Nemesis', { etb: true });
+    t.eq(sn.chosenPlayer, 'B', 'B chosen');
+    const giant = T.bf('B', 'Hill Giant'), mine = T.bf('A', 'Hill Giant');
+    const shock = (who) => { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [who] }); };
+    shock('B');
+    t.eq(T.life('B'), 16, 'B takes 4');
+    shock(giant);
+    t.zone(giant, 'graveyard', "B's Hill Giant takes 4");
+    shock('C');
+    t.eq(T.life('C'), 18, 'C takes 2');
+    shock(mine);
+    t.eq(mine.damage, 2, 'my Giant takes 2');
+    t.eq(g.powerOf(sn), 2, 'a 2/4');
+  });
 };
