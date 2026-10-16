@@ -72828,4 +72828,62 @@ module.exports = (test) => {
       t.zone(c3, 'graveyard', 'setting off: it stays');
     } finally { S.commanderToZone = was; }
   });
+
+  /* Bots channel a land rather than play it when that is clearly better (_channelOverLand): lands enough without it and
+     a channel worth using, or a channel that wins the game this turn (_channelWins) */
+  const botMain = (T, bot, k) => { for (let i = 0; i < (k || 6); i++) { if (!bot.doPriority()) break; T.resolve(); } };
+  test('Cards: Boseiju, Who Endures — a bot with lands enough plays its Forest and channels Boseiju; short of lands, Boseiju is the land', (mk, t) => {
+    t.auto('Boseiju, Who Endures');
+    const T = mk({ library: Array(20).fill('Forest') });
+    for (let i = 0; i < 6; i++) T.bf('A', 'Forest');
+    const bo = T.hand('A', 'Boseiju, Who Endures'), fo = T.hand('A', 'Forest');
+    const coat = T.bf('B', 'Coat of Arms');
+    const bot = handBot(T);
+    botMain(T, bot);
+    t.zone(fo, 'battlefield', 'the Forest is the land drop');
+    t.zone(bo, 'graveyard', 'Boseiju channeled');
+    t.zone(coat, 'graveyard', 'Coat of Arms destroyed');
+    // Boseiju the only land in hand, lands enough: channeled, not played
+    const T2 = mk({ library: Array(20).fill('Forest') });
+    for (let i = 0; i < 6; i++) T2.bf('A', 'Forest');
+    const bo2 = T2.hand('A', 'Boseiju, Who Endures');
+    T2.bf('B', 'Coat of Arms');
+    botMain(T2, handBot(T2));
+    t.zone(bo2, 'graveyard', 'channeled rather than played');
+    // two Forests: Boseiju is played as the land
+    const T3 = mk({ library: Array(20).fill('Forest') });
+    T3.bf('A', 'Forest'); T3.bf('A', 'Forest');
+    const bo3 = T3.hand('A', 'Boseiju, Who Endures');
+    T3.bf('B', 'Coat of Arms');
+    botMain(T3, handBot(T3));
+    t.zone(bo3, 'battlefield', 'short of lands: the land drop');
+  });
+
+  test('Cards: Otawara, Soaring City — a bot short of lands still channels it when bouncing the last blocker makes its attack lethal', (mk, t) => {
+    t.auto('Otawara, Soaring City');
+    const T = mk({ library: Array(20).fill('Island') });
+    for (let i = 0; i < 4; i++) T.bf('A', 'Island');
+    T.bf('A', 'Hill Giant');
+    T.hand('A', 'Craw Wurm');                 // a six-drop: lands are short
+    const ot = T.hand('A', 'Otawara, Soaring City');
+    const wall = T.bf('B', 'Grizzly Bears');
+    T.player('B').life = 3;
+    const bot = handBot(T);
+    t.ok(bot.doPriority(), 'acted');
+    T.resolve();
+    t.zone(ot, 'graveyard', 'channeled first');
+    t.zone(wall, 'hand', 'the blocker bounced');
+    // the attack not lethal (B at 10): Otawara is the land drop
+    const T2 = mk({ library: Array(20).fill('Island') });
+    for (let i = 0; i < 4; i++) T2.bf('A', 'Island');
+    T2.bf('A', 'Hill Giant');
+    T2.hand('A', 'Craw Wurm');
+    const ot2 = T2.hand('A', 'Otawara, Soaring City');
+    T2.bf('B', 'Grizzly Bears');
+    T2.player('B').life = 10;
+    const bot2 = handBot(T2);
+    bot2.doPriority();
+    T2.resolve();
+    t.zone(ot2, 'battlefield', 'played as the land');
+  });
 };

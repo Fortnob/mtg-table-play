@@ -3730,6 +3730,8 @@
         if (this.playLandIfUseful()) return true;
         // no land to play, and a landcycler to go and get one with
         if (main1 && this.useFromHand('landDrop')) return true;
+        // a channel that wins the game this turn (Sokenzan's hasty Spirits, Otawara taking the last blocker), first
+        if (main1 && this.useFromHand('win')) return true;
         // Planechase: the free roll of the planar die first, before the turn's mana is spent (rollPlanar)
         if (main1 && this.rollPlanar(true)) return true;
         if (move && move.cast && this.castChoice(move.cast, this.availableMana(true))) return true;
@@ -3898,7 +3900,8 @@
      * landcycler fetches a land when short of them, channel is used when what it does beats the card kept, forecast
      * every upkeep it is worth its price, and a Ninja swaps for an unblocked attacker when it is worth more there.
      * Paid from untapped sources only, never a Treasure. `window`: 'upkeep' and 'blockers' (our own), 'landDrop' (a
-     * first main phase with a land drop and no land), 'main1', 'main2', 'theirEnd'. Each use is tried once a step, so
+     * first main phase with a land drop and no land), 'win' (the first main phase: only a channel that wins the game,
+     * _channelWins), 'main1', 'main2', 'theirEnd'. Each use is tried once a step, so
      * a refusal can't loop.
      */
     useFromHand(window) {
@@ -3999,6 +4002,9 @@
       }
       const targets = this.chooseTargetsForEffects(ch.effects || [], o);
       if (targets === null) return null;
+      // a channel that wins the game this turn (_channelWins) is used first, before the turn's mana goes on anything else
+      if (!use.forecast && !ch.keep && this._channelWins(o, a)) return { v: 20, targets };
+      if (window === 'win') return null;
       const what = this._effectsHere(flat);
       if (what <= 0) return null;
       // forecast and "Reveal this card" keep the card; the rest give it up
@@ -4069,6 +4075,15 @@
         this._did('land', backs[0]);
         return true;
       }
+      // a channel land worth more channeled than played (Boseiju, Otawara: _channelOverLand) is kept for that
+      if (!theirs.length && lands.some(o => o.zone === 'hand')) {
+        const ctx = this._handCtx();
+        const kept = lands.filter(o => o.zone === 'hand' && this._channelOverLand(o, ctx));
+        if (kept.length) {
+          lands = lands.filter(o => !kept.includes(o));
+          if (!lands.length) return false;
+        }
+      }
       const need = this.colorNeeds();
       const useNow = this._wouldUseUntapped();
       let pick;
@@ -4077,6 +4092,49 @@
       if (!g.playLand(this.pid, pick.id)) return false;
       this._did('land', pick);
       return true;
+    }
+
+    /**
+     * A land card with channel (Boseiju, Who Endures; Otawara, Soaring City; Sokenzan) kept in hand for its channel
+     * rather than played as the land drop: when its channel can be paid now and either wins the game this turn
+     * (_channelWins) or, with lands enough without it, is worth using (as useFromHand weighs it).
+     */
+    _channelOverLand(o, ctx) {
+      const g = this.game;
+      const a = o.analysis();
+      if (!a || !a.isLand || !a.channel) return false;
+      const use = (g.altUsesFor(this.pid, o.id) || []).find(u => u.kind === 'cycle' && u.channel);
+      if (!use || !/^(?:\{[^}X]+\})*$/.test(use.cost || '') || (use.cost && !g.couldPay(this.pid, use.cost, this.manaSources()))) return false;
+      if (this._channelWins(o, a)) return true;
+      if (ctx.lands + ctx.handLands - 1 < ctx.need) return false;
+      const c = this._handUseWorth(o, a, use, 'main1', ctx);
+      return !!(c && c.v > 0.3);
+    }
+    /**
+     * Does this card's channel win the game this turn: in our first main phase, the creatures that can attack (with
+     * Sokenzan's hasty tokens) deal an opponent their life with none of their creatures left untapped to block — the
+     * one it takes away (Otawara's bounce) not counted?
+     */
+    _channelWins(o, a) {
+      const g = this.game;
+      if (!a.channel || g.activePlayer.id !== this.pid || !g.isMain || g.phaseIndex !== 1) return false;
+      const open = (list) => flatEffects(list).flatMap(e => (e.op === 'sequence' ? open(e.list || []) : [e]));
+      const flat = open(a.channel.effects || []);
+      let power = 0;
+      for (const c of this.myCreatures()) if (g.canAttack(c)) power += Math.max(0, g.powerOf(c));
+      const tok = flat.find(e => e.op === 'createToken' && e.pt);
+      const hasty = tok && ((tok.keywords || []).some(k => /^haste$/i.test(k)) ||
+        flat.some(e => e.op === 'grantLast' && (e.keywords || []).some(k => /^haste$/i.test(k))));
+      if (hasty) power += nval(tok.n, 1) * (parseInt(String(tok.pt).split('/')[0], 10) || 0);
+      let gone = null;
+      if (flat.some(e => /^(?:bounce|destroy|exile)$/.test(e.op) && (e.targets || []).length)) {
+        const t = this.chooseTargetsForEffects(a.channel.effects || [], o);
+        const x = t && t[0] && t[0].kind === 'object' ? g.obj(t[0].id) : null;
+        if (x && x.controller !== this.pid && this._isCreature(x)) gone = x;
+      }
+      if (!hasty && !gone) return false;
+      return g.opponentsOf(this.pid).some(q => !q.hasLost && power >= q.life &&
+        !g.battlefield.some(x => x.controller === q.id && x !== gone && !x.tapped && !x.phasedOut && this._isCreature(x)));
     }
 
     /** Would one more untapped mana this turn let us cast something better? */
