@@ -11687,7 +11687,9 @@
         // Thelon of Havenwood: which card, from any graveyard (anyGraveyard)
         if (c.exile && c.exile.what === 'graveyard' && c.exile.anyGraveyard) out.push({ kind: 'exileGraveyard', label: `Exile ${this._aCard(c.exile.filter, 'card')} from a graveyard`,
           key: 'exileIds', need: 1, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
-        if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
+        // (Mechtitan Core: "four other artifact creatures and/or Vehicles you control" — that many: n)
+        if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + (c.exileOwn.n > 1 ? O.nounCount(c.exileOwn.n, (c.exileOwn.another ? 'other ' : '') + c.exileOwn.filter) : c.exileOwn.filter) + ' you control',
+          key: 'exileIds', need: c.exileOwn.n || 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
         // Captain America, First Avenger: which Equipment comes off him, when there is more than one
         if (c.unattachEquipment && self && this._equipmentOn(self).length > 1) out.push({ kind: 'unattach', label: `Unattach an Equipment from ${self.name}`, key: 'exileIds', need: 1,
@@ -12166,7 +12168,8 @@
         if (this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).length < need) return `Not enough ${cost.revealHand.filter} cards in your hand to reveal.`;
       }
       if (cost.exileHand && !this._exileHandPool(pid, cost.exileHand, self).length) return `No ${this._aCard(cost.exileHand.filter, 'card').replace(/^an? /, '')} in your hand to exile.`;
-      if (cost.exileOwn && !this.battlefield.some(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter))) return `No ${cost.exileOwn.filter} of yours to exile.`;
+      if (cost.exileOwn && this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter)).length < (cost.exileOwn.n || 1))
+        return (cost.exileOwn.n || 1) > 1 ? `Not enough ${cost.exileOwn.filter}s of yours to exile.` : `No ${cost.exileOwn.filter} of yours to exile.`;
       if (cost.process && this._processPool(pid).length < cost.process) return 'No card an opponent owns in exile.';
       // Shelob, Dread Weaver: "Put a creature card exiled with Shelob into its owner's graveyard" (processWith)
       if (cost.processWith && !(self && self.zone === 'battlefield' && this._exiledWithPool(self, cost.processWith.filter).length)) return `No ${cost.processWith.filter} card exiled with ${self ? self.name : 'it'}.`;
@@ -12437,7 +12440,17 @@
         const pool = this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter));
         const named = (opts.exileIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)[0];
         const x = named || this._cheapestFirst(pool)[0];
-        if (x) { if (item) item.exiledCost = { id: x.id, name: x.name, power: this.powerOf(x), mv: (x.card && x.card.cmc) || 0 }; this.moveObject(x, 'exile'); this.logEvent('exile', `${this.player(pid).name} exiles ${x.name}.`); }
+        const many = cost.exileOwn.n || 1;
+        if (many > 1) {
+          /* Mechtitan Core: "Exile this Vehicle and four other artifact creatures and/or Vehicles you control" — the ones
+             named, then those that matter least; all of them "exiled with" it (costExiled), itself too */
+          const picked = [...new Set((opts.exileIds || []).map(id => pool.find(y => y.id === id)).filter(Boolean))];
+          for (const y of this._cheapestFirst(pool)) if (picked.length < many && !picked.includes(y)) picked.push(y);
+          const ids = picked.slice(0, many).map(y => y.id);
+          for (const y of picked.slice(0, many)) { this.moveObject(y, 'exile'); if (self) y.exiledWithId = self.id; }
+          if (item) item.costExiled = (item.costExiled || []).concat(ids);
+          this.logEvent('exile', `${this.player(pid).name} exiles ${picked.slice(0, many).map(y => y.name).join(', ')}.`);
+        } else if (x) { if (item) item.exiledCost = { id: x.id, name: x.name, power: this.powerOf(x), mv: (x.card && x.card.cmc) || 0 }; this.moveObject(x, 'exile'); this.logEvent('exile', `${this.player(pid).name} exiles ${x.name}.`); }
       }
       // Millikin: cards off the top of the library as the price
       if (cost.mill) {
@@ -16838,6 +16851,7 @@
         // Mr. House, President and CEO: "If you rolled 6 or higher" — the roll the trigger is about (rolledAtLeast)
         case 'rolledAtLeast': return Number(((ctx && ctx.triggerData) || {}).amount) >= (cond.n || 0);
         // Luck Bobblehead: "If you rolled 6 exactly seven times" — the dice of the roll just made (_lastRolls)
+        case 'rollResultAtMost': return (this._lastRollTotal != null ? this._lastRollTotal : (this._lastRoll || 0)) <= cond.n;
         case 'rolledTimes': return (this._lastRolls || []).filter(x => x === cond.value).length === cond.n;
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         // Unyaro (a plane, src/06f-planechase.js): "if you planeswalked to Unyaro this turn"
@@ -24409,6 +24423,8 @@
             const c = this.obj(id);
             if (!c) continue;
             this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: e.yours ? me.id : gyOwner.id });
+            // (The Deck of Many Things: "When that creature dies" — the one just put: _lastPut)
+            if (c.zone === 'battlefield') this._lastPut = c.id;
             // Teval: "to the battlefield tapped"
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             // (Realmbreaker: "It gains …" — the land put there: yours)
@@ -26642,6 +26658,16 @@
             /* Heirloom Blade: "a creature card that shares a creature type with it" — the creature the trigger is about (or
                else the target), as it last was on the battlefield (sharesCreatureTypeWithIt) */
             let kin = null;
+            /* Descendants' Fury: "a creature card that shares a creature type with the sacrificed creature" — its types as it
+               was sacrificed (sharesCreatureTypeWithSacrificed); nothing sacrificed, nothing found */
+            let sacKin = null;
+            if (e.sharesCreatureTypeWithSacrificed) {
+              const sac = (ctx.sacrificed || this._lastSacrificed || [])[0];
+              if (!sac) continue;
+              const types = (sac.subtypes || []).filter(t => this._isCreatureType(t));
+              sacKin = (c) => (sac.everyCreatureType ? this._hasCreatureType(c, '*') || ((c.analysis() || {}).subtypes || []).some(t => this._isCreatureType(t))
+                : types.some(t => this._hasCreatureType(c, t)));
+            }
             if (e.sharesCreatureTypeWithIt) {
               const x = ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || firstObj();
               const was = x && (x.zone !== 'battlefield' && x._lkiAnalysis ? x._lkiAnalysis : x.analysis());
@@ -26650,6 +26676,7 @@
             }
             for (let i = 0; i < lib.length && found.length < want; i++) {
               if (kin && !this._shareCreatureType(kin, lib[i])) continue;
+              if (sacKin && !sacKin(lib[i])) continue;
               if (sacMv != null && !(((lib[i].card && lib[i].card.cmc) || 0) < sacMv)) continue;
               // Plargg, Dean of Chaos: "with mana value 3 or less" (maxMv)
               if (e.maxMv != null && ((lib[i].card && lib[i].card.cmc) || 0) > e.maxMv) continue;
@@ -28510,12 +28537,15 @@
           }
           if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.removeAmong || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // what could be sacrificed or discarded to pay, and how many it takes
+          const tdBatch = ctx.triggerData || {};
           const givable = () => {
             const sf = pay.sacrifice ? String(pay.sacrifice.filter || 'permanent') : '';
             const sOther = /^other /i.test(sf) || !!(pay.sacrifice && pay.sacrifice.another);
             const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
             return { need: pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1,
-              zone: pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
+              zone: pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)) &&
+                // (Descendants' Fury: "sacrifice one of them" — the creatures the trigger is about: ofBatch)
+                (!pay.sacrifice.ofBatch || (tdBatch.batchIds || [tdBatch.objectId]).includes(o.id)))
                 // (Bullseye, Death Dealer: "discard a nonland card" — the kind of card said)
                 : this.zones[ctx.controller].hand.filter(o => { const df = pay.filter || (pay.discard && pay.discard.filter);
                   return !df || df === 'card' || this._matchesFilter(o, df) || this._cardFitsWords(o, df); }) };
@@ -32421,7 +32451,8 @@
             }
             break;
           }
-          const lp = e.who === 'triggerPlayer' ? triggerPlayer() : me; if (lp && !lp.hasLost) this.playerLoses(lp, 'a card said so'); break;
+          // (The Deck of Many Things: "When that creature dies, its owner loses the game" — the creature watched: srcOwner)
+          const lp = e.who === 'triggerPlayer' ? triggerPlayer() : e.who === 'srcOwner' ? (src && this.player(src.owner)) : me; if (lp && !lp.hasLost) this.playerLoses(lp, 'a card said so'); break;
         }
         /* Etrata, the Silencer: "That player loses the game if they own three or more exiled cards with hit counters
            on them." — in any exile, theirs to own */
@@ -36939,12 +36970,15 @@
           if (this._searchBanned(ctx.controller, ctx)) { this.rng.shuffle(lib); break; }
           let opp = firstPlayer() || this.opponentsOf(ctx.controller).find(p => !p.hasLost);
           // (Realms Uncharted: "land cards" — those only: filter)
-          const pool = e.filter ? lib.filter(c => this._cardFitsWords(c, e.filter)) : lib;
-          const most = Math.min(n(e.n), pool.length);
+          // (Burning-Rune Demon: "not named Burning-Rune Demon" — notNamedSelf)
+          const selfName = e.notNamedSelf && src ? U.frontName((src.card && src.card.name) || src.name || '') : null;
+          const pool = lib.filter(c => (!e.filter || this._cardFitsWords(c, e.filter)) && !(selfName && U.frontName((c.card && c.card.name) || '') === selfName));
+          // ("with different names": no more than there are names)
+          const most = Math.min(n(e.n), e.distinct ? new Set(pool.map(c => c.name)).size : pool.length);
           const got = most <= 0 ? { picks: [] } : this._choose({ playerId: ctx.controller, purpose: 'searchReveal', kind: 'objects', zone: 'library',
             panel: true, items: this._chooseItems(pool), min: e.upTo ? 0 : most, max: most,
             constraints: e.distinct ? [{ kind: 'distinct', key: 'name', reason: 'They must have different names.' }] : [],
-            prompt: `Search your library for ${e.upTo ? 'up to ' : ''}${n(e.n)} ${e.filter ? e.filter + ' ' : ''}cards${e.distinct ? ' with different names' : ''} to reveal.` }, 'socFind');
+            prompt: `Search your library for ${e.upTo ? 'up to ' : ''}${n(e.n)} ${e.filter ? e.filter + ' ' : ''}cards${selfName ? ` not named ${selfName}` : ''}${e.distinct ? ' with different names' : ''} to reveal.` }, 'socFind');
           if (got === SUSPEND) return SUSPEND;
           const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'library');
           if (picked.length) { this._know(picked, '*'); this.logEvent('reveal', `${me.name} reveals ${picked.map(c => c.name).join(', ')}.`); }
@@ -37630,6 +37664,28 @@
           if (!src || src.zone !== 'battlefield' || !tok) break;
           this.scheduleDelayed({ event: 'ltb', once: true, controller: ctx.controller, objId: src.id, watchObj: tok.id, watchLeaving: true, watchLeftSeq: tok._leftSeq || null,
             name: `Sacrifice ${src.name} (${tok.name} left the battlefield)`, effects: [{ op: 'sacrificeListed', ids: [src.id], seqs: [src._leftSeq || null] }] });
+          break;
+        }
+        /* Mechtitan Core: "When that token leaves the battlefield, return all cards exiled with this Vehicle except this
+           card to the battlefield tapped under their owners' control." — the cards that paid, watched from the token made
+           now (returnListed) */
+        case 'costExiledWhenMadeLeaves': {
+          const tok = (this._madeThisResolution || []).map(id => this.obj(id)).find(x => x && x.zone === 'battlefield');
+          const ids = (ctx.costExiled || []).filter(id => { const c = this.obj(id); return c && c.zone === 'exile' && c !== src; });
+          if (!tok || !ids.length) break;
+          this.scheduleDelayed({ event: 'ltb', once: true, controller: ctx.controller, objId: tok.id, watchObj: tok.id, watchLeaving: true, watchLeftSeq: tok._leftSeq || null,
+            name: `Return the exiled cards (${tok.name} left the battlefield)`,
+            effects: [{ op: 'returnListed', ids, stamps: ids.map(id => this.obj(id).exileStamp || null), tapped: !!e.tapped }] });
+          break;
+        }
+        case 'returnListed': {
+          (e.ids || []).forEach((id, i) => {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'exile' || (e.stamps && (c.exileStamp || null) !== (e.stamps[i] || null))) return;
+            this.moveObject(c, 'battlefield', { controller: c.owner, tapped: !!e.tapped });
+            if (e.tapped && c.zone === 'battlefield') c.tapped = true;
+          });
+          this.logEvent('zone', `The cards exiled return to the battlefield${e.tapped ? ' tapped' : ''}.`);
           break;
         }
         case 'sacrificeListed': {
@@ -39508,8 +39564,11 @@
           rolled.push(this._lastRoll);
           this._lastRolls = rolled.slice();
           // Wyll's Reversal: "Roll a d20 and add the greatest power among creatures you control" — the total reads the results (plus)
-          const total = this._lastRoll + (e.plus ? Math.max(0, n(e.plus)) : 0);
+          // (The Deck of Many Things: "Roll a d20 and subtract the number of cards in your hand" — minus; 0 or less matches no row)
+          const total = this._lastRoll + (e.plus ? Math.max(0, n(e.plus)) : 0) - (e.minus ? Math.max(0, n(e.minus)) : 0);
+          this._lastRollTotal = total;
           if (e.plus) this.logEvent('rules', `${me.name} rolls ${this._lastRoll}, plus ${total - this._lastRoll}: ${total}.`);
+          if (e.minus) this.logEvent('rules', `${me.name} rolls ${this._lastRoll}, minus ${this._lastRoll - total}: ${total}.`);
           // one event a die (Mr. House: "Whenever you roll a 4 or higher"); "one or more dice" sees the first, and all of them (amounts)
           // (Vexing Puzzlebox: "equal to the result" — the dice rolled together, and what was added: rollTotal)
           rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller, rollTotal: rolled.reduce((s, x) => s + x, 0) + (total - this._lastRoll) }));

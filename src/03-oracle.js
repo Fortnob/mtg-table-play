@@ -440,6 +440,13 @@
         // Jhoira of the Ghitu: "Exile a nonland card from your hand" — the player's pick (exileHand)
         const fh = what.match(/^(?:a|an) ([-a-z ]*?)\s*card from your hand$/i);
         if (fh) { cost.exileHand = { filter: (fh[1] || '').trim().toLowerCase() || 'card' }; continue; }
+        /* Mechtitan Core: "Exile this Vehicle and four other artifact creatures and/or Vehicles you control" — itself, and
+           that many others at once (exileOwn n) */
+        if ((m = what.match(/^(?:this (?:Vehicle|artifact|creature)|CARDNAME) and (two|three|four|five|six) other ([a-z ]+?) and\/or ([A-Za-z]+?)s you control$/i))) {
+          cost.exile = { what: 'self' };
+          cost.exileOwn = { filter: m[2].trim().toLowerCase().replace(/s$/, '') + ' or ' + m[3].toLowerCase(), another: true, n: num(m[1]) };
+          continue;
+        }
         // City of Shadows: "Exile a creature you control"
         const own = what.match(/^(a|an|another) ([a-z ]+?) you control$/i);
         if (own && !/spell/i.test(own[2])) { cost.exileOwn = { filter: own[2].trim().toLowerCase(), another: /another/i.test(own[1]) }; continue; }
@@ -727,6 +734,9 @@
       const k = kwText(m[1]);
       if (!k) return null;
       e.keywords = k; e.grantedText = m[2]; s = s.slice(m[0].length);
+    // (Mechtitan Core: "with flying, vigilance, trample, lifelink, and haste" — a list of keywords to its end)
+    } else if ((m = s.match(/^ with ([a-z ]+(?:, [a-z ]+)+)(?=$| that| for each | named [A-Z])/)) && kwText(m[1])) {
+      e.keywords = kwText(m[1]); s = s.slice(m[0].length);
     } else if ((m = s.match(/^ with ([a-z0-9 ,']+?)(?=$|,| that| for each | named [A-Z])/))) {
       const k = kwText(m[1]);
       if (!k) return null;
@@ -1210,12 +1220,16 @@
     // Heirloom Blade: "a creature card that shares a creature type with it" — the creature the trigger is about, as it last was (sharesCreatureTypeWithIt)
     const sharesCt = / card that shares a creature type with it(?=[,.])/i.test(t);
     if (sharesCt) t = t.replace(/ card that shares a creature type with it(?=[,.])/i, ' card');
+    // Descendants' Fury: "a creature card that shares a creature type with the sacrificed creature" — as it was sacrificed (sharesCreatureTypeWithSacrificed)
+    const sharesSac = / card that shares a creature type with the sacrificed creature(?=[,.])/i.test(t);
+    if (sharesSac) t = t.replace(/ card that shares a creature type with the sacrificed creature(?=[,.])/i, ' card');
     const m = t.match(/until (?:you|they) reveal (an?|one|two|three|four|five|X) ([a-z ,]+?) cards?(?:, where X is (.+?))?(,|\.) ([\s\S]+)$/i);
     if (!m) return null;
     const e = { op: 'revealUntil', who, filter: m[2].replace(/,? or /g, ' or ').trim().toLowerCase() };
     if (lesser) e.mvBelowSacrificed = true;
     if (shares) e.sharesTypeWithTarget = true;
     if (sharesCt) e.sharesCreatureTypeWithIt = true;
+    if (sharesSac) e.sharesCreatureTypeWithSacrificed = true;
     if (/^X$/i.test(m[1])) { if (m[3]) { const k = amountOf(m[3]); if (!k) return null; e.n = k; } else e.n = 'X'; }
     else e.n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
     if (who === 'target') e.targets = [{ type: 'player', opponent: /opponent/.test(w) }];
@@ -1935,7 +1949,8 @@
       make: () => { const ae = { type: 'card', filter: 'Aura or Equipment card', zone: 'graveyard', controller: 'you', subtypes: ['aura', 'equipment'], upTo: true, distinct: true };
         return { op: 'reanimateWithAttached', targets: [Object.assign(targetSpec('target creature'), { zone: 'graveyard', controller: 'you' }), ae, Object.assign({}, ae)] }; } },
     // Jared Carthalion: "Create a 3/3 Kavu creature token with trample that's all colors."
-    { re: /^(Create an? \d+\/\d+ [A-Z][a-z]+(?: [A-Z][a-z]+)* creature token(?: with [a-z ,]+?)?) that'?s all colou?rs\.?$/,
+    // (Mechtitan Core: "Create Mechtitan, a legendary 10/10 Construct artifact creature token with …, and haste that's all colors.")
+    { re: /^(Create (?:[A-Z][A-Za-z' ]+, )?an? (?:legendary )?\d+\/\d+ [A-Z][a-z]+(?: [A-Z][a-z]+)*(?: artifact)? creature token(?: with [a-z ,]+?)?) that'?s all colou?rs\.?$/,
       make: (m) => { const inner = parseEffectSentence(m[1] + '.', 1);
         return inner && inner.op === 'createToken' && !(inner.colorWords || []).length ? Object.assign(inner, { colorWords: ['white', 'blue', 'black', 'red', 'green'] }) : null; } },
     // Najeela, the Blade-Blossom: "you may have its controller create a 1/1 white Warrior creature token that's tapped and attacking" (itsControllerCreates)
@@ -3087,6 +3102,10 @@
        as though it didn't have shroud." (shroudExceptFor) */
     { re: /^Until end of turn, CARDNAME can be the target of spells and abilities controlled by target (player|opponent) as though it didn'?t have shroud\.?$/i,
       make: (m) => ({ op: 'shroudExceptFor', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    /* Mechtitan Core: "When that token leaves the battlefield, return all cards exiled with this Vehicle except this card to
+       the battlefield tapped under their owners' control." — the cards that paid for it (costExiledWhenMadeLeaves) */
+    { re: /^When that token leaves the battlefield, return all cards exiled with (?:this Vehicle|this artifact|CARDNAME) except this card to the battlefield( tapped)? under their owners'? control\.?$/i,
+      make: (m) => ({ op: 'costExiledWhenMadeLeaves', tapped: !!m[1] }) },
     // Stangg: "Sacrifice Stangg when that token leaves the battlefield." (sacSelfWhenMadeLeaves)
     { re: /^Sacrifice (?:CARDNAME|this creature) when that token leaves the battlefield\.?$/i, make: () => ({ op: 'sacSelfWhenMadeLeaves' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
@@ -5409,6 +5428,8 @@
     // Wand of Wonder: "You may cast up to X instant and/or sorcery spells from among cards exiled this way without paying their mana costs." (exileHits)
     { re: /^You may cast up to (X|one|two|three) (instant and\/or sorcery|instant|sorcery) spells? from among cards exiled this way without paying their mana costs\.?$/i,
       make: (m) => ({ op: 'castFree', from: 'exileHits', upTo: /^X$/.test(m[1]) ? 'X' : num(m[1]), filter: m[2].replace(' and/or ', ' or ').toLowerCase() }) },
+    // The Deck of Many Things: "Roll a d20 and subtract the number of cards in your hand." — the result read with it (minus)
+    { re: /^[Rr]oll a d(4|6|8|10|12|20) and subtract (.+?)\.?$/, make: (m) => { const k = amountOf(m[2]); return k && !k.unread ? { op: 'rollDie', sides: +m[1], minus: k } : null; } },
     // Wyll's Reversal: "Roll a d20 and add the greatest power among creatures you control." — the result read with it (plus)
     { re: /^[Rr]oll a d(4|6|8|10|12|20) and add (.+?)\.?$/, make: (m) => { const k = amountOf(m[2]); return k ? { op: 'rollDie', sides: +m[1], plus: k } : null; } },
     /* Wyll's Reversal: "Choose target spell or ability with one or more targets." — one that aims at something (withTargets) */
@@ -9032,6 +9053,11 @@
         return pe.auto && pe.effects.length ? { op: 'delayed', event: 'dies', subject: 'lastTarget', watchDeath: true,
           name: 'When that creature dies this turn', effects: pe.effects } : null;
       } },
+    /* The Deck of Many Things: "Put a creature card from any graveyard onto the battlefield under your control. When that
+       creature dies, its owner loses the game." — the one just put, watched for as long as it stays (watchDeath forever) */
+    { re: /^When that creature dies, its owner loses the game\.?$/i,
+      make: () => ({ op: 'delayed', event: 'dies', subject: 'lastPut', watchDeath: true, forever: true,
+        name: 'When that creature dies, its owner loses the game', effects: [{ op: 'loseGame', who: 'srcOwner' }] }) },
     /* Xira, the Golden Sting: "When that creature dies, if it has an egg counter on it, draw a card and create …" — the
        one just aimed at, watched for as long as it stays (watchDeath forever; srcHadCounter: as it died) */
     { re: /^When that creature dies, if it has an? ([a-z]+) counter on it, (.+?)\.?$/i,
@@ -12151,6 +12177,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Descendants' Fury: "you may sacrifice one of them. If you do, reveal cards from the top of your library until you
+       reveal a creature card that shares a creature type with the sacrificed creature. Put that card onto the battlefield
+       and the rest on the bottom of your library in a random order." — one of the creatures the trigger is about (ofBatch) */
+    { re: /^you may sacrifice one of them\. If you do, (reveal cards from the top of your library until you reveal [^.]+\.\s+Put [^.]+\.?)$/i,
+      make: (m) => { const e = revealUntilOf(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        return e ? [{ op: 'mayPay', pay: { sacrifice: { n: 1, filter: 'creature', ofBatch: true } }, then: [e] }] : null; } },
     /* Aang's Journey: "Search your library for a basic land card. If this spell was kicked, instead search your library for
        a basic land card and a Shrine card. Reveal those cards, put them into your hand, then shuffle." — one search or two */
     { re: /^Search your library for an? ([a-z]+(?: [a-z]+)?) card\. If this spell was kicked, instead search your library for an? \1 card and an? ([A-Za-z]+(?: [a-z]+)?) card\. Reveal those cards, put them into your hand, then shuffle\.?$/i,
@@ -14050,6 +14082,12 @@
           m[3].trim() ? { filter: m[3].trim().toLowerCase() } : {},
           /^target/i.test(m[5]) ? { targets: [{ type: 'player', opponent: true }] } : { anOpponent: true })];
       } },
+    /* Burning-Rune Demon: "you may search your library for exactly two cards not named Burning-Rune Demon that have
+       different names. If you do, reveal those cards. An opponent chooses one of them. Put the chosen card into your hand
+       and the other into your graveyard, then shuffle." — Intuition's search, two of them (notNamedSelf) */
+    { re: /^you may search your library for exactly (two|three) cards not named CARDNAME that have different names\. If you do, reveal those cards\. An opponent chooses one of them\. Put the chosen card into your (hand|graveyard) and the other into your (hand|graveyard), then shuffle\.?$/i,
+      make: (m) => [{ op: 'may', yesLabel: 'Search', noLabel: "Don't search",
+        then: [{ op: 'searchOppChooses', n: num(m[1]), distinct: true, notNamedSelf: true, anOpponent: true, k: 1, chosenTo: m[2].toLowerCase(), restTo: m[3].toLowerCase() }] }] },
     // Past in Flames: "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost."
     { re: /^Each (instant and sorcery|instant|sorcery) card in your graveyard gains flashback until end of turn\. The flashback cost is equal to its mana cost\.$/i,
       make: (m) => [{ op: 'flashbackThisTurn', filter: /and/i.test(m[1]) ? 'instant or sorcery' : m[1].toLowerCase() }] },
@@ -17350,6 +17388,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    // The Deck of Many Things: "If the result is 0 or less" — of the roll just made, what was subtracted taken off (rollResultAtMost)
+    [/^the result is (\d+) or less$/i, (m) => ({ kind: 'rollResultAtMost', n: +m[1] })],
     // Luck Bobblehead: "If you rolled 6 exactly seven times" — among the dice just rolled (rolledTimes)
     [/^you rolled (\d+) exactly (\w+) times$/i, (m) => (typeof num(m[2]) === 'number' ? { kind: 'rolledTimes', value: +m[1], n: num(m[2]) } : null)],
     // Unyaro: "if you planeswalked to Unyaro this turn" — this plane, turned up this turn (planeswalkedHere)
