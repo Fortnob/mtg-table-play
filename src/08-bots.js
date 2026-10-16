@@ -1890,6 +1890,11 @@
       const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
       return cards.length ? { picks: [cards[0].id] } : null;
     },
+    /* Call the Spirit Dragons: the Dragon offered first, the one that keeps the most Dragons apart (toward five) */
+    colorCounter(s) {
+      const it = (s.items || [])[0];
+      return it ? { picks: [it.id] } : null;
+    },
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) {
       // Scapeshift: every land; anything else (Pitiless Carnage): only tokens

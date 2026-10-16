@@ -4617,6 +4617,14 @@
       for (const sc of ((a && a.selfCost) || [])) {
         const tc = sc.targetCond;
         if (!tc) continue;
+        /* Price of Fame: "costs {2} less to cast if it targets a legendary creature" — one targeted, or (no targets
+           yet) one there to be targeted (objWords) */
+        if (tc.objWords) {
+          const pool = targets == null ? this.battlefield.filter(x => !x.phasedOut)
+            : targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && x.zone === 'battlefield');
+          if (pool.some(x => this.characteristics(x).isCreature && this._cardFitsWords(x, tc.objWords))) cost = this._addGeneric(cost || '', Number(sc.amount) || 0);
+          continue;
+        }
         const hit = (targets == null ? this.stack.map(s => ({ kind: 'stack', id: s.id })) : targets).some(t => {
           const it = t && t.kind === 'stack' ? this.stack.find(s => s.id === t.id) : null;
           return it && (it.targets || []).some(u => {
@@ -11259,7 +11267,15 @@
       this._costLifeAcc = 0;
       // (Tezzeret, Betrayer of Flesh: an artifact's ability begun — its cost already reckoned: artifactActs)
       const artAct = o.zone === 'battlefield' && this._matchesCategory(o, 'artifact');
+      // (Sunken Palace: the promises of the mana spent on this ability — riders that know abilities: abRiders)
+      const ridersAt = ((this._payFlags || {}).riders || []).length;
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
+      let abRiders = [];
+      {
+        const pf = this._payFlags || {};
+        abRiders = (pf.riders || []).slice(ridersAt).filter(r => r && typeof r === 'object' && r.abilities);
+        if (abRiders.length) pf.riders = pf.riders.filter(r => !abRiders.includes(r));
+      }
       const lifePaid = this._costLifeAcc;
       this._costLifeAcc = lifeAccWas;
       // Osgir, the Reconstructor: "the exiled card" — the one exiled to pay (costExiled)
@@ -11350,6 +11366,13 @@
       if (otherAt < 0 && this._skipList(opts.skipped).length) this._keepSkips(item, opts.skipped);
       this.stack.push(item);
       this._payThingCosts(playerId, ab.cost, o, opts, item);
+      /* Sunken Palace: "When you spend this mana to … activate an ability, copy that spell or ability." — a trigger
+         that knows the ability (mana abilities can't be copied: none of this for them) */
+      for (const r of abRiders) {
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+          name: r.text || 'Mana rider', effects: r.effects, auto: true, abilityText: r.text || '',
+          triggerData: { event: 'manaSpent', stackId: item.id, objectId: o.id, playerId } });
+      }
       // Professor Hojo: "The first activated ability you activate during your turn that targets a creature you control" — that one is gone now
       if (this.activePlayer && this.activePlayer.id === playerId && this._targetsOwnOf(playerId, item.targets, 'creature'))
         this.player(playerId).ownTargetActs = { turn: this.turn };
@@ -13445,7 +13468,11 @@
         return tagPool();
       }
       // (Freya Crescent: tapped while an equip ability is being paid for — spendForAbility)
-      if (!paying && this._payingForAb && this._spendForAbility(ab.spendOnly, this._payingForAb.obj, this._payingForAb.ab, o)) return tagPool();
+      if (!paying && this._payingForAb && this._spendForAbility(ab.spendOnly, this._payingForAb.obj, this._payingForAb.ab, o)) {
+        // (Sunken Palace: made while an ability is paid for — its promise goes with it: anyUse)
+        if (ab.spendOnly.rider && ab.spendOnly.rider.abilities) { this._payFlags = this._payFlags || {}; (this._payFlags.riders = this._payFlags.riders || []).push(ab.spendOnly.rider); }
+        return tagPool();
+      }
       if (paying && this._spendAllowed(ab.spendOnly, paying, o)) {
         this._payFlags = this._payFlags || {};
         if (ab.spendOnly.uncounterable) this._payFlags.uncounterable = true;
@@ -13552,6 +13579,8 @@
     _spendAllowed(spendOnly, spell, src) {
       if (!spendOnly) return true;
       if (!spell) return false;
+      // (Sunken Palace: any spell or ability may spend it; kept apart only for its rider — anyUse)
+      if (spendOnly.anyUse) return true;
       // "Spend this mana only to activate abilities."
       if (spendOnly.noSpells) return false;
       // Rosheen Meanderer: "Spend this mana only on costs that contain {X}." — a spell with {X} in its mana cost (costWithX)
@@ -13584,6 +13613,8 @@
     _spendForAbility(spendOnly, abilityOf, ab, src) {
       if (!spendOnly || !abilityOf) return false;
       if (spendOnly.open && !spendOnly.words) return true;
+      // (Sunken Palace: anyUse)
+      if (spendOnly.anyUse) return true;
       // Vhal, Candlekeep Researcher: "can't be spent to cast spells from your hand" — any ability may have it (anyAbility)
       if (spendOnly.anyAbility) return true;
       // (Rosheen Meanderer: an ability whose cost has {X} in it — costWithX)
@@ -18112,7 +18143,7 @@
       let sig = this._boardKey + ':' + (this._lbGen || 0) + ':' + (o.chosenExiled || '');
       for (const x of this.battlefield) sig += ',' + x.controller + (x.phasedOut ? 'p' : '') + this._localEpoch(x);
       // (Thranduil, the Elvenking: the cards in its controller's graveyard, as they are now)
-      if (spec.graveyard) sig += '|' + ((this.zones[o.controller] || {}).graveyard || []).map(x => x.id).join(',');
+      if (spec.graveyard) sig += '|' + (spec.graveyardAll ? this.players.flatMap(p => (this.zones[p.id] || {}).graveyard || []) : ((this.zones[o.controller] || {}).graveyard || [])).map(x => x.id).join(',');
       // (Conspicuous Snoop: the top card of its controller's library, as it is now — libraryTop)
       const libTop = spec.libraryTop ? (((this.zones[o.controller] || {}).library || [])[0] || null) : null;
       if (spec.libraryTop) sig += '|t' + (libTop ? libTop.id : '');
@@ -18152,8 +18183,9 @@
         }
         /* Thranduil, the Elvenking: "all activated abilities of all Elf cards in your graveyard" — the cards' printed
            abilities, read from the graveyard (graveyard) */
+        // (Necrotic Ooze: "of all creature cards in all graveyards" — every player's: graveyardAll)
         if (spec.graveyard) {
-          for (const x of ((this.zones[o.controller] || {}).graveyard || [])) {
+          for (const x of (spec.graveyardAll ? this.players.flatMap(p => (this.zones[p.id] || {}).graveyard || []) : ((this.zones[o.controller] || {}).graveyard || []))) {
             if (spec.words && !this._cardFitsWords(x, spec.words)) continue;
             const xa = x.analysis();
             if (!xa) continue;
@@ -29378,6 +29410,8 @@
             source = td.objectId ? this.obj(td.objectId) : null;
           }
           if (!source) break;
+          // Coiling Rebirth: "and that creature isn't legendary" — as it is now (unlessLegendary)
+          if (e.unlessLegendary && this._cardFitsWords(source, 'legendary')) break;
           // Hofri Ghostforge: "exile it. If you do, create a token …" — only the card exiled just now (ifExiled)
           if (e.ifExiled && (source.zone !== 'exile' || this._lastExiled !== source.id)) break;
           // Hazel of the Rootbloom: "If that token is a Squirrel, instead create two tokens that are copies of it." (twiceIfType)
@@ -32218,6 +32252,52 @@
              value" — the one card revealed from the top (revealNotes) */
           if (from.length && e.from === 'library' && n(e.n) === 1) this._noteLastAffected([{ kind: 'object', id: from[0].id }]);
           this.logEvent('reveal', `${revP.name} reveals ${shown.join(', ') || 'nothing'}.`);
+          break;
+        }
+
+        /* Call the Spirit Dragons: "for each color, put a +1/+1 counter on a Dragon you control of that color. If you put
+           +1/+1 counters on five Dragons this way, you win the game." — every color's Dragon chosen first, then the
+           counters; the Dragons that can make five apart offered first (colorCounter) */
+        case 'colorCounter': {
+          const COLS = ['W', 'U', 'B', 'R', 'G'], NAMES = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+          const mine = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._hasCreatureType(x, e.subtype));
+          const of = (c) => mine.filter(x => ((this.characteristics(x) || {}).colors || (x.analysis() || {}).colors || []).includes(c));
+          // the most Dragons the colors can reach apart (a matching, five colors at most)
+          const best = {};
+          const match = (i, used, got) => {
+            if (i === COLS.length) { if (Object.keys(got).filter(k => got[k]).length > Object.keys(best).filter(k => best[k]).length) { for (const k of COLS) best[k] = got[k]; } return; }
+            const c = COLS[i];
+            for (const x of of(c)) if (!used.has(x.id)) { used.add(x.id); got[c] = x.id; match(i + 1, used, got); used.delete(x.id); }
+            got[c] = null; match(i + 1, used, got);
+          };
+          match(0, new Set(), {});
+          const chosen = {};
+          for (const c of COLS) {
+            const pool = of(c);
+            if (!pool.length) continue;
+            if (pool.length === 1) { chosen[c] = pool[0].id; continue; }
+            const first = pool.find(x => x.id === best[c]);
+            const items = this._chooseItems(first ? [first].concat(pool.filter(x => x !== first)) : pool);
+            const got = this._choose({ playerId: ctx.controller, purpose: 'colorCounter', kind: 'objects', zone: 'battlefield', items, min: 1, max: 1,
+              prompt: `Choose a ${NAMES[c]} ${e.subtype} you control to put a +1/+1 counter on.` }, 'colorCounter:' + c);
+            if (got === SUSPEND) return SUSPEND;
+            const id = ((got && got.picks) || [])[0];
+            chosen[c] = pool.some(x => x.id === id) ? id : pool[0].id;
+          }
+          const hit = new Set();
+          for (const c of COLS) {
+            const x = chosen[c] && this.obj(chosen[c]);
+            if (!x || x.zone !== 'battlefield') continue;
+            const before = Number((x.counters || {})['+1/+1']) || 0;
+            this.addCounters(x, '+1/+1', 1, { by: ctx.controller });
+            if ((Number((x.counters || {})['+1/+1']) || 0) > before) hit.add(x.id);
+          }
+          if (hit.size) this.logEvent('counters', `${me.name} puts +1/+1 counters on ${O.nounCount(hit.size, e.subtype)}.`);
+          this.bumpBoard();
+          if (e.winAt && hit.size >= e.winAt) {
+            this.logEvent('rules', `${me.name} put +1/+1 counters on ${O.nounCount(e.winAt, e.subtype)} and wins the game.`);
+            this._runEffect({ op: 'winGame' }, ctx);
+          }
           break;
         }
 

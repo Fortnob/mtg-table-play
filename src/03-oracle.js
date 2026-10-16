@@ -421,7 +421,8 @@
           if (/from your graveyard$/i.test(what)) ex.fromGraveyard = true;
         }
         // (Tawnos, Solemn Survivor: "an artifact or creature card" — "an", not "a" and "n artifact")
-        else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s+([-a-z' ]*?)\s*cards? from your graveyard$/i)))
+        // (Sunken Palace: "Exile seven cards from your graveyard")
+        else if ((m = what.match(/^(a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+)\s+([-a-z' ]*?)\s*cards? from your graveyard$/i)))
           // (Ludevic, Necrogenius, Necropolis Fiend: "{X}…, Exile X creature cards from your graveyard" — the X paid)
           ex = { what: 'graveyard', n: /^X$/.test(m[1]) && /\{X\}/.test(str) ? 'X' : WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
         // Gallia, Tragic Host: "Exile another creature card from your graveyard" — never the card itself (_exileCostPool)
@@ -1801,6 +1802,10 @@
         const c = (m[1] || '').trim().toLowerCase();
         return { op: 'spendOnly', open: true, rider: { words: c ? `${c} instant or ${c} sorcery` : 'instant or sorcery', effects: [{ op: 'copyThatSpell' }], text: m[0] } };
       } },
+    /* Sunken Palace: "When you spend this mana to cast a spell or activate an ability, copy that spell or ability." —
+       mana kept apart until a spell or ability spends it (anyUse), the rider then a trigger that knows what it paid for */
+    { re: /^When you spend this mana to cast a spell or activate an ability, copy that spell or ability(?:\. You may choose new targets for the copy)?\.?$/i,
+      make: (m) => ({ op: 'spendOnly', anyUse: true, rider: { words: 'spell', abilities: true, effects: [{ op: 'copyThatSpell' }], text: m[0] } }) },
     /* Jade Orb of Dragonkind: "When you spend this mana to cast a Dragon creature spell, it enters with an additional
        +1/+1 counter on it and gains hexproof until your next turn." (plusCounterHexproof) */
     { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?creature) spell, it enters with an additional \+1\/\+1 counter on it and gains hexproof until your next turn\.?$/,
@@ -3663,6 +3668,10 @@
        1/1." — the creature chosen, or else the one the trigger is about (orTrigger) */
     { re: /^Create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+)\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: 1, grant: [], setPt: m[1] + '/' + m[2], orTrigger: true }) },
+    /* Coiling Rebirth: "Then if the gift was promised and that creature isn't legendary, create a token that's a copy of
+       that creature, except it's 1/1." — the creature the spell returned (unlessLegendary) */
+    { re: /^Then if the gift was promised and that creature isn'?t legendary, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+)\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'gift' }, then: [{ op: 'copyPermanent', n: 1, grant: [], setPt: m[1] + '/' + m[2], unlessLegendary: true }] }) },
     /* "You get an emblem with 'Creatures you control get +2/+2 and have
        flying.'" — one or more abilities in quotation marks */
     { re: /^You get an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
@@ -13448,6 +13457,10 @@
         { op: 'reflexive', ifSacrificed: true, whenText: m[0].replace(/^[^.]+\. /, ''), effects: [
           { op: 'tap', targets: [Object.assign(targetSpec('target ' + m[2].toLowerCase()), { distinct: true, multi: { count: 'triggerAmount', exact: false } })] },
           { op: 'draw', n: 'triggerAmount', who: 'you' }] }] },
+    /* Call the Spirit Dragons: "for each color, put a +1/+1 counter on a Dragon you control of that color. If you put
+       +1/+1 counters on five Dragons this way, you win the game." (colorCounter) */
+    { re: /^[Ff]or each color, put a \+1\/\+1 counter on an? ([A-Z][a-z]+) you control of that color\. If you put \+1\/\+1 counters on five \1s this way, you win the game\.?$/,
+      make: (m) => [{ op: 'colorCounter', subtype: m[1], winAt: 5 }] },
     /* Swashbuckler Extraordinaire: "you may sacrifice one or more Treasures. When you do, up to that many target
        creatures gain double strike until end of turn." — the same reflexive trigger, "that many" its amount */
     { re: /^(?:You may )?sacrifice one or more ([A-Z][a-z]+)s\. When you do, up to that many target ([a-z]+)s gain ([a-z ,]+?) until end of turn\.?$/i,
@@ -15667,6 +15680,9 @@
        you control with power 7 or greater." — settled once the targets are chosen (targetCond) */
     m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} less to cast if it targets a spell or ability that targets a creature you control with power (\d+) or greater$/i);
     if (m) return { amount: -(+m[1]), targetCond: { stackTargetsYours: 'creature', minPower: +m[2] } };
+    // Price of Fame: "This spell costs {2} less to cast if it targets a legendary creature." (targetCond objWords)
+    m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} less to cast if it targets an? (legendary) creature$/i);
+    if (m) return { amount: -(+m[1]), targetCond: { objWords: m[2].toLowerCase() + ' creature' } };
     m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} (less|more) to cast if (.+)$/i);
     if (m) {
       const cond = altCond(m[3]);
@@ -24906,8 +24922,9 @@
         make: (m) => ({ op: 'borrowActivated', who: 'you', libraryTop: true, words: m[1].toLowerCase() }), auto: true },
       // Thranduil, the Elvenking: "Thranduil has all activated abilities of all Elf cards in your graveyard." (borrowActivated graveyard)
       // (Trazyn the Infinite: "As long as Trazyn is on the battlefield, it has all activated abilities of all artifact cards in your graveyard.")
-      { re: /^(?:CARDNAME|This creature|As long as CARDNAME is on the battlefield, it) has all activated abilities of all ([A-Z][a-z]+|creature|artifact) cards in your graveyard\.?$/,
-        make: (m) => ({ op: 'borrowActivated', who: 'you', graveyard: true, words: m[1].toLowerCase() }), auto: true },
+      // (Necrotic Ooze: "As long as this creature is on the battlefield, it has all activated abilities of all creature cards in all graveyards." — graveyardAll)
+      { re: /^(?:CARDNAME|This creature|As long as (?:CARDNAME|this creature) is on the battlefield, it) has all activated abilities of all ([A-Z][a-z]+|creature|artifact) cards in (your|all) graveyards?\.?$/,
+        make: (m) => Object.assign({ op: 'borrowActivated', who: 'you', graveyard: true, words: m[1].toLowerCase() }, m[2] === 'all' ? { graveyardAll: true } : {}), auto: true },
       /* Koh, the Face Stealer: "Koh has all activated and triggered abilities of the last chosen card." — the card
          chosen with its own ability, while it is still in exile (borrowChosen) */
       { re: /^(?:CARDNAME|This creature) has all activated and triggered abilities of the last chosen card\.?$/i, eff: { op: 'borrowActivated', chosenCard: true }, auto: true },

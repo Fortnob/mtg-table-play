@@ -78650,4 +78650,133 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(g.powerOf(bear), 2, 'until end of turn');
   });
+
+  test('Cards: Call the Spirit Dragons — each upkeep a counter per color on a Dragon of that color; five Dragons win', (mk, t) => {
+    t.auto('Call the Spirit Dragons');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Call the Spirit Dragons');
+    const shivan = T.bf('A', 'Shivan Dragon');
+    const silver = T.bf('A', 'Ancient Silver Dragon');
+    t.ok(g.hasKw(shivan, 'indestructible'), 'Dragons have indestructible');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [ch.items[0].id] }; });
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.eq(shivan.counters['+1/+1'], 1, 'red: the Shivan Dragon, the only red one');
+    t.eq(silver.counters['+1/+1'], 1, 'blue: the Silver Dragon');
+    t.no(asked, 'one Dragon of each color: nothing to ask');
+    t.no(g.over, 'two Dragons: no win');
+    // a Dragon that is blue and red: asked which blue one and which red one
+    const niv = T.bf('A', 'Niv-Mizzet, Parun');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    const qs = T.asked.filter(ch => ch.purpose === 'colorCounter');
+    t.eq(qs.length, 2, 'asked for blue and for red');
+    asked = qs[1];
+    t.eq(asked && asked.prompt, 'Choose a red Dragon you control to put a +1/+1 counter on.');
+    t.eq(asked && asked.items[0].id, shivan.id, 'the Shivan Dragon offered first: the Silver Dragon takes blue');
+    t.no(niv.counters['+1/+1'], 'the first offered taken each time: none on Niv-Mizzet');
+    t.eq(shivan.counters['+1/+1'], 2);
+    // five Dragons, one of each color: win
+    const T2 = mk();
+    T2.bf('A', 'Call the Spirit Dragons');
+    for (const n of ['Shivan Dragon', 'Niv-Mizzet, Parun', 'Ancient Silver Dragon', 'Ancient Brass Dragon', 'Ancient Gold Dragon', 'Ancient Copper Dragon', 'Ancient Bronze Dragon']) T2.bf('A', n);
+    T2.nextTurn('B');
+    T2.nextTurn('A');
+    t.ok(T2.g.over && (T2.g.winners || []).includes('A') || T2.player('B').hasLost, 'counters on five Dragons: A wins');
+  });
+
+  test('Cards: Price of Fame — {2} less when it targets a legendary creature; destroy and surveil 2', (mk, t) => {
+    t.auto('Price of Fame');
+    const T = mk();
+    const g = T.g;
+    const leg = T.bf('B', 'Isamaru, Hound of Konda');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Price of Fame'), { targets: [leg] });
+    t.zone(leg, 'graveyard', 'the legend destroyed for {1}{B}');
+    T.mana('A', 'B1');
+    t.no(g.castSpell('A', T.hand('A', 'Price of Fame').id, { auto: true, targets: [T.tgt(bear)] }), 'not a legend: the full {3}{B}');
+    T.player('A').pool.clear();
+    T.mana('A', 'B3');
+    T.cast('A', T.zone('A', 'hand').find(c => c.name === 'Price of Fame'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'the Bears destroyed for {3}{B}');
+  });
+
+  test('Cards: Coiling Rebirth — reanimate; with the gift, a 1/1 token copy unless it is legendary', (mk, t) => {
+    t.auto('Coiling Rebirth');
+    const T = mk({ library: Array(10).fill('Island') });
+    const g = T.g;
+    const ogre = T.grave('A', 'Gray Ogre');
+    const hb = T.zone('B', 'hand').length;
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', 'Coiling Rebirth'), { targets: [ogre], gift: 'B' });
+    t.zone(ogre, 'battlefield', 'returned');
+    t.eq(T.zone('B', 'hand').length, hb + 1, 'the gift: B draws');
+    const tok = g.battlefield.find(x => x.isToken && x.name === 'Gray Ogre');
+    t.ok(tok, 'a token copy');
+    t.eq(g.powerOf(tok), 1, 'that is 1/1'); t.eq(g.toughnessOf(tok), 1);
+    // no gift: no token
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', 'Coiling Rebirth'), { targets: [bear] });
+    t.zone(bear, 'battlefield');
+    t.no(g.battlefield.some(x => x.isToken && x.name === 'Grizzly Bears'), 'no gift: no copy');
+    // legendary: no token
+    const isa = T.grave('A', 'Isamaru, Hound of Konda');
+    T.mana('A', 'BB3');
+    T.cast('A', T.hand('A', 'Coiling Rebirth'), { targets: [isa], gift: 'B' });
+    t.zone(isa, 'battlefield');
+    t.no(g.battlefield.some(x => x.isToken && x.name === 'Isamaru, Hound of Konda'), 'legendary: no copy');
+  });
+
+  test('Cards: Sunken Palace — its costly {U} copies the spell or ability it pays for', (mk, t) => {
+    t.auto('Sunken Palace');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const pal = T.bf('A', 'Sunken Palace');
+    for (let i = 0; i < 8; i++) T.grave('A', 'Swamp');
+    T.mana('A', 'U1');
+    t.ok(g.tapForMana('A', pal.id, 1), g.lastError);
+    T.settle();
+    t.eq(T.zone('A', 'graveyard').length, 1, 'seven cards exiled');
+    const h0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'Opt and its copy: two cards drawn');
+    // on an ability
+    pal.tapped = false;
+    for (let i = 0; i < 7; i++) T.grave('A', 'Swamp');
+    T.mana('A', 'U1');
+    t.ok(g.tapForMana('A', pal.id, 1), g.lastError);
+    T.settle();
+    const ms = T.bf('A', 'Mind Stone');
+    const h1 = T.zone('A', 'hand').length;
+    T.activate('A', ms, 1);
+    t.eq(T.zone('A', 'hand').length, h1 + 2, "Mind Stone's draw and its copy");
+    // the plain {T}: Add {U} copies nothing
+    pal.tapped = false;
+    t.ok(g.tapForMana('A', pal.id, 0), g.lastError);
+    const h2 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(T.zone('A', 'hand').length, h2 + 1, 'Opt alone: one card drawn, no copy');
+  });
+
+  test('Cards: Necrotic Ooze — the activated abilities of the creature cards in every graveyard', (mk, t) => {
+    t.auto('Necrotic Ooze');
+    const T = mk();
+    const g = T.g;
+    const oo = T.bf('A', 'Necrotic Ooze');
+    const acts = () => oo.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts().length, 0, 'empty graveyards: nothing');
+    T.grave('B', 'Prodigal Sorcerer');
+    T.grave('A', 'Llanowar Elves');
+    T.grave('A', 'Lightning Bolt');
+    g.bumpBoard();
+    t.eq(acts().length, 1, "the opponent's Sorcerer's ability");
+    t.eq(oo.analysis().manaAbilities.length, 1, "the Elves' mana ability");
+    // (mana abilities first, then the rest)
+    T.activate('A', oo, 1, { targets: ['B'] });
+    t.eq(T.life('B'), 19, 'pinged');
+  });
 };
