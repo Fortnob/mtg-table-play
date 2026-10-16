@@ -23040,6 +23040,13 @@
           return this.battlefield.filter(x => x !== src && !x.phasedOut && (x.analysis() || {}).isCreature &&
             (!v.mineOnly || x.controller === ctx.controller) && this._shareCreatureType(src, x)).length * (v.mult || 1);
         }
+        // Mana Echoes: the creatures you control that share a creature type with the one the trigger is about (itself too)
+        if (v && typeof v === 'object' && v.sharesTypeTrigger) {
+          const tdS = ctx.triggerData || {};
+          const it = tdS.objectId && this.obj(tdS.objectId);
+          return it ? this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isCreature &&
+            (!v.mineOnly || x.controller === ctx.controller) && this._shareCreatureType(it, x)).length * (v.mult || 1) : 0;
+        }
         // Wolfbriar Elemental: "for each time it was kicked" — the kicks are the spell's, or the permanent's if it came from the stack
         if (v && typeof v === 'object' && v.timesKicked) {
           const ks = ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
@@ -27681,6 +27688,31 @@
         }
         /* Danitha, Benalia's Hope: an Aura or Equipment card from your hand
            or graveyard onto the battlefield attached to it (putAttachedToSelf) */
+        /* Unfinished Business: the creature card (its first target) back, then the Aura and Equipment cards attached to it —
+           an Aura that couldn't enchant it stays in the graveyard (CR 303.4f), an Equipment that couldn't equip it enters
+           unattached (ruling); with the creature gone, no Aura can come (reanimateWithAttached) */
+        case 'reanimateWithAttached': {
+          const t0 = (ctx.targets || [])[0];
+          const legal = (t) => t && t.kind === 'object' && targets.some(r => r.kind === 'object' && r.id === t.id);
+          const cr = legal(t0) ? this.obj(t0.id) : null;
+          let host = null;
+          if (cr && cr.zone === 'graveyard') {
+            this.moveObject(cr, 'battlefield', { controller: ctx.controller });
+            if (cr.zone === 'battlefield') { host = cr; this.logEvent('reanimate', `${me.name} reanimates ${cr.name}.`); }
+          }
+          for (const t of (ctx.targets || []).slice(1)) {
+            const c = legal(t) && this.obj(t.id);
+            if (!c || c.zone !== 'graveyard' || c === cr) continue;
+            const ca = c.analysis() || {};
+            const fits = host && host.zone === 'battlefield' && this._attachLegal(c, ca, host);
+            if (ca.isAura && !fits) continue;
+            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            if (c.zone !== 'battlefield' || !fits || host.zone !== 'battlefield') continue;
+            this._attachAura(c, host);
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'putAttachedToSelf': {
           const host = src && src.zone === 'battlefield' ? src : null;
           /* Hakim, Loreweaver: "Return target Aura card from your graveyard to the battlefield attached to Hakim." — the
@@ -30836,6 +30868,15 @@
            one of the cards exiled with it, chosen; "it" the card put there (exiledWithToGraveyard) */
         case 'exiledWithToGraveyard': {
           if (!src) break;
+          // Bronzebeak Foragers: "Put target card with mana value X exiled with this creature into its owner's graveyard." — the target
+          if ((e.targets || []).length) {
+            const x = firstObj();
+            if (!x || x.zone !== 'exile' || x.exiledWithId !== src.id) break;
+            this.moveObject(x, 'graveyard');
+            this._lastPut = x.id;
+            this.logEvent('zone', `${x.name} is put into ${(this.player(x.owner) || {}).name || 'its owner'}'s graveyard.`);
+            break;
+          }
           const pool = [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id);
           if (!pool.length) break;
           let x = pool[0];
@@ -34019,8 +34060,11 @@
           const eq = e.op === 'attachMade' ? this.obj((this._madeThisResolution || []).slice(-1)[0])
             : (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           // (U.S.Agent, John Walker: "Attach it to U.S.Agent." — itself: toSelf)
-          const host = e.toSelf ? src : firstObj();
+          // (Ajani's Chosen: "attach it to the token" — the token just made: toMade)
+          const host = e.toSelf ? src : e.toMade ? this.obj((this._madeThisResolution || []).slice(-1)[0]) : firstObj();
           if (!eq || eq.zone !== 'battlefield' || !host || host.zone !== 'battlefield' || eq === host) break;
+          // (an Aura goes only where it could enchant, CR 701.3b)
+          if (e.toMade && !this._attachLegal(eq, eq.analysis() || {}, host)) break;
           if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
           eq.attachedTo = host.id;
           eq.ts = this._stampNew();

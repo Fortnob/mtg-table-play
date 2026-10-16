@@ -76239,4 +76239,135 @@ module.exports = (test) => {
     t.ok(T.g.hasKw(g, 'trample') && !T.g.hasKw(g, 'vigilance'), 'green: trample');
     t.no(T.g.hasKw(theirs, 'trample'), "not B's");
   });
+
+  test('Cards: Mana Echoes — {C} for each creature you control sharing a creature type with the one that entered', (mk, t) => {
+    t.auto('Mana Echoes');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Mana Echoes');
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Elvish Mystic'); T.bf('A', 'Raging Goblin');
+    T.bf('A', 'Fyndhorn Elves', { etb: true });
+    T.resolve();
+    t.eq(g.player('A').pool.total(), 3, 'three Elves of yours, the new one too');
+    g.player('A').pool.clear && g.player('A').pool.clear();
+    const before = g.player('A').pool.total();
+    // an opponent's Elf: your Elves are counted, not theirs
+    T.bf('B', 'Llanowar Elves'); T.bf('B', 'Elvish Mystic', { etb: true });
+    T.resolve();
+    t.eq(g.player('A').pool.total() - before, 3, "an opponent's Elf: your three Elves");
+    t.eq(g.player('B').pool.total(), 0, 'nothing for its controller');
+    // declining adds nothing
+    const b2 = g.player('A').pool.total();
+    T.answer('confirm', { yes: false });
+    T.bf('A', 'Goblin Piker', { etb: true });
+    T.resolve();
+    t.eq(g.player('A').pool.total() - b2, 0, 'declined: no mana');
+  });
+
+  test('Cards: Unfinished Business — a creature back with up to two Auras and Equipment attached to it', (mk, t) => {
+    t.auto('Unfinished Business');
+    const T = mk();
+    const g = T.g;
+    const bear = T.grave('A', 'Grizzly Bears'), rancor = T.grave('A', 'Rancor'), axe = T.grave('A', 'Bonesplitter');
+    T.mana('A', 'WW3');
+    T.cast('A', T.hand('A', 'Unfinished Business'), { targets: [bear, rancor, axe] });
+    t.zone(bear, 'battlefield', 'the Bears back');
+    t.zone(rancor, 'battlefield', 'Rancor back');
+    t.zone(axe, 'battlefield', 'Bonesplitter back');
+    t.eq(rancor.attachedTo, bear.id, 'Rancor on the Bears');
+    t.eq(axe.attachedTo, bear.id, 'Bonesplitter on the Bears');
+    t.eq(g.powerOf(bear), 2 + 2 + 2, 'both counted');
+    // an Aura that can't enchant it stays; with the creature gone the Equipment enters unattached
+    const U = mk();
+    const wolf = U.grave('A', 'Grizzly Bears'), seas = U.grave('A', 'Spreading Seas'), sword = U.grave('A', 'Bonesplitter');
+    U.mana('A', 'WW3');
+    U.cast('A', U.hand('A', 'Unfinished Business'), { targets: [wolf, seas, sword] });
+    t.zone(seas, 'graveyard', "an Aura that can't enchant a creature stays");
+    t.eq(sword.attachedTo || null, wolf.id, 'the Equipment on it');
+    const V = mk();
+    const elk = V.grave('A', 'Grizzly Bears'), rc = V.grave('A', 'Rancor'), bs = V.grave('A', 'Bonesplitter');
+    V.mana('A', 'WW3');
+    V.cast('A', V.hand('A', 'Unfinished Business'), { targets: [elk, rc, bs], resolve: false });
+    V.g.moveObject(elk, 'exile');
+    V.resolve();
+    t.zone(elk, 'exile', 'the creature target gone');
+    t.zone(rc, 'graveyard', 'no creature: the Aura stays');
+    t.zone(bs, 'battlefield', 'the Equipment enters');
+    t.eq(bs.attachedTo || null, null, 'unattached');
+  });
+
+  test('Cards: Bronzebeak Foragers — {X}{W}: a card with mana value X exiled with it into its graveyard, X life', (mk, t) => {
+    t.auto('Bronzebeak Foragers');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('C', 'Grizzly Bears');
+    T.answer('choose', (ch) => ({ picks: [ch.items[0].id] })).answer('choose', (ch) => ({ picks: [ch.items[0].id] }));
+    const fb = T.bf('A', 'Bronzebeak Foragers', { etb: true });
+    T.resolve();
+    t.zone(giant, 'exile', "B's Hill Giant exiled");
+    t.zone(bear, 'exile', "C's Bears exiled");
+    const ai = fb.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^\{X\}\{W\}/.test(x.text));
+    t.ok(ai >= 0, 'the ability');
+    // X = 3 can't aim at the Bears (mana value 2)
+    T.mana('A', 'W3');
+    let threw = false;
+    try { T.activate('A', fb, ai, { x: 3, targets: [bear] }); } catch (err) { threw = true; }
+    t.ok(threw, 'X 3: the Bears (mana value 2) is no target');
+    g.player('A').pool.clear && g.player('A').pool.clear();
+    T.mana('A', 'W2');
+    const life = T.life('A');
+    T.activate('A', fb, ai, { x: 2, targets: [bear] });
+    t.zone(bear, 'graveyard', 'the Bears into its graveyard');
+    t.ok(g.zones.C.graveyard.includes(bear), "its owner's");
+    t.eq(T.life('A'), life + 2, 'gain 2 life');
+    // the Foragers leaving: only the Giant comes back
+    g.moveObject(fb, 'graveyard');
+    T.resolve();
+    t.zone(giant, 'battlefield', 'the Giant returns');
+    t.zone(bear, 'graveyard', 'the Bears stays in the graveyard');
+  });
+
+  test("Cards: Ajani's Chosen — a Cat for each enchantment; an Aura may move onto the Cat", (mk, t) => {
+    t.auto("Ajani's Chosen");
+    const T = mk();
+    const g = T.g;
+    T.bf('A', "Ajani's Chosen");
+    const bear = T.bf('A', 'Grizzly Bears');
+    const cats = () => T.bfOf('A').filter(o => o.isToken && /Cat/.test(o.name));
+    T.mana('A', 'G');
+    const rancor = T.hand('A', 'Rancor');
+    T.cast('A', rancor, { targets: [bear] });
+    t.eq(cats().length, 1, 'a Cat');
+    t.eq(rancor.attachedTo, cats()[0].id, 'Rancor moved onto the Cat');
+    t.no((bear.attachments || []).includes(rancor.id), 'off the Bears');
+    // declined: it stays
+    T.mana('A', 'G');
+    const r2 = T.hand('A', 'Rancor');
+    T.answer('confirm', { yes: false });
+    T.cast('A', r2, { targets: [bear] });
+    t.eq(cats().length, 2, 'another Cat');
+    t.eq(r2.attachedTo, bear.id, 'declined: Rancor stays on the Bears');
+    // not an Aura: a Cat, nothing asked
+    const asked = T.asked.length;
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Glorious Anthem'));
+    t.eq(cats().length, 3, 'a Cat for the Anthem');
+    t.no(T.asked.slice(asked).some(q => q.type === 'confirm'), 'no question');
+  });
+
+  test('Cards: Canoptek Scarab Swarm — a graveyard exiled, an Insect for each artifact or land card in it', (mk, t) => {
+    t.auto('Canoptek Scarab Swarm');
+    const T = mk();
+    const g = T.g;
+    const ring = T.grave('B', 'Sol Ring'), forest = T.grave('B', 'Forest'), bear = T.grave('B', 'Grizzly Bears'), bolt = T.grave('B', 'Lightning Bolt');
+    T.grave('A', 'Mox Opal');
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === 'B')] }));
+    T.bf('A', 'Canoptek Scarab Swarm', { etb: true });
+    T.resolve();
+    for (const c of [ring, forest, bear, bolt]) t.zone(c, 'exile', c.name + ' exiled');
+    const bugs = T.bfOf('A').filter(o => o.isToken);
+    t.eq(bugs.length, 2, 'two Insects: Sol Ring and the Forest');
+    t.ok(bugs.every(o => g.hasKw(o, 'flying') && g._matchesCategory(o, 'artifact') && g.powerOf(o) === 1), '1/1 artifact fliers');
+    t.eq(g.zones.A.graveyard.length, 1, 'your own graveyard untouched');
+  });
 };

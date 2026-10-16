@@ -1899,6 +1899,13 @@
        enchanted creature" (picked as it resolves) */
     { re: /^Return any number of target Aura and\/or Equipment cards from your graveyard to the battlefield attached to enchanted creature\.?$/i,
       make: () => ({ op: 'returnAttachedToEnchanted' }) },
+    /* Unfinished Business: "Return target creature card from your graveyard to the battlefield, then return up to two target
+       Aura and/or Equipment cards from your graveyard to the battlefield attached to that creature." — all three targets
+       chosen as it is cast; an Aura that can't enchant it stays, an Equipment that can't equip it enters unattached
+       (reanimateWithAttached) */
+    { re: /^Return target creature card from your graveyard to the battlefield, then return up to two target Aura and\/or Equipment cards from your graveyard to the battlefield attached to that creature\.?$/i,
+      make: () => { const ae = { type: 'card', filter: 'Aura or Equipment card', zone: 'graveyard', controller: 'you', subtypes: ['aura', 'equipment'], upTo: true, distinct: true };
+        return { op: 'reanimateWithAttached', targets: [Object.assign(targetSpec('target creature'), { zone: 'graveyard', controller: 'you' }), ae, Object.assign({}, ae)] }; } },
     // Jared Carthalion: "Create a 3/3 Kavu creature token with trample that's all colors."
     { re: /^(Create an? \d+\/\d+ [A-Z][a-z]+(?: [A-Z][a-z]+)* creature token(?: with [a-z ,]+?)?) that'?s all colou?rs\.?$/,
       make: (m) => { const inner = parseEffectSentence(m[1] + '.', 1);
@@ -5073,6 +5080,9 @@
     // Alena, Kessig Trapper: "Add an amount of {R} equal to the greatest power among creatures you control that entered this turn."
     { re: /^Add an amount of \{([WUBRGC])\} equal to (the greatest power among .+?)\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' && k.greatestPower ? { op: 'addManaPer', symbol: m[1].toUpperCase(), per: k } : null; } },
+    // Mana Echoes: "add an amount of {C} equal to the number of creatures you control that share a creature type with it"
+    { re: /^Add an amount of \{([WUBRGC])\} equal to the number of (creatures you control that share a creature type with it)\.?$/i,
+      make: (m) => { const k = countOf(m[2]); return k ? { op: 'addManaPer', symbol: m[1].toUpperCase(), per: k } : null; } },
     // Lifeblood Hydra: "you gain life and draw cards equal to its power"
     { re: /^You gain life and draw cards equal to its power\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'gainLife', who: 'you', n: { ofTrigger: 'power' } }, { op: 'draw', who: 'you', n: { ofTrigger: 'power' } }] }) },
@@ -5594,6 +5604,10 @@
        for the sentences after (exiledWithToGraveyard) */
     { re: /^Put a card exiled with (?:CARDNAME|this artifact|this creature|this enchantment) into its owner'?s graveyard\.?$/i,
       make: () => ({ op: 'exiledWithToGraveyard' }) },
+    /* Bronzebeak Foragers: "Put target card with mana value X exiled with this creature into its owner's graveyard." — the
+       target, a card exiled with it whose mana value is the X paid (exiledWithToGraveyard, targets) */
+    { re: /^Put target card with mana value X exiled with (?:CARDNAME|this artifact|this creature|this enchantment) into its owner'?s graveyard\.?$/i,
+      make: () => ({ op: 'exiledWithToGraveyard', targets: [{ type: 'card', filter: 'card with mana value X', zone: 'exile', exiledWithSource: true, mv: 'X' }] }) },
     /* Lucius the Eternal: "When Lucius the Eternal dies, exile it and choose target creature an opponent controls. When
        that creature leaves the battlefield, return this card from exile to the battlefield under its owner's control." —
        the creature watched as it is now, the card back only while it is that card in exile (backWhenTargetLeaves) */
@@ -6612,6 +6626,13 @@
         const tk = parseTokenSentence('Create ' + m[2]);
         if (!tk || tk.op !== 'createToken' || tk.count || tk.n !== 1) return null;
         return Object.assign(tk, { count: { milledMatching: m[1].toLowerCase(), mult: 1 } });
+      } },
+    // Canoptek Scarab Swarm: "For each artifact or land card exiled this way, create a 1/1 colorless Insect artifact creature token with flying." (exiledMatching)
+    { re: /^For each ((?:artifact|creature|land|enchantment|instant|sorcery|noncreature|nonland)(?: or (?:artifact|creature|land|enchantment|instant|sorcery))?) cards? exiled this way, (?:you )?create (.+)$/i,
+      make: (m) => {
+        const tk = parseTokenSentence('Create ' + m[2]);
+        if (!tk || tk.op !== 'createToken' || tk.count || tk.n !== 1) return null;
+        return Object.assign(tk, { count: { exiledMatching: m[1].toLowerCase(), mult: 1 } });
       } },
     // Jolene: "that attacking player creates a Treasure token" — the player the trigger is about
     { re: /^That attacking player creates (a|an|one|two|three) (Treasure|Clue|Food|Blood|Map) tokens?\.?$/i,
@@ -8191,6 +8212,10 @@
     { re: /^Exile that card\.?$/i, make: () => ({ op: 'exileChosen' }) },
     // U.S.Agent, John Walker: "create … an Equipment artifact token named Sturdy Shield … Attach it to U.S.Agent." (attachMade, toSelf)
     { re: /^Attach it to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachMade', toSelf: true }) },
+    /* Ajani's Chosen: "If that enchantment is an Aura, you may attach it to the token." — the enchantment the trigger is
+       about, onto the token just made, if it could enchant it (attachThat, toMade) */
+    { re: /^If that enchantment is an Aura, you may attach it to the token\.?$/i,
+      make: () => ({ op: 'ifLastWas', ofTrigger: true, filter: 'aura', then: [{ op: 'may', then: [{ op: 'attachThat', toMade: true }] }] }) },
     /* Embercleave: "attach it to target creature you control" — a creature
        chosen as the trigger goes on the stack */
     { re: /^Attach it to target creature you control\.?$/i,
@@ -10635,6 +10660,8 @@
       return { spellsCastWords: m[1].toLowerCase().replace(/ and(?:\/or)? /, ' or '), mult: k };
     // Titan of Littjara: "for each other creature you control that shares a creature type with it"
     if (/^other creatures? you control that shares? a creature type with (?:it|CARDNAME|this creature)$/i.test(p)) return { sharesTypeOthers: true, mineOnly: true, mult: k };
+    // Mana Echoes: "the number of creatures you control that share a creature type with it" — the creature the trigger is about, itself too (sharesTypeTrigger)
+    if (/^creatures you control that share a creature type with it$/i.test(p)) return { sharesTypeTrigger: true, mineOnly: true, mult: k };
     // Wolfbriar Elemental, Lightkeeper of Emeria: "for each time it was kicked" (multikicker)
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // The Mary Janes: "for each creature that attacked this turn" — anyone's (attackedCreatures)

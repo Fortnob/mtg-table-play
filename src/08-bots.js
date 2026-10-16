@@ -426,6 +426,8 @@
       case 'takeFromLooked': return 1.2;
       case 'regrowth': return 1.2;
       case 'reanimate': return 2.6;
+      // Unfinished Business: a creature back with its Auras and Equipment
+      case 'reanimateWithAttached': return 3.2;
       case 'castCopiesFree': return 2.4;
       case 'returnOwn': return 0.3;
       case 'destroyAll': case 'exileAll': return 2.8;
