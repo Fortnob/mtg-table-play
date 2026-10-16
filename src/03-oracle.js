@@ -1970,6 +1970,11 @@
     { re: /^That attacking player creates (an? .+? creature token(?: named [A-Z][A-Za-z' ,-]+?)?) that'?s attacking that (?:opponent|player)\.?$/i,
       make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.');
         return tok && tok.op === 'createToken' && tok.n === 1 ? Object.assign(tok, { who: 'triggerPlayer', attacking: true, attackingWho: 'attackedPlayer' }) : null; } },
+    /* Soaring Lightbringer: "Whenever you attack a player, create a 1/1 white Glimmer enchantment creature token that's
+       tapped and attacking that player." — the player the trigger's attack is at (attackingWho) */
+    { re: /^(create an? .+? creature token) that'?s tapped and attacking that player\.?$/i,
+      make: (m) => { const tok = parseTokenSentence('C' + m[1].slice(1) + '.');
+        return tok && tok.op === 'createToken' && tok.n === 1 ? Object.assign(tok, { tapped: true, attacking: true, attackingWho: 'attackedPlayer' }) : null; } },
     /* Three Dog, Galaxy News DJ: "you may pay {2} and sacrifice an Aura attached to Three Dog. When you sacrifice an Aura
        this way, for each other attacking creature you control, create a token that's a copy of that Aura attached to that
        creature." (paySacAttachedAura; a reflexive trigger, ifSacAura) */
@@ -5777,6 +5782,10 @@
       make: (m) => ({ op: 'counterUnless', cost: m[1], targets: [{ type: 'spell' }] }) },
     /* Repulsive Mutation: "Then counter up to one target spell unless its controller pays mana equal to the greatest
        power among creatures you control." — that much generic, counted as it resolves (costN) */
+    /* Spell Stutter: "Counter target spell unless its controller pays {2} plus an additional {1} for each Faerie you
+       control." — counted as it resolves (costN) */
+    { re: /^Counter target spell unless its controller pays \{(\d+)\} plus an additional \{1\} for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[2]); return c ? { op: 'counterUnless', costN: Object.assign({}, c, { plus: +m[1] }), targets: [{ type: 'spell' }] } : null; } },
     { re: /^(?:Then )?[Cc]ounter (up to one )?target spell unless its controller pays mana equal to (.+?)\.?$/,
       make: (m) => { const a = amountOf(m[2]); return a ? { op: 'counterUnless', costN: a, targets: [Object.assign({ type: 'spell' }, m[1] ? { upTo: true } : {})] } : null; } },
     { re: /^Counter target (creature|noncreature|instant or sorcery|artifact|enchantment) spell\.?$/i,
@@ -12001,6 +12010,14 @@
     { re: /^You may have CARDNAME become a legendary Equipment artifact named ([A-Z][^."]+?)\. If you do, it gains equip (\{[^}]+\}) and "([^"]+)" and loses all other abilities\.?$/i,
       make: (m) => [{ op: 'may', then: [{ op: 'becomes', duration: 'permanent', scope: 'self', eff: { setName: m[1], setTypes: ['Artifact'], addSupertypes: ['Legendary'],
         addSubtypes: ['Equipment'], loseAll: true, grantTexts: ['Equip ' + m[2], m[3].replace(/\.?$/, '.')] } }] }] },
+    /* The Tomb of Aclazotz: "You may cast a creature spell from your graveyard this turn. If you do, it enters with a
+       finality counter on it and is a Vampire in addition to its other types." (finality, addSubtypes) */
+    { re: /^You may cast a creature spell from your graveyard this turn\. If you do, it enters with a finality counter on it(?: and is an? ([A-Z][a-z]+) in addition to its other types)?\.?$/,
+      make: (m) => [Object.assign({ op: 'graveCreatureOnce', finality: true }, m[1] ? { addSubtypes: [m[1]] } : {})] },
+    /* Chaos Dragon: "each player rolls a d20. If one or more opponents had the highest result, this creature can't
+       attack those players or planeswalkers they control this combat." (rollOffNoAttack) */
+    { re: /^Each player rolls a d(4|6|8|10|12|20)\. If one or more opponents had the highest result, (?:CARDNAME|this creature) can'?t attack those players or planeswalkers they control this combat\.?$/i,
+      make: (m) => [{ op: 'rollOffNoAttack', sides: +m[1] }] },
     /* Mardu Siegebreaker: "for each opponent, create a tapped token that's a copy of the exiled card attacking that
        opponent. At the beginning of your next end step, sacrifice those tokens." — the card it holds in exile (exiledBy) */
     { re: /^For each opponent, create a tapped token that'?s a copy of the exiled card attacking that opponent\. At the beginning of your next end step, sacrifice those tokens\.?$/i,
@@ -13221,6 +13238,8 @@
       make: () => [{ op: 'exiledWithToHand', loseLife: true }] },
     // Toluz, Clever Conductor: "put the cards exiled with it into their owner's hand"
     { re: /^Put the cards exiled with (?:it|CARDNAME) into their owners?'?s?'? hands?\.?$/i, make: () => [{ op: 'exiledWithToHand' }] },
+    // Bag of Holding: "{4}, {T}, Sacrifice this artifact: Return all cards exiled with this artifact to their owner's hand."
+    { re: /^Return all cards exiled with (?:CARDNAME|this (?:artifact|creature|enchantment|permanent)) to their owners?'?s?'? hands?\.?$/i, make: () => [{ op: 'exiledWithToHand' }] },
     // Toluz, Clever Conductor: "Whenever you discard one or more cards, exile them from your graveyard." (exileBatchLinked)
     { re: /^Exile them from your graveyard\.?$/i, make: () => [{ op: 'exileBatchLinked' }] },
     // Gorex, the Tombshell: "choose a card at random exiled with Gorex and put that card into its owner's hand" (random)

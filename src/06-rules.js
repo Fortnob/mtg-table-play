@@ -189,10 +189,16 @@
          works that out, layer by layer (CR 613). */
       if (base && this.zone === 'battlefield' && this.game) return this.game._layeredAnalysis(this, base);
       // Blind Seer, Purelace: a spell on the stack made another colour (cached under _chr…, out of snapshots)
+      // (The Tomb of Aclazotz: a creature spell that is a Vampire in addition to its other types — addSubtypes)
       if (base && this.zone === 'stack' && this.effects && this.effects.length) {
         const ce = this.effects.filter(x => x && x.setColors).pop();
-        if (ce) {
-          if (this._chrStkBase !== base || this._chrStkEff !== ce) { this._chrStkBase = base; this._chrStkEff = ce; this._chrStkA = Object.assign({}, base, { colors: ce.setColors.slice() }); }
+        const st = [].concat(...this.effects.filter(x => x && x.addSubtypes).map(x => x.addSubtypes)).filter(t => !(base.subtypes || []).includes(t));
+        if (ce || st.length) {
+          const key = (ce ? ce.setColors.join(',') : '') + '|' + st.join(',');
+          if (this._chrStkBase !== base || this._chrStkEff !== key) {
+            this._chrStkBase = base; this._chrStkEff = key;
+            this._chrStkA = Object.assign({}, base, ce ? { colors: ce.setColors.slice() } : {}, st.length ? { subtypes: (base.subtypes || []).concat(st) } : {});
+          }
           return this._chrStkA;
         }
       }
@@ -6763,9 +6769,13 @@
         if (fc) out.push({ kind: 'cast', via: 'flashback', cost: fc.cost, after: 'exile', label: 'Flashback ' + fc.cost });
       }
       // Chainer: one creature spell from your graveyard this turn
-      if (o.zone === 'graveyard' && o.owner === playerId && a.isCreature && (this.player(playerId) || {}).graveCreatureTurn === this.turn &&
-          !out.some(u => u.via === 'graveCreature')) {
-        out.push({ kind: 'cast', via: 'graveCreature', cost: a.manaCost || '', after: null, label: 'Cast from your graveyard (Chainer)' });
+      // (The Tomb of Aclazotz: one with a finality counter and a type besides, a way of its own — graveCreatureRider)
+      if (o.zone === 'graveyard' && o.owner === playerId && a.isCreature) {
+        const grants = ((this.player(playerId) || {}).graveCreatureGrants || []).filter(gr => gr.turn === this.turn);
+        const plain = grants.find(gr => !gr.finality && !gr.addSubtypes), rider = grants.find(gr => gr.finality || gr.addSubtypes);
+        if (plain && !out.some(u => u.via === 'graveCreature')) out.push({ kind: 'cast', via: 'graveCreature', cost: a.manaCost || '', after: null, label: `Cast from your graveyard (${plain.by || 'Chainer'})` });
+        if (rider && !out.some(u => u.via === 'graveCreatureRider')) out.push({ kind: 'cast', via: 'graveCreatureRider', cost: a.manaCost || '', after: null,
+          label: `Cast from your graveyard (${rider.by}${rider.finality ? ': enters with a finality counter' : ''})` });
       }
       /* Tannuk, Steadfast Second: "Artifact cards and red creature cards in your hand have warp {2}{R}." — cast
          for that, exiled at the next end step and castable from exile later, as printed warp is (grantWarp) */
@@ -8563,8 +8573,6 @@
         if (via && via.via === 'surge') o._surged = true;
         // Prowl: "if its prowl cost was paid"
         if (via && via.via === 'prowl') o._prowled = true;
-        // Chainer: that was the one
-        if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
         // Maralen, Fae Ascendant: "Once each turn" — used up
         if (via && via.via === 'exiledWithFree') { const mx = this.obj(via.srcId); if (mx) mx._castExiledTurn = this.turn; }
         // Zaffai and the Tempests: "Once during each of your turns" — used up (freeHandOnce)
@@ -9092,6 +9100,17 @@
       o._enterPlusCounters = 0;
       o._enterAttachCast = null;
       o._enterHasteTurn = null;
+      o._castSubtypes = null;
+      // Chainer, The Tomb of Aclazotz: that leave used, and what it says of the creature (graveCreatureGrants)
+      if (via && (via.via === 'graveCreature' || via.via === 'graveCreatureRider')) {
+        const gl = p.graveCreatureGrants || [];
+        const gr = gl.find(x => x.turn === this.turn && (via.via === 'graveCreatureRider') === !!(x.finality || x.addSubtypes));
+        if (gr) {
+          p.graveCreatureGrants = gl.filter(x => x !== gr);
+          if (gr.finality) o._enterFinality = true;
+          if (gr.addSubtypes) o._castSubtypes = gr.addSubtypes.slice();
+        }
+      }
       // (Hauken's Insight: a card exiled with it, cast by its leave — not by a leave of the card's own)
       if ((o.zone === 'graveyard' || o.zone === 'library' || (o.zone === 'exile' && o.exiledWithId && !this._impulseOpen(o, playerId))) && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
@@ -9157,6 +9176,8 @@
       o.zone = 'stack';
       o.adventureBy = null;
       o.controller = playerId;
+      // The Tomb of Aclazotz: "is a Vampire in addition to its other types" — the spell is one as well (rulings)
+      if (o._castSubtypes) o.effects.push({ addSubtypes: o._castSubtypes.slice(), until: null });
       o.chosenX = opts.x || 0;
       // cast from the graveyard (flashback, escape): it has left the graveyard (Kishla Skimmer)
       if (fromZone === 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
@@ -10440,6 +10461,8 @@
       if (o._enterHasteTurn) { const ht = o._enterHasteTurn; o._enterHasteTurn = null; if (o.enteredFrom === 'stack' && ht === this.turn) o.effects.push({ keywords: ['Haste'], until: 'eot' }); }
       // Noctis, Prince of Lucis: "If you cast a spell this way, that artifact enters with a finality counter on it."
       if (o._enterFinality) { o._enterFinality = null; if (o.enteredFrom === 'stack') this.addCounters(o, 'finality', 1); }
+      // The Tomb of Aclazotz: "and is a Vampire in addition to its other types" — for as long as it stays (_castSubtypes)
+      if (o._castSubtypes) { const st = o._castSubtypes; o._castSubtypes = null; if (o.enteredFrom === 'stack') { o.effects.push({ addSubtypes: st, until: null }); o._chr = null; } }
       // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
       if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
@@ -30052,7 +30075,16 @@
           break;
         }
         // Chainer: a creature spell from your graveyard, once this turn
-        case 'graveCreatureOnce': me.graveCreatureTurn = this.turn; this.logEvent('rules', `${me.name} may cast a creature spell from their graveyard this turn.`); break;
+        /* Chainer, Nightmare Adept: "You may cast a creature spell from your graveyard this turn." — one leave for each
+           time (rulings), this turn's only; The Tomb of Aclazotz's carries "enters with a finality counter on it and is a
+           Vampire" (graveCreatureGrants) */
+        case 'graveCreatureOnce': {
+          me.graveCreatureGrants = (me.graveCreatureGrants || []).filter(gr => gr.turn === this.turn);
+          me.graveCreatureGrants.push(Object.assign({ turn: this.turn, by: src ? U.frontName(src.name) : '' },
+            e.finality ? { finality: true } : {}, (e.addSubtypes || []).length ? { addSubtypes: e.addSubtypes.slice() } : {}));
+          this.logEvent('rules', `${me.name} may cast a creature spell from their graveyard this turn${e.finality ? ' (it enters with a finality counter on it)' : ''}.`);
+          break;
+        }
         // Scroll Rack: cards from hand set aside, that many taken off the top, the set-aside cards on top
         case 'scrollRack': {
           const z = this.zones[ctx.controller];
@@ -38953,6 +38985,23 @@
           this._spliceNext(fill(e.chosen, chosen).concat(fill(e.other, other)));
           break;
         }
+        /* Chaos Dragon: "each player rolls a d20. If one or more opponents had the highest result, this creature can't
+           attack those players or planeswalkers they control this combat." — a tie at the top counts (_noAttackCombat) */
+        case 'rollOffNoAttack': {
+          const sides = n(e.sides) || 20, order = this._turnOrderFrom(ctx.controller);
+          const dice = { group: this._newRollGroup(), of: order.length };
+          const got = order.map(p => {
+            const amount = this._rollDie(p, sides, dice);
+            this._fire('youRoll', p.id, { amount, amounts: [amount], dieIndex: 0, playerId: p.id, rollTotal: amount });
+            return { id: p.id, amount };
+          });
+          const top = Math.max(...got.map(r => r.amount));
+          const ids = got.filter(r => r.amount === top && r.id !== ctx.controller).map(r => r.id);
+          if (!ids.length || !src || src.zone !== 'battlefield') break;
+          src._noAttackCombat = { turn: this.turn, combat: this.combatsThisTurn || 1, ids };
+          this.logEvent('rules', `${src.name} can't attack ${ids.map(id => this.player(id).name).join(' or ')} or their planeswalkers this combat.`);
+          break;
+        }
         // "Flip three coins", "Flip a coin until you lose a flip": the wins counted
         case 'flipCoins': {
           let wins = 0, flips = 0;
@@ -41126,6 +41175,11 @@
       const pwDef = walker ? this.obj(defenderId) : null;
       const onlyWalker = pwDef && atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id && r.walkerType && this._cardFitsWords(pwDef, r.walkerType));
       if (onlyWalker) return { src: pwDef, who: pwDef.name };
+      // Chaos Dragon: "can't attack those players or planeswalkers they control this combat" (_noAttackCombat)
+      const nac = o._noAttackCombat;
+      if (nac && nac.turn === this.turn && nac.combat === (this.combatsThisTurn || 1) && nac.ids.includes(def.id)) {
+        return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name + ', who rolled highest' };
+      }
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       // Weathered Sentinels: with defender, only the players it may attack anyway (defenderAttackVs)
