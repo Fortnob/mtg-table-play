@@ -76452,4 +76452,116 @@ module.exports = (test) => {
     g.moveObject(theirs, 'graveyard'); T.resolve();
     t.eq(muts(), 2, "an opponent's creature: nothing");
   });
+
+  test("Cards: Norn's Decree — a poison counter for the opponent whose creatures hit you; an attack at a poisoned player draws", (mk, t) => {
+    t.auto("Norn's Decree");
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    T.bf('A', "Norn's Decree");
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+    T.nextTurn('B');
+    const hand = g.zones.B.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'A' }, { attackerId: b2.id, defenderId: 'A' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 15, 'both hit A');
+    t.eq(g.player('B').poison || 0, 1, 'one poison counter for the lot');
+    t.eq(g.zones.B.hand.length, hand, 'A was not poisoned as B attacked: no card');
+    // C attacks B (poisoned now): C draws
+    const c1 = T.bf('C', 'Grizzly Bears');
+    T.nextTurn('C');
+    const handC = g.zones.C.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: c1.id, defenderId: 'B' }]);
+    T.toMain('C', 'endCombat');
+    t.eq(g.zones.C.hand.length, handC + 1, 'attacking a poisoned player: the attacker draws');
+    t.eq(g.player('C').poison || 0, 0, "damage to B, not to Decree's controller: no poison");
+  });
+
+  test('Cards: Search for Glory — a snow permanent, legendary or Saga card; 1 life for each {S} spent', (mk, t) => {
+    t.auto('Search for Glory');
+    const T = mk({ library: ['Plains'] });
+    const g = T.g;
+    const isamaru = T.top('A', 'Isamaru, Hound of Konda');
+    T.bf('A', 'Snow-Covered Plains'); T.bf('A', 'Snow-Covered Plains'); T.bf('A', 'Plains');
+    const life = T.life('A');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.id === isamaru.id).id] }));
+    T.cast('A', T.hand('A', 'Search for Glory'));
+    t.zone(isamaru, 'hand', 'the legendary card found');
+    t.eq(T.life('A'), life + 2, 'two snow lands tapped: 2 life');
+    // floating mana from no snow source: nothing
+    T.mana('A', 'W2');
+    const l2 = T.life('A');
+    T.cast('A', T.hand('A', 'Search for Glory'));
+    t.eq(T.life('A'), l2, 'no {S} spent: no life');
+  });
+
+  test('Cards: Thundering Raiju — a +1/+1 counter, then damage for each other modified creature you control', (mk, t) => {
+    t.auto('Thundering Raiju');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const raiju = T.bf('A', 'Thundering Raiju');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Hill Giant');
+    const eq = T.bf('A', 'Bonesplitter');
+    const giant2 = T.bf('A', 'Craw Wurm');
+    eq.attachedTo = giant2.id; giant2.attachments = [eq.id];
+    T.g.bumpBoard();
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === bear.id)] }));
+    T.answer('declareAttackers', () => [{ attackerId: raiju.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(bear.counters['+1/+1'], 1, 'the Bears got a counter');
+    t.eq(T.life('C'), 18, 'two modified creatures besides it (the Bears, the equipped Wurm): 2 to each opponent');
+    t.eq(T.life('B'), 18, 'B too');
+  });
+
+  test('Cards: Turnabout — tap the untapped or untap the tapped permanents of a type a player controls', (mk, t) => {
+    t.auto('Turnabout');
+    const T = mk();
+    const g = T.g;
+    const f1 = T.bf('B', 'Forest'), f2 = T.bf('B', 'Forest', { tapped: true }), bear = T.bf('B', 'Grizzly Bears');
+    T.answer('mode', { modes: [2] });            // land
+    T.answer('mode', { modes: [0] });            // tap
+    T.mana('A', 'UU2');
+    T.cast('A', T.hand('A', 'Turnabout'), { targets: ['B'] });
+    t.ok(f1.tapped && f2.tapped, "B's lands tapped");
+    t.no(bear.tapped, 'the creature not');
+    const l1 = T.bf('A', 'Island', { tapped: true }), l2 = T.bf('A', 'Island', { tapped: true }), my = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.answer('mode', { modes: [2] });
+    T.answer('mode', { modes: [1] });            // untap
+    T.mana('A', 'UU2');
+    T.cast('A', T.hand('A', 'Turnabout'), { targets: ['A'] });
+    t.no(l1.tapped || l2.tapped, 'your lands untapped');
+    t.ok(my.tapped, 'your creature still tapped');
+  });
+
+  test('Cards: Demonic Junker — one creature of each player destroyed; two counters if one was yours', (mk, t) => {
+    t.auto('Demonic Junker');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const mine = T.bf('A', 'Grizzly Bears'), hers = T.bf('B', 'Hill Giant'), his = T.bf('C', 'Craw Wurm');
+    T.answer('choose', (ch) => ({ picks: [ch.items[0].id] })).answer('choose', (ch) => ({ picks: [ch.items[0].id] })).answer('choose', { picks: [] });
+    const junk = T.bf('A', 'Demonic Junker', { etb: true });
+    T.resolve();
+    t.zone(mine, 'graveyard', 'your Bears');
+    t.zone(hers, 'graveyard', "B's Giant");
+    t.zone(his, 'battlefield', "none of C's");
+    t.eq(junk.counters['+1/+1'], 2, 'yours went: two counters');
+    const U = mk();
+    const m2 = U.bf('A', 'Grizzly Bears'), o2 = U.bf('B', 'Hill Giant');
+    U.answer('choose', { picks: [] }).answer('choose', (ch) => ({ picks: [ch.items[0].id] }));
+    const j2 = U.bf('A', 'Demonic Junker', { etb: true });
+    U.resolve();
+    t.zone(m2, 'battlefield', 'yours kept');
+    t.zone(o2, 'graveyard', "the opponent's destroyed");
+    t.eq(j2.counters['+1/+1'] || 0, 0, 'none of yours: no counters');
+  });
+
+  test('Cards: Tundra Fumarole — {C} for each {S} spent to cast it (snow mana told apart in the pool)', (mk, t) => {
+    t.auto('Tundra Fumarole');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Snow-Covered Mountain'); T.bf('A', 'Snow-Covered Mountain'); T.bf('A', 'Mountain');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.cast('A', T.hand('A', 'Tundra Fumarole'), { targets: [bear] });
+    t.zone(bear, 'graveyard', '4 damage');
+    t.eq(g.player('A').pool.C, 2, 'two snow lands paid: {C}{C}');
+  });
 };

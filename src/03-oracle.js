@@ -1976,6 +1976,8 @@
     { re: /^You may pay ((?:\{[^}]+\})+) and sacrifice an Aura attached to (?:CARDNAME|this creature)\.?$/i, make: (m) => ({ op: 'paySacAttachedAura', mana: m[1] }) },
     { re: /^When you sacrifice an Aura this way, for each other attacking creature you control, create a token that'?s a copy of that Aura attached to that creature\.?$/i,
       make: (m) => ({ op: 'reflexive', ifSacAura: true, text: m[0], effects: [{ op: 'copyAuraOntoAttackers' }] }) },
+    // Norn's Decree: "the attacking player draws a card" — the player the trigger is about
+    { re: /^The attacking player draws (a|one|two|three) cards?\.?$/i, make: (m) => ({ op: 'draw', who: 'triggerPlayer', n: num(m[1]) }) },
     // Breena, the Demagogue: "that attacking player draws a card and you put two +1/+1 counters on a creature you control" (attackerDrawsAndYou)
     { re: /^That attacking player draws a card and you (put .+ counters? on a creature you control)\.?$/i,
       make: (m) => { const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
@@ -5048,7 +5050,8 @@
     { re: /^(?:It|CARDNAME|This creature) deals damage to defending player equal to the number of ([a-z]+)s they control\.?$/i,
       make: (m) => ({ op: 'damage', n: { defendersCount: m[1].toLowerCase() }, toDefenderOf: 'self' }) },
     // Fynn, the Fangbearer: "that player gets two poison counters"
-    { re: /^(?:That player|They) gets? (a|one|two|three|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'triggerPlayer' }) },
+    // (Norn's Decree: "that opponent gets a poison counter")
+    { re: /^(?:That player|That opponent|They) gets? (a|one|two|three|\d+) poison counters?\.?$/i, make: (m) => ({ op: 'poison', n: num(m[1]), who: 'triggerPlayer' }) },
     // Angelic Destiny: "return this card to its owner's hand" from the graveyard it went to
     { re: /^Return (?:this card|CARDNAME) to its owner'?s hand\.?$/i, make: () => ({ op: 'selfFromGraveyard', to: 'hand' }) },
     // The Goose Mother: "create half X Food tokens, rounded up"
@@ -5753,6 +5756,10 @@
     // Tevesh Szat: "draw two cards, then draw another card if the sacrificed permanent was a commander"
     { re: /^Draw (a card|two cards|three cards), then draw another card if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[2]); return c ? [{ op: 'draw', n: num(m[1].split(' ')[0]) || 1, who: 'you' }, { op: 'ifCond', cond: c, then: [{ op: 'draw', n: 1, who: 'you' }] }] : null; } },
+    /* Turnabout: "Tap all untapped permanents of the chosen type target player controls, or untap all tapped permanents of
+       that type that player controls." — which of the two, chosen as it resolves (tapOrUntapChosenType) */
+    { re: /^Tap all untapped permanents of the chosen type target player controls, or untap all tapped permanents of that type that player controls\.?$/i,
+      make: () => ({ op: 'tapOrUntapChosenType', targets: [{ type: 'player' }] }) },
     // Rustler Rampage: "Untap all creatures target player controls."
     { re: /^Untap all creatures target player controls\.?$/i,
       make: () => ({ op: 'untapAll', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
@@ -8004,7 +8011,10 @@
     // Malevolent Rumble: "You may put a permanent card from among them into your hand."
     { re: /^You may put an? ([-a-z ]*?)card from among them into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'keep' }) },
-    // Beseech the Queen: "Search your library for a card with mana value less than or equal to the number of lands you control, reveal it, put it into your hand, then shuffle."
+    // Search for Glory: "Search your library for a snow permanent card, a legendary card, or a Saga card, reveal it, put it into your hand, then shuffle."
+    { re: /^Search your library for an? ([a-z]+(?: [a-z]+)?) card, an? ([a-z]+(?: [a-z]+)?) card, or an? ([A-Za-z]+(?: [a-z]+)?) card, reveal it, put it into your hand, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: [m[1], m[2], m[3]].join(' or '), to: 'hand', reveal: true,
+        prompt: `Search your library for ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1]} card, ${/^[aeiou]/i.test(m[2]) ? 'an' : 'a'} ${m[2]} card, or ${/^[aeiou]/i.test(m[3]) ? 'an' : 'a'} ${m[3]} card.` }) },
     { re: /^Search your library for a card with mana value less than or equal to ([a-z ]+?), reveal it, put it into your hand, then shuffle\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'tutor', n: 1, filter: 'any', maxMv: k, to: 'hand' } : null; } },
     // Coronation of Chaos: "Up to three target creatures can't block this turn."
@@ -10240,7 +10250,8 @@
     /* "Draw a card for each creature you control with a +1/+1 counter on it." */
     { re: /^(?:You )?[Dd]raw a card for each ([-a-zA-Z0-9+/ ]+?)\.?$/,
       make: (m) => { const c = countOf(m[1]); return c ? { op: 'draw', who: 'you', n: c } : null; } },
-    { re: /^You gain (one|two|three|four|five|\d+) life for each ([-a-zA-Z0-9+/ ]+?)\.?$/i,
+    // (Search for Glory: "You gain 1 life for each {S} spent to cast this spell." — snowSpent)
+    { re: /^You gain (one|two|three|four|five|\d+) life for each ([-a-zA-Z0-9+/ ]+?|\{S\} spent to cast this spell)\.?$/i,
       make: (m) => { const c = countOf(m[2], num(m[1])); return c ? { op: 'gainLife', who: 'you', n: c } : null; } },
     { re: /^Each opponent loses (one|two|three|four|five|\d+) life for each ([-a-zA-Z0-9+/ ]+?)\.?$/i,
       make: (m) => { const c = countOf(m[2], num(m[1])); return c ? { op: 'loseLife', who: 'opponents', n: c } : null; } },
@@ -10655,6 +10666,8 @@
     if ((m = p.match(/^colou?rs? of mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { colorsSpent: true, of: spentOf(m[1]), mult: k };
     // Verazol: "for each mana spent to cast it"
     if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
+    // Search for Glory, Tundra Fumarole: "for each {S} spent to cast this spell" — mana from snow sources (snowSpent)
+    if ((m = p.match(/^\{S\} spent to cast (this spell|CARDNAME)$/i))) return { snowSpent: true, of: spentOf(m[1]), mult: k };
     // Squad Commander, Malakir Blood-Priest: "for each creature in your party", "the number of creatures in your party"
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Murmuration: "for each spell you've cast this turn"
@@ -11031,6 +11044,8 @@
     // "the amount of mana spent to cast this spell / that spell / it / her"
     if ((m = p.match(/^the amount of mana spent to cast (this spell|that spell|it|her|him|CARDNAME|this creature)$/i)))
       return done({ manaSpent: true, of: spentOf(m[1]), mult: 1 });
+    // Graven Lore, Blessing of Frost: "the amount of {S} spent to cast this spell" (snowSpent)
+    if ((m = p.match(/^the amount of \{S\} spent to cast (this spell|CARDNAME)$/i))) return done({ snowSpent: true, of: spentOf(m[1]), mult: 1 });
     if (/^the number of cards in your graveyard$/i.test(p)) return done({ cardsInGraveyard: 'you', mult: 1 });
     // Formless Genesis: "the number of land cards in your graveyard"
     if ((m = p.match(/^the number of ([a-z]+) cards in your graveyard$/i))) return done({ cardsInGraveyard: true, filter: m[1].toLowerCase(), mult: 1 });
@@ -17019,6 +17034,10 @@
     [/^your life total is less than or equal to half your starting life total$/i, () => ({ kind: 'lifeAtMostHalfStart' })],
     // Nalia de'Arnise, Linvala, Shield of Sea Gate: a Cleric, a Rogue, a Warrior and a Wizard
     [/^you have a full party$/i, () => ({ kind: 'fullParty' })],
+    // Demonic Junker: "if a creature you controlled was destroyed this way" (destroyedYoursThisWay)
+    [/^a (creature|permanent) you controlled was destroyed this way$/i, (m) => ({ kind: 'destroyedYoursThisWay', creature: /creature/i.test(m[1]) })],
+    // Norn's Decree: "if one or more players being attacked are poisoned" (attackedPoisoned)
+    [/^one or more players being attacked are poisoned$/i, () => ({ kind: 'attackedPoisoned' })],
     // Torch the Witness, Bottle-Cap Blast: "if excess damage was dealt (to a creature) this way"
     [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
     // Lost Monarch of Ifnir: "if a player was dealt combat damage by a Zombie this turn" (playerHitByType)
@@ -18333,6 +18352,10 @@
     // Tamiyo, Upriser Crowned: "… deal combat damage to you while you're the monarch," — as the damage is dealt (whileCond)
     { re: /^Whenever one or more creatures deal combat damage to you while you'?re the monarch,/i, event: 'youDealtDamage', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true, whileCond: { kind: 'monarch' } } },
+    /* Norn's Decree: "Whenever one or more creatures an opponent controls deal combat damage to you" — once for each
+       opponent whose creatures did (batchPerController) */
+    { re: /^Whenever one or more creatures an opponent controls deal combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
+      filt: () => ({ words: 'creature', who: 'opponent' }), extra: { combatOnly: true, batch: true, batchPerController: true } },
     // Witch-king of Angmar: "Whenever one or more creatures deal combat damage to you" — once for the lot
     { re: /^Whenever one or more creatures deal combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true } },
@@ -22179,6 +22202,8 @@
     let rest = raw.replace(/^all /i, '').replace(/^each (other )?((?:(?:white|blue|black|red|green|nonland|noncreature|nonartifact|nontoken|tapped|untapped) )*)(creature|artifact|land|permanent|enchantment)\b/i, (x, o, a, n) => (o || '') + (a || '') + n + 's');
     // Oran-Rief: "that entered this turn"; Desynchronization: "that's not historic"
     let mm0;
+    // Thundering Raiju: "modified creatures you control other than this creature" (other)
+    if ((mm0 = rest.match(/ you control other than (?:this creature|CARDNAME)$/i))) { sc.other = true; rest = rest.slice(0, mm0.index) + ' you control'; }
     if ((mm0 = rest.match(/ that entered (?:the battlefield )?this turn$/i))) { sc.enteredThisTurn = true; rest = rest.slice(0, mm0.index); }
     if ((mm0 = rest.match(/ that(?:'s| is| are)(?: not|n'?t) historic$/i))) { sc.notHistoric = true; rest = rest.slice(0, mm0.index); }
     /* Finneas, Ace Archer: "each other creature you control that's a token or a Rabbit"; Vault 12: "that's

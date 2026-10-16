@@ -1119,7 +1119,7 @@
       /* What happened last turn, for the cards that ask (the werewolves). */
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
-      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; p.descendedThisTurn = 0; p.lifeAtTurnStart = p.life; }
+      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.snowMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; p.descendedThisTurn = 0; p.lifeAtTurnStart = p.life; }
       // what was answered for the rest of last turn is asked again (_rememberAnswer)
       this._pruneAutoAnswers();
       for (const o of this.battlefield) o._afflicted = false;
@@ -1169,7 +1169,7 @@
           this.changeLife(p, -burnt, 'mana burn');
         }
         p.pool.clear();
-        p.creatureMana = null; p.treasureMana = null; p.artifactMana = null;
+        p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.snowMana = null;
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
         if (carry) p.pool[becomes.color] = (Number(p.pool[becomes.color]) || 0) + carry;
         // (Klauth, Unrivaled Ancient: what was set aside to be kept until end of turn — keepMana)
@@ -5779,10 +5779,12 @@
          (manaFromCreatures); Kalain, Reclusive Painter: "for each mana from a Treasure spent to cast them" the
          same way (manaFromTreasure) */
       // (Shadow the Hedgehog: "if mana from an artifact was spent to cast it" — what artifacts made goes first, manaFromArtifact)
-      for (const [tag, acc] of [['creatureMana', 'creature'], ['treasureMana', 'treasure'], ['artifactMana', 'artifact']]) {
+      /* (Search for Glory: "for each {S} spent to cast this spell" — mana from a snow source goes first on a spell that
+         counts it or costs {S}, last on anything else: snowSpent) */
+      for (const [tag, acc] of [['creatureMana', 'creature'], ['treasureMana', 'treasure'], ['artifactMana', 'artifact'], ['snowMana', 'snow']]) {
         if (!(plan && p && p[tag])) continue;
         const lentBy = this._lentNow && this._lentNow.pid === p.id ? this._lentNow.by : {};
-        const forCreature = !!(this._payingFor && (this._payingFor.analysis() || {}).isCreature);
+        const forCreature = acc === 'snow' ? this._snowWanted(this._payingFor) : !!(this._payingFor && (this._payingFor.analysis() || {}).isCreature);
         let fromC = 0;
         for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) {
           const k = Number(plan[c]) || 0;
@@ -5806,6 +5808,13 @@
         }
       }
       return this._noteSpent(plan);
+    }
+    /** Search for Glory: a spell whose words count the {S} spent on it, or that costs {S} — snow mana goes there first. */
+    _snowWanted(o) {
+      if (!o || !o.card) return false;
+      const c = o.card;
+      const words = [c.mana_cost, c.oracle_text].concat((c.card_faces || []).map(f => (f.mana_cost || '') + ' ' + (f.oracle_text || ''))).join(' ');
+      return /\{S\}/.test(words);
     }
     /** How much life this player can pay right now: none while their life total can't change (CR 119.8). */
     _lifePayable(p) {
@@ -8953,6 +8962,8 @@
         if (o.manaFromTreasure) o._treasureCast = this.turn;
         // Shadow the Hedgehog: and how much artifacts made (manaFromArtifact)
         o.manaFromArtifact = this._spentAcc.artifact || 0;
+        // Search for Glory: and how much came from snow sources (snowSpent)
+        o.snowSpent = this._spentAcc.snow || 0;
         o._phyLife = this._spentAcc.life || 0;
         // Devour: what it will eat
         o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
@@ -13271,8 +13282,10 @@
       const fromTreasure = !!o && this._hasSubtype(o, 'Treasure');
       // Shadow the Hedgehog: "mana from an artifact" (manaFromArtifact)
       const fromArtifact = fromTreasure || (!!o && this._matchesCategory(o, 'artifact'));
+      // Search for Glory: "{S} is mana from a snow source" — told apart in the pool the same way (snowSpent)
+      const fromSnow = !!o && (((this.characteristics(o) || {}).supertypes || (o.analysis() || {}).supertypes) || []).includes('Snow');
       const tagPool = () => {
-        for (const [yes, tag] of [[fromCreature, 'creatureMana'], [fromTreasure, 'treasureMana'], [fromArtifact, 'artifactMana']]) {
+        for (const [yes, tag] of [[fromCreature, 'creatureMana'], [fromTreasure, 'treasureMana'], [fromArtifact, 'artifactMana'], [fromSnow, 'snowMana']]) {
           if (!yes) continue;
           const cm = p[tag] || (p[tag] = {});
           for (const c of Object.keys(own)) if (own[c] > 0) cm[c] = (cm[c] || 0) + own[c];
@@ -17074,6 +17087,11 @@
         // Tenza, Godo's Maul: "as long as it's legendary", "as long as it's red" — the creature it's attached to
         case 'attachedFits': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._cardFitsWords(host, cond.words); }
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
+        // Norn's Decree: "one or more players being attacked are poisoned" — a player, not a planeswalker, attacked now
+        // Demonic Junker: "If a creature you controlled was destroyed this way" (destroyedYoursThisWay)
+        case 'destroyedYoursThisWay': return !!me && ((this.resolving || {})._destroyed || []).some(d => d.controller === me.id && (!cond.creature || d.creature));
+        case 'attackedPoisoned': return ((this.combat && this.combat.attackers) || []).some(id => {
+          const x = this.obj(id); const pl = x && x.attacking && this.player(x.attacking); return !!pl && (Number(pl.poison) || 0) > 0; });
         // Brass Knuckles: the creature it's on wears two Equipment or more
         case 'hostEquipmentAtLeast': {
           // (Balan, Wandering Knight: "CARDNAME has double strike as long as two or more Equipment are attached to it" — itself: selfEquipmentCount)
@@ -20218,6 +20236,8 @@
             (!ab.batchPerPlayer || (t.triggerData || {}).player === tData.player) &&
             // The Red Terror: "a red source … deals damage to one or more permanents and/or players" — a lot for each source (batchPerSource)
             (!ab.batchPerSource || (t.triggerData || {}).objectId === tData.objectId) &&
+            // Norn's Decree: "one or more creatures an opponent controls deal combat damage to you" — a lot for each opponent (batchPerController)
+            (!ab.batchPerController || (t.triggerData || {}).objController === tData.objController) &&
             // (Lo and Li: each opponent's mill a lot of its own, apart from the discards)
             (!ab.batchOnlyOn || ((t.triggerData || {}).event === event && (t.triggerData || {}).playerId === tData.playerId)));
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
@@ -22698,6 +22718,8 @@
         if (v && typeof v === 'object' && v.sweptNontoken) return (this._lastSwept || []).map(id => this.obj(id)).filter(x => x && !x.isToken && x.zone !== 'battlefield').length * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).colorsSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
+        // Search for Glory, Graven Lore: "the amount of {S} spent to cast this spell" (snowSpent)
+        if (v && typeof v === 'object' && v.snowSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).snowSpent || 0) * (v.mult || 1);
         // (Asmira, Holy Avenger; Tobias, Doomed Conqueror: owned, nontoken and yours)
         if (v && typeof v === 'object' && v.diedThisTurn && (v.owned || v.yours)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * (v.mult || 1);
@@ -24005,6 +24027,8 @@
             break;
           }
           this._noteLastAffected(targets);
+          // Demonic Junker: "If a creature you controlled was destroyed this way" — what left, and whose it was (destroyedThisWay)
+          if (this.resolving) this.resolving._destroyed = [];
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
@@ -24017,7 +24041,9 @@
             if (this._totemArmor(o)) continue;
             // "It can't be regenerated."
             if (this._regenerated(o, e.noRegen)) continue;
+            const wasCtl = o.controller, wasCreature = !!(this.characteristics(o) || {}).isCreature;
             this.moveObject(o, 'graveyard');
+            if (o.zone !== 'battlefield' && this.resolving) this.resolving._destroyed.push({ id: o.id, controller: wasCtl, creature: wasCreature });
           }
           break;
         case 'exile':
@@ -30671,6 +30697,30 @@
         // (a limit on X, settled as the spell was cast)
         case 'xCap': break;
         // Season of Gathering: "Choose artifact or enchantment." — kept on the spell for the sentence after
+        /* Turnabout: the permanents of the type just chosen (chooseCardTypeNow) the target player controls — the untapped
+           ones tapped, or the tapped ones untapped, as you choose now */
+        case 'tapOrUntapChosenType': {
+          const tp = firstPlayer();
+          const type = src && src.chosenCardType;
+          if (!tp || !type) break;
+          const of = (tapped) => this.battlefield.filter(x => x.controller === tp.id && !x.phasedOut && !!x.tapped === tapped && this._matchesCategory(x, type.toLowerCase()));
+          const word = type.toLowerCase() + 's';
+          let untap = false;
+          if (me.isBot) untap = tp.id === me.id;
+          else {
+            const got = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'tapOrUntap',
+              options: [{ i: 0, label: `Tap all untapped ${word} ${tp.id === me.id ? 'you control' : tp.name + ' controls'}` },
+                { i: 1, label: `Untap all tapped ${word} ${tp.id === me.id ? 'you control' : tp.name + ' controls'}` }],
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}tap or untap?` }, 'tou');
+            if (got === SUSPEND) return SUSPEND;
+            untap = (Array.isArray(got) ? got[0] : got) === 1;
+          }
+          const list = of(untap);
+          for (const x of list) { if (untap) this._markUntapped(x); else this._markTapped(x); }
+          this.logEvent('rules', `${me.name} ${untap ? 'untaps' : 'taps'} all ${untap ? 'tapped' : 'untapped'} ${word} ${tp.name} controls (${list.length}).`);
+          this.emit('sfx', untap ? 'untap_all' : 'tap');
+          break;
+        }
         case 'chooseCardTypeNow': {
           const types = e.types || [];
           if (!src || !types.length) break;
