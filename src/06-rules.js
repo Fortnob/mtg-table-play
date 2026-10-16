@@ -6856,6 +6856,13 @@
         }
         return null;
       };
+      // Deeproot Historian grants retrace to matching nonland cards in your graveyard.
+      if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand &&
+          !out.some(u => u.via === 'retrace') &&
+          fbGrant('grantRetrace', e => !e.words || this._cardFitsWords(o, e.words))) {
+        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
+      }
+
       /* Henzie "Toolbox" Torre: "Each creature spell you cast with mana value 4 or greater has blitz. The blitz cost is
          equal to its mana cost." — offered when the card has no blitz of its own (grantBlitz) */
       if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'blitz')) {
@@ -6921,12 +6928,6 @@
           if (!gw || !(gw.words || []).some(w => this._cardFitsWords(o, w))) continue;
           if (!out.some(u => u.via === 'warp' && u.cost === gw.cost)) out.push({ kind: 'cast', via: 'warp', cost: gw.cost, label: 'Warp ' + gw.cost });
         }
-      }
-      // Deeproot Historian grants retrace to matching nonland cards in your graveyard.
-      if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand &&
-          !out.some(u => u.via === 'retrace') &&
-          fbGrant('grantRetrace', e => !e.words || this._cardFitsWords(o, e.words))) {
-        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
       // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
