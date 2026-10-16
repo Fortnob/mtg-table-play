@@ -3730,12 +3730,50 @@
         mp.plan ? { aimedBy: mp.plan.units.map(u => bare(u.at[0].eff)) } : {}));
       return true;
     }
+    /** The places left out among a cast's or an activation's targets (skipped), as a list of numbers. */
+    _skipList(skipped) {
+      return Array.isArray(skipped) ? [...new Set(skipped.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < 64))].sort((x, y) => x - y) : [];
+    }
+    /**
+     * Targets an "up to" place was left out of (CR 601.2c: "up to one" is any number from none), with a target it
+     * must have after it — Press into Service: "Support 2. Gain control of target creature", one creature supported:
+     * `skipped` says which places among all of them were left out, and the targets are the rest, in order. The specs
+     * of the places that have a target, fitted to how many places there are; a string when a place left out is one it
+     * must have.
+     */
+    _keptSpecs(specs, targets, skipped) {
+      const sk = this._skipList(skipped);
+      if (!sk.length) return specs;
+      const fitted = fitSpecs(specs || [], (targets || []).length + sk.length);
+      if (sk.some(i => !fitted[i] || !(fitted[i].upTo || fitted[i].multi))) return 'A target it must have was left out.';
+      return fitted.filter((_, i) => !sk.includes(i));
+    }
+    /** A spell or ability with up-to targets left out: each target it has marked on its own sentence (_tslot), and what
+        each was chosen as (targetSpecs) — as a modal spell's are — so the places left out take nothing from the rest. */
+    _keepSkips(item, skipped) {
+      const tg = item.targets || [];
+      const skip = new Set(this._skipList(skipped));
+      item.effects = JSON.parse(JSON.stringify(item.effects || []));
+      let slots = targetSlots(item.effects, this._selOf(item));
+      // ("X target …", "up to two target …": as many places as it was given)
+      const mi = slots.findIndex(x => x.spec && x.spec.multi);
+      if (mi >= 0) slots = slots.slice(0, mi).concat(Array.from({ length: Math.max(0, tg.length + skip.size - (slots.length - 1)) }, () => slots[mi]), slots.slice(mi + 1));
+      for (const x of slots) x.eff._tslot = [];
+      const specs = [];
+      let k = 0;
+      slots.forEach((x, i) => {
+        if (skip.has(i)) return;
+        if (k < tg.length) { x.eff._tslot.push(k); specs.push(x.spec); }
+        k++;
+      });
+      item.targetSpecs = specs;
+    }
     /**
      * A modal spell put on the stack keeps what was chosen (CR 601.2b–c): its chosen modes (indexes, chosenModes) and
      * their words (modes), and each sentence's own targets marked on it (_tslot; targetSpecs), checked again as it
      * resolves (CR 608.2b) — a mode whose targets are all gone does nothing, the rest of the spell still happens.
      */
-    _keepModes(item, md, applied) {
+    _keepModes(item, md, applied, skipped) {
       const modes = md.offer.modal.modes || [];
       item.chosenModes = md.picks.slice();
       item.modes = md.picks.map(i => String((modes[i] && (modes[i].label || modes[i].text)) || ('Mode ' + (i + 1))).replace(/CARDNAME/g, item.name));
@@ -3744,8 +3782,11 @@
         const tg = item.targets || [];
         const aimed = [...new Set(mp.plan.units.flatMap(u => u.at.map(x => x.eff)))];
         for (const f of aimed) f._tslot = [];
-        mp.plan.units.forEach((u, k) => { if (k < tg.length) for (const x of u.at) x.eff._tslot.push(k); });
-        item.targetSpecs = mp.specs.slice(0, tg.length);
+        // (an up-to target left out has no place among the targets: skipped)
+        const skip = new Set(this._skipList(skipped));
+        const at = (k) => k - [...skip].filter(i => i < k).length;
+        mp.plan.units.forEach((u, k) => { if (!skip.has(k) && at(k) < tg.length) for (const x of u.at) x.eff._tslot.push(at(k)); });
+        item.targetSpecs = mp.specs.filter((_, k) => !skip.has(k)).slice(0, tg.length);
         // "When you do, …": a reflexive trigger's targets, chosen as it triggers
         for (const f of mp.plan.late) f.askTargets = true;
       }
@@ -8107,7 +8148,9 @@
           this._specX = opts.x || 0;
           // (Emrakul, the World Anew: what is being cast is a spell, wherever its card still is)
           this._castingSpell = o.id;
-          const bad = this._illegalTargets(specs, opts.targets, playerId, o);
+          // (an up-to target left out, a required one after it: Press into Service — skipped)
+          const kept = this._keptSpecs(specs, opts.targets, opts.skipped);
+          const bad = typeof kept === 'string' ? kept : this._illegalTargets(kept, opts.targets, playerId, o);
           this._specX = null;
           this._castingSpell = null;
           if (bad) return this.fail(bad);
@@ -8122,7 +8165,10 @@
       /* Jilt, Mind Spiral, Return to Dust: with the kick, the gift and the phase settled, the targets
          inside those "if"s are checked as well, and any beyond what the spell now asks for dropped */
       if (!md && a && !a.isPermanent && !opts.fuse && !/overload|cleave/.test(String(opts.via || '')) && hasBranchSlots(this._cardSpellEffects(a))) {
-        const specs = spellTargetSpecs(a, this._castSel(playerId, o, a, opts));
+        const specs0 = spellTargetSpecs(a, this._castSel(playerId, o, a, opts));
+        const kept = this._keptSpecs(specs0, opts.targets, opts.skipped);
+        if (typeof kept === 'string') return this.fail(kept);
+        const specs = kept;
         if ((opts.targets || []).length > specs.length) opts.targets = opts.targets.slice(0, specs.length);
         this._castingSpell = o.id;
         const bad = this._illegalTargets(specs, opts.targets, playerId, o);
@@ -8789,7 +8835,9 @@
         item.name = o.card.name;
       }
       // the modes chosen, and each one's targets, kept on it for everyone to see (CR 601.2b–c)
-      if (md && modeWords && item.effects) this._keepModes(item, md, modeWords);
+      if (md && modeWords && item.effects) this._keepModes(item, md, modeWords, opts.skipped);
+      // up-to targets left out: the rest each with its own sentence (_keepSkips)
+      else if (item.effects && this._skipList(opts.skipped).length) this._keepSkips(item, opts.skipped);
       this.stack.push(item);
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
       // Cavern of Souls: "that spell can't be countered"
@@ -10603,7 +10651,9 @@
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
         this._specX = opts.x || 0;
-        const bad = this._illegalTargets(effectSpecs(ab.effects).filter((_, i) => i !== otherAt), opts.targets, playerId, o);
+        // (an up-to target left out, a required one after it — skipped)
+        const kept = this._keptSpecs(effectSpecs(ab.effects).filter((_, i) => i !== otherAt), opts.targets, opts.skipped);
+        const bad = typeof kept === 'string' ? kept : this._illegalTargets(kept, opts.targets, playerId, o);
         this._specX = null;
         if (bad) return this.fail(bad);
         /* Mishra's Helix: "{X}, {T}: Tap X target lands" — as many targets as X */
@@ -10751,6 +10801,8 @@
       if (costExiled && costExiled.length) item.costExiled = costExiled;
       // Toralf's Hammer: the Equipment that handed this ability out (unattachGranter, bounceGranter)
       if (ab.grantedBy) item.grantedBy = ab.grantedBy;
+      // up-to targets left out: the rest each with its own sentence (_keepSkips)
+      if (otherAt < 0 && this._skipList(opts.skipped).length) this._keepSkips(item, opts.skipped);
       this.stack.push(item);
       this._payThingCosts(playerId, ab.cost, o, opts, item);
       // Professor Hojo: "The first activated ability you activate during your turn that targets a creature you control" — that one is gone now
@@ -41325,7 +41377,9 @@
           if (ch.purpose === 'castTargets') {
             const tg = ((data && data.targets) || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).filter(Boolean);
             this.pendingChoice = null;
-            if (!this.castSpell(playerId, ch.objId, Object.assign({}, ch.castOpts, { targets: tg }))) this.logEvent('rules', `${(this.player(playerId) || {}).name} can't cast ${(this.obj(ch.objId) || {}).name || 'that'}: ${this.lastError || 'those targets will not do'}.`);
+            // (an "up to" left out before a target it must have: its place — skipped)
+            const sk = this._skipList(data && data.skipped);
+            if (!this.castSpell(playerId, ch.objId, Object.assign({}, ch.castOpts, { targets: tg }, sk.length ? { skipped: sk } : {}))) this.logEvent('rules', `${(this.player(playerId) || {}).name} can't cast ${(this.obj(ch.objId) || {}).name || 'that'}: ${this.lastError || 'those targets will not do'}.`);
             if (!this.pendingChoice) this._nextChoice();
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;

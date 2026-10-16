@@ -614,6 +614,8 @@ declare namespace MTG {
     top?: Id[];
     bottom?: Id[];
     targets?: Target[];
+    /** a modal spell's targets asked as it is cast (castTargets): the places among them an "up to" left out */
+    skipped?: number[];
     /** this answer goes for the rest of the turn ('turn') or of the batch ('batch'), as the question's `auto` offered */
     remember?: 'turn' | 'batch';
   }
@@ -648,6 +650,9 @@ declare namespace MTG {
       /** a modal spell's modes, chosen as it is cast (indexes into its modes, in any order; a mode it may choose again,
           again): left out, the engine takes the only choice there is or asks, then asks the targets of those modes */
       modes?: number[];
+      /** the places among its targets that an "up to" left out, before a target it must have (Press into Service:
+          one creature supported, then the creature it takes); the targets are the rest, in order */
+      skipped?: number[];
       /** what pays for convoke, improvise and delve (left out, the engine picks the cheapest) */
       convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
       /** Torgaar, Dargo: the permanents sacrificed for a cheaper spell (Gorex, the Tombshell: the graveyard cards exiled; an empty list: none); left out, the engine picks */
@@ -665,7 +670,7 @@ declare namespace MTG {
       /** paid only from the mana in the pool, no lands tapped for it (tapping lands by hand) */
       fromPool?: boolean;
     }
-    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; fromPool?: boolean; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string; counterSpreadIds?: Id[] }
+    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; skipped?: number[]; fromPool?: boolean; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string; counterSpreadIds?: Id[] }
     | { kind: 'mana'; objId: Id; index?: number; choice?: string | null; split?: string[] }
     | { kind: 'declareAttackers'; declarations: AttackDeclaration[] }
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }

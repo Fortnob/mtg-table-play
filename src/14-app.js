@@ -353,6 +353,8 @@
   App.editProfile = () => App.chooseAvatar(() => { if (App.screen === 'lobby' && App.session) renderLobby(); });
 
   const idList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 60) : undefined);
+  // the places among a spell's or an ability's targets that an "up to" left out (skipped): small whole numbers
+  const skipList = (v) => (Array.isArray(v) ? v.filter(i => Number.isInteger(i) && i >= 0 && i < 64).slice(0, 64) : undefined);
   /* An answer to a question, from the table or a guest: a card name typed in ("choose a card name") is a
      string of a sensible length, made tidy, or left out (MTG.choice.cleanName); the engine checks the rest. */
   const choiceData = (d) => {
@@ -4935,6 +4937,8 @@
         /* Paid with the lands the game taps, or (fromPool) only with the mana
            the player has tapped for already: tapping lands by hand. */
         case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: !payByHand(intent),
+          // up-to targets left out, a target it must have after them (their places among all its targets)
+          skipped: skipList(intent.skipped),
           fromPool: payByHand(intent), free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           // which of an "and/or" kicker's costs were paid (Archangel of Wrath)
           kickPaid: Array.isArray(intent.kickPaid) ? intent.kickPaid.filter(i => Number.isInteger(i) && i >= 0 && i < 4) : undefined,
@@ -4976,6 +4980,7 @@
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */
         case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: !payByHand(intent),
+          skipped: skipList(intent.skipped),
           fromPool: payByHand(intent),
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,

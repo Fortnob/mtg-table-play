@@ -72536,4 +72536,42 @@ module.exports = (test) => {
     t.zone(bal3, 'battlefield');
     t.eq(T3.asked.filter(c => c.purpose === 'discardInstead' || c.purpose === 'discardToTop').length, 0, 'not asked');
   });
+  /* Up-to targets left out before a target the spell must have: their places said (skipped), the rest in order */
+  test('Cards: Press into Service — one creature supported, the support\'s second place left out, then the creature it takes', (mk, t) => {
+    t.auto('Press into Service');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '4R');
+    T.cast('A', T.hand('A', 'Press into Service'), { targets: [bear, giant], skipped: [1] });
+    t.eq(bear.counters['+1/+1'], 1, 'the Bears supported');
+    t.no(giant.counters['+1/+1'], 'the Giant not supported');
+    t.eq(giant.controller, 'A', 'the Giant taken');
+    t.ok(giant.tapped === false, 'and untapped');
+    // a place left out that must have a target: refused
+    const T2 = mk();
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', '4R');
+    const ps = T2.hand('A', 'Press into Service');
+    t.no(T2.g.castSpell('A', ps.id, { auto: true, targets: [{ kind: 'object', id: b2.id }], skipped: [2] }), 'refused');
+    t.ok(/must have/.test(T2.g.lastError || ''), T2.g.lastError);
+  });
+
+  test('Cards: Cease // Desist — one card from a graveyard, the second place left out, then the player who gains and draws', (mk, t) => {
+    t.auto('Cease // Desist');
+    const T = mk();
+    const c1 = T.grave('B', 'Grizzly Bears'), c2 = T.grave('B', 'Hill Giant');
+    T.mana('A', '2UB');
+    const life = T.life('A'), hand = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Cease // Desist'), { targets: [c1, 'A'], skipped: [1] });
+    t.zone(c1, 'exile');
+    t.zone(c2, 'graveyard');
+    t.eq(T.life('A'), life + 2, 'gained 2');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'drew one');
+    // without saying the place left out, the player is no card: refused, as before
+    const T2 = mk();
+    const d1 = T2.grave('B', 'Grizzly Bears');
+    T2.mana('A', '2UB');
+    const cd = T2.hand('A', 'Cease // Desist');
+    t.no(T2.g.castSpell('A', cd.id, { auto: true, targets: [{ kind: 'object', id: d1.id }, { kind: 'player', id: 'A' }] }), 'refused without skipped');
+  });
 };

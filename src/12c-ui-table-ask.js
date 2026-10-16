@@ -41,7 +41,7 @@
       if (this.targeting) {
         const t = this.targeting;
         const who = (v.players || []).filter(p => this.isTargetablePlayer(p));
-        const spec = t.specs[t.chosen.length] || t.specs[0];
+        const spec = t.specs[this._aimSlot(t)] || t.specs[0];
         const what = spec && !t.legal ? specText(spec) : 'a target';
         // a target the kick, the gift or an "if" brought in: what it is for, as the button says (Jilt (kicked): …)
         const title = spec && spec.castWhy && t.label ? escapeHtml(t.label)
@@ -52,11 +52,12 @@
         const same = t.auto && this.sameTargetsOk(t, t.chosen) ? this.autoToggle(`Same target for all (${t.auto.rest} more)`,
           `The ${t.auto.rest} other ${t.sourceName || 'copies'} triggers waiting take the same target${t.need > 1 ? 's' : ''}. Only targets legal for every copy are highlighted.`,
           t.sameOn, () => this.toggleSameTarget()) : null;
-        // "up to one": it can be left out (Return to Dust's second artifact)
-        const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
+        // "up to one": it can be left out (Return to Dust's second artifact) — and, with a target it must have after it, the next one chosen
+        const skip = this._aimSkip(t);
         return set('aim', title,
-          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}${press()} a highlighted card${who.length ? ' or player' : ''}` +
-          (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
+          `${t.need > 1 ? `Target ${this._aimSlot(t) + 1} of ${t.need}. ` : ''}${press()} a highlighted card${who.length ? ' or player' : ''}` +
+          (skip === 'skip' ? ', or press <b>Skip</b> to leave this one out and choose the next.'
+            : skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
           (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.') + ability,
           same ? { node: el('div', { class: 'ab-chips auto-row' }, [same]), sig: 'same:' + t.sameOn } : null);
       }
@@ -371,9 +372,10 @@
               ability: ch.sourceText || null, sourceName: ch.sourceName ? String(ch.sourceName).split(' \u2014 ')[0] : null,
               // the first of a batch: the same targets for the copies still to come, when some would do for all (sameTargetsOk)
               auto: ch.auto && ch.auto.kind === 'targets' && ch.auto.rest && ch.auto.same ? ch.auto : null, sameOn: false,
-              onDone: (targets) => {
+              onDone: (targets, skipped) => {
                 this.targeting = null;
-                send(Object.assign({ targets }, tg.sameOn && this.sameTargetsOk(tg, targets) ? { remember: 'batch' } : {}));
+                send(Object.assign({ targets }, tg.sameOn && this.sameTargetsOk(tg, targets) ? { remember: 'batch' } : {},
+                  ch.purpose === 'castTargets' && this._trimSkips(targets, skipped).length ? { skipped: this._trimSkips(targets, skipped) } : {}));
               },
             };
             setTimeout(() => this.render(), 0);
@@ -1635,7 +1637,11 @@
       const byGame = steps.altPay || offered.some(x => ['convoke', 'improvise', 'delve'].includes(x.kind)) ||
         (offered.some(x => x.kind === 'sacForLess') && !Array.isArray((steps.costPicks || {}).sacrificeIds));
       const cost = byGame ? '' : this._castCost(steps, offered);
-      const go = (targets) => { this._dropAt = null; this.payThen(Object.assign({ kind: 'cast', objId: o.id, targets }, extra), cost, o.card); };
+      const go = (targets, skipped) => {
+        this._dropAt = null;
+        const sk = this._trimSkips(targets, skipped);
+        this.payThen(Object.assign({ kind: 'cast', objId: o.id, targets }, extra, sk.length ? { skipped: sk } : {}), cost, o.card);
+      };
       this.render();
       if (!specs.length) return go([]);
       /* The targets are asked for in groups, one after the other. A plain
@@ -1664,15 +1670,18 @@
         const each = Array.from({ length: n }, (z, i) => (i < min ? plain : Object.assign({}, plain, { upTo: true })));
         groups.push({ specs: each, multi: m, min, off });
       }
-      const run = (i, acc) => {
-        if (i >= groups.length) return go(acc);
+      // (acc: the targets so far; gone: the places left out so far, counted among all of them — skipped)
+      const run = (i, acc, gone) => {
+        if (i >= groups.length) return go(acc, gone);
         const g = groups[i];
         const k = g.specs.length;
         const what = g.multi
           ? (g.multi.count === 'any' ? `any number of targets${g.multi.perExtra ? ` (each after the first costs ${g.multi.perExtra} more)` : ''}`
             : g.multi.exact ? `${k} target${k === 1 ? '' : 's'}` : `up to ${k} target${k === 1 ? '' : 's'}`)
           : (k === 1 ? 'a target' : k + ' targets');
-        const next = (chosen) => run(i + 1, acc.concat(chosen));
+        const base = acc.length + gone.length;
+        // ("X target …", "up to X": as many places as it has targets — the engine fits them; only single places are left out)
+        const next = (chosen, skips) => run(i + 1, acc.concat(chosen), g.multi ? gone : gone.concat((skips || []).map(k => base + k)));
         // "Jilt (kicked): it deals 2 damage to another target creature"
         const whyWords = { kicked: 'kicked', gift: 'gift promised', main: 'main phase' }[g.why];
         const label = g.why && g.text
@@ -1686,7 +1695,7 @@
         });
       };
       if (!groups.length) return go([]);
-      run(0, []);
+      run(0, [], []);
     },
 
     /** What a cast costs in mana as the table reads it: the cost it is cast for, and the extra costs chosen. */
@@ -1858,7 +1867,15 @@
       const min = g.min != null ? g.min : g.specs.filter(sp => !sp.upTo).length;
       const picked = [];
       const key = 'offpick:' + o.id + ':' + label;
-      const finish = () => { this.asking = null; onDone(picked.map(id => ({ kind: 'object', id }))); };
+      /* (fewer than there are places: those that must have one first, then the earliest of the rest; the others are
+         left out — skipped) */
+      const finish = () => {
+        this.asking = null;
+        const need = g.specs.map((sp, i) => (sp && !sp.upTo ? i : -1)).filter(i => i >= 0);
+        const may = g.specs.map((sp, i) => (sp && sp.upTo ? i : -1)).filter(i => i >= 0);
+        const filled = new Set(need.concat(may.slice(0, Math.max(0, picked.length - need.length))));
+        onDone(picked.map(id => ({ kind: 'object', id })), g.specs.map((sp, i) => i).filter(i => !filled.has(i)));
+      };
       this.asking = { base: key, get key() { return key + ':' + picked.join(','); }, build: () => {
         const cands = this._offCandidates(g.specs[Math.min(picked.length, k - 1)] || g.specs[0])
           .concat(picked.map(id => this.objIn(id)).filter(Boolean))

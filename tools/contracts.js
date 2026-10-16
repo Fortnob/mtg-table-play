@@ -320,7 +320,8 @@ const ANSWERS = {
   surveil: obj({ top: opt(ids), bottom: opt(ids) }, { closed: true }),
   arrange: obj({ top: opt(ids) }, { closed: true }),
   orderTriggers: obj({ top: opt(ids), cardIds: opt(ids) }, { closed: true }),
-  pickTarget: obj({ targets: opt(arr(Target)), remember: Remember }, { closed: true }),
+  // (skipped: a modal spell's targets asked as it is cast, the places an "up to" left out — castTargets)
+  pickTarget: obj({ targets: opt(arr(Target)), remember: Remember, skipped: opt(arr(nat)) }, { closed: true }),
   choose: ChooseAnswer,
 };
 
@@ -353,6 +354,8 @@ const INTENTS = {
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), returnId: opt(id), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
     /* a modal spell's modes, chosen as it is cast (mode indexes) */
     modes: opt(arr(nat)),
+    /* the places among its targets an "up to" left out, before a target it must have (Press into Service) */
+    skipped: opt(arr(nat)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
     convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),
@@ -367,7 +370,7 @@ const INTENTS = {
     /* what pays a cost the table would otherwise pick (evidence, forage, reveal, behold...) */
     evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str), counterSpreadIds: opt(arr(id)),
   }),
-  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat), evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str), counterSpreadIds: opt(arr(id)) }),
+  activate: closed({ objId: id, index: nat, targets: opt(arr(Target)), skipped: opt(arr(nat)), sacrificeIds: opt(arr(id)), discardIds: opt(arr(id)), x: opt(nat), manaSplit: opt(nat), evidenceIds: opt(arr(id)), forageExileIds: opt(arr(id)), revealIds: opt(arr(id)), beholdIds: opt(arr(id)), exileIds: opt(arr(id)), forageFoodId: opt(id), counterFromId: opt(id), blightId: opt(id), counterKind: opt(str), counterSpreadIds: opt(arr(id)) }),
   mana: closed({ objId: id, index: opt(nat), choice: opt(maybe(str)) }),
   declareAttackers: closed({ declarations: arr(Declaration) }),
   declareBlockers: closed({ declarations: arr(Block) }),

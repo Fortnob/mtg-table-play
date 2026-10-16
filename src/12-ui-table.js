@@ -2283,7 +2283,11 @@
         const short = (t.minChosen || 0) - t.chosen.length;
         if (upTo && short > 0) return { label: `Choose ${short} more`, disabled: true, cls: 'idle', sub: t.label,
           secondary: { label: 'Cancel', fn: () => { this.cancelTargeting(); this.render(); } } };
-        if (upTo) return { label: t.chosen.length ? 'Done' : 'No targets', cls: 'go', sub: t.label };
+        /* "up to one" here: left out, on to the next target when one it must have comes after (Press into Service's
+           support, then the creature it takes); done, when none does (_aimSkip) */
+        const how = this._aimSkip(t);
+        if (how === 'skip') return { label: 'Skip', cls: 'go', sub: t.label, title: 'Leave this target out and choose the next one (Space)' };
+        if (how === 'done') return { label: t.chosen.length ? 'Done' : 'No targets', cls: 'go', sub: t.label };
         return { label: 'Choose a target', disabled: true, cls: 'idle', sub: t.label,
           secondary: t.legal ? null : { label: 'Cancel', fn: () => { this.cancelTargeting(); this.render(); } } };
       }
@@ -2378,7 +2382,10 @@
       if (cd) { this.actAs(cd.id); return; }
       if (this.targeting) {
         const t = this.targeting;
-        if ((t.specs || []).some(sp => sp && sp.upTo) && t.chosen.length >= (t.minChosen || 0)) { this.targeting = null; t.onDone(t.chosen); this.render(); }
+        if (t.chosen.length < (t.minChosen || 0)) return;
+        const how = this._aimSkip(t);
+        if (how === 'skip') { (t.skips = t.skips || []).push(this._aimSlot(t)); MTG.sfx('click'); this.render(); }
+        else if (how === 'done') { this._aimDone(); this.render(); }
         return;
       }
       if (this.convoking) { this.convokeDone(false); return; }
@@ -2731,9 +2738,7 @@
         if (!this.isTargetable(loc.o)) return UI.error('Not a legal target for that.');
         this.targeting.chosen.push({ kind: 'object', id });
         MTG.sfx('click');
-        if (this.targeting.chosen.length >= this.targeting.need) {
-          const t = this.targeting; this.targeting = null; t.onDone(t.chosen);
-        }
+        if (this._aimSlot(this.targeting) >= this.targeting.need) this._aimDone();
         return this.render();
       }
       // tapping creatures for a spell: they are clicked where they stand; the spell clicked again goes back
@@ -3067,9 +3072,9 @@
       const t = this.targeting;
       if (!t || !p || p.hasLost) return false;
       // (Ravager of the Fells: the targets in order — a player only where the words want one)
-      if (t.legal && t.slots && (t.specs || []).some(s => s && s.sameControllerAsPrev)) return (t.slots[t.chosen.length] || []).some(x => x.kind === 'player' && x.id === p.id);
+      if (t.legal && t.slots && (t.specs || []).some(s => s && s.sameControllerAsPrev)) return (t.slots[this._aimSlot(t)] || []).some(x => x.kind === 'player' && x.id === p.id);
       if (t.legal) return t.legal.has('player:' + p.id);
-      const spec = t.specs[t.chosen.length] || {};
+      const spec = t.specs[this._aimSlot(t)] || {};
       if (t.chosen.some(c => c.kind === 'player' && c.id === p.id)) return false;
       if (spec.type === 'player' || spec.type === 'any') {
         if (spec.controller === 'opponent' && p.id === this.meId) return false;
@@ -3092,7 +3097,7 @@
       const t = this.targeting;
       if (!t || !s) return false;
       if (t.legal) return t.legal.has('stack:' + s.id);
-      const spec = t.specs[t.chosen.length];
+      const spec = t.specs[this._aimSlot(t)];
       if (!spec || !(spec.type === 'spell' || spec.zone === 'stack' || spec.type === 'spellOrPermanent')) return false;
       if (t.chosen.some(c => c.kind === 'stack' && c.id === s.id)) return false;
       if (s.objId && s.objId === t.source) return false;           // a spell does not target itself
@@ -3143,7 +3148,7 @@
       if (!this.isTargetableStack(s)) return UI.error('Not a legal target for that.');
       t.chosen.push({ kind: 'stack', id: s.id });
       MTG.sfx('click');
-      if (t.chosen.length >= t.need) { this.targeting = null; t.onDone(t.chosen); }
+      if (this._aimSlot(t) >= t.need) this._aimDone();
       this.render();
     }
 
@@ -3152,23 +3157,53 @@
       if (!t) return;
       t.chosen.push({ kind: 'player', id: pid });
       MTG.sfx('click');
-      if (t.chosen.length >= t.need) { this.targeting = null; t.onDone(t.chosen); }
+      if (this._aimSlot(t) >= t.need) this._aimDone();
       this.render();
+    }
+    /** The place among the targets being chosen now: those chosen and those left out before it. */
+    _aimSlot(t) { return t ? t.chosen.length + (t.skips || []).length : 0; }
+    /**
+     * What leaving the target being chosen out does: 'skip' — on to the next, as a target it must have comes later
+     * ("up to one target creature … target creature": Press into Service); 'done' — targeting ends here, as nothing
+     * after it must have one; null — it can't be left out.
+     */
+    _aimSkip(t) {
+      const at = this._aimSlot(t);
+      const sp = (t.specs || [])[at];
+      if (!sp || !sp.upTo || t.chosen.length < (t.minChosen || 0)) return null;
+      return (t.specs || []).slice(at + 1, t.need).some(x => x && !x.upTo) ? 'skip' : 'done';
+    }
+    /** Targeting over: what was chosen, and the places left out — those skipped, and any after the last (a spell's
+        next group of targets comes after them all). */
+    _aimDone() {
+      const t = this.targeting;
+      if (!t) return;
+      this.targeting = null;
+      const gone = (t.skips || []).slice();
+      for (let i = this._aimSlot(t); i < t.need; i++) gone.push(i);
+      t.onDone(t.chosen, gone);
+    }
+    /** The places left out that the intent says (skipped): those before the last target — fewer at the end is just fewer. */
+    _trimSkips(targets, skips) {
+      const out = (skips || []).slice().sort((x, y) => x - y);
+      let n = (targets || []).length + out.length;
+      while (out.length && out[out.length - 1] === n - 1) { out.pop(); n--; }
+      return out;
     }
     isTargetable(o) {
       const t = this.targeting;
       if (!t) return false;
       // Ravager of the Fells: "a creature that player or that planeswalker's controller controls" — in order, under the first one's
       if (t.legal && t.slots && (t.specs || []).some(s => s && s.sameControllerAsPrev)) {
-        const sp = t.specs[t.chosen.length];
-        if (!(t.slots[t.chosen.length] || []).some(x => x.kind === 'object' && x.id === o.id)) return false;
+        const sp = t.specs[this._aimSlot(t)];
+        if (!(t.slots[this._aimSlot(t)] || []).some(x => x.kind === 'object' && x.id === o.id)) return false;
         const prev = t.chosen[t.chosen.length - 1];
         if (!sp || !sp.sameControllerAsPrev || !prev) return true;
         const p = prev.kind === 'object' ? this.objIn(prev.id) : null;
         return o.controller === (prev.kind === 'player' ? prev.id : p && p.controller);
       }
       if (t.legal) return t.legal.has('object:' + o.id);
-      const spec = t.specs[t.chosen.length];
+      const spec = t.specs[this._aimSlot(t)];
       if (!spec) return false;
       if (t.chosen.some(c => c.id === o.id)) return false;
       // "controlled by different players" (Run Away Together): not a second one of the same player's
@@ -3352,7 +3387,10 @@
       this.startTargeting({
         need: specs.length, specs, label: `${o.card.name}: choose ${specs.length === 1 ? 'a target' : specs.length + ' targets'}`,
         source: o.id, cardName: o.card.name,
-        onDone: (targets) => this.payThen({ kind: 'activate', objId: o.id, index, targets, ...more }, cost, o.card),
+        onDone: (targets, skipped) => {
+          const sk = this._trimSkips(targets, skipped);
+          this.payThen(Object.assign({ kind: 'activate', objId: o.id, index, targets, ...more }, sk.length ? { skipped: sk } : {}), cost, o.card);
+        },
       });
     }
 
