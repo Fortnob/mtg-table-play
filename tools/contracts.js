@@ -340,7 +340,7 @@ const INTENTS = {
   /* remembered answers: take one back ('clear', by id or 'all'), or decline the rest of a batch of optional triggers */
   auto: closed({ act: lit('clear', 'decline'), id: opt(str), batch: opt(id) }),
   keep: closed({ bottom: opt(ids) }),
-  playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, foretell: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
+  playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, foretell: onObj, suspend: closed({ objId: id, x: opt(nat), via: opt(str) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
   // the companion's {3} into hand (CR 702.139)
   companion: onObj,
   // Planechase: roll the planar die, the special action (CR 901.9), paid by the game or (fromPool) with mana tapped by hand
@@ -866,7 +866,7 @@ const CALLS = {
   // (a bot's channel, with its targets: useFromHand)
   cycleCard: (pid, objId, opts) => Object.assign({ kind: 'cycle', objId }, strip(opts)),
   plotCard: (pid, objId) => ({ kind: 'plot', objId }),
-  suspendCard: (pid, objId) => ({ kind: 'suspend', objId }),
+  suspendCard: (pid, objId, opts) => Object.assign({ kind: 'suspend', objId }, opts && opts.via ? { via: opts.via } : {}),
   transmuteCard: (pid, objId) => ({ kind: 'transmute', objId }),
   foretellCard: (pid, objId) => ({ kind: 'foretell', objId }),
   encoreCard: (pid, objId) => ({ kind: 'encore', objId }),

@@ -2251,4 +2251,101 @@ module.exports = (test) => {
     t.eq(T.bfOf('B').length, 1, 'B: one');
     t.ok(!T.g.facePlanes().some(o => o.name === 'Morphic Tide'), 'then planeswalked away');
   });
+
+  test('Planes: Talon Gates — exile a nonland card from hand with its mana value in time counters, suspended, at sorcery speed', (mk, t) => {
+    t.auto('Talon Gates');
+    const T = onPlane(mk, 'Talon Gates');
+    const g = T.hand('A', 'Hill Giant'), f = T.hand('A', 'Forest');
+    const use = T.g.altUsesFor('A', g.id).find(u => u.kind === 'suspend' && u.via === 'talon');
+    t.ok(use && use.counters === 4, 'offered, with four time counters');
+    t.no(T.g.altUsesFor('A', f.id).some(u => u.kind === 'suspend'), 'not a land');
+    t.ok(T.g.suspendCard('A', g.id, { via: 'talon' }), T.g.lastError);
+    t.zone(g, 'exile', 'exiled'); t.eq(g.counters.time, 4, 'four time counters'); t.eq(g.suspendedBy, 'A', 'suspended');
+    const g2 = T.hand('A', 'Grizzly Bears');
+    T.nextTurn('B');
+    T.g.passPriority('B', true);
+    t.no(T.g.suspendCard('A', g2.id, { via: 'talon' }), 'not on B\'s turn');
+    T.nextTurn('A');
+    t.eq(g.counters.time, 3, 'a counter off in A\'s upkeep');
+  });
+
+  test('Planes: Windriddle Palaces — play lands and cast spells from the top of any player\'s library', (mk, t) => {
+    t.auto('Windriddle Palaces');
+    const T = onPlane(mk, 'Windriddle Palaces');
+    const bears = T.top('B', 'Grizzly Bears'), f = T.top('A', 'Forest');
+    t.ok(T.g._topCardPublic('B'), 'played revealed');
+    T.mana('A', '1G');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield', 'cast from B\'s library'); t.eq(bears.controller, 'A', 'A controls it');
+    t.ok(T.g.playLand('A', f.id), T.g.lastError);
+    t.zone(f, 'battlefield', 'A plays the land on top of A\'s own library');
+    walkTo(T, 'Shiv');
+    const b2 = T.top('B', 'Grizzly Bears');
+    T.mana('A', '1G');
+    t.no(T.g.castSpell('A', b2.id, { auto: true }), 'not once the plane is gone');
+  });
+
+  test('Planes: The Matrix of Time — play cards exiled with it on your turn; each costs its owner 3 life and the top card', (mk, t) => {
+    t.auto('The Matrix of Time');
+    const T = onPlane(mk, 'Gavony');
+    const mine = T.top('A', 'Grizzly Bears'), theirs = T.top('B', 'Forest');
+    walkTo(T, 'The Matrix of Time');
+    t.zone(mine, 'exile'); t.zone(theirs, 'exile', 'each player exiles the top card');
+    const lb = T.life('B'), la = T.life('A');
+    const nextB = T.zone('B', 'library')[0];
+    t.ok(T.g.playLand('A', theirs.id), T.g.lastError);
+    T.resolve();
+    t.zone(theirs, 'battlefield', 'A plays B\'s Forest from exile');
+    t.eq(T.life('B'), lb - 3, 'its owner, B, loses 3 life'); t.zone(nextB, 'exile', 'and exiles the top card of their library');
+    T.mana('A', '1G');
+    T.cast('A', mine);
+    t.zone(mine, 'battlefield'); t.eq(T.life('A'), la - 3, 'A\'s own card: A loses 3');
+    T.nextTurn('B');
+    T.g.passPriority('B', true);
+    t.no(T.g.playLand('A', nextB.id), 'only during your turn');
+  });
+
+  test('Planes: Happy Yargle Day! — at each end step a creature becomes a nonlegendary Yargle; chaos: a random spell cast for free', (mk, t) => {
+    t.auto('Happy Yargle Day!');
+    const T = onPlane(mk, 'Happy Yargle Day!');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(bear.name, 'Yargle, Glutton of Urborg', 'the Bears are a Yargle');
+    t.eq(Number(bear.counters.bargle) || 0, 1, 'with a bargle counter');
+    t.eq(T.g.powerOf(bear) + '/' + T.g.toughnessOf(bear), '9/3', 'a 9/3');
+    t.no(T.g._cardFitsWords(bear, 'legendary creature'), 'not legendary');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.eq(Number(bear.counters.bargle) || 0, 1, 'A has a Yargle already: no more');
+    // chaos: Opt, chosen at random, cast for free
+    T.g.rng.int = () => 1;
+    const h = T.zone('A', 'hand').length;
+    chaos(T);
+    t.ok(T.g.log.some(l => /Opt is chosen at random/.test(l.text)), 'Opt chosen');
+    t.eq(T.zone('A', 'hand').length, h + 1, 'the copy of Opt cast: a card drawn');
+  });
+
+  test('Planes: Imaginary Friends — cast a spell as another card with the same type and mana cost; chaos: the next nonland card, free, as another', (mk, t) => {
+    t.auto('Imaginary Friends (Plane)');
+    const T = onPlane(mk, 'Imaginary Friends (Plane)');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const use = T.g.altUsesFor('A', bolt.id).find(u => u.via === 'imaginary');
+    t.ok(use, 'offered');
+    const lb = T.life('B');
+    T.mana('A', 'R');
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'castAs'); t.no(ch.options.some(o => o.label === 'Lightning Bolt'), 'not itself'); t.no(ch.options.some(o => o.label === 'Counterspell'), 'only {R} instants'); return { picks: [ch.options.findIndex(o => o.label === 'Shock')] }; });
+    T.cast('A', bolt, { via: 'imaginary', targets: ['B'] });
+    t.eq(T.life('B'), lb - 2, 'it was a Shock');
+    t.zone(bolt, 'graveyard'); t.eq(bolt.name, 'Lightning Bolt', 'a Lightning Bolt again in the graveyard');
+    // chaos: Forest, then Grizzly Bears — cast as Elvish Visionary
+    const f = T.top('A', 'Grizzly Bears'); T.top('A', 'Forest');
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.label === 'Elvish Visionary')] }));
+    chaos(T);
+    t.zone(f, 'battlefield', 'the Bears card cast');
+    t.eq(f.name, 'Elvish Visionary', 'as Elvish Visionary');
+    const lib = T.zone('A', 'library');
+    t.eq(lib[lib.length - 1].name, 'Forest', 'the Forest to the bottom');
+    T.g.moveObject(f, 'graveyard');
+    t.eq(f.name, 'Grizzly Bears', 'itself again once it leaves');
+  });
 };

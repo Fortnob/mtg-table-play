@@ -5684,6 +5684,8 @@
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
     // Bad Wolf Bay: "cards can't enter from exile this turn"
     { re: /^Cards can'?t enter from exile this turn\.?$/i, make: () => ({ op: 'planar', what: 'noEnterFromExile' }) },
+    // The Matrix of Time: "that card's owner loses 3 life and exiles the top card of their library" — exiled with the plane
+    { re: /^That card'?s owner loses (\d+) life and exiles the top card of their library\.?$/i, make: (m) => ({ op: 'planar', what: 'matrixToll', n: +m[1] }) },
     // Singing Towers of Darillium: "you may cast a foretold card you own from exile without paying its mana cost this turn" (freeForetold)
     { re: /^Until end of turn, you may cast a foretold card you own from exile without paying its mana cost\.?$/i, make: () => ({ op: 'planar', what: 'freeForetold' }) },
     // Kharasha Foothills: "for each other opponent, you may create a token that's a copy of that creature, tapped and attacking that opponent"
@@ -14148,6 +14150,19 @@
       make: () => [{ op: 'chooseColor' },
         { op: 'counters', kind: '+1/+1', n: { devotionChosen: true, mult: 1 }, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], scope: null },
         { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true, notTarget: true }] },
+    /* Happy Yargle Day!: "if that player doesn't control a creature named Yargle, Glutton of Urborg, that player puts a bargle
+       counter on a creature they control. It becomes a copy of Yargle, Glutton of Urborg, except it isn't legendary." */
+    { re: /^If that player doesn'?t control a creature named ([^.]+?), that player puts an? ([a-z]+) counter on a creature they control\. It becomes a copy of \1, except it isn'?t legendary\.?$/i,
+      make: (m) => [{ op: 'planar', what: 'yargle', name: m[1], counter: m[2].toLowerCase() }] },
+    /* Happy Yargle Day!: "choose Swords to Plowshares, Opt, Fatal Push, Anger of the Gods, or Explore at random. Copy the chosen
+       card. You may cast the copy without paying its mana cost." (castRandomCopy) */
+    { re: /^Choose ((?:[^,.]+, )+)or ([^,.]+?) at random\. Copy the chosen card\. You may cast the copy without paying its mana cost\.?$/i,
+      make: (m) => [{ op: 'castRandomCopy', names: m[1].split(/,\s*/).map(x => x.trim()).filter(Boolean).concat(m[2].trim()) }] },
+    /* Imaginary Friends: "exile cards from the top of your library until you reveal a nonland card. You may cast that card without
+       paying its mana cost, but only as another card following this plane's first ability. Put the rest on the bottom of your
+       library in a random order." */
+    { re: /^Exile cards from the top of your library until you reveal a nonland card\. You may cast that card without paying its mana cost, but only as another card following this plane'?s first ability\. Put the rest on the bottom of your library in a random order\.?$/i,
+      make: () => [{ op: 'planar', what: 'imaginaryChaos' }] },
     /* Glimmervoid Basin: "that player copies that spell for each other spell, permanent, card not on the battlefield, and/or
        player the spell could target. Each copy targets a different one of them." */
     { re: /^That player copies that spell for each other spell, permanent, card not on the battlefield, and\/or player the spell could target\. Each copy targets a different one of them\.?$/i,
@@ -17763,6 +17778,8 @@
       } },
     // City of Traitors: "When you play another land"
     // The Endstone: "Whenever you play a land or cast a spell, draw a card."
+    // The Matrix of Time: "Whenever you play a land or cast a spell from among cards exiled with The Matrix of Time," (playedExiledWithSelf)
+    { re: /^Whenever you play a land or cast a spell from among cards exiled with (?:CARDNAME|this [a-z]+),? /i, event: 'youPlayLand', also: 'youCastSpell', extra: { playedExiledWithSelf: true } },
     { re: /^Whenever you play a land or cast a spell,/i, event: 'youPlayLand', also: 'youCastSpell' },
     // Shanid, Sleepers' Scourge: "Whenever you play a legendary land or cast a legendary spell,"
     { re: /^Whenever you play a legendary land or cast a legendary spell,/i, event: 'youPlayLand', also: 'youCastSpell', filt: () => ({ words: 'legendary' }) },
@@ -25456,6 +25473,18 @@
          they had flash. Mana of any type can be spent to cast those spells." (exiledWith, flash, anyMana) */
       { re: /^During your turn, you may cast cards exiled with CARDNAME and you may cast them as though they had flash\. Mana of any type can be spent to cast those spells\.?$/,
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell', duringYourTurn: true, flash: true, anyMana: true }, auto: true },
+      // The Matrix of Time (a plane): "During your turn, you may play lands and cast spells from among cards exiled with The Matrix of Time." (exiledWith)
+      { re: /^During your turn, you may play lands and cast spells from among cards exiled with CARDNAME\.?$/i, eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true }, auto: true },
+      { re: /^You may play lands and cast spells from among cards exiled with CARDNAME\.?$/i, eff: { op: 'playFrom', zone: 'exiledWith', what: 'any' }, auto: true },
+      // Windriddle Palaces (a plane): "You may play lands and cast spells from the top of any player's library." (playTopAny)
+      { re: /^You may play lands and cast spells from the top of any player'?s library\.?$/i, eff: { op: 'playTopAny' }, auto: true },
+      /* Talon Gates (a plane): "Any time you could cast a sorcery, you may exile a nonland card from your hand with X time
+         counters on it, where X is its mana value. If the exiled card doesn't have suspend, it gains suspend." — a special
+         action (talonSuspend) */
+      { re: /^Any time you could cast a sorcery, you may exile a nonland card from your hand with X time counters on it, where X is its mana value\. If the exiled card doesn'?t have suspend, it gains suspend\.?$/i, eff: { op: 'talonSuspend' }, auto: true },
+      /* Imaginary Friends (a plane): "Players may cast spells as though they were other cards legal in this game's format with
+         the same type and mana cost." (castAsOther) */
+      { re: /^Players may cast spells as though they were other cards legal in this game'?s format with the same type and mana cost\.?$/i, eff: { op: 'castAsOther' }, auto: true },
       // Rona, Disciple of Gix: "You may cast spells from among cards exiled with Rona." (exiledWith)
       { re: /^You may cast spells from among cards exiled with CARDNAME\.?$/, eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell' }, auto: true },
       /* Ian Malcolm, Chaotician: "During each player's turn, that player may cast a spell from among the cards they don't own

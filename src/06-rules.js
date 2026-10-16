@@ -1744,7 +1744,8 @@
             // (allowed whenever you have priority on your turn; offered as playable in a main phase only, not to stop every step)
             if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'foretell', objId: o.id });
           } else if (use.kind === 'suspend') {
-            out.push({ kind: 'suspend', objId: o.id });
+            // (Talon Gates: only when a sorcery could be cast — sorcery)
+            if (!(use.sorcery && this._sorcerySpeedBlock(playerId))) out.push({ kind: 'suspend', objId: o.id });
           } else if (use.kind === 'encore') {
             if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'encore', objId: o.id });
           } else if (use.kind === 'transmute') {
@@ -5943,6 +5944,9 @@
       // (Kaldring, the Rimestaff: "If you do, it enters tapped." — gravePlayTapped)
       if (o && o.zone === 'graveyard' && o.owner === playerId && o.gravePlayBy === playerId && o.gravePlayTurn === this.turn) return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'any' }, o.gravePlayTapped === this.turn ? { enterTappedAny: true } : {});
       const z = this.zones[playerId];
+      // Windriddle Palaces (a plane): "You may play lands and cast spells from the top of any player's library." (playTopAny)
+      if (o && o.zone === 'library' && ((this.zones[o.owner] || {}).library || [])[0] === o && this._playTopAny(playerId))
+        return { op: 'playFrom', zone: o.owner === playerId ? 'top' : 'oppTop', what: 'any' };
       // Xanathar, Guild Kingpin: "you may play the top card of their library, and you may spend mana as though it were mana of any color"
       if (this._oppTopGrant(playerId, o)) return { op: 'playFrom', zone: 'oppTop', what: 'any', anyMana: true };
       // Valgavoth, Terror Eater: "cards exiled with Valgavoth" are somebody else's
@@ -5968,8 +5972,10 @@
         if (ef) return ef;
       }
       // (Wrenn and Realmbreaker's emblem: "You may play lands and cast permanent spells from your graveyard." — this player's emblems too)
-      for (const src of this.battlefield.concat(this._emblems().filter(em => em.controller === playerId && em.card.layout === 'emblem'))) {
+      // (The Matrix of Time, a plane: its leave from the command zone — a plane turned up again is a new object, CR 901.7a)
+      for (const src of this.battlefield.concat(this._emblems().filter(em => em.planeUp || (em.controller === playerId && em.card.layout === 'emblem')))) {
         if (src.phasedOut) continue;
+        if (src.planeUp && o.exiledWithTs != null && o.exiledWithTs !== src.ts) continue;
         const a = src.analysis();
         if (!a) continue;
         for (const ab of a.abilities) {
@@ -6137,6 +6143,18 @@
         // (Singing Towers of Darillium, a plane, too)
         const gf = this._withEmblems(this.battlefield).filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
         if (gf) { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, reduce: gf.reduce || 0, label: 'Foretell ' + (fp || '{0}') }); }
+      }
+      /* Talon Gates (a plane): "Any time you could cast a sorcery, you may exile a nonland card from your hand with X time
+         counters on it, where X is its mana value. If the exiled card doesn't have suspend, it gains suspend." (talonSuspend) */
+      if (o.zone === 'hand' && o.owner === playerId && !a.isLand && this.planechaseOn && this.planechaseOn() &&
+          this.facePlanes().some(pl => pl.controller === playerId && this._staticOp(pl, 'talonSuspend'))) {
+        const mv = (o.card && o.card.cmc) || 0;
+        out.push({ kind: 'suspend', via: 'talon', cost: '', counters: mv, sorcery: true, label: `Exile with ${mv} time counter${mv === 1 ? '' : 's'} (suspend)` });
+      }
+      /* Imaginary Friends (a plane): "Players may cast spells as though they were other cards legal in this game's format with
+         the same type and mana cost." — from hand, for that same cost; which card, asked as it is cast */
+      if (o.zone === 'hand' && o.owner === playerId && !a.isLand && this._castAsOtherOn() && this._imaginaryCandidates(playerId, o).length) {
+        out.push({ kind: 'cast', via: 'imaginary', cost: a.manaCost || '', label: 'Cast as another card ' + (a.manaCost || '') });
       }
       // (embalm and eternalize are not casts: abilities of the card in the graveyard, which make a token copy — the reading's)
       // Jo Grant: "Each historic card in your hand has cycling {2}{W}." (grantHandCycling)
@@ -6894,9 +6912,12 @@
       if (this._sacGateWanted(playerId, opts)) return this._sacGated(playerId, { kind: 'suspend', objId, opts: opts || {} }, () => this.suspendCard(playerId, objId, opts));
       const o = this.obj(objId);
       if (!o || o.zone !== 'hand' || o.controller !== playerId) return this.fail('That is not in your hand.');
-      const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'suspend');
+      // (Talon Gates: its own way, opts.via 'talon', at sorcery speed)
+      const uses = this.altUsesFor(playerId, objId).filter(x => x.kind === 'suspend');
+      const use = (opts && opts.via ? uses.find(x => x.via === opts.via) : null) || uses.find(x => !x.sorcery || !this._sorcerySpeedBlock(playerId)) || uses[0];
       if (!use) return this.fail('That card cannot be suspended.');
       if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return this.fail('You do not have priority.');
+      if (use.sorcery) { const why = this._sorcerySpeedBlock(playerId); if (why) return this.fail(why); }
       /* Suspend X: X from the intent; without one, the most the player
          could pay for. X can't be 0. */
       let cost = use.cost, counters = use.counters;
@@ -8044,6 +8065,25 @@
         so.face = 0; so._chr = null;
         const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true, face: 0 }));
         if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
+        return ok;
+      }
+      /* Imaginary Friends (a plane): cast as another card with the same type and mana cost (opts.asCard, a name; asked when
+         not given) — that card while a spell and the permanent it becomes; a cast that doesn't happen leaves it itself */
+      if (opts.via === 'imaginary' && !opts._asSet) {
+        const so = this.obj(objId);
+        if (!so || so.zone === 'stack' || so.zone === 'battlefield' || !this._castAsOtherOn()) return this.fail('That card cannot be cast as another card now.');
+        const cands = this._imaginaryCandidates(playerId, so);
+        if (!cands.length) return this.fail(`There is no other card with the same type and mana cost as ${so.name} to cast it as.`);
+        let pick = opts.asCard ? cands.find(c => c.name === opts.asCard) : null;
+        if (!pick) {
+          const got = this._castChoose(playerId, so, opts, { purpose: 'castAs', kind: 'options', min: 1, max: 1,
+            options: cands.map((c, i) => ({ i, label: c.name, cards: [c] })), prompt: `${so.name}: cast it as which card with the same type and mana cost?` });
+          if (got === 'asked') return true;
+          pick = cands[(got && got.picks && got.picks[0]) || 0] || cands[0];
+        }
+        this._castAsSwap(so, pick);
+        const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _asSet: true }));
+        if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) this._castAsRevert(so);
         return ok;
       }
       /* Morph, disguise: turned face down to be cast that way — a cast that doesn't happen (not enough mana) leaves
@@ -18717,6 +18757,8 @@
           (hB.bouncedTo = hB.bouncedTo || {})[o.owner] = true;
         }
       }
+      // (Imaginary Friends: a card cast as another is itself again once it is neither that spell nor that permanent)
+      if (o._castAs && toZone !== 'battlefield' && toZone !== 'stack') this._castAsRevert(o);
       if (from === 'battlefield' && toZone !== 'battlefield' && o.printedCard) {
         o.card = o.printedCard; o.printedCard = null; o.copyOf = null; o._chr = null;
       }
@@ -18797,7 +18839,8 @@
         if (ro && ro !== o && ro.id) (ro._exiledHere = ro._exiledHere || []).push(o.id);
         /* and a card a permanent's own ability exiles is exiled with it (CR 607.2a): Tibalt, Cosmic Impostor's "cards
            exiled with Tibalt", Valki, God of Lies's "a creature card exiled with Valki" */
-        if (ro && ro !== o && ro.id && ro.zone === 'battlefield' && from !== 'exile') o.exiledWithId = ro.id;
+        // (The Matrix of Time, a plane: "cards exiled with The Matrix of Time" — this time it is face up: exiledWithTs)
+        if (ro && ro !== o && ro.id && (ro.zone === 'battlefield' || ro.planeUp) && from !== 'exile') { o.exiledWithId = ro.id; o.exiledWithTs = ro.planeUp ? ro.ts : null; }
       }
       // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
       if (toZone === 'battlefield') o.enteredFrom = from;
@@ -20501,6 +20544,51 @@
       return same.every(l => l.length) ? same : null;
     }
 
+    /** Imaginary Friends: is a face-up plane letting spells be cast as other cards? (once for each state of the board) */
+    _castAsOtherOn() {
+      if (!this.planechaseOn || !this.planechaseOn()) return false;
+      if (this.__castAsKey === this._boardKey) return this.__castAs;
+      this.__castAsKey = this._boardKey; this.__castAs = false;
+      this.__castAs = this.facePlanes().some(pl => !!this._staticOp(pl, 'castAsOther'));
+      return this.__castAs;
+    }
+    /** The other cards legal in this game's format with the same card types and mana cost as this one (MTG.cardsByCost). */
+    _imaginaryCandidates(playerId, o) {
+      const c0 = o && (o.printedCard || o.card);
+      if (!c0) return [];
+      const f = (c0.card_faces && c0.card_faces[o.face || 0]) || c0;
+      const cost = f.mana_cost || c0.mana_cost || '';
+      if (!cost) return [];
+      const TYPES = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'];
+      const typesOf = (tl) => TYPES.filter(t => new RegExp('\\b' + t + '\\b').test(String(tl || '').split('\u2014')[0])).join(' ');
+      const want = typesOf(f.type_line || c0.type_line);
+      const fmt = MTG.formats && MTG.formats.get ? MTG.formats.get(this.config && this.config.formatId) : null;
+      const key = (fmt && fmt.scryKey) || 'vintage';
+      // (worked out once for each card name, cost and format while the list it reads stays the same)
+      const memo = this.__imgCand || (this.__imgCand = new Map());
+      const mk = [c0.name, cost, want, key].join('|');
+      let list = null;
+      try { list = MTG.cardsByCost ? MTG.cardsByCost(cost, key) : null; } catch (err) { list = null; }
+      const had = memo.get(mk);
+      if (had && had.list === list) return had.out;
+      const out = (list || []).filter(c => c && c.name !== c0.name && c.mana_cost === cost && typesOf(c.type_line) === want &&
+        ((c.legalities || {})[key] === 'legal' || (c.legalities || {})[key] === 'restricted') && !(MTG.jokes && MTG.jokes.isCard && MTG.jokes.isCard(c)))
+        .sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0)).slice(0, 600);
+      if (list) memo.set(mk, { list, out });
+      return out;
+    }
+    /** Imaginary Friends: this card as that one, its own kept to come back to (_castAs). */
+    _castAsSwap(o, card) {
+      o.printedCard = o.printedCard || o.card;
+      o.copyOf = card; o.card = card; o.face = 0; o._castAs = true; o._chr = null;
+      this.logEvent('rules', `${o.printedCard.name} is cast as ${card.name}.`);
+    }
+    _castAsRevert(o) {
+      if (!o || !o._castAs) return;
+      o._castAs = false;
+      if (o.printedCard) { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
+      o._chr = null;
+    }
     /** Ood Sphere: "Until your next turn, those creatures can't become tapped unless they're being declared as attackers." */
     _cantBecomeTapped(o) {
       return !!(o && o.zone === 'battlefield' && (o.effects || []).some(e => e && e.noTapUnlessAttack));
@@ -28413,6 +28501,41 @@
           if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${name}.`); } else gone();
           break;
         }
+        /* Happy Yargle Day!: "choose Swords to Plowshares, Opt, Fatal Push, Anger of the Gods, or Explore at random. Copy the
+           chosen card. You may cast the copy without paying its mana cost." — as Garth One-Eye's copy, the name by chance */
+        case 'castRandomCopy': {
+          const names = e.names || [];
+          if (!names.length) break;
+          const r = this.resolving;
+          if (r) r.marks = r.marks || {};
+          const mk = r ? r.index + ':rcName' : null;
+          let name = r ? r.marks[mk] : null;
+          if (!name) { name = names[this.rng.int(names.length)]; if (r) r.marks[mk] = name; this.logEvent('rules', `${name} is chosen at random.`); }
+          const card = this._cardByName(name);
+          if (!card) { this.logEvent('rules', `There is no card named ${name} to copy.`); break; }
+          const mk2 = r ? r.index + ':rcDup' : null;
+          let dup = r && r.marks[mk2] ? this.obj(r.marks[mk2]) : null;
+          if (!dup) {
+            // a copy of the card, outside the game until it is cast (a permanent one resolves as a token)
+            dup = this._register(new GObj(card, ctx.controller, 'exile'));
+            dup.isCopy = true;
+            if ((dup.analysis() || {}).isPermanent) dup.isToken = true;
+            this.zones[ctx.controller].exile.push(dup);
+            if (r) r.marks[mk2] = dup.id;
+          }
+          const gone = () => { if (dup.zone === 'exile') { this._removeFromZone(dup); dup.zone = null; } };
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'castCopy', yesLabel: 'Cast it', noLabel: 'Don\u2019t',
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}cast the copy of ${name} without paying its mana cost?` }, 'rcCast');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) { gone(); break; }
+          const tg = this._askSpellTargets(ctx.controller, dup, 'rcT');
+          if (tg === SUSPEND) return SUSPEND;
+          if (!tg) { gone(); break; }
+          const ok = this.castSpell(ctx.controller, dup.id, { alternative: 'resolution', free: true, costOverride: '', targets: tg, auto: true });
+          const st = this.stack.find(x => x.objId === dup.id);
+          if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${name}.`); } else gone();
+          break;
+        }
         // Missy: "Each artifact creature you control deals 1 damage to that opponent" (eachDealsDamage)
         case 'eachDealsDamage': {
           const foes = e.to === 'eachOpponent' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost) : [triggerPlayer()].filter(q => q && !q.hasLost);
@@ -29769,7 +29892,7 @@
           this._lastExiled = x.id;
           // (Shelob, Dread Weaver: "exile it" — a card exiled with the permanent whose ability it was, CR 607.2a)
           // (Gardens of Tranquil Repose: a face-up plane's, from the command zone)
-          if (src && (src.zone === 'battlefield' || src.planeUp) && x.zone === 'exile' && x !== src) x.exiledWithId = src.id;
+          if (src && (src.zone === 'battlefield' || src.planeUp) && x.zone === 'exile' && x !== src) { x.exiledWithId = src.id; x.exiledWithTs = src.planeUp ? src.ts : null; }
           // Mari, the Killing Quill: "exile it with a hit counter on it"
           if (e.counter && x.zone === 'exile') {
             x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
@@ -43519,7 +43642,13 @@
       const p = this.player(playerId);
       if (!p || !o || o.zone !== 'library' || o.owner === playerId) return false;
       if (((this.zones[o.owner] || {}).library || [])[0] !== o) return false;
+      // (Windriddle Palaces: any player's)
+      if (this._playTopAny(playerId)) return true;
       return (p.oppTopGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
+    }
+    /** Windriddle Palaces (a plane): "You may play lands and cast spells from the top of any player's library." — its controller's. */
+    _playTopAny(playerId) {
+      return !!(this.planechaseOn && this.planechaseOn()) && this.facePlanes().some(pl => pl.controller === playerId && this._staticOp(pl, 'playTopAny'));
     }
     /* Sen Triplets: "You may play lands and cast spells from that player's hand this turn." — may this player play
        this card, in another player's hand (oppHandGrants)? */
@@ -43543,8 +43672,10 @@
     }
     _oppTops(playerId) {
       const p = this.player(playerId);
-      return ((p && p.oppTopGrants) || []).filter(g => g.turn === this.turn)
-        .map(g => ((this.zones[g.from] || {}).library || [])[0]).filter(Boolean);
+      // (Windriddle Palaces: every other player's)
+      const from = new Set(this._playTopAny(playerId) ? this.players.filter(q => q.id !== playerId && !q.hasLost).map(q => q.id) : []);
+      for (const g of ((p && p.oppTopGrants) || [])) if (g.turn === this.turn) from.add(g.from);
+      return [...from].map(id => ((this.zones[id] || {}).library || [])[0]).filter(Boolean);
     }
 
     /* "You may look at it any time" said only of some top cards: Oura, the Imitator's "As long as the top card of

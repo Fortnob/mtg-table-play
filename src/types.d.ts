@@ -640,7 +640,7 @@ declare namespace MTG {
     /** objId: a card in your hand, or in another player's when the game gives leave (Sen Triplets); 14-app.js turns away the rest */
     | { kind: 'playLand'; objId: Id; face?: number }
     | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[]; x?: number }
-    | { kind: 'suspend'; objId: Id; x?: number }
+    | { kind: 'suspend'; objId: Id; x?: number; via?: string }
     | { kind: 'plot' | 'foretell' | 'transmute' | 'encore' | 'turnFaceUp' | 'companion'; objId: Id }
     /** Planechase: roll the planar die (CR 901.9) — paid by the game, or with mana tapped by hand (fromPool) */
     | { kind: 'planarDie'; fromPool?: boolean }

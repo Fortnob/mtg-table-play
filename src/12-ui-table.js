@@ -3518,7 +3518,8 @@
      * @this {MTG.TableInstance}
      */
     _suspendUse(o, use) {
-      if (!use.xCost) return this.send({ kind: 'suspend', objId: o.id });
+      // (Talon Gates: its own way of suspending — via)
+      if (!use.xCost) return this.send(Object.assign({ kind: 'suspend', objId: o.id }, use.via ? { via: use.via } : {}));
       const fixed = MTG.mana.cmc(String(use.xCost).replace(/\{X\}/g, ''));
       const per = (String(use.xCost).match(/\{X\}/g) || []).length || 1;
       const max = Math.max(1, Math.floor((this.manaHere() - fixed) / per));

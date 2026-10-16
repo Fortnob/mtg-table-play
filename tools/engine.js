@@ -113,25 +113,34 @@ function load(opts) {
   if (MTG.settings) MTG.settings.botSpeed = 0;
   /* Alchemy's conjure makes a card from its name in the middle of a game, so
      the engine needs a way to look one up there and then: from the bulk file. */
-  let byName = null;
-  MTG.cardLookup = (name) => {
-    if (!byName) {
-      byName = new Map();
-      const zlib = require('zlib');
-      const file = path.join(ROOT, 'tools', 'oracle-cards.jsonl.gz');
-      if (fs.existsSync(file)) {
-        for (const line of zlib.gunzipSync(fs.readFileSync(file)).toString('utf8').split('\n')) {
-          if (!line.trim()) continue;
-          const c = JSON.parse(line);
-          if (c.layout === 'art_series' || c.layout === 'token' || c.layout === 'double_faced_token') continue;
-          const k = String(c.name).toLowerCase();
-          if (!byName.has(k)) byName.set(k, c);
-          if (c.name.includes(' // ')) { const f = c.name.split(' // ')[0].toLowerCase(); if (!byName.has(f)) byName.set(f, c); }
-        }
-      }
+  // (and Imaginary Friends' "other cards … with the same type and mana cost": byCost, MTG.cardsByCost)
+  let byName = null, byCost = null;
+  const readBulk = () => {
+    byName = new Map(); byCost = new Map();
+    const zlib = require('zlib');
+    const file = path.join(ROOT, 'tools', 'oracle-cards.jsonl.gz');
+    if (!fs.existsSync(file)) return;
+    for (const line of zlib.gunzipSync(fs.readFileSync(file)).toString('utf8').split('\n')) {
+      if (!line.trim()) continue;
+      const c = JSON.parse(line);
+      if (c.layout === 'art_series' || c.layout === 'token' || c.layout === 'double_faced_token') continue;
+      const k = String(c.name).toLowerCase();
+      if (!byName.has(k)) byName.set(k, c);
+      if (c.name.includes(' // ')) { const f = c.name.split(' // ')[0].toLowerCase(); if (!byName.has(f)) byName.set(f, c); }
+      if (c.set_type !== 'funny' && c.mana_cost) { if (!byCost.has(c.mana_cost)) byCost.set(c.mana_cost, []); byCost.get(c.mana_cost).push(c); }
     }
+  };
+  const slim = (c) => (MTG.scry && MTG.scry.slim ? MTG.scry.slim(c) : c);
+  MTG.cardLookup = (name) => {
+    if (!byName) readBulk();
     const c = byName.get(String(name).toLowerCase());
-    return c ? (MTG.scry && MTG.scry.slim ? MTG.scry.slim(c) : c) : null;
+    return c ? slim(c) : null;
+  };
+  const slimByCost = new Map();
+  MTG.cardsByCost = (cost) => {
+    if (!byCost) readBulk();
+    if (!slimByCost.has(cost)) slimByCost.set(cost, (byCost.get(cost) || []).map(slim));
+    return slimByCost.get(cost);
   };
   // the request queue spaces live calls out; cached ones need no gap
   // (the fetch shim does that spacing itself, for live requests only)

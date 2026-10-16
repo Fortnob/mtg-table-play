@@ -968,6 +968,99 @@
           const r = this._planeswalk(pid, { ctx });
           return r === SUSPEND ? r : null;
         }
+        /* The Matrix of Time: "that card's owner loses 3 life and exiles the top card of their library" — the card played from
+           among those exiled with it; the new one exiled with it too */
+        case 'matrixToll': {
+          const c = this.obj((ctx.triggerData || {}).objectId);
+          const owner = c && this.player(c.owner);
+          if (!owner || owner.hasLost) return null;
+          this.changeLife(owner, -(e.n || 3));
+          this.logEvent('life', `${owner.name} loses ${e.n || 3} life.`);
+          const top = ((this.zones[owner.id] || {}).library || [])[0];
+          if (top) {
+            this.moveObject(top, 'exile');
+            if (top.zone === 'exile' && ctx.obj) { top.exiledWithId = ctx.obj.id; top.exiledWithTs = ctx.obj.ts; }
+            this.logEvent('exile', `${owner.name} exiles ${top.name} from the top of their library.`);
+          }
+          return null;
+        }
+        /* Happy Yargle Day!: "if that player doesn't control a creature named Yargle, Glutton of Urborg, that player puts a
+           bargle counter on a creature they control. It becomes a copy of Yargle, Glutton of Urborg, except it isn't legendary."
+           — the player whose end step it is */
+        case 'yargle': {
+          const q = this.activePlayer;
+          if (!q || q.hasLost) return null;
+          const creatures = this.battlefield.filter(o => o.controller === q.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+          if (creatures.some(o => o.name === e.name)) return null;
+          if (!creatures.length) return null;
+          let c = creatures[0];
+          if (creatures.length > 1) {
+            const got = this._choose({ playerId: q.id, purpose: 'yargleCopy', kind: 'objects', zone: 'battlefield', min: 1, max: 1, items: this._chooseItems(creatures),
+              prompt: `${(ctx.obj && ctx.obj.name) || 'Effect'}: put a ${e.counter || 'bargle'} counter on a creature you control. It becomes a copy of ${e.name}, except it isn't legendary.` }, 'pcYg');
+            if (got === SUSPEND) return got;
+            c = creatures.find(o => got && got.picks && got.picks[0] === o.id) || creatures[0];
+          }
+          this.addCounters(c, e.counter || 'bargle', 1);
+          const card = this._cardByName(e.name);
+          if (!card) { this.logEvent('rules', `There is no card named ${e.name} to copy.`); return null; }
+          const was = c.name;
+          c.printedCard = c.printedCard || c.card;
+          c.copyOf = card;
+          c.card = this._copyExcept(card, c.printedCard, { nonLegendary: true });
+          c.face = 0; c.copyUntilTurn = null; c.copyUntilTurnOf = null; c.copyBefore = null;
+          c._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${was} becomes a copy of ${e.name}, except it isn't legendary.`);
+          return null;
+        }
+        /* Imaginary Friends: "exile cards from the top of your library until you reveal a nonland card. You may cast that card
+           without paying its mana cost, but only as another card following this plane's first ability. Put the rest on the
+           bottom of your library in a random order." — those not cast, the nonland card among them */
+        case 'imaginaryChaos': {
+          const z = this.zones[pid];
+          const r = this.resolving;
+          if (r) r.marks = r.marks || {};
+          const mk = r ? r.index + ':ifEx' : null;
+          let stx = r ? r.marks[mk] : null;
+          if (!stx) {
+            const ex = [];
+            let hit = null;
+            while (z.library.length) {
+              const c = z.library[0];
+              this.moveObject(c, 'exile');
+              if (c.zone !== 'exile') break;
+              ex.push(c.id);
+              if (!(c.analysis() || {}).isLand) { hit = c.id; break; }
+            }
+            stx = { ex, hit };
+            if (r) r.marks[mk] = stx;
+            if (ex.length) this.logEvent('exile', `${me.name} exiles ${ex.map(id => (this.obj(id) || {}).name).join(', ')} from the top of their library.`);
+          }
+          const hit = stx.hit ? this.obj(stx.hit) : null;
+          if (hit && hit.zone === 'exile') {
+            const cands = this._imaginaryCandidates(pid, hit);
+            if (!cands.length) this.logEvent('rules', `There is no other card with ${hit.name}'s type and mana cost to cast it as.`);
+            else {
+              const got = this._choose({ playerId: pid, purpose: 'castAs', kind: 'options', min: 0, max: 1, optional: true, noneLabel: 'Don\u2019t cast it',
+                options: cands.map((c, i) => ({ i, label: c.name, cards: [c] })),
+                prompt: `${(ctx.obj && ctx.obj.name) || 'Imaginary Friends'}: you may cast ${hit.name} without paying its mana cost, but only as another card with the same type and mana cost — which?` }, 'ifAs');
+              if (got === SUSPEND) return got;
+              const pick = got && (got.picks || []).length ? cands[got.picks[0]] : null;
+              if (pick) {
+                if (!this._doneHere('ifSwap')) this._castAsSwap(hit, pick);
+                const tg = this._askSpellTargets(pid, hit, 'ifT');
+                if (tg === SUSPEND) return tg;
+                const ok = tg ? this.castSpell(pid, hit.id, { alternative: 'resolution', free: true, costOverride: '', targets: tg, auto: true }) : false;
+                if (!ok || hit.zone !== 'stack') this._castAsRevert(hit);
+              }
+            }
+          }
+          const rest = stx.ex.map(id => this.obj(id)).filter(c => c && c.zone === 'exile');
+          this.rng.shuffle(rest);
+          for (const c of rest) this.moveObject(c, 'library', { toBottom: true });
+          if (rest.length) this.logEvent('rules', `${me.name} puts ${MTG.oracle.nounCount(rest.length, 'card')} on the bottom of their library in a random order.`);
+          return null;
+        }
         /* Singing Towers of Darillium: "you may cast a foretold card you own from exile without paying its mana cost this turn"
            — one of them, cast at its own speed (a lot: the first cast uses the leave up) */
         case 'freeForetold': {

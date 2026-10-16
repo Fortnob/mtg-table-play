@@ -2376,6 +2376,13 @@
       const worst = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((x, y) => this.permanentValue(x) - this.permanentValue(y))[0];
       return { picks: worst ? [worst.id] : [] };
     },
+    // Happy Yargle Day!: our least creature becomes a 9/3 Yargle
+    yargleCopy(s) { return this.chooseToDestroy(s); },
+    // Imaginary Friends: the most played of the cards it could be cast as (EDHREC's rank, when known)
+    castAs(s) {
+      const opts = (s.options || []).slice().sort((x, y) => (((x.cards || [])[0] || {}).edhrec_rank || 1e9) - (((y.cards || [])[0] || {}).edhrec_rank || 1e9));
+      return { picks: opts.length ? [opts[0].i != null ? opts[0].i : 0] : [] };
+    },
     // (Jund: devour handed to the spell, asked as it enters — the same)
     devourEnter(s) { return this.devour(s); },
     /* Reverse the Sands, The Doctor's Tomb: our total for the highest an opponent has, when that is more; theirs

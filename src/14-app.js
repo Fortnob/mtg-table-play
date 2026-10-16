@@ -103,6 +103,10 @@
       // Garth One-Eye: "Choose a card name that hasn't been chosen from among Disenchant, …, and Black Lotus" — copies made by name
       for (const m of text.matchAll(/hasn'?t been chosen from among ([^.]+?)\. Create a copy of the card with the chosen name/gi))
         for (const n of m[1].split(/,\s*(?:and\s+)?|\s+and\s+/)) if (n.trim()) out.add(n.trim());
+      // Happy Yargle Day! (a plane): "choose Swords to Plowshares, Opt, …, or Explore at random. Copy the chosen card." and a copy of Yargle
+      for (const m of text.matchAll(/choose ((?:[^,.]+, )+or [^,.]+?) at random\. Copy the chosen card/gi))
+        for (const n of m[1].split(/,\s*(?:or\s+)?/)) if (n.trim()) out.add(n.trim());
+      for (const m of text.matchAll(/becomes a copy of ([^.]+?), except it isn'?t legendary/gi)) out.add(m[1].trim());
       /* Meld (CR 701.42): Gisela, the Broken Blade melds with Bruna into Brisela, Voice of Nightmares, a
          card no deck holds, so it is fetched alongside (the game keeps it: Game._meldCard) */
       for (const p of c.all_parts || []) if (p && p.component === 'meld_result' && p.name && p.name !== c.name) out.add(p.name);
@@ -118,6 +122,35 @@
       names = conjureNames(got);
     }
     if (conjured.size && !MTG.cardLookup) MTG.cardLookup = (name) => conjured.get(U.normName(name)) || null;
+  }
+  /* Imaginary Friends (a plane): "Players may cast spells as though they were other cards legal in this game's format with
+     the same type and mana cost." — the cards of each mana cost the decks hold, from the card database when it is there
+     (at once), or fetched in the background as the game starts; the rules read them through MTG.cardsByCost */
+  const byCost = new Map();
+  MTG.cardsByCost = (cost, fmtKey) => {
+    const db = MTG.cardDb;
+    if (db && db.idx) {
+      const k = 'db|' + fmtKey + '|' + cost;
+      if (!byCost.has(k)) { try { byCost.set(k, db.idx.search(`mana=${cost} f:${fmtKey} -t:land`, { max: 400 })); } catch (e) { byCost.set(k, null); } }
+      if (byCost.get(k)) return byCost.get(k);
+    }
+    return byCost.get(fmtKey + '|' + cost) || null;
+  };
+  function prefetchImaginary(planarCards, deckCards, fmtKey) {
+    if (!(planarCards || []).some(c => c && /^Imaginary Friends\b/.test(c.name || ''))) return;
+    if (MTG.cardDb && MTG.cardDb.idx) return;
+    const costs = new Set();
+    for (const c of deckCards) {
+      if (!c || /\bLand\b/.test(c.type_line || '')) continue;
+      for (const f of (c.card_faces && !c.mana_cost ? c.card_faces : [c])) if (f.mana_cost) costs.add(f.mana_cost);
+    }
+    (async () => {
+      for (const cost of costs) {
+        const k = fmtKey + '|' + cost;
+        if (byCost.has(k)) continue;
+        try { byCost.set(k, await MTG.scry.search(`mana=${cost} f:${fmtKey} -t:land`, { max: 400 })); } catch (e) { /* offline: not this cost */ }
+      }
+    })();
   }
 
   /** A seat's profile picture (a data URL), or null: yours from the settings, the others' as they sent them. */
@@ -4640,6 +4673,13 @@
         });
         // Planechase: each deck's planar deck, made legal (topped up with planes dealt at random) where it isn't
         const planar = this.rules.planechase ? await planarDecksFor(this.roster, this.seed, busy) : null;
+        // (the cards the planes copy by name, and Imaginary Friends' other cards of each cost)
+        if (planar) {
+          const pcs = [].concat(...planar.decks.values());
+          await prefetchConjured(pcs);
+          prefetchImaginary(pcs, [].concat(...this.roster.filter(r => r.deck).map(r => r.deck.main.map(e => e.card).concat(r.deck.commanders || []))),
+            (this.fmt && this.fmt.scryKey) || 'vintage');
+        }
         for (const r of this.roster) {
           const p = g.addPlayer({ id: r.id, name: r.name, isBot: r.kind === 'bot', botDifficulty: r.difficulty });
           // what the draft cards noted, from the draft itself (src/07-draft.js)
@@ -4967,7 +5007,9 @@
         case 'plot': g.plotCard(actorId, intent.objId, { auto: true }); break;
         // Suspend X: the time counters, and the X paid
         case 'suspend': g.suspendCard(actorId, intent.objId, { auto: true,
-          x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(1, Math.min(99, Math.floor(+intent.x))) : undefined }); break;
+          x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(1, Math.min(99, Math.floor(+intent.x))) : undefined,
+          // (Talon Gates: "you may exile a nonland card from your hand with X time counters on it" — via 'talon')
+          via: typeof intent.via === 'string' ? intent.via.slice(0, 20) : undefined }); break;
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;
         case 'foretell': g.foretellCard(actorId, intent.objId, { auto: true }); break;
         case 'encore': g.encoreCard(actorId, intent.objId, { auto: true }); break;
