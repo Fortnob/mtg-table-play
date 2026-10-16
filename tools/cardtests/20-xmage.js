@@ -78965,4 +78965,131 @@ module.exports = (test) => {
     T.bf('A', 'Sol Ring'); g.bumpBoard();
     t.eq(g.toughnessOf(hero), 5, 'two artifacts: +4/+4');
   });
+
+  test("Cards: Aang's Journey — a basic land card; kicked, a basic land card and a Shrine card", (mk, t) => {
+    t.auto("Aang's Journey");
+    const run = (kick) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.toMain('A');
+      const forest = T.top('A', 'Forest');
+      const shrine = T.top('A', 'Honden of Seeing Winds');
+      T.top('A', 'Grizzly Bears');
+      T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Forest' || /Honden/.test(c.name)).id] }));
+      T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Forest' || /Honden/.test(c.name)).id] }));
+      const life = T.life('A');
+      T.mana('A', kick ? '1111' : '11');
+      T.cast('A', T.hand('A', "Aang's Journey"), kick ? { kick: 1 } : {});
+      t.eq(T.life('A'), life + 2, 'gain 2 life');
+      return { forest, shrine };
+    };
+    const k = run(true);
+    t.zone(k.forest, 'hand', 'kicked: the basic land');
+    t.zone(k.shrine, 'hand', 'kicked: and the Shrine');
+    const u = run(false);
+    t.zone(u.forest, 'hand', 'unkicked: the basic land');
+    t.zone(u.shrine, 'library', 'unkicked: no Shrine');
+  });
+
+  test('Cards: Knollspine Dragon — may discard your hand and draw as many as the damage dealt to target opponent this turn', (mk, t) => {
+    t.auto('Knollspine Dragon');
+    const run = (yes, who) => {
+      const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+      T.toMain('A');
+      T.mana('A', 'R');
+      T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+      const h1 = T.hand('A', 'Grizzly Bears'), h2 = T.hand('A', 'Hill Giant');
+      T.answer('pickTarget', { targets: [{ kind: 'player', id: who }] });
+      T.answer('confirm', { yes });
+      T.bf('A', 'Knollspine Dragon', { etb: true }); T.resolve();
+      return { T, h1, h2 };
+    };
+    let r = run(true, 'B');
+    t.zone(r.h1, 'graveyard', 'the hand discarded');
+    t.zone(r.h2, 'graveyard', 'all of it');
+    t.eq(r.T.zone('A', 'hand').length, 3, 'three cards: B was dealt 3 this turn');
+    r = run(true, 'C');
+    t.zone(r.h1, 'graveyard', 'discarded even so');
+    t.eq(r.T.zone('A', 'hand').length, 0, 'C was dealt nothing: no cards');
+    r = run(false, 'B');
+    t.zone(r.h1, 'hand', 'declined: the hand stays');
+    t.eq(r.T.zone('A', 'hand').length, 2, 'and nothing drawn');
+  });
+
+  test("Cards: Guff Rewrites History — one of each player's shuffled in; each exiles to a nonland card and may cast it free", (mk, t) => {
+    t.auto('Guff Rewrites History');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    const pac = T.bf('B', 'Intangible Virtue');
+    const asked = [];
+    T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: true }; });
+    T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: false }; });
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Guff Rewrites History'));
+    t.zone(pac, 'battlefield', 'an enchantment is no choice');
+    t.eq(asked.join(','), 'A,B', 'each player asked, in turn order');
+    t.zone(bears, 'battlefield', 'A shuffled its Bears in, exiled them again (the only nonland card) and cast them');
+    t.eq(bears.controller, 'A', 'cast by its owner');
+    t.zone(giant, 'exile', 'B declined: its card stays exiled');
+    t.ok(T.zone('B', 'library').every(c => c.name === 'Island'), 'the lands exiled on the way are back in the library');
+    t.eq(T.zone('B', 'library').length, 40, 'all of them');
+  });
+
+  test('Cards: Luck Bobblehead — a d6 for each Bobblehead; a tapped Treasure for each even result; seven 6s win the game', (mk, t) => {
+    t.auto('Luck Bobblehead');
+    const roll = (k, faces) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.toMain('A');
+      const bs = Array.from({ length: k }, () => T.bf('A', 'Luck Bobblehead'));
+      let i = 0;
+      T.g.rng.range = () => faces[i++ % faces.length];
+      T.mana('A', '1');
+      const a = bs[0].analysis();
+      T.activate('A', bs[0], a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated')).findIndex(x => (x.effects || []).some(e => e.op === 'rollDie')));
+      return { T, rolled: i };
+    };
+    let r = roll(3, [2, 5, 6]);
+    t.eq(r.rolled, 3, 'three Bobbleheads: three dice');
+    const tr = r.T.bfOf('A').filter(o => o.name === 'Treasure');
+    t.eq(tr.length, 2, 'two even results: two Treasures');
+    t.ok(tr.every(o => o.tapped), 'tapped');
+    t.no(r.T.g.over, 'no win');
+    r = roll(7, [6]);
+    t.eq(r.T.bfOf('A').filter(o => o.name === 'Treasure').length, 7, 'seven 6s: seven Treasures');
+    t.ok(r.T.g.over && (r.T.g.winners || []).includes('A'), 'and A wins the game');
+    r = roll(8, [6]);
+    t.no(r.T.g.over, 'eight 6s are not exactly seven');
+  });
+
+  test('Cards: Mirrormind Crown — the first tokens each turn may be copies of the equipped creature instead', (mk, t) => {
+    t.auto('Mirrormind Crown');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const crown = T.bf('A', 'Mirrormind Crown');
+    const bear = T.bf('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Strike It Rich'));
+    t.eq(q, null, 'not attached: nothing asked');
+    t.ok(T.bfOf('A').some(o => o.name === 'Treasure'), 'a Treasure');
+    T.answers.length = 0;
+    T.nextTurn('B');
+    crown.attachedTo = bear.id; bear.attachments = (bear.attachments || []).concat(crown.id);
+    T.g.passPriority('B', true);
+    T.answer('choose', (ch) => { q = ch; return { picks: [bear.id] }; });
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.ok(q && q.purpose === 'tokenCopyFirst' && q.items.length === 1 && q.items[0].id === bear.id, 'asked, in anybody\'s turn: the equipped creature');
+    const made = T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
+    t.eq(made.length, 2, 'that many copies of it');
+    q = null;
+    if (T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    T.answer('choose', (ch) => { q = ch; return { picks: [bear.id] }; });
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    t.eq(q, null, 'only the first time each turn');
+    t.eq(T.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.name)).length, 2, 'Soldiers as they are');
+  });
 };

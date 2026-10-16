@@ -2717,6 +2717,10 @@
     // (Blitzwing, Cruel Tormentor: "target opponent loses life equal to the life that player lost this turn")
     { re: /^Target (opponent|player) loses life equal to the (?:amount of life they(?:'ve)?|life that player) lost this turn\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'target', n: { targetPlayerStat: 'lifeLostThisTurn', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Knollspine Dragon: "discard your hand and draw cards equal to the damage dealt to target opponent this turn" (targetPlayerStat)
+    { re: /^Discard your hand and draw cards equal to the (?:amount of )?damage dealt to target (opponent|player) this turn\.?$/i,
+      make: (m) => [{ op: 'discard', n: 'all', who: 'you' },
+        { op: 'draw', who: 'you', n: { targetPlayerStat: 'damageTakenThisTurn', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }] },
     // Villainous Wrath: "Target opponent loses life equal to the number of creatures they control."
     { re: /^Target (opponent|player) loses life equal to the number of ([a-z]+?)s they control\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'target', n: { scope: { who: 'target', what: m[2].toLowerCase() }, mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -5414,6 +5418,11 @@
        Treasures spent to activate this ability." (perTreasureSpent) */
     { re: /^Roll a six-sided die plus an additional six-sided die for each mana from Treasures spent to activate this ability\.?$/,
       make: () => ({ op: 'rollDie', sides: 6, perTreasureSpent: true }) },
+    // Luck Bobblehead: "Roll X six-sided dice, where X is the number of Bobbleheads you control." — rolled together (count)
+    { re: /^Roll (X|two|three|four|five|\d+) (four|six|eight|ten|twelve|twenty)-sided dice(?:, where X is (.+?))?\.?$/,
+      make: (m) => { const k = m[1] === 'X' ? (m[3] ? amountOf(m[3]) : null) : num(m[1]);
+        const sides = { four: 4, six: 6, eight: 8, ten: 10, twelve: 12, twenty: 20 }[m[2]];
+        return k != null && !(k && k.unread) && (m[1] === 'X') === !!m[3] ? { op: 'rollDie', sides, count: k } : null; } },
     /* Mr. House: "If you rolled 6 or higher, instead create that token and a Treasure token." — the token made
        already, and the Treasure besides (rolledAtLeast) */
     { re: /^If you rolled (\d+) or higher, instead create that token and an? (Treasure|Food|Clue|Blood|Map) token\.?$/,
@@ -10815,6 +10824,8 @@
     if (/^other creatures? you control that shares? a creature type with (?:it|CARDNAME|this creature)$/i.test(p)) return { sharesTypeOthers: true, mineOnly: true, mult: k };
     // Mana Echoes: "the number of creatures you control that share a creature type with it" — the creature the trigger is about, itself too (sharesTypeTrigger)
     if (/^creatures you control that share a creature type with it$/i.test(p)) return { sharesTypeTrigger: true, mineOnly: true, mult: k };
+    // Luck Bobblehead: "for each even result" — of the dice just rolled (lastRollsEven)
+    if (/^even result$/i.test(p)) return { lastRollsEven: true, mult: k };
     // Wolfbriar Elemental, Lightkeeper of Emeria: "for each time it was kicked" (multikicker)
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // The Mary Janes: "for each creature that attacked this turn" — anyone's (attackedCreatures)
@@ -12140,6 +12151,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Aang's Journey: "Search your library for a basic land card. If this spell was kicked, instead search your library for
+       a basic land card and a Shrine card. Reveal those cards, put them into your hand, then shuffle." — one search or two */
+    { re: /^Search your library for an? ([a-z]+(?: [a-z]+)?) card\. If this spell was kicked, instead search your library for an? \1 card and an? ([A-Za-z]+(?: [a-z]+)?) card\. Reveal those cards, put them into your hand, then shuffle\.?$/i,
+      make: (m) => { const one = (f) => ({ op: 'tutor', n: 1, filter: f.toLowerCase(), to: 'hand' });
+        return [{ op: 'ifCond', cond: { kind: 'kicked', n: 1 }, then: [one(m[1]), one(m[2])], otherwise: [one(m[1])] }]; } },
     /* The Irencrag: "you may have The Irencrag become a legendary Equipment artifact named Everflame, Heroes' Legacy. If
        you do, it gains equip {3} and "Equipped creature gets +3/+3" and loses all other abilities." — for good (becomes
        permanent, setName, loseAll, grantTexts) */
@@ -12304,6 +12320,14 @@
     { re: /^for each player, choose target permanent that player controls\. Those players sacrifice those permanents\. Each player who sacrificed a permanent this way reveals the top card of their library, then puts it onto the battlefield if it'?s a permanent card\.?$/i,
       make: () => [{ op: 'sacrificeTargeted', revealPutPermanent: true,
         perOpponentFrom: { type: 'permanent', filter: 'permanent', zone: 'battlefield', everyPlayer: true, mandatory: true } }] },
+    /* Guff Rewrites History: "For each player, choose target nonenchantment, nonland permanent that player controls. Those
+       permanents' owners shuffle them into their libraries. Each player who controlled one of those permanents exiles cards
+       from the top of their library until they exile a nonland card, then puts the rest on the bottom of their library in a
+       random order. Each player may cast the nonland card they exiled without paying its mana cost." — one of each player's
+       (shuffleInExileCast) */
+    { re: /^for each player, choose target ([a-z, ]+?) that player controls\. Those permanents'? owners shuffle them into their libraries\. Each player who controlled one of those permanents exiles cards from the top of their library until they exile a nonland card, then puts the rest on the bottom of their library in a random order\. Each player may cast the nonland card they exiled without paying its mana cost\.?$/i,
+      make: (m) => [{ op: 'shuffleInExileCast',
+        perOpponentFrom: Object.assign(targetSpec('target ' + m[1]), { zone: 'battlefield', everyPlayer: true, mandatory: true }) }] },
     /* Kitesail Larcenist: "for each player, choose up to one other target artifact or creature that player controls. For as
        long as this creature remains on the battlefield, the chosen permanents become Treasure artifacts with "{T}, Sacrifice
        this artifact: Add one mana of any color" and lose all other abilities." — one of each player's (yours too), while it stays (whileHere) */
@@ -17326,6 +17350,8 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    // Luck Bobblehead: "If you rolled 6 exactly seven times" — among the dice just rolled (rolledTimes)
+    [/^you rolled (\d+) exactly (\w+) times$/i, (m) => (typeof num(m[2]) === 'number' ? { kind: 'rolledTimes', value: +m[1], n: num(m[2]) } : null)],
     // Unyaro: "if you planeswalked to Unyaro this turn" — this plane, turned up this turn (planeswalkedHere)
     [/^you planeswalked to (?:CARDNAME|this plane) this turn$/i, () => ({ kind: 'planeswalkedHere' })],
     /* Meld (CR 701.42): Gisela, the Broken Blade's "if you both own and control Gisela and a creature
@@ -26519,6 +26545,11 @@
          (tokenCopyFirst) */
       { re: /^The first time you would create one or more tokens during each of your turns, you may instead choose a creature other than (?:CARDNAME|Esix) and create that many tokens that are copies of that creature\.?$/i,
         eff: { op: 'tokenCopyFirst' }, auto: true },
+      /* Mirrormind Crown: "As long as this Equipment is attached to a creature, the first time you would create one or
+         more tokens each turn, you may instead create that many tokens that are copies of equipped creature."
+         (tokenCopyEquipped) */
+      { re: /^As long as (?:this Equipment|CARDNAME) is attached to a creature, the first time you would create one or more tokens each turn, you may instead create that many tokens that are copies of equipped creature\.?$/i,
+        eff: { op: 'tokenCopyEquipped' }, auto: true },
       // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
       /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead. Put

@@ -16837,6 +16837,8 @@
         }
         // Mr. House, President and CEO: "If you rolled 6 or higher" — the roll the trigger is about (rolledAtLeast)
         case 'rolledAtLeast': return Number(((ctx && ctx.triggerData) || {}).amount) >= (cond.n || 0);
+        // Luck Bobblehead: "If you rolled 6 exactly seven times" — the dice of the roll just made (_lastRolls)
+        case 'rolledTimes': return (this._lastRolls || []).filter(x => x === cond.value).length === cond.n;
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         // Unyaro (a plane, src/06f-planechase.js): "if you planeswalked to Unyaro this turn"
         case 'planeswalkedHere': return !!src && src.planeUp && src.planeswalkedToTurn === this.turn;
@@ -22632,7 +22634,15 @@
       }
       /* "For each opponent, exile up to one target nonland permanent that
          player controls": up to one of each opponent's, picked as it resolves */
-      if (e.perOpponentFrom && !(e.targets && e.targets.length) && !aimedHere) {
+      /* (Guff Rewrites History: what was picked stays picked while the rest of the sentence waits on a question —
+         the picks moved by then, not to be picked again: perOppPicks) */
+      const rPo = e.perOpponentFrom && this.resolving;
+      const poKept = rPo && rPo.marks && rPo.marks[rPo.index + ':perOppPicks'];
+      if (poKept && !(e.targets && e.targets.length) && !aimedHere) {
+        targets = poKept.map(id => ({ kind: 'object', id }));
+        this._noteLastAffected(targets);
+        this._lastGroup = poKept.slice();
+      } else if (e.perOpponentFrom && !(e.targets && e.targets.length) && !aimedHere) {
         const spec = e.perOpponentFrom;
         const pool = this._legalTargetsFor(spec, ctx.controller, src ? src.id : null)
           .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
@@ -22655,6 +22665,7 @@
         if (warded) return null;
         this._noteLastAffected(targets);
         this._lastGroup = picks.slice();
+        if (rPo) (rPo.marks = rPo.marks || {})[rPo.index + ':perOppPicks'] = picks.slice();
       }
       /* An effect that wants a target and has not been given one asks for it
          now. This is what a chosen mode needs: "choose one — destroy target
@@ -23263,7 +23274,12 @@
         // Glissa Sunseeker: "the amount of unspent mana you have" (unspentMana)
         if (v && typeof v === 'object' && v.unspentMana) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
-        if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
+        if (v && typeof v === 'object' && v.targetPlayerStat) {
+          const tpS = targets.find(t => t.kind === 'player'), tpP = this.player(tpS && tpS.id) || {};
+          // Knollspine Dragon: "the damage dealt to target opponent this turn" (damageTaken, this turn's)
+          if (v.targetPlayerStat === 'damageTakenThisTurn') return (tpP.damageTaken && tpP.damageTaken.turn === this.turn ? tpP.damageTaken.n : 0) * (v.mult || 1);
+          return (Number(tpP[v.targetPlayerStat]) || 0) * (v.mult || 1);
+        }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
         if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.sharedTypeMax || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsHandAtMost || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.opponentsDamaged || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
@@ -23352,6 +23368,8 @@
         // Sunfall: how many the sweep just before took
         if (v === 'lastSweep') return this._lastSweep || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
+        // Luck Bobblehead: "for each even result" — the dice of the roll just made (lastRollsEven)
+        if (v && typeof v === 'object' && v.lastRollsEven) return (this._lastRolls || []).filter(x => x % 2 === 0).length * (v.mult || 1);
         // Station: the power of the creature tapped to pay for it
         if (v && typeof v === 'object' && v.ofTapped) return Math.max(0, ((ctx.tapped || [])[0] || {})[v.ofTapped] || 0);
         // "you gain life equal to the damage dealt this way"
@@ -30859,6 +30877,51 @@
           const z = this.zones[st.pid];
           const rest = this.rng.shuffle(st.exiled.map(id => this.obj(id)).filter(c => c && c.zone === 'exile'));
           for (const c of rest) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); this._toLibraryNote(c, 'exile'); }
+          break;
+        }
+        /* Guff Rewrites History: "Those permanents' owners shuffle them into their libraries. Each player who controlled one
+           of those permanents exiles cards from the top of their library until they exile a nonland card, then puts the rest
+           on the bottom of their library in a random order. Each player may cast the nonland card they exiled without paying
+           its mana cost." — in turn order; a card not cast stays in exile */
+        case 'shuffleInExileCast': {
+          const r = this.resolving;
+          const slot = r ? r.index + ':siec' : null;
+          r && (r.marks = r.marks || {});
+          let st = r && r.marks[slot];
+          if (!st) {
+            const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
+            const ctls = new Set(objs.map(o => o.controller));
+            for (const o of objs) {
+              this.moveObject(o, 'library');
+              this.logEvent('zone', `${o.name} is shuffled into its owner's library.`);
+            }
+            for (const pid of new Set(objs.map(o => o.owner))) this.rng.shuffle(this.zones[pid].library);
+            st = { hits: [], done: {} };
+            for (const q of this._turnOrderFrom(this.activePlayer.id)) {
+              if (!ctls.has(q.id)) continue;
+              const z = this.zones[q.id], exiled = [];
+              let hit = null;
+              while (z.library.length) {
+                const c = z.library[0];
+                this.moveObject(c, 'exile');
+                if (!(c.analysis() || {}).isLand) { hit = c; break; }
+                exiled.push(c);
+              }
+              for (const c of this.rng.shuffle(exiled.filter(c => c.zone === 'exile'))) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); this._toLibraryNote(c, 'exile'); }
+              if (hit) { this.logEvent('zone', `${q.name} exiles ${hit.name}.`); st.hits.push({ pid: q.id, id: hit.id }); }
+            }
+            if (r) r.marks[slot] = st;
+          }
+          for (const h of st.hits) {
+            if (st.done[h.pid]) continue;
+            const hit = this.obj(h.id);
+            if (hit && hit.zone === 'exile') {
+              const yes = this._ask({ type: 'confirm', playerId: h.pid, purpose: 'castCopy', prompt: `Cast ${hit.name} without paying its mana cost?` }, 'siec:' + h.pid);
+              if (yes === SUSPEND) return SUSPEND;
+              if (yes) this._castFree(h.pid, hit);
+            }
+            st.done[h.pid] = true;
+          }
           break;
         }
         // The Infinity Stones: harnessed, its ∞ abilities work from now on
@@ -39433,13 +39496,17 @@
         case 'rollDie': {
           const sides = n(e.sides) || 20;
           // Mr. House, President and CEO: one more die for each mana from Treasures spent on the ability (perTreasureSpent)
-          const extraDice = e.perTreasureSpent ? Math.max(0, Number(ctx.manaFromTreasure) || 0) : 0;
+          // (Luck Bobblehead: "Roll X six-sided dice, where X is the number of Bobbleheads you control" — X of them, none for 0: count)
+          const many = e.count != null ? Math.max(0, n(e.count) || 0) : null;
+          if (many === 0) { this._lastRolls = []; this.logEvent('rules', `${me.name} rolls no dice.`); break; }
+          const extraDice = many != null ? many - 1 : e.perTreasureSpent ? Math.max(0, Number(ctx.manaFromTreasure) || 0) : 0;
           const rolled = [];
           // every die of this roll rolled together, as one group on the table
           const dice = { group: this._newRollGroup(), of: extraDice + 1 };
           for (let k = 0; k < extraDice; k++) rolled.push(this._rollDie(me, sides, dice));
           this._lastRoll = this._rollDie(me, sides, dice);
           rolled.push(this._lastRoll);
+          this._lastRolls = rolled.slice();
           // Wyll's Reversal: "Roll a d20 and add the greatest power among creatures you control" — the total reads the results (plus)
           const total = this._lastRoll + (e.plus ? Math.max(0, n(e.plus)) : 0);
           if (e.plus) this.logEvent('rules', `${me.name} rolls ${this._lastRoll}, plus ${total - this._lastRoll}: ${total}.`);
@@ -42028,8 +42095,10 @@
       if (!ev) {
         const own = !!this.activePlayer && this.activePlayer.id === controller;
         // (Esix: "the first time … during each of your turns" — whatever made them, and whether or not it was replaced)
-        ev = { done: [], first: own && p._ownTurnTokens !== this.turn };
+        ev = { done: [], first: own && p._ownTurnTokens !== this.turn, firstAny: p._anyTurnTokens !== this.turn };
         if (own) p._ownTurnTokens = this.turn;
+        // (Mirrormind Crown: "the first time you would create one or more tokens each turn" — anybody's turn)
+        p._anyTurnTokens = this.turn;
       }
       const ask = this._tokenSwapQuestion(controller, n, recipe, ev);
       if (!ask) return true;
@@ -42057,6 +42126,18 @@
           sourceId: esix.id, sourceName: esix.name, sourceCard: esix.card, orig: this._tokenRecipeLooks(recipe),
           prompt: `${esix.name}: you would create ${what}. You may instead choose a creature other than ${esix.name} and create that many tokens that are copies of it.` }) };
       }
+      /* Mirrormind Crown: "As long as this Equipment is attached to a creature, the first time you would create one or
+         more tokens each turn, you may instead create that many tokens that are copies of equipped creature." — each
+         Crown of yours once (crown:<id>), asked as Esix's question with the one creature in it */
+      const crown = ev.firstAny && this.battlefield.find(x => x.controller === controller && !x.phasedOut && !ev.done.includes('crown:' + x.id) &&
+        this._staticOp(x, 'tokenCopyEquipped') && x.attachedTo && !!(this.characteristics(this.obj(x.attachedTo)) || {}).isCreature);
+      if (crown) {
+        const eq = this.obj(crown.attachedTo);
+        return { which: 'crown:' + crown.id, spec: MTG.choice.normalize({ type: 'choose', playerId: controller, purpose: 'tokenCopyFirst', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems([eq]), min: 0, max: 1, optional: true, noneLabel: 'Make them as they are',
+          sourceId: crown.id, sourceName: crown.name, sourceCard: crown.card, orig: this._tokenRecipeLooks(recipe),
+          prompt: `${crown.name}: you would create ${what}. You may instead create that many tokens that are copies of ${eq.name}.` }) };
+      }
       const jf = !ev.done.includes('jinnie') && mine('tokenSwapAnimals');
       if (jf) {
         const say = (w) => (n === 1 ? 'a ' + w : O.nounCount(n, w));
@@ -42072,7 +42153,7 @@
     _tokenSwapAnswer(controller, n, recipe, ev, which, picks) {
       ev.done.push(which);
       const flags = this._tokenRecipeFlags(recipe);
-      if (which === 'esix') {
+      if (which === 'esix' || /^crown:/.test(which)) {
         const x = this.obj(picks[0]);
         if (x && x.zone === 'battlefield') {
           this.logEvent('token', `${(this.player(controller) || {}).name} creates copies of ${x.name} instead.`);
