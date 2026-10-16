@@ -17065,6 +17065,11 @@
             : cond.how === 'discarded' ? (this._lastDiscarded || [])
             : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []));
           const f = String(cond.filter || '');
+          // (Sphinx's Tutelage: "two nonland cards that share a color" — two of those that fit with a color in common: shareColor)
+          if (cond.shareColor) {
+            const cols = ids.map(id => this.obj(id)).filter(c => c && (!f || this._itFits(c, f))).map(c => (c.analysis() || {}).colors || []);
+            return cols.some((a, i) => cols.some((b, j) => j > i && a.some(x => b.includes(x))));
+          }
           return ids.some(id => { const c = this.obj(id); return c && (/ or /.test(f) ? f.split(' or ').some(w => this._itFits(c, w))
             : /, /.test(f) ? f.split(', ').every(w => this._itFits(c, w)) : this._itFits(c, f)); });
         }
@@ -23630,13 +23635,17 @@
           }
           // Aragorn, Company Leader: "your choice of a counter from among first strike, vigilance, …" (kindChoice)
           if (e.kindChoice && e.kindChoice.length > 1) {
+            // (Inspirit, Flagship Vessel: "a +1/+1 counter or two charge counters" — each kind with its number: kindChoiceN)
+            const kN = e.kindChoiceN || null;
+            const kOn = (e.targets || []).length ? firstObj() : src;
             const kc = this._choose({ playerId: ctx.controller, purpose: 'counterKindPick', kind: 'options', min: 1, max: 1,
-              options: e.kindChoice.map(k => ({ label: U.titleCase(k) + ' counter' })), kinds: e.kindChoice.slice(),
+              options: e.kindChoice.map((k, i) => ({ label: kN ? MTG.oracle.nounCount(kN[i], k + ' counter') : U.titleCase(k) + ' counter' })), kinds: e.kindChoice.slice(),
+              objId: kOn ? kOn.id : null,
               // (Owen Grady, Raptor Trainer: "on target Dinosaur" — the one targeted)
               prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a counter to put on ${(e.targets || []).length ? (firstObj() ? firstObj().name : 'it') : src ? src.name : 'it'}.` }, 'ckind');
             if (kc === SUSPEND) return SUSPEND;
             const ki = kc && kc.picks && kc.picks[0];
-            e = Object.assign({}, e, { kind: e.kindChoice[ki] || e.kindChoice[0], kindChoice: null });
+            e = Object.assign({}, e, { kind: e.kindChoice[ki] || e.kindChoice[0], kindChoice: null }, kN ? { n: kN[ki] != null ? kN[ki] : kN[0], kindChoiceN: null } : {});
           }
           // Aragorn, Company Leader: "one of each of those kinds of counters" — the kind the trigger is about (kindFromTrigger)
           if (e.kindFromTrigger) {
@@ -31586,6 +31595,9 @@
             forPlayer: e.forPlayer === 'you' ? ctx.controller : e.forPlayer === 'chosen' ? ctx.chosenPlayer : e.forPlayer === 'owner' ? ownerP : null,
             notBefore: e.nextTurn ? this.turn : null,
             sameTurnOk: !e.nextTurn,
+            // (All-Out Assault: "When you next attack this turn" — your attack only, gone at the turn's end: eventYours, thisTurn)
+            ...(e.eventYours ? { eventController: ctx.controller } : {}),
+            ...(e.thisTurn ? { untilTurn: this.turn } : {}),
             // (Obzedat, Ghost Council: only while it is the same card in exile — whileExiled)
             ...(e.whileExiled && objId && this.obj(objId) && this.obj(objId).zone === 'exile' ? { whileExiled: this.obj(objId).exileStamp } : {}),
             objId: objId || null,

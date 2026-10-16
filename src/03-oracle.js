@@ -761,6 +761,9 @@
     if (noPt && !(e.grantedText && new RegExp('^' + selfWords + "'s power and toughness are each equal to ", 'i').test(e.grantedText) && !/CARDNAME/.test(e.grantedText))) return null;
     /* A token handed an ability has to be able to use it: the text is
        read as the token's own card would be, and has to read whole. */
+    /* Nesting Dragon: '"When this token dies, create a … token with flying and '{R}: This token gets +1/+0 …'"' — a
+       quote within the quote is in single marks; as the token's own text it is a quote of its own */
+    if (e.grantedText && /(?:^|\s)'/.test(e.grantedText)) e.grantedText = e.grantedText.replace(/(^|\s)'(.+?)'(?=$|\s|[.,)])/g, '$1"$2"');
     if (e.grantedText) {
       const probe = analyze({ id: 'tokentext:' + U.hash(e.grantedText), name: e.name || e.subtypes, type_line: 'Token Creature — ' + e.subtypes,
         oracle_text: e.grantedText, keywords: [], layout: 'token' });
@@ -2746,6 +2749,14 @@
         const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
         const tg = targetSpec(m[3]);
         return tg && kinds.every(k => kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, targets: [tg] } : null;
+      } },
+    /* Inspirit, Flagship Vessel: "put your choice of a +1/+1 counter or two charge counters on up to one other target
+       artifact" — a kind and its number, picked together (kindChoice, kindChoiceN) */
+    { re: /^Put your choice of (an?|one|two|three) ([+\-0-9/a-z]+) counters? or (an?|one|two|three) ([+\-0-9/a-z]+) counters? on ((?:another )?target [a-z ]+?)\.?$/i,
+      make: (m) => {
+        const kinds = [m[2].toLowerCase(), m[4].toLowerCase()], ns = [num(m[1]), num(m[3])];
+        const tg = targetSpec(m[5]);
+        return tg && !tg.unknown && kinds[0] !== kinds[1] && ns.every(x => typeof x === 'number') ? { op: 'counters', kind: kinds[0], kindChoice: kinds, kindChoiceN: ns, n: ns[0], targets: [tg] } : null;
       } },
     /* Aragorn, Company Leader: "put one of each of those kinds of counters on up to one other target creature" — the kinds
        the trigger is about (kindFromTrigger) */
@@ -11892,6 +11903,15 @@
         return body.effects.concat([{ op: 'repeatWhile', cond, before: [{ op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'self' }],
           body: JSON.parse(JSON.stringify(body.effects)) }]);
       } },
+    /* Sphinx's Tutelage: "Target opponent mills two cards. If two nonland cards that share a color were milled this way,
+       repeat this process." — the same opponent again, while two of the cards milled share a color (repeatWhile, shareColor) */
+    { re: /^(.+?\.) If two (nonland )?cards that share a colou?r were milled this way, repeat this process\.$/i,
+      make: (m) => {
+        const body = parseSentenceList(splitSentences(m[1]));
+        if (!body.auto || !body.effects.length || body.effects.some(x => x && x.op === 'manual') || !body.effects.some(x => x && x.op === 'mill')) return null;
+        return body.effects.concat([{ op: 'repeatWhile', cond: { kind: 'didThisWay', how: 'milled', filter: m[2] ? 'nonland' : '', shareColor: 2 },
+          body: JSON.parse(JSON.stringify(body.effects)) }]);
+      } },
     /* Karn, the Great Creator: "You may reveal an artifact card you own from outside the game or choose a face-up
        artifact card you own in exile. Put that card into your hand." (wish, alsoExile) */
     { re: /^You may reveal an? ([a-z ]+?) card you own from outside the game or choose a face-up \1 card you own in exile\. Put that card into your hand\.$/i,
@@ -12891,6 +12911,11 @@
     { re: /^After the second main phase this turn, there'?s an additional combat phase( followed by an additional main phase)?\. At the beginning of that combat, untap all creatures that attacked this turn\.?$/i,
       make: (m) => [{ op: 'extraCombatAfterMain', nth: 2, withMain: !!m[1], beginName: 'Untap all creatures that attacked this turn',
         beginEffects: [{ op: 'untapAttackedThisTurn', all: true }] }] },
+    /* All-Out Assault: "if it's your main phase, there is an additional combat phase after this phase followed by an
+       additional main phase. When you next attack this turn, untap each creature you control." (delayed youAttack) */
+    { re: /^(?:if it'?s your main phase, )?there is an additional combat phase after this phase,? followed by an additional main phase\. When you next attack this turn, untap each creature you control\.$/i,
+      make: () => [{ op: 'ifCond', cond: { kind: 'yourMainPhase' }, then: [{ op: 'extraCombat', count: 1, withMain: true, inMain: true },
+        { op: 'delayed', event: 'youAttack', eventYours: true, thisTurn: true, name: 'Untap each creature you control', effects: [{ op: 'untapAll', what: 'creatures' }] }] }] },
     /* Moraug, Fury of Akoum: "if it's your main phase, there's an additional
        combat phase after this phase. At the beginning of that combat, untap
        all creatures you control." */
@@ -25193,6 +25218,12 @@
         make: (m) => { const kws = keywordList(m[3]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
           { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } },
           { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws }] } : null; }, auto: true },
+      /* Eye of Nidhogg: "Enchanted creature is a black Dragon with base power and toughness 4/2, has flying and deathtouch,
+         and is goaded." — its color and creature type replaced (layers 5, 4), the size (7b), the keywords (6) */
+      { re: /^(?:Enchanted|Equipped) creature is an? (white|blue|black|red|green) ([A-Z][a-z]+) with base power and toughness (\d+)\/(\d+), has ([a-z ,]+?),? and is goaded\.?$/,
+        make: (m) => { const kws = keywordList(m[5]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
+          { op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, setCreatureTypes: [m[2]],
+            setColors: [{ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1]]], setPt: { p: +m[3], t: +m[4] }, grant: kws }] } : null; }, auto: true },
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },

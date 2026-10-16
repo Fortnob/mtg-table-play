@@ -2403,6 +2403,9 @@
     counterKindPick(s) {
       const pref = ['+1/+1', 'double strike', 'indestructible', 'deathtouch', 'lifelink', 'first strike', 'flying', 'trample', 'hexproof', 'menace', 'vigilance', 'reach'];
       const kinds = s.kinds || [];
+      // (Inspirit, Flagship Vessel: "a +1/+1 counter or two charge counters" — charge on what is not a creature)
+      const on = s.objId && this.game.obj(s.objId);
+      if (on && kinds.includes('charge') && !(on.analysis() || {}).isCreature) return { picks: [kinds.indexOf('charge')] };
       const best = kinds.slice().sort((a, b) => ((pref.indexOf(a) + 100) % 100) - ((pref.indexOf(b) + 100) % 100))[0];
       return { picks: [Math.max(0, kinds.indexOf(best))] };
     },
