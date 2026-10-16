@@ -954,6 +954,8 @@
         e.creatureCounters = /^an?$/i.test(c[1]) ? 1 : num(c[1]);
         if (c[2]) e.creatureText = [c[2][0].toUpperCase() + c[2].slice(1).toLowerCase()];
       }
+      // Altered Ego: "it enters with X additional +1/+1 counters on it" — the X it was cast with (xCounters)
+      else if ((c = ex.match(/^it enters with X additional \+1\/\+1 counters on it/i))) e.xCounters = true;
       // Sakashima of a Thousand Faces: "it has CARDNAME's other abilities"
       else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
       // Thespian's Stage, Irma, Part-Time Mutant: "it has this ability", "she has this ability"
@@ -13493,6 +13495,11 @@
     { re: /^Until end of turn, (target [a-z ]+?) becomes an artifact creature and gains ([a-z]+)\. If it'?s not an? ([A-Z][a-z]+), it has base power and toughness (\d+)\/(\d+) until end of turn\.?$/,
       make: (m) => [{ op: 'becomes', duration: 'eot', targets: [targetSpec(m[1])],
         eff: { addTypes: ['Artifact', 'Creature'], keywords: [m[2].charAt(0).toUpperCase() + m[2].slice(1)], setPt: { p: +m[4], t: +m[5] }, setPtUnless: m[3] } }] },
+    /* Tezzeret, Betrayer of Flesh: "Target artifact becomes an artifact creature. If it isn't a Vehicle, it has base power and
+       toughness 4/4." — for good (setPtUnless) */
+    { re: /^(Target (?:noncreature )?artifact(?: you control)?) becomes an artifact creature\. If it (?:isn'?t|is not|'?s not) an? ([A-Z][a-z]+), it has base power and toughness (\d+)\/(\d+)\.?$/,
+      make: (m) => [{ op: 'becomes', duration: 'permanent', targets: [targetSpec(m[1])],
+        eff: { addTypes: ['Artifact', 'Creature'], setPt: { p: +m[3], t: +m[4] }, setPtUnless: m[2] } }] },
     // Blitzwing, Adaptive Assailant: "choose flying or indestructible at random. Blitzwing gains that ability until end of turn." (keywordRandom)
     { re: /^choose ([a-z]+(?: [a-z]+)?) or ([a-z]+(?: [a-z]+)?) at random\. (?:CARDNAME|It|This creature) gains that ability until end of turn\.?$/i,
       make: (m) => [{ op: 'grantKeyword', keywords: [], keywordRandom: [m[1], m[2]].map(k => k.charAt(0).toUpperCase() + k.slice(1).toLowerCase()), duration: 'eot', targets: null, scope: 'self' }] },
@@ -14010,6 +14017,13 @@
     { re: /^Target player draws cards equal to half the number of cards in their library and loses half their life\. Round up each time\.?$/i,
       make: () => [{ op: 'draw', who: 'target', n: { halfLibrary: 'target', up: true }, targets: [{ type: 'player' }] },
         { op: 'loseLife', who: 'target', n: { halfLife: 'target', up: true } }] },
+    /* Selvala's Stampede: "Reveal cards from the top of your library until you reveal a creature card for each wild vote.
+       Put those creature cards onto the battlefield, then shuffle the rest into your library. You may put a permanent card
+       from your hand onto the battlefield for each free vote." — each once, with its number of votes (mode count) */
+    { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. Reveal cards from the top of your library until you reveal a creature card for each \1 vote\. Put those creature cards onto the battlefield, then shuffle the rest into your library\. You may put a permanent card from your hand onto the battlefield for each \2 vote\.?$/i,
+      make: (m) => [{ op: 'vote', choices: [m[1], m[2]], mode: 'count',
+        thenA: [{ op: 'revealUntil', who: 'you', filter: 'creature', n: { votes: 0 }, dest: 'battlefield', rest: 'shuffle' }],
+        thenB: [{ op: 'permanentFromHand', filter: 'permanent', who: 'you', n: { votes: 1 } }] }] },
     // Plea for Power, Tyrant's Choice: "If A gets more votes, …. If B gets more votes or the vote is tied, …."
     { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. If \1 gets more votes, (.+?)\. If \2 gets more votes or the vote is tied, (.+?)\.?$/i,
       make: (m) => { const a = voteBody(m[3]), b = voteBody(m[4]); return a && b ? [{ op: 'vote', choices: [m[1], m[2]], mode: 'most', thenA: a, thenB: b, tieB: true }] : null; } },
@@ -18824,7 +18838,8 @@
     { re: /^At the beginning of each other player'?s draw step,? /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
     { re: /^At the beginning of each player'?s draw step(?:,| )/i, event: 'eachDrawStep' },
     // Ashling, the Limitless: "Whenever you sacrifice a nontoken Elemental"
-    { re: /^When(?:ever)? you sacrifice a nontoken ([A-Z][a-z]+),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase(), nontoken: true }) },
+    // (Evendo Brushrazer: "Whenever you sacrifice a nontoken permanent")
+    { re: /^When(?:ever)? you sacrifice a nontoken ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase(), nontoken: true }) },
     // Camellia: "Whenever you sacrifice one or more Foods" (heard once for each one)
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
     // (Astrid Peth: "Whenever you sacrifice a Clue or Food" — sacrificeEither)
@@ -20512,6 +20527,17 @@
           parsed.effects = [Object.assign({ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: parsed.effects[0].text },
             /from a graveyard/i.test(parsed.effects[0].text) ? { fromGrave: true } : {})];
           parsed.auto = true;
+        }
+        /* Nazgûl Battle-Mace: "put that card onto the battlefield under your control unless that player pays 3 life" — the
+           card sacrificed, unless the one who sacrificed it pays (triggerPlayer) */
+        {
+          const up = parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'unlessPays' ? parsed.effects[0] : null;
+          if (trig.event === 'anySacrifice' && up && up.cost && up.cost.life && (up.then || []).length === 1 && up.then[0].op === 'manual' &&
+            /^put that card onto the battlefield under your control\.?$/i.test(up.then[0].text || '')) {
+            up.then = [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: up.then[0].text }];
+            up.who = 'triggerPlayer';
+            parsed.auto = true;
+          }
         }
         // Nev, the Practical Dean: "put X +1/+1 counters" — the X of the spell that set it off (firstXSpell)
         if (trig.extra && (trig.extra.firstXSpell || trig.extra.xSpell)) {
@@ -24804,6 +24830,9 @@
       // Professor Hojo: "The first activated ability you activate during your turn that targets a creature you control costs {2} less to activate." (targetsOwn)
       { re: /^The first activated ability you activate during your turn that targets a (creature) you control costs \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'abilityCostMod', who: 'you', targetsOwn: m[1].toLowerCase(), amount: -m[2] }), auto: true },
+      // Tezzeret, Betrayer of Flesh: "The first activated ability of an artifact you activate each turn costs {2} less to activate." (firstArtifact)
+      { re: /^The first activated ability of an artifact you activate each turn costs \{(\d+)\} less to activate\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', who: 'you', firstArtifact: true, amount: -m[1] }), auto: true },
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME|this permanent) cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetManaTax', amount: +m[1] }), auto: true },
@@ -26323,6 +26352,10 @@
          they had flash. Mana of any type can be spent to cast those spells." (exiledWith, flash, anyMana) */
       { re: /^During your turn, you may cast cards exiled with CARDNAME and you may cast them as though they had flash\. Mana of any type can be spent to cast those spells\.?$/,
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell', duringYourTurn: true, flash: true, anyMana: true }, auto: true },
+      /* Evendo Brushrazer: "During your turn, as long as you've sacrificed a nontoken permanent this turn, you may play cards
+         exiled with this creature." (exiledWith, cond sacrificedThisTurn) */
+      { re: /^During your turn, as long as you'?ve sacrificed a nontoken permanent this turn, you may play cards exiled with (?:CARDNAME|this creature)\.?$/,
+        eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, cond: { kind: 'sacrificedThisTurn', what: 'nontoken', n: 1 } }, auto: true },
       // The Matrix of Time (a plane): "During your turn, you may play lands and cast spells from among cards exiled with The Matrix of Time." (exiledWith)
       { re: /^During your turn, you may play lands and cast spells from among cards exiled with CARDNAME\.?$/i, eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true }, auto: true },
       { re: /^You may play lands and cast spells from among cards exiled with CARDNAME\.?$/i, eff: { op: 'playFrom', zone: 'exiledWith', what: 'any' }, auto: true },

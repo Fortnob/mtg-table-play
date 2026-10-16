@@ -11195,6 +11195,8 @@
       // (Verrak, Warped Sengir: "if life was paid to activate it" — the life paid, Phyrexian mana's too: lifePaid)
       const lifeAccWas = this._costLifeAcc;
       this._costLifeAcc = 0;
+      // (Tezzeret, Betrayer of Flesh: an artifact's ability begun — its cost already reckoned: artifactActs)
+      const artAct = o.zone === 'battlefield' && this._matchesCategory(o, 'artifact');
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
       const lifePaid = this._costLifeAcc;
       this._costLifeAcc = lifeAccWas;
@@ -11208,6 +11210,7 @@
       const spentBy = ['W', 'U', 'B', 'R', 'G', 'C'].filter(c => Number(this._spentAcc[c]) > 0);
       this._spentAcc = accWas;
       if (!payOk) return false;
+      if (artAct) this.player(playerId).artifactActs = { turn: this.turn };
       const used = ab.cost && ab.cost.label;
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
       if (used === 'exhaust' || used === 'power-up') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
@@ -12616,6 +12619,12 @@
                 if (pl && pl.ownTargetActs && pl.ownTargetActs.turn === this.turn) continue;
                 if (!this._targetsOwnOf(src.controller, targets, e.targetsOwn)) continue;
               }
+              /* Tezzeret, Betrayer of Flesh: "The first activated ability of an artifact you activate each turn" — none of an
+                 artifact begun yet this turn, mana abilities included (artifactActs, firstArtifact) */
+              if (e.firstArtifact) {
+                const pl = this.player(src.controller);
+                if (!this._matchesCategory(o, 'artifact') || (pl && pl.artifactActs && pl.artifactActs.turn === this.turn)) continue;
+              }
               if (e.scope && e.scope.attached) { if (src.attachedTo !== o.id) continue; }
               else if (e.scope && (o.zone !== 'battlefield' || !this._scopeHit(e.scope, o, oa, src.controller, src))) continue;
               // (Agatha of the Vile Cauldron: "{X} less …, where X is Agatha's power" — as it is now: lessSrcPower)
@@ -13289,6 +13298,8 @@
      */
     _runManaAbility(playerId, o, ab, ctx) {
       const p = this.player(playerId);
+      // Tezzeret, Betrayer of Flesh: an artifact's mana ability is an activated ability of an artifact too (artifactActs)
+      if (o && o.zone === 'battlefield' && this._matchesCategory(o, 'artifact')) p.artifactActs = { turn: this.turn };
       const before = p.pool.snapshot();
       this._runEffectsNow(ab.effects, ctx);
       const after = p.pool.snapshot();
@@ -20185,7 +20196,9 @@
           const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
           const sb = ((h.sacrificedBy = h.sacrificedBy || {})[controllerId] = h.sacrificedBy[controllerId] || []);
           const sa = data.object && (Number(data.count) || 1) === 1 && data.object.analysis ? data.object.analysis() : null;
-          for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) sb.push(sa ? (sa.types || []).concat(sa.subtypes || []).map(x => String(x).toLowerCase()) : []);
+          // (Evendo Brushrazer: "a nontoken permanent" — told apart: nontoken)
+          const tk = sa ? [data.object.isToken ? 'token' : 'nontoken'] : [];
+          for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) sb.push(sa ? (sa.types || []).concat(sa.subtypes || []).map(x => String(x).toLowerCase()).concat(tk) : []);
         }
         // It That Betrays, Mortician Beetle: what was sacrificed, when there is one (sacrificedAny)
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
@@ -34389,6 +34402,8 @@
           } else if ((src.analysis() || {}).isPlaneswalker) src.counters.loyalty = parseInt(src.analysis().loyalty, 10) || 0;
           // Moritte of the Frost: "if it's a creature, it enters with two additional +1/+1 counters on it" (creatureCounters)
           if (e.creatureCounters && (src.analysis() || {}).isCreature) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + e.creatureCounters;
+          // Altered Ego: "except it enters with X additional +1/+1 counters on it" — the X paid (xCounters)
+          if (e.xCounters && (Number(src.chosenX) || 0) > 0) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + Number(src.chosenX);
           if (other) {
             const pw = Math.max(0, this.powerOf(other));
             this.moveObject(pick, 'exile'); this.moveObject(other, 'exile');

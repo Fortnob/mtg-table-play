@@ -76989,4 +76989,192 @@ module.exports = (test) => {
     t.eq(T.life('A'), 20, 'not you');
     t.eq(T.manualLines().length, 0);
   });
+
+  test("Cards: Selvala's Stampede — a creature card revealed for each wild vote, a permanent card from hand for each free vote", (mk, t) => {
+    t.auto("Selvala's Stampede");
+    const T = mk({ library: Array(20).fill('Island') });
+    const giant = T.hand('A', 'Hill Giant'), bolt = T.hand('A', 'Lightning Bolt');
+    const bears = T.top('A', 'Grizzly Bears');
+    T.top('A', 'Forest');
+    const votes = [];
+    T.answer('choose', (ch) => { votes.push(ch); return { picks: [0] }; });
+    T.answer('choose', (ch) => { votes.push(ch); return { picks: [1] }; });
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch; return { cardIds: [giant.id] }; });
+    T.mana('A', 'GG4');
+    T.cast('A', T.hand('A', "Selvala's Stampede"));
+    t.eq(votes.map(v => v.playerId + v.purpose).join(','), 'Avote,Bvote', 'A votes, then B');
+    t.zone(bears, 'battlefield', 'one wild vote: the first creature card revealed');
+    t.eq(bears.controller, 'A');
+    t.eq(T.zone('A', 'library').filter(o => o.name === 'Forest').length, 1, 'the Forest shuffled back in');
+    t.ok(offered && offered.cards.every(c => c.name !== 'Lightning Bolt'), 'permanent cards only');
+    t.zone(giant, 'battlefield', 'one free vote: the Giant from hand');
+    t.zone(bolt, 'hand');
+  });
+  test("Cards: Selvala's Stampede — two wild votes: two creature cards, nothing from hand", (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const giant = T.hand('A', 'Hill Giant');
+    const b1 = T.top('A', 'Grizzly Bears');
+    T.top('A', 'Forest');
+    const b2 = T.top('A', 'Llanowar Elves');
+    T.answer('choose', { picks: [0] });
+    T.answer('choose', { picks: [0] });
+    T.mana('A', 'GG4');
+    T.cast('A', T.hand('A', "Selvala's Stampede"));
+    t.zone(b1, 'battlefield'); t.zone(b2, 'battlefield');
+    t.zone(giant, 'hand', 'no free vote');
+    t.no(T.asked.some(ch => ch.type === 'pickCard'), 'not asked for a card from hand');
+  });
+
+  test('Cards: Altered Ego — enters as a copy of a creature with X additional +1/+1 counters; uncounterable', (mk, t) => {
+    t.auto('Altered Ego');
+    const T = mk({ library: Array(20).fill('Island') });
+    const giant = T.bf('B', 'Hill Giant');
+    T.bf('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch; return { cardIds: [giant.id] }; });
+    const ego = T.hand('A', 'Altered Ego');
+    T.mana('A', 'GU5');
+    T.cast('A', ego, { x: 3 });
+    t.ok(offered && offered.purpose === 'cloneChoice', 'asked what to copy');
+    t.eq(ego.name, 'Hill Giant', 'a copy of the Giant');
+    t.eq(ego.counters['+1/+1'], 3, 'X = 3 counters');
+    t.eq(T.g.powerOf(ego), 6);
+  });
+  test('Cards: Altered Ego — X = 0: a plain copy, no counters', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const giant = T.bf('B', 'Hill Giant');
+    T.answer('pickCard', { cardIds: [giant.id] });
+    const ego = T.hand('A', 'Altered Ego');
+    T.mana('A', 'GU2');
+    T.cast('A', ego, { x: 0 });
+    t.eq(ego.name, 'Hill Giant');
+    t.eq(ego.counters['+1/+1'] || 0, 0, 'no counters');
+  });
+
+  test('Cards: Tezzeret, Betrayer of Flesh — the first ability of an artifact each turn costs {2} less, mana abilities included', (mk, t) => {
+    t.auto('Tezzeret, Betrayer of Flesh');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Tezzeret, Betrayer of Flesh');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    const ham = T.bf('A', 'Loxodon Warhammer'), ham2 = T.bf('A', 'Loxodon Warhammer');
+    // a creature's mana ability is no artifact's
+    t.ok(g.tapForMana('A', elf.id, 0), g.lastError);
+    T.mana('A', '1');
+    T.activate('A', ham, 0, { targets: [bear] });
+    t.eq(ham.attachedTo, bear.id, 'Equip {3} for {1}');
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', ham2.id, 0, { auto: true, targets: [{ kind: 'object', id: elf.id }] }), 'the second costs all of {3}');
+    // next turn: an artifact's mana ability first uses it up
+    T.nextTurn('B'); T.nextTurn('A');
+    const ring = T.bf('A', 'Sol Ring');
+    elf.tapped = true;
+    t.ok(g.tapForMana('A', ring.id, 0), g.lastError);
+    t.no(g.activateAbility('A', ham2.id, 0, { auto: true, targets: [{ kind: 'object', id: elf.id }] }), 'Sol Ring came first: {2} of {3} is not enough');
+    T.mana('A', '1');
+    T.activate('A', ham2, 0, { targets: [elf] });
+    t.eq(ham2.attachedTo, elf.id, 'paid in full');
+  });
+  test('Cards: Tezzeret, Betrayer of Flesh — −2: an artifact becomes a 4/4 artifact creature for good; a Vehicle keeps its own size', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const tz = T.bf('A', 'Tezzeret, Betrayer of Flesh');
+    const ring = T.bf('A', 'Sol Ring'), copter = T.bf('A', "Smuggler's Copter");
+    T.activate('A', tz, 1, { targets: [ring] });
+    t.ok(g.characteristics(ring).isCreature, 'Sol Ring is a creature');
+    t.eq(g.powerOf(ring), 4); t.eq(g.toughnessOf(ring), 4);
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(g.characteristics(ring).isCreature, 'still a creature on a later turn');
+    T.activate('A', tz, 1, { targets: [copter] });
+    t.ok(g.characteristics(copter).isCreature, 'the Copter is a creature');
+    t.eq(g.powerOf(copter), 3, 'a Vehicle: its printed 3/3'); t.eq(g.toughnessOf(copter), 3);
+  });
+
+  test('Cards: Nazgûl Battle-Mace — menace, deathtouch, annihilator 1; an opponent\'s sacrificed nontoken permanent is yours unless they pay 3 life', (mk, t) => {
+    t.auto('Nazgûl Battle-Mace');
+    const T = mk({ library: Array(30).fill('Swamp') });
+    const g = T.g;
+    const mace = T.bf('A', 'Nazgûl Battle-Mace'), bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3');
+    T.activate('A', mace, 0, { targets: [bear] });
+    t.eq(mace.attachedTo, bear.id);
+    t.ok(g.hasKw(bear, 'menace') && g.hasKw(bear, 'deathtouch') && g._kwArg(bear, 'annihilator') === 1, 'menace, deathtouch, annihilator 1');
+    const giant = T.bf('B', 'Hill Giant');
+    let q = null;
+    T.answer('payOrDont', (ch) => { q = ch; return { pay: false }; });
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    t.ok(q && q.playerId === 'B', 'B is asked to pay 3 life');
+    t.zone(giant, 'battlefield', 'B did not pay: the Giant comes back');
+    t.eq(giant.controller, 'A', "under A's control");
+    t.eq(T.life('B'), 20);
+    // paid
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.answer('payOrDont', { pay: true });
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    t.zone(elf, 'graveyard', 'B paid: the Elves stay in the graveyard');
+    t.eq(T.life('B'), 17, 'B paid 3 life');
+  });
+  test('Cards: Nazgûl Battle-Mace — a token sacrificed, or the Mace unattached: nothing', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Swamp') });
+    const mace = T.bf('A', 'Nazgûl Battle-Mace');
+    const bear = T.bf('A', 'Grizzly Bears');
+    mace.attachedTo = bear.id; bear.attachments = [mace.id]; T.g.bumpBoard();
+    T.g._createNamedToken('B', { token: 'Treasure', n: 1 });
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    t.no(T.asked.some(ch => ch.type === 'payOrDont'), 'a Treasure sacrificed: no trigger');
+    // unattached
+    mace.attachedTo = null; bear.attachments = []; T.g.bumpBoard();
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    t.zone(giant, 'graveyard', 'not equipped: nothing');
+  });
+
+  test('Cards: Evendo Brushrazer — a nontoken permanent sacrificed exiles your top card, playable on your turn once you have sacrificed one', (mk, t) => {
+    t.auto('Evendo Brushrazer');
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    const ev = T.bf('A', 'Evendo Brushrazer');
+    const bolt = T.top('A', 'Lightning Bolt');
+    // a token sacrificed: nothing
+    g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const tr = T.bfOf('A').find(o => o.name === 'Treasure');
+    t.ok(g.activateAbility('A', tr.id, 0, { manaChoice: 'R' }), g.lastError);
+    t.eq(T.zone('A', 'library')[0], bolt, 'a token: nothing exiled');
+    // {T}, sacrifice a land: a nontoken permanent
+    const land = T.bf('A', 'Mountain');
+    t.ok(g.tapForMana('A', ev.id, 0), g.lastError);
+    t.zone(land, 'graveyard', 'the land sacrificed');
+    T.resolve();
+    t.zone(bolt, 'exile', 'the top card exiled');
+    t.eq(bolt.exiledWithId, ev.id, 'exiled with it');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'cast from exile');
+  });
+  test('Cards: Evendo Brushrazer — no nontoken permanent sacrificed this turn, or not your turn: not playable', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    const ev = T.bf('A', 'Evendo Brushrazer');
+    const bolt = T.top('A', 'Lightning Bolt');
+    T.bf('A', 'Mountain');
+    t.ok(g.tapForMana('A', ev.id, 0), g.lastError);
+    T.resolve();
+    t.zone(bolt, 'exile');
+    T.nextTurn('B');
+    t.no(g._playFromRule('A', bolt, 'spell'), "not on B's turn");
+    T.nextTurn('A');
+    t.no(g._playFromRule('A', bolt, 'spell'), 'nothing sacrificed this turn');
+    // a token sacrificed this turn is not enough
+    g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const tr = T.bfOf('A').find(o => o.name === 'Treasure');
+    t.ok(g.activateAbility('A', tr.id, 0, { manaChoice: 'R' }), g.lastError);
+    t.no(g._playFromRule('A', bolt, 'spell'), 'a token sacrificed: still not');
+    const land = T.bf('A', 'Forest');
+    g.moveObject(land, 'graveyard'); g._fire('youSacrifice', 'A', { count: 1, object: land, objController: 'A', source: land });
+    t.ok(g._playFromRule('A', bolt, 'spell'), 'a land sacrificed: now it is');
+  });
 };
