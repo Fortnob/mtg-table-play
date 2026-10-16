@@ -79451,4 +79451,105 @@ module.exports = (test) => {
     t.eq(bear.name, 'Grizzly Bears', 'until end of turn');
     t.eq(theirs.name, 'Hill Giant');
   });
+
+  test('Cards: Solar Array — its mana: the next artifact spell this turn gains sunburst, only the next', (mk, t) => {
+    t.auto('Solar Array');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    const g = T.g;
+    T.toMain('A');
+    const sa = T.hand('A', 'Solar Array');
+    T.mana('A', 'RGB');
+    T.cast('A', sa);
+    t.zone(sa, 'battlefield');
+    t.eq(Object.values(sa.counters || {}).filter(v => v > 0).length, 0, 'Solar Array itself enters with no counters');
+    t.ok(g.tapForMana('A', sa.id, 0, 'U'), 'tap for blue');
+    T.mana('A', 'R');
+    const ov = T.hand('A', 'Steel Overseer');
+    T.cast('A', ov);
+    t.eq(ov.counters['+1/+1'], 2, 'sunburst: blue and red spent');
+    T.mana('A', 'RG');
+    const ov2 = T.hand('A', 'Steel Overseer');
+    T.cast('A', ov2);
+    t.no(ov2.counters['+1/+1'], 'the next artifact spell: no sunburst');
+  });
+  test('Cards: Solar Array — a noncreature artifact gets charge counters; the next turn, nothing', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Wastes') });
+    const g = T.g;
+    T.toMain('A');
+    const sa = T.bf('A', 'Solar Array');
+    t.ok(g.tapForMana('A', sa.id, 0, 'W'), 'tap for white');
+    T.mana('A', 'U');
+    const bauble = T.hand('A', 'Mind Stone');
+    T.cast('A', bauble);
+    t.eq(bauble.counters.charge, 2, 'two charge counters');
+    T.nextTurn('A');
+    T.mana('A', 'WU');
+    const st = T.hand('A', 'Mind Stone');
+    T.cast('A', st);
+    t.no(st.counters.charge, 'the array was not tapped this turn: none');
+  });
+
+  test('Cards: Moonmist — Humans that can transform do; combat damage only from Werewolves and Wolves', (mk, t) => {
+    t.auto('Moonmist');
+    const T = mk({ library: Array(30).fill('Forest') });
+    const g = T.g;
+    T.toMain('A');
+    const smith = T.bf('A', 'Village Ironsmith // Ironfang');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const merchant = T.bf('B', 'Merchant of the Vale // Haggle');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Moonmist'));
+    t.eq(smith.face, 1, 'the Ironsmith transforms into Ironfang');
+    t.eq(merchant.face || 0, 0, 'an adventurer Human does not transform');
+    T.answer('declareAttackers', () => [{ attackerId: smith.id, defenderId: 'B' }, { attackerId: bears.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 17, 'only the Werewolf\'s 3');
+  });
+
+  test('Cards: Summon: Valefor — I: each opponent returns a creature of their greatest mana value, their choice among ties', (mk, t) => {
+    t.auto('Summon: Valefor');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const wurm = T.bf('B', 'Craw Wurm'), dragon = T.bf('B', 'Shivan Dragon'), giant = T.bf('B', 'Hill Giant');
+    const bears = T.bf('C', 'Grizzly Bears');
+    const mine = T.bf('A', 'Serra Angel');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort(); return { cardIds: [dragon.id] }; });
+    T.bf('A', 'Summon: Valefor', { etb: true }); T.resolve();
+    t.eq(offered && offered.join(','), 'Craw Wurm,Shivan Dragon', 'B chooses between the two of mana value 6');
+    t.zone(dragon, 'hand', 'the Dragon returns');
+    t.zone(wurm, 'battlefield'); t.zone(giant, 'battlefield');
+    t.zone(bears, 'hand', "C's only creature returns, nothing asked");
+    t.zone(mine, 'battlefield', 'not yours');
+  });
+
+  test("Cards: Calamity of the Titans — exiles each creature and planeswalker of mana value less than the revealed card's", (mk, t) => {
+    t.auto('Calamity of the Titans');
+    const T = mk();
+    const bears = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), jace = T.bf('B', 'Jace Beleren'), wurm = T.bf('B', 'Craw Wurm');
+    const orn = T.bf('A', 'Ornithopter');
+    const jug = T.hand('A', 'Juggernaut');
+    T.mana('A', '4CC');
+    T.cast('A', T.hand('A', 'Calamity of the Titans'), { revealId: jug.id });
+    for (const x of [bears, jace, orn]) t.zone(x, 'exile', x.name + ': less than 4');
+    t.zone(giant, 'battlefield', 'mana value 4 is not less');
+    t.zone(wurm, 'battlefield');
+    t.zone(jug, 'hand', 'the revealed card stays in hand');
+  });
+  test('Cards: Calamity of the Titans — by itself, the revealed card is the one of greatest mana value', (mk, t) => {
+    const T = mk();
+    const giant = T.bf('B', 'Hill Giant');
+    T.hand('A', 'Ornithopter'); T.hand('A', 'Phyrexian Walker');
+    T.hand('A', 'Scuttlemutt');
+    T.hand('A', 'Juggernaut');
+    T.mana('A', '4CC');
+    T.cast('A', T.hand('A', 'Calamity of the Titans'));
+    t.zone(giant, 'battlefield', 'Juggernaut (4): the Giant stays');
+    const T2 = mk();
+    const g2 = T2.bf('B', 'Craw Wurm');
+    T2.hand('A', 'Juggernaut'); T2.hand('A', 'Myr Battlesphere');
+    T2.mana('A', '4CC');
+    T2.cast('A', T2.hand('A', 'Calamity of the Titans'));
+    t.zone(g2, 'exile', 'Myr Battlesphere (7) shown rather than the stronger Juggernaut (4)');
+  });
 };

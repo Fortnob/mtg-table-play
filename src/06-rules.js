@@ -9405,7 +9405,9 @@
              then mana value (revealCost) */
           const pool = this._discardPool(playerId, add.reveal, o);
           const stat = (c) => ({ power: this.powerOf(c), toughness: this.toughnessOf(c), mv: (c.card && c.card.cmc) || 0 });
-          const best = pool.slice().sort((x, y) => (stat(y).power - stat(x).power) || (stat(y).mv - stat(x).mv))[0];
+          // (Calamity of the Titans: what counts is the card's mana value — revealedLess)
+          const byMv = JSON.stringify(this._cardSpellEffects(o.analysis()) || []).includes('"revealedLess"');
+          const best = pool.slice().sort((x, y) => (byMv ? stat(y).mv - stat(x).mv : 0) || (stat(y).power - stat(x).power) || (stat(y).mv - stat(x).mv))[0];
           const named = opts.revealId && pool.find(x => x.id === opts.revealId);
           const alike = new Set(pool.map(c => JSON.stringify(stat(c)))).size <= 1;
           const shown = named || (opts.auto || p.isBot || alike ? best : null);
@@ -25437,7 +25439,9 @@
           };
           const zone = e.op === 'destroyAll' ? 'graveyard' : e.op === 'exileAll' ? 'exile' : 'hand';
           // (Sarulf, Realm Eater: "less than or equal to the number of counters removed this way" — removedCounters)
-          const cap = (v) => (v === 'X' ? (ctx.x || (src && src.chosenX) || 0) : v === 'removedCounters' ? (this._lastRemovedCounters || 0) : v);
+          // (Calamity of the Titans: "less than the revealed card's mana value" — the card revealed to cast it: revealedLess)
+          const cap = (v) => (v === 'X' ? (ctx.x || (src && src.chosenX) || 0) : v === 'removedCounters' ? (this._lastRemovedCounters || 0)
+            : v === 'revealedLess' ? (ctx.revealedCost ? (Number(ctx.revealedCost.mv) || 0) - 1 : -1) : v);
           // Celestial Kirin: "with that spell's mana value" (mvIs)
           const mvIs = e.mvIs === 'triggerSpell' ? this._triggerSpellMv(ctx.triggerData) : null;
           let n = 0;
@@ -28346,6 +28350,33 @@
             }
             break;
           }
+          /* Summon: Valefor: "Each opponent chooses a creature with the greatest mana value among creatures they control.
+             Return those creatures to their owners' hands." — each one's pick in turn order, then all of them at once */
+          if (e.who === 'eachOpponent') {
+            const mvOf = (o) => (o.faceDown ? 0 : (o.card && o.card.cmc) || 0);
+            const chosen = [];
+            for (const q of this.opponentsOf(ctx.controller)) {
+              if (q.hasLost) continue;
+              let list = this.battlefield.filter(o => o.controller === q.id && !o.phasedOut && this._fitsFilter(o, e.filter || 'permanent'));
+              if (e.greatestMv && list.length) { const top = Math.max(...list.map(mvOf)); list = list.filter(o => mvOf(o) === top); }
+              if (!list.length) continue;
+              const picked = list.length === 1 ? [list[0].id] : this._ask({
+                type: 'pickCard', playerId: q.id, count: 1, worst: true,
+                cards: list.map(o => ({ id: o.id, name: o.name, card: o.card })),
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${this._aCard(e.filter || 'permanent')}${e.greatestMv ? ' with the greatest mana value among those' : ''} you control. It returns to its owner's hand.`,
+              }, 'own:' + q.id);
+              if (picked === SUSPEND) return SUSPEND;
+              const id = (picked || []).find(x => list.some(o => o.id === x)) || list[0].id;
+              chosen.push(this.obj(id));
+            }
+            for (const o of chosen) {
+              if (!o || o.zone !== 'battlefield') continue;
+              this.moveObject(o, 'hand');
+              this.logEvent('bounce', `${o.name} returns to its owner's hand.`);
+            }
+            if (chosen.length) this.emit('sfx', 'bounce');
+            break;
+          }
           // Blizzard Specter: "that player returns a permanent they control" — theirs, and their choice
           const owner = e.who === 'triggerPlayer' ? triggerPlayer() : e.who === 'target' ? firstPlayer() : me;
           if (!owner) break;
@@ -29358,7 +29389,12 @@
         case 'transformAll': {
           for (const x of this._scopeList(e.scope, ctx.controller, src)) {
             if (!x.card || !x.card.card_faces || x.card.card_faces.length < 2) continue;
+            /* Moonmist: "Transform all Humans. (Only double-faced cards can be transformed.)" — a transforming card or
+               token; a modal double-faced card, an adventure or a split card never transforms (CR 701.28c) */
+            if (!x.isToken && !/^(?:transform|double_faced_token)$/.test(x.card.layout || '')) continue;
+            if (x.meld || x.faceDown) continue;
             x.face = (x.face + 1) % x.card.card_faces.length;
+            x.xformN = (x.xformN || 0) + 1;
             x._chr = null;
             this.logEvent('rules', `${x.name} transforms.`);
             this._fire('transforms', x.controller, { object: x, source: x });
@@ -41999,7 +42035,9 @@
         // Obscuring Haze: "by creatures your opponents control"
         if (pv.fromOpponentCreatures && !(source && source.controller !== pv.who && (this.characteristics(source) || {}).isCreature)) continue;
         // Galadhrim Ambush: only what non-Elf creatures deal
-        if (pv.fromNotSubtype && !(source && (this.characteristics(source) || {}).isCreature && !this._hasCreatureType(source, pv.fromNotSubtype))) continue;
+        // (Moonmist: "creatures other than Werewolves and Wolves" — any of a list)
+        if (pv.fromNotSubtype && !(source && (this.characteristics(source) || {}).isCreature &&
+          ![].concat(pv.fromNotSubtype).some(st => this._hasCreatureType(source, st)))) continue;
         /* Circle of Protection: "the next time a red source of your choice
            would deal damage to you this turn": that source, once */
         if (pv.sourceId && !(source && source.id === pv.sourceId)) continue;

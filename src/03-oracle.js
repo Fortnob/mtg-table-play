@@ -3189,6 +3189,9 @@
     // Glissa, Herald of Predation: "Transform all Incubator tokens you control." (as The Argent Etchings)
     { re: /^Transform all Incubator tokens you control\.?$/i,
       make: () => ({ op: 'transformAll', scope: { who: 'you', what: 'artifact', token: true, subtype: 'incubator' } }) },
+    // Moonmist: "Transform all Humans." — everyone's, those that can
+    { re: /^Transform all ([A-Z][a-z]+)s\.?$/,
+      make: (m) => ({ op: 'transformAll', scope: { who: 'all', what: 'permanent', subtype: m[1].toLowerCase() } }) },
     /* Unearth-style: it gets itself back. */
     // (Winter Soldier, Icy Assassin: "with a finality counter on him" — read as "on CARDNAME")
     // (Gallia, Tragic Host: "tapped with a +1/+1 counter on her")
@@ -6775,6 +6778,8 @@
       make: (m) => (/^Until end of turn|this turn\.?$/i.test(m[0]) ? { op: 'toughDamageTurn', yours: true, ifTougher: !!m[1] } : null) },
     // Ojer Pakpatiq, Deepest Epoch: "Whenever you cast an instant spell from your hand, it gains rebound."
     { re: /^(?:It|That spell) gains rebound\.?$/i, make: () => ({ op: 'spellGainsRebound' }) },
+    // Solar Array: "When you next cast an artifact spell this turn, that spell gains sunburst." — the spell, kept as it enters (as Lux Artillery's)
+    { re: /^That spell gains sunburst\.?$/i, make: () => ({ op: 'grantKeyword', keywords: ['Sunburst'], duration: 'permanent', scope: 'triggerObject' }) },
     /* Murmuration, Bladewing: "for each spell you've cast this turn, create
        a 1/2 blue Bird creature token …" — the count said first, the token
        after (a token for each of something the parser can count) */
@@ -7579,6 +7584,9 @@
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you', from: ['hand', 'graveyard'] },
         m[3] ? { tapped: true } : {}, m[4] ? { counter: m[4] } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
+    // Calamity of the Titans: "Exile each creature and planeswalker with mana value less than the revealed card's mana value." (maxMv revealedLess)
+    { re: /^(Exile|Destroy) each creature and planeswalker with mana value less than the revealed card'?s mana value\.?$/i,
+      make: (m) => ({ op: /^exile/i.test(m[1]) ? 'exileAll' : 'destroyAll', what: 'creature and planeswalker', maxMv: 'revealedLess' }) },
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
     { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,
       make: (m) => Object.assign({ op: /^exile/i.test(m[1]) ? 'exileAll' : 'destroyAll', what: m[2].toLowerCase(), maxMv: 'X', noRegen: false }, m[3] ? { colored: true } : {}) },
@@ -9370,6 +9378,9 @@
     // Galadhrim Ambush: "Prevent all combat damage that would be dealt this turn by non-Elf creatures."
     { re: /^Prevent all combat damage that would be dealt this turn by non-([A-Z][a-z]+) creatures\.?$/,
       make: (m) => ({ op: 'preventDamage', combatOnly: true, fromNotSubtype: m[1] }) },
+    // Moonmist: "Prevent all combat damage that would be dealt this turn by creatures other than Werewolves and Wolves." (fromNotSubtype, a list)
+    { re: /^Prevent all combat damage that would be dealt this turn by creatures other than ((?:[A-Z][a-z]+, )*[A-Z][a-z]+,? and [A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'preventDamage', combatOnly: true, fromNotSubtype: m[1].split(/,? and |, /).map(w => U.titleCase(singularType(w))) }) },
     { re: /^Prevent all damage that would be dealt this turn\.?$/i,
       make: () => ({ op: 'preventDamage' }) },
     // Ethereal Haze: "Prevent all damage that would be dealt by creatures this turn."
@@ -13452,6 +13463,10 @@
        they control not chosen this way." — you choose for everybody (chooser you, perPlayer) */
     { re: /^For each player, choose a creature that player controls\. Each player sacrifices all creatures they control not chosen this way\.?$/i,
       make: () => [{ op: 'keepRest', who: 'each', chooser: 'you', perPlayer: true, n: 1, filter: 'creature', rest: 'creature' }] },
+    /* Summon: Valefor: "Each opponent chooses a creature with the greatest mana value among creatures they control. Return
+       those creatures to their owners' hands." — every choice first, then all of them at once (returnOwn eachOpponent greatestMv) */
+    { re: /^Each opponent chooses a creature with the greatest mana value among creatures they control\. Return those creatures to their owners'? hands\.?$/i,
+      make: () => [{ op: 'returnOwn', who: 'eachOpponent', filter: 'creature', n: 1, greatestMv: true }] },
     /* Consuming Tide: "Each player chooses a nonland permanent they control. Return all nonland permanents not chosen this
        way to their owners' hands." — kept or bounced, all at once (keepRest bounce) */
     { re: /^Each player chooses a nonland permanent they control\. Return all nonland permanents not chosen this way to their owners'? hands\.(?: (Then [\s\S]+))?$/i,
@@ -22016,7 +22031,8 @@
     const etbDied = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each creature that died this turn\./i);
     if (etbDied && !out.entersWithCounters) out.entersWithCounters = { kind: etbDied[1], n: { count: { diedThisTurn: true } } };
     /* Converge, sunburst: a counter for each colour of mana spent to cast it */
-    const conv = text.match(/enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on it for each (colou?r of )?mana spent to cast it/i);
+    // (not a reminder's words: Solar Array's "(If it's a creature, it enters with a +1/+1 counter …)" is about another spell)
+    const conv = noReminderText(text).match(/enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on it for each (colou?r of )?mana spent to cast it/i);
     if (conv && !out.entersWithCounters) {
       const k = typeof num(conv[1]) === 'number' ? num(conv[1]) : 1;
       out.entersWithCounters = { kind: conv[2], n: conv[3] ? { colorsSpent: true, mult: k } : { manaSpent: true, mult: k } };
