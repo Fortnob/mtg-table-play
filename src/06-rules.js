@@ -18969,7 +18969,8 @@
       if (toZone === 'battlefield') o.enteredFrom = from;
       /* A commander put into a graveyard from anywhere else — discarded, milled (from the battlefield it went home
          instead, above): its owner may put it into the command zone, a state-based action (CR 903.9a: _commandersHome) */
-      o._cmdToGrave = toZone === 'graveyard' && from !== 'graveyard' && !!o.isCommander;
+      if (toZone === 'graveyard' && from !== 'graveyard' && o.isCommander) o._cmdToGrave = true;
+      else if (o._cmdToGrave) o._cmdToGrave = false;
 
       // reset per-zone state
       /* Who controlled it as it left matters to anything watching ("a
