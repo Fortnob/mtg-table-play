@@ -19403,6 +19403,14 @@
         this.logEvent('rules', `${o.name} can't enter the battlefield from a graveyard.`);
         return o;
       }
+      /* Containment Priest: "If a nontoken creature would enter and it wasn't cast, exile it instead." — a spell resolving
+         was cast (wasCast); anything else that would enter, face down too, goes to exile (exileUncastCreatures) */
+      if (toZone === 'battlefield' && from !== 'battlefield' && !o.isToken && !o.isCopy && !(opts.fromStack && o.wasCast != null) &&
+          ((o.analysis() || {}).isCreature || opts.faceDown || o.faceDown) && this._anyStatic('exileUncastCreatures')) {
+        this.logEvent('rules', `${o.faceDown || opts.faceDown ? 'A face-down creature' : o.name} wasn't cast: it is exiled instead.`);
+        if (from !== 'exile') this.moveObject(o, 'exile');
+        return o;
+      }
       // (destroyed: _regenerated let it go — permDestroyed, below)
       const destroyed = from === 'battlefield' && toZone !== 'battlefield' && !!o._destroyPending;
       if (o._destroyPending) o._destroyPending = false;
@@ -23213,7 +23221,8 @@
         // Rite of Flame: cards of this name in every graveyard
         if (v && typeof v === 'object' && v.namedInGraveyards) {
           const nm = src && (src.card ? src.card.name : src.name);
-          return this.players.reduce((t, q) => t + ((this.zones[q.id] || {}).graveyard || []).filter(c => (c.card ? c.card.name : c.name) === nm).length, 0) * (v.mult || 1);
+          // (Ancestral Anger: "in your graveyard" — yours)
+          return this.players.filter(q => !v.yours || q.id === ctx.controller).reduce((t, q) => t + ((this.zones[q.id] || {}).graveyard || []).filter(c => (c.card ? c.card.name : c.name) === nm).length, 0) * (v.mult || 1);
         }
         if (v && typeof v === 'object' && v.lastSweep) return (this._lastSweep || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.ofSelf) {
@@ -34178,7 +34187,7 @@
         case 'attackTax': case 'blockTax':
         case 'untapOnEveryUntapStep':
         case 'cageGraveyards':
-        case 'graveCreaturesStay':
+        case 'graveCreaturesStay': case 'exileUncastCreatures':
         case 'cantCastFromZones':
         case 'playFromTop':
         case 'playFrom':
@@ -38523,6 +38532,15 @@
         // Balan, Wandering Knight: every Equipment its controller controls, onto it (attachAllToSelf)
         // Yukora, the Prisoner: every permanent of that kind its controller controls is sacrificed (sacrificeAllYours)
         case 'sacrificeAllYours': {
+          // (Bringer of the Last Gift: "each player sacrifices all other creatures they control" — all at once, seen together: each)
+          if (e.each) {
+            const byP = this._turnOrderFrom(this.activePlayer.id).map(p => [p.id, this._scopeList(e.scope, p.id, src).filter(x => x.zone === 'battlefield' && x.controller === p.id)]);
+            this._leavingTogether = [].concat(...byP.map(([, l]) => l));
+            for (const [pid, l] of byP) if (l.length) this._sacrificeNow(pid, l, null);
+            this._leavingTogether = null;
+            this._lastSacCount = byP.reduce((k, [, l]) => k + l.length, 0);
+            break;
+          }
           const list = this._scopeList(e.scope, ctx.controller, src).filter(x => x.zone === 'battlefield' && x.controller === ctx.controller);
           if (list.length) this._sacrificeNow(ctx.controller, list, null);
           this._lastSacCount = list.length;
@@ -40887,6 +40905,8 @@
           const cards = [];
           // "all land cards from your graveyard", or every creature card in every graveyard
           const from = e.yours ? [me] : this.players;
+          // (Bringer of the Last Gift: "that weren't put there this way" — not the ones sacrificed as it resolved: notSacrificed)
+          const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s0 => s0.id) : [];
           for (const p of from) {
             // Supper for Spiders: only your opponents' graveyards
             if (e.opponentsOnly && p.id === ctx.controller) continue;
@@ -40898,6 +40918,7 @@
               if (e.toGraveThisTurn && c._toGraveTurn !== this.turn) continue;
               // Bloodline Bidding: "of the chosen type"
               if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(c, src.chosenType))) continue;
+              if (sacIds.includes(c.id)) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);
             }
           }

@@ -3864,6 +3864,9 @@
     { re: /^If you do, you lose X life and create X (Clue|Treasure|Food|Blood|Map) tokens, where X is that card'?s mana value\.?$/,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'didThisWay', how: 'exiled', filter: 'card' },
         then: [{ op: 'loseLife', who: 'you', n: { ofLast: 'mv' } }, { op: 'createNamedToken', token: m[1], n: { ofLast: 'mv' } }] }) },
+    // Uchuulon: "exile up to one target creature card from an opponent's graveyard. If you do, create a token that's a copy of this creature."
+    { re: /^If you do, create a token that'?s a copy of (?:this creature|CARDNAME)\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'didThisWay', how: 'exiled', filter: 'card' }, then: [{ op: 'copyPermanent', n: 1, targets: null, self: true, grant: [] }] }) },
     // Nyla, Shirshu Sleuth: "return target card exiled with Nyla to its owner's hand" (exiledWithSource)
     { re: /^Return target card exiled with CARDNAME to its owner'?s hand\.?$/i,
       make: () => ({ op: 'regrowth', targets: [{ type: 'card', filter: 'card', zone: 'exile', exiledWithSource: true }] }) },
@@ -5995,6 +5998,13 @@
        a copy of it." — the permanent just exiled, its controller as it left (othersOfController) */
     { re: /^Each player other than its controller creates a token that'?s a copy of it\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', nowOnly: true, grant: [], othersOfController: true }) },
+    /* Bringer of the Last Gift: "each player sacrifices all other creatures they control. Then each player returns all
+       creature cards from their graveyard that weren't put there this way to the battlefield." — everybody's at once
+       (sacrificeAllYours each), and the sacrificed ones stay (massReanimate notSacrificed) */
+    { re: /^Each player sacrifices all (other )?creatures they control\.?$/i,
+      make: (m) => ({ op: 'sacrificeAllYours', each: true, scope: Object.assign({ who: 'you', what: 'creature' }, m[1] ? { other: true } : {}) }) },
+    { re: /^(?:Then )?each player returns all creature cards from their graveyard that weren'?t put there this way to the battlefield\.?$/i,
+      make: () => ({ op: 'massReanimate', notSacrificed: true }) },
     // Orzhova, Inys Haen: "each player returns all creature (land) cards from their graveyard to the battlefield [tapped]"
     { re: /^Each player returns all (creature|land|artifact|enchantment|permanent) cards from their graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'massReanimate' }, /creature/i.test(m[1]) ? {} : { filter: m[1].toLowerCase() }, m[2] ? { tapped: true } : {}) },
@@ -8887,6 +8897,10 @@
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: countSpec(m[1], 1), t: null, keepToughness: true } }) },
+    // Uchuulon: "Uchuulon's power is equal to the number of Crabs, Oozes, and/or Horrors you control." — any of them
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ((?:[A-Z][a-z]+, )+and\/or [A-Z][a-z]+) you control\.?$/,
+      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
+        setPt: { p: countSpec(m[1].replace(/,\s*(?:and\/or\s+)?/g, ' and/or '), 1), t: null, keepToughness: true } }) },
     { re: /^Any player may have (?:CARDNAME|this creature) deal (\d+) damage to them\.?$/i,
       make: () => ({ op: 'manual', text: 'Any player may take the damage.' }) },
 
@@ -11084,7 +11098,8 @@
     // (Catti-brie of Mithral Hall: "the number of counters removed this way" — no kind named)
     if (/^(?:[a-z+\-0-9/]+ )?counters? removed this way$/i.test(p)) return { removedCounters: true, mult: k };
     // Rite of Flame: "for each card named CARDNAME in each graveyard"
-    if (/^card named CARDNAME in (?:each graveyard|all graveyards)$/i.test(p)) return { namedInGraveyards: true, mult: k };
+    // (Ancestral Anger: "the number of cards named Ancestral Anger in your graveyard" — yours)
+    if ((m = p.match(/^cards? named CARDNAME in (each graveyard|all graveyards|your graveyard)$/i))) return Object.assign({ namedInGraveyards: true, mult: k }, /your/i.test(m[1]) ? { yours: true } : {});
     // Culling Ritual: "for each permanent destroyed this way"
     if (/^(?:permanent|creature) (?:destroyed|exiled|returned) this way$/i.test(p)) return { lastSweep: true, mult: k };
     // Kaima, the Fractured Calm: "for each creature goaded this way" (lastSweep)
@@ -15296,7 +15311,8 @@
       make: (m) => [Object.assign({ op: 'createNamedToken', n: num(m[1]), token: U.titleCase(m[3].toLowerCase()) }, m[2] ? { tapped: true } : {}),
         { op: 'planar', what: 'tokensDeal', count: num(m[1]), token: U.titleCase(m[3].toLowerCase()), n: +m[4], each: 'creature and each planeswalker' }] },
     // Izzet Steam Maze: "that player copies it. The player may choose new targets for the copy." — the caster's copy
-    { re: /^That player copies it\. The player may choose new targets for the copy\.?$/i,
+    // (Bonus Round: "that player copies it and may choose new targets for the copy")
+    { re: /^That player copies it(?:\. The player| and) may choose new targets for the copy\.?$/i,
       make: () => [{ op: 'copyThatSpell', who: 'triggerPlayer' }] },
     // Unleash the Flux: "each player sacrifices a nonland permanent of their choice, then you flip a coin. If you lose the flip, repeat this process."
     { re: /^Each player sacrifices a nonland permanent of their choice, then you flip a coin\. If you lose the flip, repeat this process\.?$/i,
@@ -25776,6 +25792,8 @@
       { re: /^If you would flip a coin, instead flip two coins and ignore one\.?$/i, eff: { op: 'flipTwoIgnoreOne' }, auto: true },
       // Kunoros, Hound of Athreos: "Creature cards in graveyards can't enter the battlefield." (graveCreaturesStay)
       { re: /^Creature cards in graveyards can'?t enter the battlefield\.?$/i, eff: { op: 'graveCreaturesStay' }, auto: true },
+      // Containment Priest: "If a nontoken creature would enter and it wasn't cast, exile it instead." (exileUncastCreatures)
+      { re: /^If a nontoken creature would enter(?: the battlefield)? and it wasn'?t cast, exile it instead\.?$/i, eff: { op: 'exileUncastCreatures' }, auto: true },
       // Kunoros, Hound of Athreos: "Players can't cast spells from graveyards." — Grafdigger's Cage's (cageGraveyards)
       { re: /^Players can'?t cast spells from graveyards\.?$/i, eff: { op: 'cageGraveyards' }, auto: true },
       // Soulless Jailer: "Permanent cards in graveyards can't enter the battlefield." (graveCreaturesStay permanents)
