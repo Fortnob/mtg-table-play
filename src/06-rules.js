@@ -40314,8 +40314,10 @@
             delete one.grantTexts;
             // (Sylvan Awakening: until the controller's next turn)
             o.effects.push(Object.assign(one, { until }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}, whileHere ? { whileFrom: src.id } : {}));
-            if (handed) o.effects.push(Object.assign(handed, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
-            for (const h of handedAll) o.effects.push(Object.assign(h, { ts: this._stampNew() }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
+            // (Kitesail Larcenist: the mana ability lapses with the rest when it leaves — whileHere)
+            const whileTag = whileHere ? { whileFrom: src.id } : {};
+            if (handed) o.effects.push(Object.assign(handed, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}, whileTag));
+            for (const h of handedAll) o.effects.push(Object.assign(h, { ts: this._stampNew() }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}, whileTag));
             o._chr = null;
           });
           // Purelace: a spell on the stack changes colour too
@@ -42310,7 +42312,8 @@
           if (landYours[2] && host.controller !== o.controller) return false;
         }
       } else if (a.isEquipment && !o.bestowed) {
-        if (!ha.isCreature) return false;
+        // (Luxior, Giada's Gift: a planeswalker made a creature — what it is now, CR 301.5c)
+        if (!(this.characteristics(host) || ha).isCreature) return false;
       } else if ((a.subtypes || []).includes('Fortification')) {
         if (!ha.isLand) return false;
       } else if (o.licid) {

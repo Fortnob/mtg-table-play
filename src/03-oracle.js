@@ -12216,6 +12216,13 @@
     { re: /^for each player, choose target permanent that player controls\. Those players sacrifice those permanents\. Each player who sacrificed a permanent this way reveals the top card of their library, then puts it onto the battlefield if it'?s a permanent card\.?$/i,
       make: () => [{ op: 'sacrificeTargeted', revealPutPermanent: true,
         perOpponentFrom: { type: 'permanent', filter: 'permanent', zone: 'battlefield', everyPlayer: true, mandatory: true } }] },
+    /* Kitesail Larcenist: "for each player, choose up to one other target artifact or creature that player controls. For as
+       long as this creature remains on the battlefield, the chosen permanents become Treasure artifacts with "{T}, Sacrifice
+       this artifact: Add one mana of any color" and lose all other abilities." — one of each player's (yours too), while it stays (whileHere) */
+    { re: /^for each player, choose up to one other target artifact or creature that player controls\. For as long as (?:CARDNAME|this creature) remains on the battlefield, the chosen permanents become Treasure artifacts with "(\{T\}, Sacrifice this artifact: Add one mana of any color\.?)" and lose all other abilities\.?$/i,
+      make: (m) => [{ op: 'becomes', duration: 'whileHere', scope: 'eachTarget',
+        eff: { setTypes: ['Artifact'], addSubtypes: ['Treasure'], loseAll: true, grantText: m[1].replace(/\.?$/, '.') },
+        perOpponentFrom: { type: 'permanent', filter: 'artifact or creature', zone: 'battlefield', everyPlayer: true, upTo: true, another: true } }] },
     // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature." — its controller sacrifices it
     { re: /^choose target creature that player controls\. The player sacrifices that creature\.?$/i,
       make: () => [{ op: 'sacrificeTargeted', targets: [{ type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'triggerPlayer' }] }] },
@@ -15324,6 +15331,11 @@
     if ((m = p.match(/^an opponent cast (\w+) or more spells this turn$/i))) return { kind: 'opponentSpells', n: num(m[1]) };
     if ((m = p.match(/^there are (\w+) or more creatures on the battlefield$/i)))
       return { kind: 'control', what: 'creature', n: num(m[1]), who: 'any' };
+    // Submerge, the Legates: "If an opponent controls a Forest and you control an Island" — both
+    if ((m = p.match(/^(an opponent controls an? [A-Z][a-z]+) and (you control an? [A-Z][a-z]+)$/))) {
+      const a = condOf(m[1]), b = condOf(m[2]);
+      return a && b ? { kind: 'all', of: [a, b] } : null;
+    }
     return condOf(p);
   }
 
@@ -17752,6 +17764,9 @@
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'itCounters', n: num(m[1]), counter: m[2].toLowerCase() } : null)],
     // Grave Researcher: "there are three or more creature cards in your graveyard"
     [/^there are (\w+) or more ([a-z]+?) cards in your graveyard$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', what: m[2], n: num(m[1]) } : null)],
+    // Flow State: "there is an instant card and a sorcery card in your graveyard" — one of each
+    [/^there (?:is|are) an? ([a-z]+) card and an? ([a-z]+) card in your graveyard$/i,
+      (m) => ({ kind: 'all', of: [{ kind: 'graveyard', what: m[1].toLowerCase(), n: 1 }, { kind: 'graveyard', what: m[2].toLowerCase(), n: 1 }] })],
     [/^you have (\w+) or more ([a-z]+?) cards? in your graveyard$/i,
       (m) => ({ kind: 'graveyard', what: m[2], n: num(m[1]) })],
     // hand and life
@@ -18540,6 +18555,9 @@
     // Surrak, Elusive Hunter: "Whenever a creature you control or a creature spell you control becomes the target of …" (spellsToo)
     { re: /^Whenever a creature you control or a creature spell you control becomes the target of a spell or ability an opponent controls,? /i,
       event: 'becomesTarget', filt: () => subjectFilter('a creature you control'), extra: { byOpponent: true, spellsToo: true } },
+    // Diffusion Sliver: "Whenever a Sliver creature you control becomes the target of a spell or ability an opponent controls"
+    { re: /^Whenever (an? [A-Z][a-z]+ creature) you control becomes the target of a spell or ability an opponent controls,? /,
+      event: 'becomesTarget', filt: (m) => subjectFilter(m[1] + ' you control'), aboutObject: true, extra: { byOpponent: true } },
     { re: /^Whenever you become the target of a spell or ability an opponent controls,? /i,
       event: 'becomesTarget', extra: { byOpponent: true, orYou: true, youTargetedOnly: true } },
     // Professor Hojo: "Whenever one or more creatures you control become the target of an activated ability" (byActivated)
@@ -24408,7 +24426,8 @@
          This land enters tapped unless you revealed a Dragon card this way or you control a Dragon." */
       { re: /^As (?:CARDNAME|this land) enters(?: the battlefield)?,? you may reveal an? ([A-Za-z]+) card from your hand\. (?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you revealed an? [A-Za-z]+ card this way or you control an? ([A-Za-z]+)\.?$/i,
         make: (m) => ({ op: 'etbTappedUnlessReveal', types: [m[1].toLowerCase()], orControl: m[2].toLowerCase() }), auto: true },
-      { re: /^Equip (legendary creature|commander|Knight|Samurai|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,
+      // (Luxior, Giada's Gift: "Equip planeswalker {1}" — a planeswalker you control)
+      { re: /^Equip (legendary creature|commander|planeswalker|Knight|Samurai|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,
         make: (m) => ({ op: 'equip', cost: m[2], only: m[1] }), auto: true },
       // Mjölnir, Hammer of Thor: "Equip worthy {1} (A creature is worthy if it's a legendary non-Villain that's red and/or white.)"
       { re: /^Equip worthy (\{[^}]+\}(?:\{[^}]+\})*)$/,
@@ -25077,6 +25096,9 @@
           });
           return grants.every(Boolean) ? { op: 'sequence', list: grants } : null;
         }, auto: true },
+      // Luxior, Giada's Gift: "Equipped permanent isn't a planeswalker and is a creature in addition to its other types." (base 0/0)
+      { re: /^Equipped permanent isn'?t a planeswalker and is a creature in addition to its other types\.?$/i,
+        eff: { op: 'continuous', layer: 4, scope: { attached: true }, removeTypes: ['Planeswalker'], addTypes: ['Creature'] }, auto: true },
       // the Job select Equipment: "Equipped creature is a Wizard in addition to its other types."
       { re: /^(?:Equipped|Enchanted) creature is an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
         make: (m) => ({ op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, addSubtypes: [m[1]] }), auto: true },
@@ -26602,13 +26624,15 @@
         /* "Equip legendary creature {3}", "Equip commander {3}": the creature
            it may go on is narrower than usual */
         // Fortify: a land you control, not a creature
-        const spec = eff.op === 'fortify' ? { type: 'land', controller: 'you', filter: 'land you control' } : { type: 'creature', controller: 'you' };
+        const spec = eff.op === 'fortify' ? { type: 'land', controller: 'you', filter: 'land you control' }
+          : eff.only === 'planeswalker' ? { type: 'planeswalker', filter: 'planeswalker you control', zone: 'battlefield', controller: 'you' } : { type: 'creature', controller: 'you' };
         // Reconfigure: another creature, never itself
         if (eff.op === 'reconfigure') spec.another = true;
         if (eff.only === 'legendary creature') spec.legendary = true;
         // (Mjölnir, Hammer of Thor: "worthy" — "a legendary non-Villain that's red and/or white")
         else if (eff.only === 'worthy') Object.assign(spec, { legendary: true, notSubtype: 'villain', colors: ['R', 'W'] });
         else if (eff.only === 'commander') spec.commander = true;
+        else if (eff.only === 'planeswalker') { /* the spec above */ }
         else if (eff.only) spec.subtypes = [eff.only.toLowerCase()];
         return {
           kind: 'activated', text: line, auto: true, sorcerySpeed: true,

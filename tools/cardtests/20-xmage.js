@@ -77575,4 +77575,103 @@ module.exports = (test) => {
     t.ok(forest && forest.tapped && town.tapped, 'both tapped');
     t.zone(other, 'library', 'the other Forest stays');
   });
+
+  test('Cards: Submerge — free with a Forest of an opponent and an Island of yours; the creature on top of its library', (mk, t) => {
+    t.auto('Submerge');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.bf('A', 'Island');
+    const sub = T.hand('A', 'Submerge');
+    t.no(g.castSpell('A', sub.id, { via: 'alt0', auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'no Forest of theirs: not free');
+    T.bf('B', 'Forest');
+    T.cast('A', sub, { via: 'alt0', targets: [bear] });
+    t.eq(g.zones.B.library[0], bear, 'the Bears on top of their library, for free');
+  });
+
+  test('Cards: Diffusion Sliver — an opponent targeting your Sliver pays {2} or is countered; your own spell is not taxed', (mk, t) => {
+    t.auto('Diffusion Sliver');
+    const T = mk();
+    const ds = T.bf('A', 'Diffusion Sliver');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [ds] });
+    t.zone(ds, 'battlefield', 'a Bolt at the Sliver, unpaid: countered');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'a Bolt at a non-Sliver: no tax');
+    T.mana('B', 'R2');
+    T.answer('payOrDont', () => ({ pay: true }));
+    T.answer('confirm', () => ({ yes: true }));
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [ds] });
+    t.zone(ds, 'graveyard', 'paid for: it resolves');
+    const T2 = mk();
+    const d2 = T2.bf('A', 'Diffusion Sliver');
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Lightning Bolt'), { targets: [d2] });
+    t.zone(d2, 'graveyard', 'your own Bolt: no tax');
+  });
+
+  test('Cards: Kitesail Larcenist — one artifact or creature of each player becomes a Treasure while it stays', (mk, t) => {
+    t.auto('Kitesail Larcenist');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const mine = T.bf('A', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), wurm = T.bf('C', 'Craw Wurm'), rock = T.bf('B', 'Mind Stone');
+    const want = [mine.id, giant.id, wurm.id];
+    let offered = [];
+    const pick = (ch) => { offered = offered.concat((ch.items || []).map(x => x.id)); return { picks: (ch.items || []).filter(x => want.includes(x.id)).map(x => x.id) }; };
+    T.answer('choose', pick).answer('choose', pick).answer('choose', pick);
+    T.mana('A', 'U2');
+    const kl = T.hand('A', 'Kitesail Larcenist');
+    T.cast('A', kl);
+    t.no(offered.includes(kl.id), 'not itself ("other")');
+    for (const o of [mine, giant, wurm]) t.no(g.characteristics(o).isCreature, o.name + ' is no creature');
+    t.ok(g._hasSubtype(giant, 'Treasure'), 'a Treasure');
+    t.ok(giant.analysis().manaAbilities.length >= 1, 'with the Treasure mana ability');
+    t.ok(g._hasSubtype(rock, 'Treasure') === false, 'the Mind Stone untouched');
+    g.moveObject(kl, 'graveyard');
+    T.toMain('B');
+    t.ok(g.characteristics(giant).isCreature && g.characteristics(wurm).isCreature, 'Larcenist gone: creatures again');
+    t.no(g._hasSubtype(giant, 'Treasure'), 'no longer Treasures');
+    t.eq(giant.analysis().manaAbilities.length, 0, 'and no mana ability');
+  });
+  test('Cards: Flow State — one of the top three; two with an instant and a sorcery in your graveyard', (mk, t) => {
+    t.auto('Flow State');
+    const T = mk({ library: ['Island', 'Island', 'Island', 'Island'] });
+    const g = T.g;
+    let h = g.zones.A.hand.length;
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Flow State'));
+    t.eq(g.zones.A.hand.length, h + 1, 'one card');
+    T.grave('A', 'Lightning Bolt'); T.grave('A', 'Divination');
+    h = g.zones.A.hand.length;
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Flow State'));
+    t.eq(g.zones.A.hand.length, h + 2, 'an instant and a sorcery in the graveyard: two cards');
+  });
+
+  test("Cards: Luxior, Giada's Gift — equips a planeswalker, which is a creature as big as its counters, not a planeswalker", (mk, t) => {
+    t.auto("Luxior, Giada's Gift");
+    const T = mk();
+    const g = T.g;
+    const lux = T.bf('A', "Luxior, Giada's Gift");
+    const pw = T.bf('A', 'Ajani Goldmane');
+    const a = lux.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const pwEq = acts.findIndex(x => /planeswalker/i.test(x.text || ''));
+    T.mana('A', '1');
+    T.activate('A', lux, pwEq, { targets: [pw] });
+    t.eq(lux.attachedTo, pw.id, 'attached to Ajani');
+    const c = g.characteristics(pw);
+    t.ok(c.isCreature, 'a creature');
+    t.no(g._hasType ? g._hasType(pw, 'Planeswalker') : (pw.analysis().types || []).includes('Planeswalker'), 'not a planeswalker');
+    t.eq(g.powerOf(pw), 4, '0/0 with +1/+1 for each of its four loyalty counters');
+    T.mana('B', 'R');
+    T.toMain('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [pw] });
+    t.eq(pw.counters.loyalty, 4, 'damage is marked, no loyalty lost');
+    t.zone(pw, 'battlefield', '3 damage to a 4/4');
+  });
 };
