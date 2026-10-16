@@ -7520,8 +7520,9 @@
     { re: /^If it'?s a permanent card, they put it onto the battlefield\.?$/i, make: () => ({ op: 'noop' }) },
     /* Herald's Horn: "If it's a creature card of the chosen type, you may
        reveal it and put it into your hand." after looking at the top card */
-    { re: /^If it'?s an? ([a-z ]+?) card( of the chosen type)?, you may reveal it and put it into your hand\.?$/i,
-      make: (m) => ({ op: 'topIfToHand', filter: m[1].trim().toLowerCase(), chosenType: !!m[2] }) },
+    // (Gathering Stone: "If it's a card of the chosen type, …" — any card of it)
+    { re: /^If it'?s an? (?:([a-z ]+?) )?card( of the chosen type)?, you may reveal it and put it into your hand\.?$/i,
+      make: (m) => ({ op: 'topIfToHand', filter: (m[1] || 'card').trim().toLowerCase(), chosenType: !!m[2] }) },
     /* "Change the target of target spell or ability with a single target." */
     { re: /^Change the target of (target (?:spell|activated ability|triggered ability|spell or ability|instant or sorcery spell)) with a single target\.?$/i,
       make: (m) => ({ op: 'retarget', single: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase().replace(/^target /, '').replace(/ or (?:activated |triggered )?ability/, ''), abilities: /ability/i.test(m[1]) }] }) },
@@ -12241,6 +12242,13 @@
         const kws = [m[1]].concat(m[2].split(/,\s*(?:and )?/)).map(x => x.trim().toLowerCase()).filter(Boolean);
         return kws.every(kwKnown) ? [{ op: 'kwCountersFromGrave', keywords: kws }] : null;
       } },
+    /* Misleading Signpost: "you may reselect which player or permanent target attacking creature is attacking. (It can't
+       attack its controller or their permanents.)"; "for each attacking creature, you may reselect which player or permanent
+       that creature is attacking" — the "may" is the choice of the one it attacks now (reselectAttack) */
+    { re: /^(?:You may )?reselect which player or permanent (target attacking creature) is attacking\.?$/i,
+      make: (m) => [{ op: 'reselectAttack', targets: [targetSpec(m[1])] }] },
+    { re: /^For each attacking creature, (?:you may )?reselect which player or permanent that creature is attacking\.?$/i,
+      make: () => [{ op: 'reselectAttack', each: true }] },
     /* Tahngarth, First Mate: "you may have that opponent gain control of Tahngarth until end of combat. If you do, choose a
        player or planeswalker that opponent is attacking. Tahngarth is attacking that player or planeswalker." (lendToAttacker) */
     { re: /^(?:You may )?have that opponent gain control of CARDNAME until end of combat\. If you do, choose a player or planeswalker that opponent is attacking\. CARDNAME is attacking that player or planeswalker\.?$/i,
@@ -17588,6 +17596,9 @@
     // Jocasta, Automaton Avenger: "Whenever your commander deals combat damage to a player"
     { re: /^Whenever your commander deals combat damage to a player,? /i, event: 'permCombatDamage', filt: () => ({ commander: true }) },
     { re: /^Whenever your commander enters,? /i, event: 'permEnters', filt: () => ({ commander: true }) },
+    // Misleading Signpost: "When this artifact enters during the declare attackers step," (duringStep)
+    { re: /^When(?:ever)? (?:this (?:creature|artifact|enchantment|permanent)|CARDNAME) enters during the declare attackers step,? /i, event: 'etb', self: true,
+      extra: { duringStep: 'declareAttackers' } },
     // The Blue Spirit: "Whenever a nontoken creature you control enters during combat" (duringCombat)
     { re: /^Whenever (an? (?:nontoken )?creature you control) enters during combat,? /i, event: 'permEnters',
       filt: (m) => subjectFilter(m[1]), extra: { duringCombat: true } },
@@ -21534,7 +21545,8 @@
       // Darksteel Mutation: its card types and creature types are the ones it was just given
       if (/^loses? all other abilities, card types, and creature types$/i.test(p)) { eff.loseAll = true; eff.onlyTheseTypes = true; continue; }
       if ((m = p.match(/^(?:has|have) base power and toughness (\d+)\/(\d+)$/i))) { eff.setPt = { p: +m[1], t: +m[2] }; continue; }
-      if ((m = p.match(/^(?:has|have|gains?) ([a-z, ]+)$/i))) {
+      // (Flayer of Loyalties: "gains trample, annihilator 2, and haste" — a keyword with its number)
+      if ((m = p.match(/^(?:has|have|gains?) ([a-z][a-z0-9, ]*)$/i))) {
         const kws = keywordList(m[1]);
         if (!kws.length || !kws.every(kwKnown)) return null;
         eff.keywords = (eff.keywords || []).concat(kws);
@@ -22550,6 +22562,9 @@
     // Hyperion, Supreme Hero: "If a source would deal damage to you or a Hero you control, prevent all but 1 of that damage." (capAt)
     { re: /^If a source would deal damage to you or an? ([A-Z][a-z]+) you control, prevent all but (?:one|1) of that damage\.?$/,
       make: (m) => ({ op: 'replace', id: 'dmgAllButOne', event: 'damage', who: 'any', how: 'capAt', n: 1, toYou: true, victimOrYouWords: m[1].toLowerCase(), prevention: true }) },
+    // Temple Altisaur: "If a source would deal damage to another Dinosaur you control, prevent all but 1 of that damage." (capAt, notSelfVictim)
+    { re: /^If a source would deal damage to another ([A-Z][a-z]+) you control, prevent all but (?:one|1) of that damage\.?$/,
+      make: (m) => ({ op: 'replace', id: 'dmgAllButOneOther', event: 'damage', who: 'any', how: 'capAt', n: 1, toYou: true, victimWords: m[1].toLowerCase(), notSelfVictim: true, prevention: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
@@ -23043,6 +23058,9 @@
         make: (m) => ({ op: 'etbTappedUnlessReveal', types: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }), auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a creature type\.?$/i,
         eff: { op: 'chooseTypeOnEnter' }, auto: true },
+      // Eclipsed Realms: "As this land enters, choose Elemental, Elf, Faerie, Giant, Goblin, Kithkin, Merfolk, or Treefolk." — one of those (among)
+      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose ((?:[A-Z][a-z]+, )+or [A-Z][a-z]+)\.?$/,
+        make: (m) => ({ op: 'chooseTypeOnEnter', among: m[1].split(/, (?:or )?/) }), auto: true },
       /* Thran Portal, Convincing Mirage, Multiversal Passage: "choose a basic
          land type", and what is that type afterwards */
       { re: /^As (?:CARDNAME|this (?:land|Aura|enchantment|permanent)) enters(?: the battlefield)?,? choose a basic land type\.?(?: Then you may pay (\d+) life\. If you don'?t, it enters tapped\.?)?$/i,

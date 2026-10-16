@@ -9957,7 +9957,10 @@
     }
 
     _chooseTypeFor(o) {
-      const types = this._typesByCount(o.controller);
+      // Eclipsed Realms: "choose Elemental, Elf, …, or Treefolk" — only those (among)
+      const among = (this._staticOp(o, 'chooseTypeOnEnter') || {}).among || null;
+      const counted = this._typesByCount(o.controller);
+      const types = among ? counted.filter(t => among.includes(t)).concat(among.filter(t => !counted.includes(t))) : counted;
       const pick = types[0] || 'Human';
       o.chosenType = pick;
       this.bumpBoard();
@@ -9965,7 +9968,7 @@
       this.logEvent('rules', `${o.name}: ${pick} is the chosen creature type.`);
       // any creature type may be named, not only the ones among this player's cards (CR 205.3m)
       if (p && !p.isBot) {
-        const all = this._creatureTypeChoices(o.controller, types);
+        const all = among ? types : this._creatureTypeChoices(o.controller, types);
         this.queueChoice({ type: 'mode', playerId: p.id, count: 1, purpose: 'chooseType', objId: o.id,
           types: all, options: all.map((t, i) => ({ i, label: t })), prompt: `${o.name}: choose a creature type.` });
       }
@@ -19480,6 +19483,8 @@
           if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
+          // Misleading Signpost: "enters during the declare attackers step" (duringStep)
+          if (ab.duringStep && this.step !== ab.duringStep) continue;
           // Phyrexian Dragon Engine: only when it came straight from the graveyard
           if (ab.fromGraveyardEnter && !(data.object && data.object.enteredFrom === 'graveyard')) continue;
           // Thousand-Faced Shadow: "enters from your hand" (fromHandEnter)
@@ -35078,6 +35083,39 @@
           src._chr = null;
           this.bumpBoard();
           this.logEvent('control', `${tp.name} gains control of ${src.name} until end of combat; it is attacking ${label(def)}.`);
+          break;
+        }
+        /* Misleading Signpost: "you may reselect which player or permanent target attacking creature is attacking. (It
+           can't attack its controller or their permanents.)" — any player or planeswalker but its controller's, or a battle
+           it isn't protecting, whatever restricts or taxes attacks; still the creature that attacked, no attack trigger
+           again (rulings). The one it attacks now is offered as keeping it (reselectAttack; each: every attacker) */
+        case 'reselectAttack': {
+          if (!this.combat) break;
+          const list = e.each ? (this.combat.attackers || []).map(id => this.obj(id)) : [firstObj()];
+          const label = (id) => (this.player(id) || this.obj(id) || {}).name || '?';
+          for (let k = 0; k < list.length; k++) {
+            const x = list[k];
+            if (!x || x.zone !== 'battlefield' || !x.attacking) continue;
+            const cp = x.controller;
+            const defs = this.players.filter(p => p.id !== cp && !p.hasLost).map(p => p.id);
+            for (const o of this.battlefield) {
+              const oa = (!o.phasedOut && o.analysis()) || {};
+              if (oa.isBattle ? this._defPid(o.id) !== cp : (oa.isPlaneswalker && o.controller !== cp)) defs.push(o.id);
+            }
+            if (!defs.includes(x.attacking)) defs.unshift(x.attacking);
+            if (defs.length < 2) continue;
+            const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'attackWhom', values: defs,
+              options: defs.map((d, i) => ({ i, label: d === x.attacking ? `${label(d)} (as it is)` : label(d) })),
+              prompt: `${src ? src.name : 'Reselect'}: ${x.name} is attacking ${label(x.attacking)}. Which player or permanent is it attacking?` }, 'resel' + k);
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            const def = defs[idx == null ? 0 : idx];
+            if (!def || def === x.attacking) continue;
+            x.attacking = def;
+            x._chr = null;
+            this.bumpBoard();
+            this.logEvent('rules', `${x.name} is now attacking ${label(def)}.`);
+          }
           break;
         }
         /* Hans Eriksson: "reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped

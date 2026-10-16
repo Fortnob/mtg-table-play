@@ -1537,7 +1537,9 @@
     // Sen Triplets: "that player can't cast spells … You may play lands and cast spells from that player's hand"
     'oppHandThisTurn',
     // Mindslaver: "You control target player during that player's next turn."
-    'controlPlayer']);
+    'controlPlayer',
+    // Misleading Signpost: "reselect which player or permanent target attacking creature is attacking" — an opponent's attacker, sent elsewhere
+    'reselectAttack']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -3430,7 +3432,8 @@
       // Noctis, Heir Apparent: back attacking — the opponent with the least life (never itself: Tahngarth, First Mate)
       if (ch.purpose === 'attackWhom') {
         const vals = ch.values || [];
-        const life = (i) => { const q = g.player(vals[i]); return q && q.id !== this.pid ? q.life : 999; };
+        // (Misleading Signpost: a planeswalker or battle offered goes by its controller's life — never one of ours)
+        const life = (i) => { const q = g.player(vals[i]) || g.player((g.obj(vals[i]) || {}).controller); return q && q.id !== this.pid ? q.life : 999; };
         const best = options.slice().sort((x, y) => life(x.i) - life(y.i))[0];
         return [best ? best.i : 0];
       }
