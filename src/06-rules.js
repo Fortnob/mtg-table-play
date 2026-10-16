@@ -1605,7 +1605,7 @@
       const allNoMax = this._withEmblems(this.battlefield).some(o => !o.phasedOut && (this._staticOp(o, 'noMaxHandSize') || {}).all);
       // (The Great Synthesis: "for as long as you control this Saga" — noMaxHandWhileControl)
       const sagaNoMax = this.battlefield.some(o => o.noMaxHandFor === ap.id && o.controller === ap.id);
-      if (allNoMax || sagaNoMax || this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand) {
+      if (allNoMax || sagaNoMax || this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand || ap.noMaxHandTurn === this.turn) {
         this.logEvent('step', `${ap.name} has no maximum hand size.`);
         this._finishCleanup();
         return;
@@ -2996,6 +2996,8 @@
           this.logEvent('rules', `${item.name} warps in until the end of the turn.`);
         }
         if (item.hasteOnResolve) o.effects.push({ keywords: ['Haste'], until: item.hasteOnResolve === 'lasting' ? null : 'eot' });
+        // (Jade Orb of Dragonkind: "gains hexproof until your next turn" — the caster's)
+        if (item.hexproofOnResolve) o.effects.push({ keywords: ['Hexproof'], until: null, untilTurnOf: item.hexproofOnResolve });
         /* A suspended card comes off the clock with haste (CR 702.62e). */
         if (o.suspendHaste) { o.suspendHaste = false; o.effects.push({ keywords: ['Haste'], until: null }); }
         /* An Aura arrives attached to the thing it was cast on. Without
@@ -13428,6 +13430,12 @@
         if (a && a.isCreature && this._cardFitsWords(so, rider.slice(12))) so._enterPlusCounters = (so._enterPlusCounters || 0) + 1;
         return;
       }
+      // Jade Orb of Dragonkind: a Dragon creature spell enters with a +1/+1 counter and hexproof until your next turn
+      if (typeof rider === 'string' && rider.startsWith('plusCounterHexproof:')) {
+        const so = item.obj, a = so && so.analysis();
+        if (a && a.isCreature && this._cardFitsWords(so, rider.slice(20))) { so._enterPlusCounters = (so._enterPlusCounters || 0) + 1; item.hexproofOnResolve = playerId; }
+        return;
+      }
       // Arena of Glory: a creature spell paid with it arrives with haste
       if (rider === 'hasteCreature') {
         const a = item.obj && item.obj.analysis();
@@ -14454,6 +14462,8 @@
       if ((attacker.effects || []).some(ef => ef && ef.tempEvasion && ef.tempEvasion.minBlockerPower != null && this.powerOf(blocker) < ef.tempEvasion.minBlockerPower)) return false;
       // Doorman: "and/or Walls" — nor a Wall of any power
       if ((attacker.effects || []).some(ef => ef && ef.tempEvasion && ef.tempEvasion.notBySubtype && this._hasCreatureType(blocker, ef.tempEvasion.notBySubtype))) return false;
+      // Legion Loyalist: "can't be blocked by creature tokens this turn" (notByTokens)
+      if (blocker.isToken && (attacker.effects || []).some(ef => ef && ef.tempEvasion && ef.tempEvasion.notByTokens)) return false;
       // Dream Prowler: unblockable while it attacks alone
       if (ev && ev.attackingAlone && (this.combat.attackers || []).length === 1 && this.combat.attackers[0] === attacker.id) return false;
       // Realm of Koh's Spirit: "can't block non-Spirit creatures"
@@ -23065,6 +23075,8 @@
           if (who && v.chosenColor) return this.zones[who.id].hand.filter(o => ((o.analysis() || {}).colors || []).includes(ctx.chosenColor)).length * (v.mult || 1);
           return who ? this.zones[who.id].hand.length * (v.mult || 1) : 0;
         }
+        // Enter the Infinite: "the number of cards in your library" (cardsInLibrary)
+        if (v && typeof v === 'object' && v.cardsInLibrary) return this.zones[ctx.controller].library.length * (v.mult || 1);
         if (v && typeof v === 'object' && v.cardsInGraveyard) {
           const gy = this.zones[ctx.controller].graveyard;
           return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * (v.mult || 1);
@@ -23640,7 +23652,9 @@
         case 'evasionEot':
           // (Doorman: "… and/or Walls" — notBySubtype)
           applyToScope(e, (o) => { o.effects.push(e.notByGreaterPower ? { flag: 'notByGreaterPower', until: 'eot' }
-            : { tempEvasion: Object.assign({ minBlockerPower: e.minBlockerPower }, e.notBySubtype ? { notBySubtype: e.notBySubtype } : {}), until: 'eot' }); });
+            : { tempEvasion: Object.assign({ minBlockerPower: e.minBlockerPower }, e.notBySubtype ? { notBySubtype: e.notBySubtype } : {},
+              // (Legion Loyalist: "can't be blocked by creature tokens this turn" — notByTokens)
+              e.notByTokens ? { notByTokens: true } : {}), until: 'eot' }); });
           break;
         /* Skullcap Snail: "target opponent exiles a card from their hand" —
            the player whose hand it is picks */
@@ -33797,6 +33811,8 @@
         }
         // Sea Gate Restoration: for the rest of the game
         case 'noMaxHandForever':
+          // (Enter the Infinite: "until your next turn" — only this turn's cleanup is yours before it: untilNextTurn)
+          if (e.untilNextTurn) { me.noMaxHandTurn = this.turn; this.logEvent('rules', `${me.name} has no maximum hand size until their next turn.`); break; }
           me.noMaxHand = true;
           this.logEvent('rules', `${me.name} has no maximum hand size for the rest of the game.`);
           break;   // standing rules, read where they matter

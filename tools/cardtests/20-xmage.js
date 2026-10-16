@@ -77674,4 +77674,96 @@ module.exports = (test) => {
     t.eq(pw.counters.loyalty, 4, 'damage is marked, no loyalty lost');
     t.zone(pw, 'battlefield', '3 damage to a 4/4');
   });
+
+  test('Cards: Tato Farmer — a land card milled this turn, from any graveyard, onto the battlefield tapped under your control', (mk, t) => {
+    t.auto('Tato Farmer');
+    const T = mk();
+    const g = T.g;
+    const tato = T.bf('A', 'Tato Farmer');
+    const old = T.grave('B', 'Mountain');
+    const milled = T.top('B', 'Forest');
+    g.moveObject(milled, 'graveyard'); g._noteMilled('B', [milled.id]);
+    T.activate('A', tato, 0, { targets: [milled] });
+    t.zone(milled, 'battlefield', 'the milled Forest put onto the battlefield');
+    t.eq(milled.controller, 'A', 'under your control');
+    t.ok(milled.tapped, 'tapped');
+    tato.tapped = false;
+    t.no(g.activateAbility('A', tato.id, 0, { auto: true, targets: [{ kind: 'object', id: old.id }] }), 'a land not milled this turn: no target');
+  });
+
+  test("Cards: Legion Loyalist — battalion: first strike, trample, and no blocking by creature tokens", (mk, t) => {
+    t.auto('Legion Loyalist');
+    const T = mk();
+    const g = T.g;
+    const ll = T.bf('A', 'Legion Loyalist'), b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Hill Giant');
+    const giant = T.bf('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: ll.id, defenderId: 'B' }, { attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(g.hasKw(b1, 'first strike') && g.hasKw(b1, 'trample'), 'first strike and trample');
+    t.ok(g.canBlock(giant, b1), 'a nontoken creature can block');
+    giant.isToken = true;
+    t.no(g.canBlock(giant, b1), 'a creature token cannot');
+    giant.isToken = false;
+    // two attackers only: nothing
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: ll.id, defenderId: 'B' }, { attackerId: b1.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(g.hasKw(b1, 'first strike'), 'only one other attacker: no battalion');
+  });
+
+  test('Cards: Walking Bulwark — a creature with defender gains haste, attacks, and deals damage equal to its toughness', (mk, t) => {
+    t.auto('Walking Bulwark');
+    const T = mk();
+    const g = T.g;
+    const wb = T.bf('A', 'Walking Bulwark');
+    const wall = T.bf('A', 'Wall of Stone', { sick: true });
+    T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === wall.id)] }));
+    T.mana('A', '2');
+    T.activate('A', wb, 0, { targets: [wall] });
+    t.ok(g.hasKw(wall, 'haste'), 'haste');
+    T.answer('declareAttackers', () => [{ attackerId: wall.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 12, 'the 0/8 Wall attacked and dealt 8');
+  });
+
+  test('Cards: Enter the Infinite — draw your library, put a card back on top, no maximum hand size this turn', (mk, t) => {
+    t.auto('Enter the Infinite');
+    const T = mk({ library: ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island'] });
+    const g = T.g;
+    const n0 = g.zones.A.library.length;
+    T.mana('A', 'UUUU8');
+    T.cast('A', T.hand('A', 'Enter the Infinite'));
+    t.eq(g.zones.A.library.length, 1, 'the whole library drawn, one card put back on top');
+    t.ok(n0 > 7, 'a library to draw');
+    const inHand = g.zones.A.hand.length;
+    T.nextTurn('B');
+    t.eq(g.zones.A.hand.length, inHand, 'no discard to seven in the cleanup');
+    t.no(g.over && g.winner === 'B', 'no loss for drawing from an empty library');
+  });
+
+  test('Cards: Jade Orb of Dragonkind — its mana on a Dragon: a +1/+1 counter and hexproof until your next turn', (mk, t) => {
+    t.auto('Jade Orb of Dragonkind');
+    const T = mk();
+    const g = T.g;
+    const orb = T.bf('A', 'Jade Orb of Dragonkind');
+    g.tapForMana('A', orb.id, 0);
+    T.mana('A', '1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.eq(bear.counters['+1/+1'] || 0, 0, 'not a Dragon: no counter');
+    t.no(g.hasKw(bear, 'hexproof'), 'nor hexproof');
+    orb.tapped = false;
+    g.tapForMana('A', orb.id, 0);
+    T.mana('A', 'RR3');
+    const dr = T.hand('A', 'Shivan Dragon');
+    T.cast('A', dr);
+    T.resolve();
+    t.eq(dr.counters['+1/+1'], 1, 'a Dragon: an additional +1/+1 counter');
+    t.ok(g.hasKw(dr, 'hexproof'), 'and hexproof');
+    T.nextTurn('B');
+    t.ok(g.hasKw(dr, 'hexproof'), 'through the opponent\'s turn');
+    T.nextTurn('A');
+    t.no(g.hasKw(dr, 'hexproof'), 'gone on your next turn');
+  });
 };

@@ -1789,6 +1789,10 @@
         const c = (m[1] || '').trim().toLowerCase();
         return { op: 'spendOnly', open: true, rider: { words: c ? `${c} instant or ${c} sorcery` : 'instant or sorcery', effects: [{ op: 'copyThatSpell' }], text: m[0] } };
       } },
+    /* Jade Orb of Dragonkind: "When you spend this mana to cast a Dragon creature spell, it enters with an additional
+       +1/+1 counter on it and gains hexproof until your next turn." (plusCounterHexproof) */
+    { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?creature) spell, it enters with an additional \+1\/\+1 counter on it and gains hexproof until your next turn\.?$/,
+      make: (m) => ({ op: 'spendOnly', rider: 'plusCounterHexproof:' + m[1].toLowerCase(), open: true }) },
     /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
        you gain 2 life." — a rider on the mana: what it pays for, and what happens then (nothing said of the spell itself) */
     { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?(?:creature |instant or sorcery |noncreature )?)spell( with mana value (\d+) or greater)?, (.+?)\.?$/,
@@ -2121,6 +2125,13 @@
     { re: /^(This creature|CARDNAME|Target creature|It|That creature) can'?t be blocked by creatures with power (\d+) or less this turn\.?$/i,
       make: (m) => Object.assign({ op: 'evasionEot', minBlockerPower: +m[2] + 1 },
         /^target/i.test(m[1]) ? { targets: [targetSpec('target creature')] } : /^(?:it|that creature)$/i.test(m[1]) ? { scope: 'lastTarget' } : { scope: 'self' }) },
+    /* Legion Loyalist: "creatures you control gain first strike and trample until end of turn and can't be blocked by
+       creature tokens this turn" — the ones there as it resolves (notByTokens) */
+    { re: /^(Creatures you control) gain (.+?) until end of turn and can'?t be blocked by creature tokens this turn\.?$/i,
+      make: (m) => {
+        const g = parseEffectSentence(m[1] + ' gain ' + m[2] + ' until end of turn.');
+        return g && g.op === 'grantKeyword' ? { op: 'sequence', list: [g, { op: 'evasionEot', notByTokens: true, scope: 'yourCreatures' }] } : null;
+      } },
     // Doorman: "Until end of turn, target creature can't be blocked by creatures with power 2 or less and/or Walls." (notBySubtype)
     { re: /^Until end of turn, target creature can'?t be blocked by creatures with power (\d+) or less and\/or ([A-Z][a-z]+)s\.?$/,
       make: (m) => ({ op: 'evasionEot', minBlockerPower: +m[1] + 1, notBySubtype: m[2].toLowerCase(), targets: [targetSpec('target creature')] }) },
@@ -5159,6 +5170,14 @@
           { op: 'grantAbility', ability: ab, duration: 'eot', scope: 'lastTarget' },
           { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', scope: 'lastTarget' }] };
       } },
+    /* Walking Bulwark: "Until end of turn, target creature with defender gains haste, can attack as though it didn't have
+       defender, and assigns combat damage equal to its toughness rather than its power." */
+    { re: /^Until end of turn, (target creature(?: with defender)?) gains haste, can attack as though it didn'?t have defender, and assigns combat damage equal to its toughness rather than its power\.?$/i,
+      make: (m) => {
+        const t = tgt(m[1]);
+        return t ? { op: 'sequence', list: [{ op: 'grantKeyword', keywords: ['Haste'], duration: 'eot', targets: [t] },
+          { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', scope: 'lastTarget' }, { op: 'toughDamageTurn' }] } : null;
+      } },
     // Assault Formation: "Target creature with defender can attack this turn as though it didn't have defender."
     { re: /^(Target creature(?: with defender)?) can attack this turn as though it didn'?t have defender\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', targets: [t] } : null; } },
@@ -6996,6 +7015,8 @@
     { re: /^You gain (one|two|three|\d+) life for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { lastSweep: true, mult: num(m[1]) } }) },
     { re: /^You have no maximum hand size for the rest of the game\.?$/i, make: () => ({ op: 'noMaxHandForever' }) },
+    // Enter the Infinite: "You have no maximum hand size until your next turn." (untilNextTurn)
+    { re: /^You have no maximum hand size until your next turn\.?$/i, make: () => ({ op: 'noMaxHandForever', untilNextTurn: true }) },
     // The Great Synthesis: "You have no maximum hand size for as long as you control this Saga." (noMaxHandWhileControl)
     { re: /^You have no maximum hand size for as long as you control (?:this Saga|this permanent|CARDNAME)\.?$/i, make: () => ({ op: 'noMaxHandWhileControl' }) },
     /* Overwhelming Stampede: X is worked out once, as it resolves */
@@ -11104,6 +11125,8 @@
     // Graven Lore, Blessing of Frost: "the amount of {S} spent to cast this spell" (snowSpent)
     if ((m = p.match(/^the amount of \{S\} spent to cast (this spell|CARDNAME)$/i))) return done({ snowSpent: true, of: spentOf(m[1]), mult: 1 });
     if (/^the number of cards in your graveyard$/i.test(p)) return done({ cardsInGraveyard: 'you', mult: 1 });
+    // Enter the Infinite: "Draw cards equal to the number of cards in your library" (cardsInLibrary)
+    if (/^the number of cards in your library$/i.test(p)) return done({ cardsInLibrary: 'you', mult: 1 });
     // Formless Genesis: "the number of land cards in your graveyard"
     if ((m = p.match(/^the number of ([a-z]+) cards in your graveyard$/i))) return done({ cardsInGraveyard: true, filter: m[1].toLowerCase(), mult: 1 });
     // The Mouth of Sauron: "the number of instant and sorcery cards in that player's graveyard" — the targeted player's
@@ -12758,11 +12781,12 @@
       make: (m) => [{ op: 'opponentMayTakeDamage', n: +m[1] }] },
     /* The Master, Transcendent: "Put target creature card in a graveyard that was milled this turn onto the battlefield
        under your control. It's a green Mutant with base power and toughness 3/3." (milledThisTurn) */
-    { re: /^Put target creature card in a graveyard that was milled this turn onto the battlefield under your control\.(?: It'?s an? ((?:(?:white|blue|black|red|green) )*[A-Z][a-z]+ with base power and toughness \d+\/\d+)\.)?$/,
+    // (Tato Farmer: "Put target land card in a graveyard that was milled this turn onto the battlefield tapped under your control.")
+    { re: /^Put target (creature|land) card in a graveyard that was milled this turn onto the battlefield( tapped)? under your control\.(?: It'?s an? ((?:(?:white|blue|black|red|green) )*[A-Z][a-z]+ with base power and toughness \d+\/\d+)\.)?$/,
       make: (m) => {
-        const eff = m[1] ? becomesEff('is a ' + m[1]) : null;
-        if (m[1] && !(eff && eff.setPt)) return null;
-        return [{ op: 'reanimate', mine: true, targets: [Object.assign(targetSpec('target creature', 'graveyard'), { milledThisTurn: true })] }]
+        const eff = m[3] ? becomesEff('is a ' + m[3]) : null;
+        if (m[3] && !(eff && eff.setPt)) return null;
+        return [Object.assign({ op: 'reanimate', mine: true, targets: [Object.assign(targetSpec('target ' + m[1], 'graveyard'), { milledThisTurn: true })] }, m[2] ? { tapped: true } : {})]
           .concat(eff ? [{ op: 'becomes', duration: 'permanent', eff, scope: 'lastTarget' }] : []);
       } },
     /* Othelm, Salvager of Ruin, Samwise, Grim Return: "Choose (up to one) target creature card in
