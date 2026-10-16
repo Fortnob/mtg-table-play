@@ -9914,6 +9914,9 @@
     // The Notary Hobbits: "create two tokens that are copies of them, except the tokens aren't legendary" — a card named as many
     { re: /^Create (two|three) tokens that are copies of (?:them|CARDNAME), except the tokens aren'?t legendary\.?$/i,
       make: (m) => ({ op: 'copyPermanent', self: true, n: num(m[1]), grant: [], nonLegendary: true }) },
+    // Vesuvan Duplimancy: "create a token that's a copy of that artifact or creature, except it's not legendary" — the one the spell targets
+    { re: /^Create a token that'?s a copy of that (?:artifact or creature|artifact|creature), except (?:the token isn'?t|it isn'?t|it'?s not) legendary\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, scope: 'triggerSpellTarget', grant: [], nonLegendary: true }) },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -16160,7 +16163,8 @@
         /* Mogis, Torment of Scarabs, Nicol Bolas: "…unless they sacrifice a
            creature of their choice", "…unless that player sacrifices a nonland
            permanent of their choice or discards a card" */
-        s.match(/^(.+?) unless (that player|they|target player|its controller) (sacrifices? an? ((?:non)?[a-z]+(?: (?:creature|permanent|artifact))?)(?: of their choice)?( or discards? a card)?)\.?$/i) ||
+        // (Indulgent Tormentor: "…unless target opponent sacrifices a creature of their choice or pays 3 life" — orLife)
+        s.match(/^(.+?) unless (that player|they|target player|target opponent|its controller) (sacrifices? an? ((?:non)?[a-z]+(?: (?:creature|permanent|artifact))?)(?: of their choice)?( or discards? a card| or pays? \d+ life)?)\.?$/i) ||
         // Combustion Man: "destroy target permanent unless its controller has Combustion Man deal damage to them equal to his power" (selfDamage)
         s.match(/^(.+?) unless (its controller) (has (?:CARDNAME|this creature) deals? damage to them equal to (?:his|her|its) power)\.?$/i);
       if (unless) {
@@ -16174,7 +16178,8 @@
         const insteadCond = insteadM && condOf(insteadM[1]);
         if (insteadCond) unless[1] = insteadM[2].replace(/^./, c => c.toUpperCase());
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
-        const cost = /^has /i.test(unless[3]) ? { selfDamage: 'power' } : /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
+        const cost = /^has /i.test(unless[3]) ? { selfDamage: 'power' } : /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() },
+            /discard/i.test(unless[5] || '') ? { orDiscard: true } : /life/i.test(unless[5] || '') ? { orLife: parseInt(unless[5].replace(/\D+/g, ''), 10) } : {})
           : /^discards? (?:their|his or her) hand$/i.test(unless[3]) ? { discardHand: true }
           : /^discard/i.test(unless[3]) ? { discard: num(unless[3].split(' ')[1]) || 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         const unlessEff = (Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
@@ -17931,6 +17936,9 @@
     { re: /^Whenever a player plays a card exiled with (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', also: 'anyPlayLand', extra: { playedExiledWithSelf: true } },
     // Loki, God of Lies: "Whenever you cast a spell that targets only a single creature" (targetsOneCreature)
     { re: /^Whenever you cast a spell that targets only a single creature,? /i, event: 'youCastSpell', extra: { targetsOneCreature: true } },
+    // Vesuvan Duplimancy: "Whenever you cast a spell that targets only a single artifact or creature you control" (targetsOneWords, targetsOneYours)
+    { re: /^Whenever you cast a spell that targets only a single (artifact or creature|artifact|creature) you control,? /i, event: 'youCastSpell',
+      extraOf: (m) => ({ targetsOneCreature: true, targetsOneWords: m[1].toLowerCase(), targetsOneYours: true }) },
     // Ivy, Gleeful Spellthief: "Whenever a player casts a spell that targets only a single creature other than Ivy" (targetsOneOtherCreature)
     { re: /^Whenever a player casts a spell that targets only a single creature other than (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', extra: { targetsOneOtherCreature: true } },
     // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
@@ -19053,6 +19061,10 @@
       event: 'anySacrifice', aboutObject: true,
       filt: (m) => ({ words: (m[2] ? m[2].toLowerCase() : '') + m[3].toLowerCase() }),
       extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
+    /* Karmic Justice: "Whenever a spell or ability an opponent controls destroys a noncreature permanent you control," —
+       "that opponent" the one whose spell or ability it was (permDestroyed, destroyerIsOpponent) */
+    { re: /^Whenever a spell or ability an opponent controls destroys an? ((?:non)?(?:creature|artifact|enchantment|land|planeswalker) )?permanent you control,? /i,
+      event: 'permDestroyed', aboutObject: true, filt: (m) => subjectFilter('a ' + (m[1] || '') + 'permanent you control'), extra: { destroyerIsOpponent: true } },
     // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed," — anyone's (permDestroyed)
     { re: /^Whenever an? (noncreature artifact|artifact|creature|permanent|nontoken permanent) is sacrificed or destroyed,? /i,
       event: 'anySacrifice', also: 'permDestroyed', aboutObject: true, filt: (m) => ({ words: m[1].toLowerCase() }) },
@@ -22492,6 +22504,8 @@
       // colors and types" — the colour and the Bear added to what it has: addColors, addSubtypes)
       if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)(?: in addition to its other types| and ([a-z]+(?:(?:,|,? and) [a-z]+)*)|( in addition to its other colors and types))?$/))) {
         if (!typed(m[1], m[2], [m[3], m[4]])) return null;
+        // (Unable to Scream: "is a Toy artifact creature … in addition to its other types" — its creature types kept, CR 205.1b)
+        if (/ in addition to its other types$/.test(p) && eff.setCreatureTypes) { eff.addSubtypes = (eff.addSubtypes || []).concat(eff.setCreatureTypes); delete eff.setCreatureTypes; }
         if (m[6]) {
           if (eff.setColors) { if (!eff.setColors.length) return null; eff.addColors = eff.setColors; delete eff.setColors; }
           if (eff.setCreatureTypes) { eff.addSubtypes = eff.setCreatureTypes; delete eff.setCreatureTypes; }
@@ -24839,6 +24853,21 @@
           : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
       // Master of Cruelties: "This creature can only attack alone." (onlyAttackAlone)
       { re: /^(?:CARDNAME|This creature) can only attack alone\.?$/i, eff: { op: 'onlyAttackAlone' }, auto: true },
+      /* Scion of Draco: "Each creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black,
+         first strike if it's red, and trample if it's green." — each keyword for its own colour */
+      { re: /^Each creature you control has ((?:[a-z ]+ if it'?s (?:white|blue|black|red|green), )+(?:and )?[a-z ]+ if it'?s (?:white|blue|black|red|green))\.?$/i,
+        make: (m) => {
+          const COLS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+          const list = m[1].split(/,\s*(?:and\s+)?/).map(part => {
+            const pm = part.trim().match(/^([a-z ]+?) if it'?s (white|blue|black|red|green)$/i);
+            const kw = pm && pm[1].toLowerCase();
+            return kw && kwKnown(kw) ? { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', color: COLS[pm[2].toLowerCase()] },
+              grant: [kw.replace(/\b\w/g, c => c.toUpperCase())] } : null;
+          });
+          return list.length > 1 && list.every(Boolean) ? { op: 'sequence', list } : null;
+        }, auto: true },
+      // Unable to Scream: "As long as enchanted creature is face down, it can't be turned face up." (_faceUpHeld)
+      { re: /^As long as enchanted creature is face down, it can'?t be turned face up\.?$/i, eff: { op: 'noTurnUpAttached' }, auto: true },
       // Pipsqueak, Rebel Strongarm: "can't attack alone unless he has a +1/+1 counter on him" (unlessCounter)
       { re: /^CARDNAME can'?t attack alone unless (?:it|he|she|they) ha(?:s|ve) an? \+1\/\+1 counter on (?:it|him|her|them)\.?$/i,
         eff: { op: 'cantAttackAlone', unlessCounter: '+1/+1' }, auto: true },

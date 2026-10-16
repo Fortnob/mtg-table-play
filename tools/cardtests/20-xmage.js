@@ -76132,4 +76132,111 @@ module.exports = (test) => {
     t.eq(i2.name, 'The Irencrag', 'declined');
     t.eq((i2.analysis().manaAbilities || []).length, 1, 'still taps for mana');
   });
+  test("Cards: Karmic Justice — an opponent's spell or ability destroys a noncreature permanent of yours: you may destroy a permanent of theirs", (mk, t) => {
+    t.auto('Karmic Justice');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    T.bf('A', 'Karmic Justice');
+    const rock = T.bf('A', 'Mind Stone'), bear = T.bf('A', 'Grizzly Bears');
+    const hisGiant = T.bf('B', 'Hill Giant'), hisElf = T.bf('B', 'Llanowar Elves'), cGiant = T.bf('C', 'Hill Giant');
+    T.toMain('B');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = ch.options[0].map(x => x.id); return { targets: [{ kind: 'object', id: hisGiant.id }] }; });
+    T.mana('B', 'R1');
+    T.cast('B', T.hand('B', 'Smash to Smithereens'), { targets: [rock] });
+    t.zone(rock, 'graveyard');
+    t.ok(offered && offered.includes(hisGiant.id) && offered.includes(hisElf.id) && !offered.includes(cGiant.id), "B's permanents only");
+    t.zone(hisGiant, 'graveyard', 'destroyed in return');
+    // a creature: nothing
+    const asked0 = T.asked.length;
+    T.mana('B', 'BB1');
+    T.cast('B', T.hand('B', 'Murder'), { targets: [bear] });
+    t.zone(bear, 'graveyard');
+    t.no(T.asked.slice(asked0).some(q => q.type === 'pickTarget' && q.sourceName === 'Karmic Justice'), 'a creature destroyed: no trigger');
+    // your own spell: nothing
+    const U = mk({ library: Array(20).fill('Plains') });
+    U.bf('A', 'Karmic Justice');
+    const r2 = U.bf('A', 'Mind Stone'), b2 = U.bf('B', 'Hill Giant');
+    U.mana('A', 'R1');
+    U.cast('A', U.hand('A', 'Smash to Smithereens'), { targets: [r2] });
+    t.zone(b2, 'battlefield', 'destroyed by its own controller: nothing');
+  });
+
+  test('Cards: Unable to Scream — the creature loses all abilities and is a 0/2 Toy; face down, it stays face down', (mk, t) => {
+    t.auto('Unable to Scream');
+    const T = mk({ library: Array(20).fill('Island') });
+    const mo = T.bf('A', 'Hill Giant');
+    mo.faceDown = true; mo.manifested = true; mo._chr = null; T.g.bumpBoard();
+    t.ok(T.g._faceUpWays(mo).length > 0, 'a manifested creature card can be turned face up');
+    const us = T.bf('B', 'Unable to Scream');
+    us.attachedTo = mo.id; mo.attachments = [us.id]; T.g.bumpBoard();
+    t.eq(T.g._faceUpWays(mo).length, 0, 'not while enchanted');
+    T.mana('A', 'R3');
+    t.no(T.g.turnFaceUp('A', mo.id), "it can't be turned face up");
+    t.ok(mo.faceDown, 'still face down');
+    t.eq(T.g.toughnessOf(mo), 2, 'a 0/2'); t.eq(T.g.powerOf(mo), 0);
+    const ha = T.bf('A', 'Hill Giant'), u2 = T.bf('B', 'Unable to Scream');
+    u2.attachedTo = ha.id; ha.attachments = [u2.id]; T.g.bumpBoard();
+    t.ok(T.g._hasCreatureType(ha, 'Toy') && T.g._hasCreatureType(ha, 'Giant'), 'a Toy, still a Giant (in addition to its other types)');
+    t.ok((ha.analysis().types || []).includes('Artifact'), 'an artifact');
+    // once the Aura is gone, it can
+    T.g.moveObject(us, 'graveyard'); mo.attachments = []; T.g.bumpBoard();
+    t.ok(T.g.turnFaceUp('A', mo.id), T.g.lastError);
+  });
+
+  test('Cards: Vesuvan Duplimancy — a spell of yours targeting only a single artifact or creature of yours: a nonlegendary token copy of it', (mk, t) => {
+    t.auto('Vesuvan Duplimancy');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.bf('A', 'Vesuvan Duplimancy');
+    const isa = T.bf('A', 'Isamaru, Hound of Konda'), bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [isa] });
+    const toks = T.bfOf('A').filter(o => o.isToken && o.name === 'Isamaru, Hound of Konda');
+    t.eq(toks.length, 1, 'a token copy');
+    t.no(((toks[0] && toks[0].analysis()) || {}).isLegendary, 'not legendary');
+    t.zone(isa, 'battlefield', 'no legend rule');
+    t.eq(T.g.powerOf(isa), 5, 'the spell resolves too');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [bear] });
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 1, "B's creature: nothing");
+  });
+
+  test('Cards: Indulgent Tormentor — at your upkeep, a card unless the opponent sacrifices a creature or pays 3 life', (mk, t) => {
+    t.auto('Indulgent Tormentor');
+    const T = mk({ library: Array(30).fill('Swamp') });
+    T.bf('A', 'Indulgent Tormentor');
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => /life/i.test(o.label))] }; });
+    const h0 = T.zone('A', 'hand').length;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(q && q.purpose === 'unlessSacOrLife' && q.playerId === 'B', 'B is asked');
+    t.eq(T.life('B'), 17, 'B pays 3 life');
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'only the draw step card');
+    // sacrifices
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => /Sacrifice/i.test(o.label))] }));
+    T.answer('choose', (ch) => ({ picks: [bear.id] }));
+    const h1 = T.zone('A', 'hand').length;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(bear, 'graveyard', 'the Bears sacrificed'); t.zone(giant, 'battlefield');
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'no extra card');
+    // neither
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => /^Don/i.test(o.label))] }));
+    const h2 = T.zone('A', 'hand').length;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.zone('A', 'hand').length, h2 + 2, 'neither: A draws');
+  });
+
+  test('Cards: Scion of Draco — your creatures have vigilance if white, hexproof if blue, lifelink if black, first strike if red, trample if green', (mk, t) => {
+    t.auto('Scion of Draco');
+    const T = mk();
+    T.bf('A', 'Scion of Draco');
+    const w = T.bf('A', 'Savannah Lions'), u = T.bf('A', 'Coral Merfolk'), b = T.bf('A', 'Vampire Bats'), r = T.bf('A', 'Raging Goblin'), g = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    t.ok(T.g.hasKw(w, 'vigilance') && !T.g.hasKw(w, 'trample'), 'white: vigilance');
+    t.ok(T.g.hasKw(u, 'hexproof'), 'blue: hexproof');
+    t.ok(T.g.hasKw(b, 'lifelink'), 'black: lifelink');
+    t.ok(T.g.hasKw(r, 'first strike'), 'red: first strike');
+    t.ok(T.g.hasKw(g, 'trample') && !T.g.hasKw(g, 'vigilance'), 'green: trample');
+    t.no(T.g.hasKw(theirs, 'trample'), "not B's");
+  });
 };

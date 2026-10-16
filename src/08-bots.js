@@ -2535,6 +2535,21 @@
         .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : this.rating(o) })).sort((x, y) => x.v - y.v);
       return pool.length && pool[0].v <= keep ? { picks: [pool[0].o.id] } : { picks: [] };
     },
+    /* Indulgent Tormentor: "draw a card unless target opponent sacrifices a creature of their choice or pays 3 life" —
+       life while there is plenty of it, else the least creature while it is worth less than a card, else neither */
+    unlessSacOrLife(s) {
+      const g = this.game;
+      const at = (key) => (s.options || []).findIndex(o => o.key === key);
+      const k = Number(s.n) || 3;
+      if (at('life') >= 0 && this.me.life - k > 10) return { picks: [at('life')] };
+      if (at('sac') >= 0) {
+        const least = g.battlefield.filter(o => o.controller === this.pid && !o.phasedOut && (g.characteristics(o) || {}).isCreature)
+          .reduce((m, o) => Math.min(m, this.permanentValue(o)), Infinity);
+        if (least <= 2) return { picks: [at('sac')] };
+      }
+      if (at('life') >= 0 && this.me.life - k > 5) return { picks: [at('life')] };
+      return { picks: [at('none')] };
+    },
     /* Chisei, Heart of Oceans: "sacrifice Chisei unless you remove a counter from a permanent you control" — always
        a counter, the cheapest: a -1/-1 counter first, then from whichever has the most */
     unlessRemoveCounter(s) {

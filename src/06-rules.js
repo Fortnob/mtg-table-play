@@ -7638,8 +7638,12 @@
      * The ways a face-down permanent can be turned face up, cheapest first: its morph, megamorph or disguise cost;
      * and, for a manifested creature card, its mana cost (CR 701.40b) — not a card cast face down by morph.
      */
+    /** Unable to Scream: "As long as enchanted creature is face down, it can't be turned face up." — an Aura on it saying so (noTurnUpAttached) */
+    _faceUpHeld(o) {
+      return !!o && (o.attachments || []).some(id => { const at = this.obj(id); return at && at.zone === 'battlefield' && !at.phasedOut && !!this._staticOp(at, 'noTurnUpAttached'); });
+    }
     _faceUpWays(o) {
-      if (!o || !o.faceDown) return [];
+      if (!o || !o.faceDown || this._faceUpHeld(o)) return [];
       const real = o.trueAnalysis ? o.trueAnalysis() : null;
       if (!real) return [];
       const out = [];
@@ -7657,6 +7661,7 @@
       if (!o || o.zone !== 'battlefield') return this.fail('That is not on the battlefield.');
       if (o.controller !== playerId) return this.fail('You do not control that.');
       if (!o.faceDown) return this.fail('That is already face up.');
+      if (this._faceUpHeld(o)) return this.fail("That can't be turned face up.");
       const real = o.trueAnalysis ? o.trueAnalysis() : null;
       // Kozilek, the Broken Reality: "Turn it face up any time for its mana cost if it's a creature card."
       const ways = this._faceUpWays(o);
@@ -19079,6 +19084,8 @@
       // (destroyed: _regenerated let it go — permDestroyed, below)
       const destroyed = from === 'battlefield' && toZone !== 'battlefield' && !!o._destroyPending;
       if (o._destroyPending) o._destroyPending = false;
+      const destroyedBy = destroyed ? o._destroyedBy || null : null;
+      o._destroyedBy = null;
       // The Master, Multiplied: "Triggered abilities you control can't cause you to … exile creature tokens you control."
       if (from === 'battlefield' && toZone === 'exile' && this._spareFromTrigger(o)) {
         this.logEvent('rules', `${o.name} stays: a triggered ability of its controller can't exile it.`);
@@ -19586,7 +19593,8 @@
         this._lastLeft = o.id;
         this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
         // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed"
-        if (destroyed) this._fire('permDestroyed', null, { object: o, objController: lastCtrl });
+        // (Karmic Justice: "a spell or ability an opponent controls destroys" — whose it was: playerId, destroyerIsOpponent)
+        if (destroyed) this._fire('permDestroyed', null, Object.assign({ object: o, objController: lastCtrl }, destroyedBy ? { playerId: destroyedBy } : {}));
       }
       // (meldTo, above: gone as the melded permanent, its two cards are their front faces again, side by side)
       if (meldTo && o.meld) this._meldOut(o, meldTo, opts);
@@ -20607,7 +20615,10 @@
             const sp = data.spell || (data.stackId && this.stack.find(st => st.id === data.stackId));
             const ts = (sp && sp.targets) || [];
             const x = ts.length && ts[0].kind === 'object' ? this.obj(ts[0].id) : null;
-            if (!x || (x === o && !ab.targetsOneCreature) || x.zone !== 'battlefield' || !(this.characteristics(x) || {}).isCreature || !ts.every(t => t.kind === 'object' && t.id === x.id)) continue;
+            if (!x || (x === o && !ab.targetsOneCreature) || x.zone !== 'battlefield' || !ts.every(t => t.kind === 'object' && t.id === x.id)) continue;
+            // (Vesuvan Duplimancy: "a single artifact or creature you control" — targetsOneWords, targetsOneYours)
+            if (ab.targetsOneWords ? !this._cardFitsWords(x, ab.targetsOneWords) : !(this.characteristics(x) || {}).isCreature) continue;
+            if (ab.targetsOneYours && x.controller !== o.controller) continue;
           }
           // Black Vise: only the upkeep of the player chosen as it entered
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
@@ -20813,6 +20824,8 @@
           if (ab.ofEnchanted && !((ab.ofEnchantedSource ? data.source : data.object) && o.attachedTo === (ab.ofEnchantedSource ? data.source : data.object).id)) continue;
           // Harsh Mentor: only an opponent's activation
           if (ab.activatorIsOpponent && data.playerId === o.controller) continue;
+          // Karmic Justice: destroyed by a spell or ability one of this player's opponents controls (destroyerIsOpponent)
+          if (ab.destroyerIsOpponent && !(data.playerId && this.opponentsOf(o.controller).some(q => q.id === data.playerId))) continue;
           // "a creature dealt damage by this creature this turn dies"
           // Aegar, the Freezing Flame: "if a Giant, Wizard, or spell you controlled dealt damage to it this turn" (hurtByYourKinds)
           if (ab.hurtByYourKinds && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
@@ -28474,6 +28487,34 @@
           if (e.cost && e.cost.sacrifice) {
             const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, e.cost.sacrifice) && this._canSacrifice(x));
             const hand = e.cost.orDiscard ? this.zones[payer.id].hand.slice() : [];
+            /* Indulgent Tormentor: "…unless target opponent sacrifices a creature of their choice or pays 3 life" — which,
+               or neither, then the creature (orLife, purpose unlessSacOrLife) */
+            if (e.cost.orLife) {
+              const k = e.cost.orLife;
+              const canLife = payer.life >= k && !this._lifeFrozen(payer);
+              if (!perms.length && !canLife) { this._spliceNext(e.then); break; }
+              const opts = [];
+              if (perms.length) opts.push({ label: `Sacrifice ${this._aCard(e.cost.sacrifice)}`, key: 'sac' });
+              if (canLife) opts.push({ label: `Pay ${k} life`, key: 'life' });
+              opts.push({ label: `Don't: ${whole(e.text || 'it happens', 80)}`, key: 'none' });
+              const how = this._choose({ playerId: payer.id, purpose: 'unlessSacOrLife', kind: 'options', min: 1, max: 1, options: opts, n: k,
+                prompt: e.prompt || `Sacrifice ${this._aCard(e.cost.sacrifice)} or pay ${k} life? If you don't: ${whole(e.text || 'it happens', 80)}` }, 'usol');
+              if (how === SUSPEND) return SUSPEND;
+              const pick = (opts[(how && how.picks && how.picks[0]) || 0] || opts[opts.length - 1]).key;
+              if (pick === 'life' && canLife) {
+                this.changeLife(payer, -k, 'cost');
+                this.logEvent('rules', `${payer.name} pays ${k} life.`);
+                break;
+              }
+              if (pick !== 'sac' || !perms.length) { this._spliceNext(e.then); break; }
+              const gotS = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
+                items: this._chooseItems(perms), min: 1, max: 1, prefer: 'worst', prompt: `Sacrifice ${this._aCard(e.cost.sacrifice)}.` }, 'usolS');
+              if (gotS === SUSPEND) return SUSPEND;
+              const xS = gotS && gotS.picks.length ? this.obj(gotS.picks[0]) : null;
+              if (xS && xS.zone === 'battlefield' && xS.controller === payer.id && perms.includes(xS)) this._sacrificeNow(payer.id, [xS], null);
+              else this._spliceNext(e.then);
+              break;
+            }
             if (!perms.length && !hand.length) { this._spliceNext(e.then); break; }
             /* Rakdos, Patron of Chaos: "may sacrifice two nonland, nontoken permanents" — all of them, or it
                happens (sacrificeN) */
@@ -35661,7 +35702,7 @@
            sorcery card stays face down, so it isn't offered (turnFaceUpFree) */
         case 'turnFaceUpFree': {
           const pool = this.battlefield.filter(x => {
-            if (x.phasedOut || !x.faceDown || x.controller !== ctx.controller) return false;
+            if (x.phasedOut || !x.faceDown || x.controller !== ctx.controller || this._faceUpHeld(x)) return false;
             const real = (x.trueAnalysis ? x.trueAnalysis() : null) || {};
             return !real.isInstant && !real.isSorcery;
           });
@@ -35682,7 +35723,7 @@
            manifested instant or sorcery card stays face down */
         case 'turnFaceUpTarget': {
           const x = firstObj();
-          if (!x || x.zone !== 'battlefield' || !x.faceDown) break;
+          if (!x || x.zone !== 'battlefield' || !x.faceDown || this._faceUpHeld(x)) break;
           const real = (x.trueAnalysis ? x.trueAnalysis() : null) || {};
           if (real.isInstant || real.isSorcery) break;
           x.faceDown = false; x.faceDownLand = null; x._chr = null;
@@ -39609,7 +39650,8 @@
           this._faceUpFailed = false;
           if (!src || src.zone !== 'battlefield') break;
           const real = src.faceDown ? ((src.trueAnalysis ? src.trueAnalysis() : null) || {}) : null;
-          if (!real || real.isInstant || real.isSorcery) {
+          // (Unable to Scream on it: it can't be turned face up — _faceUpHeld)
+          if (!real || real.isInstant || real.isSorcery || this._faceUpHeld(src)) {
             this._faceUpFailed = true;
             if (real) this.logEvent('rules', `${me.name} reveals ${src.card.name}, which can't be turned face up.`);
             break;
@@ -40818,11 +40860,11 @@
     /* Not saved, so destroyed (noRegen: "It can't be regenerated", asked only to note that): the move that follows is
        a destruction — Jaws, Relentless Predator: "Whenever a noncreature artifact is … destroyed" (_destroyPending, permDestroyed) */
     _regenerated(o, noRegen) {
-      if (noRegen) { if (o) o._destroyPending = true; return false; }
+      if (noRegen) { if (o) this._noteDestroying(o); return false; }
       if (this._shieldCounter(o)) return true;
       if (!o) return false;
-      if (!o.shields) { o._destroyPending = true; return false; }
-      if (o.noRegenThisTurn) { this.logEvent('rules', `${o.name} can't be regenerated this turn.`); o._destroyPending = true; return false; }
+      if (!o.shields) { this._noteDestroying(o); return false; }
+      if (o.noRegenThisTurn) { this.logEvent('rules', `${o.name} can't be regenerated this turn.`); this._noteDestroying(o); return false; }
       o.shields--;
       o.tapped = true;
       o.damage = 0;
@@ -40831,6 +40873,14 @@
       o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
       this.logEvent('rules', `${o.name} regenerates.`);
       return true;
+    }
+
+    /* Karmic Justice: "Whenever a spell or ability an opponent controls destroys …" — the controller of what is
+       resolving, noted with the destruction (_destroyedBy); state-based actions clear it, nothing destroys then */
+    _noteDestroying(o) {
+      o._destroyPending = true;
+      const r = this.resolving;
+      o._destroyedBy = (r && r.ctx && r.ctx.controller) || null;
     }
 
     /** Is this the Ring-bearer of whoever controls it? */
@@ -41634,7 +41684,7 @@
     checkStateBasedActions() {
       this._unattachWatch();
       // a destruction noted but never carried out (a replacement kept it) is forgotten (_destroyPending)
-      for (const o of this.battlefield) if (o._destroyPending) o._destroyPending = false;
+      for (const o of this.battlefield) if (o._destroyPending) { o._destroyPending = false; o._destroyedBy = null; }
       // a melded permanent's two cards put into a library: their owner orders them, once nothing else is going on
       if (this._meldOrderAsk && !this.resolving) this._askMeldOrder();
       let repeat = true, guard = 0;
@@ -41694,6 +41744,7 @@
             if ((lethal || dt) && !this.hasKw(o, 'indestructible')) {
               if (this._totemArmor(o)) { repeat = true; continue; }
               if (this._regenerated(o)) { repeat = true; continue; }
+              o._destroyedBy = null;
               const exiled = this._exileOnDeath && this._exileOnDeath.has(o.id);
               this.logEvent('sba', `${o.name} is ${exiled ? 'exiled' : 'destroyed'} (${o.damage} damage, ${this._lethalByPower(o) ? this.powerOf(o) + ' power' : t + ' toughness'}).`);
               this.moveObject(o, exiled ? 'exile' : 'graveyard'); repeat = true; continue;
