@@ -81049,4 +81049,122 @@ module.exports = (test) => {
     t.zone(bear, 'graveyard', 'X of 4: the Bears die');
     t.zone(elf, 'graveyard', 'but nothing returns');
   });
+
+  test('Cards: Contest of Claws — your creature bites another; excess damage: discover that much', (mk, t) => {
+    t.auto('Contest of Claws');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const giant = T.bf('A', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+    const bears = T.top('A', 'Grizzly Bears'), big = T.top('A', 'Serra Angel');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Contest of Claws'), { targets: [giant, elf] });
+    t.zone(elf, 'graveyard', '3 damage to the Elves');
+    t.zone(bears, 'battlefield', 'two excess: discover 2 — the Bears cast');
+    t.zone(big, 'library', 'the Angel (mana value 5) passed over');
+    t.eq(T.zone('A', 'library').slice(-1)[0], big, 'to the bottom');
+    // no excess damage: no discover
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.toMain('A');
+    const bear2 = T2.bf('A', 'Grizzly Bears'), giant2 = T2.bf('B', 'Hill Giant');
+    const top = T2.top('A', 'Llanowar Elves');
+    T2.mana('A', '1G');
+    T2.cast('A', T2.hand('A', 'Contest of Claws'), { targets: [bear2, giant2] });
+    t.eq(giant2.damage, 2, 'two damage, none excess');
+    t.eq(T2.zone('A', 'library')[0], top, 'no discover: the library untouched');
+  });
+
+  test('Cards: Maximum Carnage — I: opponents\' creatures goaded, yours attack each combat, until your next turn; II: {R}{R}{R}; III: 5 to each opponent', (mk, t) => {
+    t.auto('Maximum Carnage');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const mine = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant');
+    T.mana('A', '4R');
+    T.cast('A', T.hand('A', 'Maximum Carnage'));
+    t.ok(T.g._goaders(theirs).includes('A'), "I: B's creature goaded");
+    t.eq(T.g._goaders(mine).length, 0, 'yours not goaded');
+    t.ok(T.g.mustAttack(mine), 'but yours attacks each combat if able');
+    T.nextTurn('B');
+    t.ok(T.g.mustAttack(theirs), "B's creature must attack on B's turn");
+    t.ok(T.g.mustAttack(mine), 'yours still, until your next turn');
+    T.nextTurn('A');
+    t.no(T.g.mustAttack(mine), 'over as your next turn begins');
+    t.eq(T.g._goaders(theirs).length, 0, 'the goad too');
+    const lifeB = T.life('B');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    t.eq(T.life('B'), lifeB - 5, 'III: 5 damage to each opponent');
+  });
+
+  test('Cards: Ajani Steadfast — −7: an emblem: damage to you or a planeswalker you control is prevented but 1', (mk, t) => {
+    t.auto('Ajani Steadfast');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const aj = T.bf('A', 'Ajani Steadfast', { counters: { loyalty: 7 } });
+    const jace = T.bf('A', 'Jace Beleren', { counters: { loyalty: 3 } });
+    const giant = T.bf('A', 'Hill Giant');
+    T.activate('A', aj, 2);
+    t.zone(aj, 'graveyard', 'Ajani out of loyalty');
+    T.nextTurn('B');
+    const life = T.life('A');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), life - 1, 'Bolt at you: all but 1 prevented');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [jace] });
+    t.eq(jace.counters.loyalty, 2, 'at a planeswalker you control: 1');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [giant] });
+    t.zone(giant, 'graveyard', 'a creature: not covered');
+  });
+
+  test('Cards: Timeline Culler — cast from your graveyard with warp ({B}, 2 life); exiled at the end step, cast later from exile', (mk, t) => {
+    t.auto('Timeline Culler');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const tc = T.grave('A', 'Timeline Culler');
+    const warp = T.g.altUsesFor('A', tc.id).find(u => u.via === 'warp');
+    t.ok(warp, 'warp offered from the graveyard');
+    t.eq(warp && warp.cost, '{B}', 'for {B}');
+    t.eq(warp && warp.life, 2, 'and 2 life');
+    const life = T.life('A');
+    T.mana('A', 'B');
+    T.cast('A', tc, { via: 'warp' });
+    t.zone(tc, 'battlefield', 'warped in from the graveyard');
+    t.eq(T.life('A'), life - 2, '2 life paid');
+    T.nextTurn('B');
+    t.zone(tc, 'exile', 'exiled at the end step');
+    T.nextTurn('A');
+    t.ok(T.g.altUsesFor('A', tc.id).some(u => u.via === 'warpExile'), 'castable from exile on a later turn');
+    // from the hand as well, with the life; never from another player's graveyard
+    const h = T.hand('A', 'Timeline Culler');
+    const hw = T.g.altUsesFor('A', h.id).find(u => u.via === 'warp');
+    t.ok(hw && hw.cost === '{B}' && hw.life === 2, 'from the hand: {B} and 2 life');
+    const theirs = T.grave('B', 'Timeline Culler');
+    t.no(T.g.altUsesFor('A', theirs.id).some(u => u.via === 'warp'), "not from B's graveyard for A");
+  });
+
+  test('Cards: Agility Bobblehead — up to X creatures you control gain haste and evasion, X the Bobbleheads you control', (mk, t) => {
+    t.auto('Agility Bobblehead');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const bob = T.bf('A', 'Agility Bobblehead');
+    T.bf('A', 'Agility Bobblehead', { tapped: true });
+    const a1 = T.bf('A', 'Grizzly Bears', { sick: true }), a2 = T.bf('A', 'Hill Giant', { sick: true }), a3 = T.bf('A', 'Llanowar Elves', { sick: true });
+    const vb = T.g.viewFor('A').battlefield.find(o => o.id === bob.id);
+    t.eq(Object.values((vb && vb.multiCaps) || {})[0], 2, 'the view says two targets may be chosen');
+    t.no((T.g.viewFor('B').battlefield.find(o => o.id === bob.id) || {}).multiCaps, "not in B's view");
+    T.mana('A', '3');
+    t.no(T.g.activateAbility('A', bob.id, 1, { auto: true, targets: [a1, a2, a3].map(o => ({ kind: 'object', id: o.id })) }), 'two Bobbleheads: not three targets');
+    T.activate('A', bob, 1, { targets: [a1, a2] });
+    t.ok(T.g.hasKw(a1, 'Haste') && T.g.hasKw(a2, 'Haste'), 'the two gain haste');
+    t.ok(T.g._hasFlag(a1, 'exceptByHaste') && T.g._hasFlag(a2, 'exceptByHaste'), "and can't be blocked except by creatures with haste");
+    t.no(T.g.hasKw(a3, 'Haste'), 'the third untouched');
+    t.no(T.g.canBlock(T.bf('B', 'Grizzly Bears'), a1), 'a creature without haste cannot block it');
+    // a bot takes as many as it may
+    const bot = T.bf('B', 'Agility Bobblehead');
+    T.bf('B', 'Hill Giant', { sick: true }); T.bf('B', 'Grizzly Bears', { sick: true });
+    const ai = new T.MTG.bots.BotPlayer(T.g, 'B', 8);
+    const picks = ai.chooseTargetsForEffects(bot.analysis().abilities[0].effects, bot) || [];
+    t.eq(picks.length, 1, "the bot: B's one Bobblehead, one target");
+  });
 };

@@ -110,6 +110,8 @@ const ObjectView = obj({
   faceDownLand: opt(str),
   // Kozilek, the Broken Reality: what turning it face up costs, to its controller only
   upCost: opt(str),
+  // Agility Bobblehead: how many targets a counted "up to X target …" allows now, to its controller only
+  multiCaps: opt(rec(int)),
   counters: rec(num), damage: num, summoningSick: opt(maybe(bool)),
   attachedTo: maybe(id), attachments: opt(arr(id)), isToken: opt(maybe(bool)),
   attacking: maybe(id), blocking: opt(arr(id)), blockedBy: opt(arr(id)), blockOrder: opt(arr(id)),

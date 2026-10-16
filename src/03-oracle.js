@@ -1205,6 +1205,8 @@
         (e.op === 'grantCastKeyword' && (e.keyword === 'storm' || e.keyword === 'cascade')) ||
         // (Wrenn and Realmbreaker: "You may play lands and cast permanent spells from your graveyard." — the graveyard's leave)
         (e.op === 'playFrom' && e.zone === 'graveyard' && !e.anyGraveyard) ||
+        // (Ajani Steadfast: "prevent all but 1 of that damage" — a prevention, which the engine reads off emblems too)
+        (e.op === 'replace' && e.prevention && e.event === 'damage' && !e.self) ||
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
@@ -4831,6 +4833,9 @@
     { re: /^Discover X, where X is the greatest power among them\.?$/i, make: () => ({ op: 'discover', n: { batchMaxPower: true } }) },
     // Ellie and Alan, Paleontologists: "Discover X, where X is the mana value of the exiled card." — the one exiled to pay (ofExiledCost)
     { re: /^Discover X, where X is the mana value of the exiled card\.?$/i, make: () => ({ op: 'discover', n: { ofExiledCost: 'mv' } }) },
+    // Contest of Claws: "If excess damage was dealt this way, discover X, where X is that excess damage." (lastExcess)
+    { re: /^If excess damage was dealt this way, discover X, where X is that excess damage\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'lastExcess' }, then: [{ op: 'discover', n: 'lastExcess' }] }) },
     { re: /^[Ee]arthbend (one|two|three|four|five|six|\d+|X)\.?$/,
       make: (m) => ({ op: 'earthbend', n: num(m[1]), targets: [{ type: 'land', controller: 'you', filter: 'land you control' }] }) },
     // (Aang, Airbending Master: "airbend another target creature" — airbendAnother)
@@ -10084,6 +10089,17 @@
           objFilter: { words: 'instant or sorcery', mvMaxPowerOf: '$src' },
           text: "Whenever you cast an instant or sorcery spell with mana value less than or equal to the power of the creature that made this emblem, copy that spell. You may choose new targets for the copy.",
           effects: [{ op: 'copyThatSpell' }] }] }) },
+    /* Agility Bobblehead: "Up to X target creatures you control each gain haste until end of turn and can't be blocked
+       this turn except by creatures with haste, where X is the number of Bobbleheads you control as you activate this
+       ability." — X counted as the targets are chosen (a multi count the engine works out: multiCap) */
+    { re: /^Up to X target (creatures you control) each gain haste until end of turn and can'?t be blocked this turn except by creatures with haste, where X is (the number of [A-Za-z ]+? you control)(?: as you activate this ability)?\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        const t = targetSpec('target ' + m[1].replace(/creatures/, 'creature'));
+        return k && typeof k === 'object' && k.scope && t && !t.unknown ? [
+          { op: 'grantKeyword', keywords: ['Haste'], duration: 'eot', targets: [Object.assign(t, { distinct: true, multi: { count: k, exact: false } })] },
+          { op: 'restrict', flag: 'exceptByHaste', scope: 'lastGroup' }] : null;
+      } },
     // Gingerbrute: "This creature can't be blocked this turn except by creatures with haste."
     // (Speed, Young Avenger: "target creature with haste can't be blocked this turn except by creatures with haste")
     { re: /^(CARDNAME|This creature|Target creature(?: you control| with haste)?) can'?t be blocked this turn except by creatures with (haste|flying)\.?$/i,
@@ -10151,6 +10167,11 @@
        you, until your next turn, is what goading is (CR 701.15) */
     { re: /^Until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
+    /* Maximum Carnage: "Until your next turn, each creature attacks each combat if able and attacks a player other than
+       you if able." — the opponents' creatures as Kardur's are; yours just attack each combat until then */
+    { re: /^Until your next turn, each creature attacks each combat if able and attacks a player other than you if able\.?$/i,
+      make: () => [{ op: 'goad', scope: 'opponentCreatures' },
+        { op: 'restrict', flag: 'mustAttackEot', duration: 'nextTurn', scope: { who: 'you', what: 'creature' } }] },
     // Quantum Misalignment: "...except it isn't legendary"
     // (Tempestra, Dame of Games: "of another target creature you control" — not itself)
     { re: /^Create a token that'?s a copy of ((?:another )?target creature(?: you control)?), except (?:it|the token) isn'?t legendary\.?$/i,
@@ -22003,8 +22024,10 @@
       // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
       // (Zethi, Arcane Blademaster: "where X is the number of times Zethi was kicked" — its own enters trigger: timesKicked)
       // (Orca, Siege Demon: "damage equal to its power divided as you choose among any number of targets" — its power as it died: ofTrigger)
-      const countedOk = (mm) => ab.kind === 'triggered' && (mm.count === 'triggerAmount' || (ab.event === 'etb' && ab.self && !!(mm.count && mm.count.timesKicked)) ||
-        !!(mm.count && mm.count.ofTrigger));
+      const countedOk = (mm) => (ab.kind === 'triggered' && (mm.count === 'triggerAmount' || (ab.event === 'etb' && ab.self && !!(mm.count && mm.count.timesKicked)) ||
+        !!(mm.count && mm.count.ofTrigger))) ||
+        // (Agility Bobblehead: "where X is the number of Bobbleheads you control as you activate this ability" — multiCap)
+        (ab.kind === 'activated' && !!(mm.count && typeof mm.count === 'object' && mm.count.scope));
       if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any' && !countedOk(mm)) ||
           (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || '') && !(multi.length && multi.every(countedOk)))) { ab.auto = false; out._keywordManual = true; }
     }
@@ -24355,7 +24378,8 @@
     { re: /^If a source would deal damage to a planeswalker you control, prevent (one|two|three|\d+) of that damage\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgPreventSomePw', event: 'damage', who: 'any', how: 'subtract', n: num(m[1]), toYou: true, victimWords: 'planeswalker', prevention: true }) },
     // Hyperion, Supreme Hero: "If a source would deal damage to you or a Hero you control, prevent all but 1 of that damage." (capAt)
-    { re: /^If a source would deal damage to you or an? ([A-Z][a-z]+) you control, prevent all but (?:one|1) of that damage\.?$/,
+    // (Ajani Steadfast's emblem: "to you or a planeswalker you control")
+    { re: /^If a source would deal damage to you or an? ([A-Z][a-z]+|planeswalker) you control, prevent all but (?:one|1) of that damage\.?$/,
       make: (m) => ({ op: 'replace', id: 'dmgAllButOne', event: 'damage', who: 'any', how: 'capAt', n: 1, toYou: true, victimOrYouWords: m[1].toLowerCase(), prevention: true }) },
     // Temple Altisaur: "If a source would deal damage to another Dinosaur you control, prevent all but 1 of that damage." (capAt, notSelfVictim)
     { re: /^If a source would deal damage to another ([A-Z][a-z]+) you control, prevent all but (?:one|1) of that damage\.?$/,
@@ -25269,6 +25293,8 @@
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its mutate ability\.?$/i, eff: { op: 'mutateFromGrave' }, auto: true },
       // Sabin, Master Monk: "You may cast this card from your graveyard using its blitz ability." (blitzFromGrave)
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its blitz ability\.?$/i, eff: { op: 'blitzFromGrave' }, auto: true },
+      // Timeline Culler: "You may cast this card from your graveyard using its warp ability." (warpFromGrave)
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its warp ability\.?$/i, eff: { op: 'warpFromGrave' }, auto: true },
       /* Changeling Outcast */
       { re: /^(?:This creature|CARDNAME) can'?t block and can'?t be blocked\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'cantBlock' }, { op: 'continuous', layer: 6, scope: { self: true }, grant: ['Unblockable'] }] }), auto: true },

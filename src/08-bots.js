@@ -5502,7 +5502,9 @@
           /* "X target creatures", strive: as many as X allows (or, for strive,
              the one it must have) */
           if (spec && spec.multi) {
-            const want = spec.multi.count === 'X' ? (opts.multiN || 0) : Math.max(1, spec.multi.min || 0);
+            // (Agility Bobblehead: "where X is the number of Bobbleheads you control" — as many as that: multiCap)
+            const cap = source && source.zone === 'battlefield' ? this.game._multiCap(spec.multi, this.pid, source) : null;
+            const want = spec.multi.count === 'X' ? (opts.multiN || 0) : cap != null ? cap : Math.max(1, spec.multi.min || 0);
             for (let k = 0; k < want; k++) {
               const t = this.pickTarget(spec, e, source, { taken: targets });
               if (!t || targets.some(x => x.kind === t.kind && x.id === t.id)) break;

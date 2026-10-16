@@ -3392,7 +3392,9 @@
         // "X target lands" (Mishra's Helix): as many as the X paid, or as many as there are
         const plain = Object.assign({}, s, { multi: null });
         const legal = this._countLegal(plain);
-        const n = s.multi.count === 'X' ? Math.min(x || 0, legal) : legal;
+        // (Agility Bobblehead: "where X is the number of Bobbleheads you control" — as many as the engine counted: multiCaps)
+        const cap = s.multi.count && typeof s.multi.count === 'object' ? ((o.multiCaps || {})[JSON.stringify(s.multi.count)]) : null;
+        const n = s.multi.count === 'X' ? Math.min(x || 0, legal) : cap != null ? Math.min(cap, legal) : legal;
         for (let i = 0; i < n; i++) specs.push(s.multi.exact === false || s.multi.count === 'any' ? Object.assign({}, plain, { upTo: true }) : plain);
       }
       // its mana is paid the way you pay: by the game, or from the lands you tap (12c)

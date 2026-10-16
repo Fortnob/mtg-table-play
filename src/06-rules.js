@@ -4404,6 +4404,27 @@
       return { kicked, gift: !!(a && a.gift && opts.gift), inMain: !!this.isMain && !!this.activePlayer && this.activePlayer.id === playerId };
     }
     _fitSpecs(specs, n) { return fitSpecs(specs, n); }
+    /** Agility Bobblehead: "Up to X target creatures …, where X is the number of Bobbleheads you control as you activate
+        this ability" — how many targets a counted multi target allows now, or null when its count is not one of those. */
+    _multiCap(m, pid, src) {
+      if (!m || !m.count || typeof m.count !== 'object' || !m.count.scope) return null;
+      return Math.max(0, this._countValue(m.count, pid, src) || 0);
+    }
+    /** The counted multi targets of a permanent's activated abilities, by their count's words: what the table needs to
+        offer that many (multiCaps in the view; its controller's only). */
+    _multiCaps(o) {
+      const a = o.analysis && o.analysis();
+      if (!a || !(a.abilities || []).some(ab => ab.kind === 'activated' && /\bX target\b/.test(ab.text || ''))) return undefined;
+      let out;
+      for (const ab of a.abilities) {
+        if (ab.kind !== 'activated') continue;
+        for (const sp of effectSpecs(ab.effects || [])) {
+          const k = sp && sp.multi ? this._multiCap(sp.multi, o.controller, o) : null;
+          if (k != null) (out || (out = {}))[JSON.stringify(sp.multi.count)] = k;
+        }
+      }
+      return out;
+    }
     /** The variable-count target of a spell, if it has one: the spec, and how many fixed targets come before it. */
     _multiOf(a) {
       if (!a) return null;
@@ -6569,8 +6590,13 @@
         if (o.zone === 'hand' && arg && k === 'spectacle' && this.opponentsOf(playerId).some(q => (q.lifeLostThisTurn || 0) > 0)) {
           out.push({ kind: 'cast', via: 'spectacle', cost: arg, label: 'Spectacle ' + arg });
         }
-        if (o.zone === 'hand' && arg && k === 'warp') {
-          out.push({ kind: 'cast', via: 'warp', cost: arg, label: 'Warp ' + arg });
+        // (Timeline Culler: "You may cast this card from your graveyard using its warp ability." — warpFromGrave;
+        // "Warp—{B}, Pay 2 life." — the mana, and the life paid as it is cast)
+        if ((o.zone === 'hand' || (o.zone === 'graveyard' && o.owner === playerId && this._staticOp(o, 'warpFromGrave'))) && arg && k === 'warp') {
+          const [manaPart, ...more] = String(arg).replace(/\.$/, '').split(/,\s*/);
+          const extra = {};
+          for (const x of more) if (/^pay (\d+) life$/i.test(x)) extra.life = +x.match(/\d+/)[0];
+          if (more.length === Object.keys(extra).length) out.push(Object.assign({ kind: 'cast', via: 'warp', cost: manaPart, label: 'Warp ' + [manaPart].concat(more).join(', ') }, extra));
         }
         /* Suspend N—cost: exiled with a clock on it. */
         if (o.zone === 'hand' && arg && k === 'suspend') {
@@ -11271,6 +11297,13 @@
           const x = opts.x || 0;
           if (specs[mi].multi.exact && got !== Math.min(x, legalN)) return this.fail(`Choose exactly ${Math.min(x, legalN)} target${Math.min(x, legalN) === 1 ? '' : 's'} (X is ${x}).`);
           if (!specs[mi].multi.exact && got > x) return this.fail(`Choose no more than ${x} target${x === 1 ? '' : 's'} (X is ${x}).`);
+        }
+        // (Agility Bobblehead: "where X is the number of Bobbleheads you control as you activate this ability" — multiCap)
+        const ci = specs.findIndex(sp => sp && sp.multi && this._multiCap(sp.multi, playerId, o) != null);
+        if (ci >= 0) {
+          const got = Math.max(0, (opts.targets || []).length - (specs.length - 1));
+          const cap = this._multiCap(specs[ci].multi, playerId, o);
+          if (got > cap) return this.fail(`Choose no more than ${cap} target${cap === 1 ? '' : 's'} (X is ${cap}).`);
         }
       }
       const ca = a.isArtifact || a.isCreature || a.isEnchantment;
@@ -46367,6 +46400,9 @@
           const w = ways.find(x => this.canPayNow(o.controller, x.cost)) || ways[0];
           return w ? w.cost : undefined;
         })() : undefined,
+        /* Agility Bobblehead: "up to X target creatures …, where X is the number of Bobbleheads you control" — that
+           number now, to its controller (said only of such a permanent) */
+        multiCaps: o.zone === 'battlefield' && o.controller === playerId && !secret(o) ? this._multiCaps(o) : undefined,
         /* copied, not shared: a view is a snapshot, and the table compares
            the last one against this one to see what changed */
         counters: Object.assign({}, o.counters), damage: o.damage, summoningSick: o.summoningSick,

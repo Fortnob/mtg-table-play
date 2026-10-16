@@ -68,6 +68,9 @@ declare namespace MTG {
     faceDownLand?: string;
     /** Kozilek, the Broken Reality: what turning it face up costs (its controller's view only) */
     upCost?: string;
+    /** Agility Bobblehead: how many targets each counted "up to X target …" of its abilities allows now, by the count's
+        words (its controller's view only) */
+    multiCaps?: Record<string, number>;
     /** which face is up, for cards with more than one */
     face?: number | null;
     counters: Record<string, number>;
