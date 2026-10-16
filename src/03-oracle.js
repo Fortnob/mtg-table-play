@@ -4951,6 +4951,10 @@
         return { op: 'sequence', list: [add, { op: 'grantKeyword', keywords: kws, duration: eot ? 'eot' : 'permanent', scope: self ? 'self' : 'lastTarget' }] };
       } },
     // Cauldron Haze: "Choose any number of target creatures. Each of those creatures gains persist until end of turn."
+    // Haunted One: "it and other creatures you control that share a creature type with it each get +2/+0 and gain undying until end of turn" (selfAndKin)
+    { re: /^it and other creatures you control that share a creature type with it each get ([+-]\d+)\/([+-]\d+) and gain ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => { const kws = keywordList(m[3]); return kws.length && kws.every(kwKnown)
+        ? [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'selfAndKin' }, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'selfAndKin' }] : null; } },
     { re: /^Each of those creatures gains ([a-z ,]+?) until end of turn\.?$/i,
       make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'eachTarget' } : null; } },
     /* Olivia, Mobilized for War: "put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes
@@ -4961,8 +4965,9 @@
           { op: 'addTypes', subtypes: [m[3]], scope: 'triggerObject' }] : null; } },
     // Guide of Souls: "It becomes an Angel in addition to its other types."
     // (The Legend of Kyoshi: "That land becomes an Island in addition to its other types." — the land just earthbent)
-    { re: /^(?:It|That creature|That land) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
-      make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
+    // (Phyrexian Scriptures: "That creature becomes an artifact in addition to its other types." — the card type, lowercase)
+    { re: /^(?:It|That creature|That land) becomes an? ([A-Z][a-z]+|artifact|enchantment|creature|land) in addition to its other types\.?$/,
+      make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/i.test(m[1]) ? { op: 'addTypes', types: [U.titleCase(m[1])], scope: 'lastTarget' }
         : { op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
     // Succumb to the Cold: "Put a stun counter on each of them." — every target just tapped
     { re: /^Put an? ([a-z]+|[+\-]\d+\/[+\-]\d+) counter on each of them\.?$/i,
@@ -11307,6 +11312,8 @@
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Molten Psyche: "the number of cards that player has drawn this turn" — each opponent's own (triggerPlayerDrawn)
     if (/^the number of cards (?:that player|they) (?:has|have) drawn this turn$/i.test(p)) return done({ triggerPlayerDrawn: true });
+    // Olórin's Searing Light: "the power of the creature they exiled" — each opponent's own (theirExiledPower)
+    if (/^the power of the creature they exiled$/i.test(p)) return done({ theirExiledPower: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
@@ -12136,8 +12143,10 @@
     const perOpp = !depth && (s.match(/^For each (opponent|player), (?:you may )?(.+)$/i) || s.match(/^For any number of (opponent)s, (.+)$/i));
     if (perOpp) {
       const body = perOpp[2];
+      // (Blatant Thievery: "For each opponent, gain control of target permanent that player controls" — one of each, not up to one: mandatory)
+      const must = !/^For any number/i.test(s) && /^gain control of target ([a-z ]+?) that player controls\.?$/i.test(body);
       const onBf = body.match(/\bup to one target ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i) ||
-        (/^For any number/i.test(s) && body.match(/\btarget ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i));
+        ((must || /^For any number/i.test(s)) && body.match(/\btarget ([a-z ]+?) (?:that player|that opponent|they) controls?\b/i));
       const inGy = !onBf && body.match(/\bup to one target ([a-z ]+? card) from that player'?s graveyard\b/i);
       if (onBf || inGy) {
         let one = onBf ? body.replace(onBf[0], 'target ' + onBf[1]) : body.replace(inGy[0], 'target ' + inGy[1] + ' from a graveyard');
@@ -12145,7 +12154,7 @@
         const inner = parseEffectSentence(oneOfThem(one, /^target /i.test(one)), 1);
         const holder = inner && inner.op !== 'manual' && !hasManualStep(inner) && sharedTarget(inner);
         if (holder && holder.targets[0].type !== 'player') {
-          holder.perOpponentFrom = Object.assign({}, holder.targets[0], { upTo: true }, /player/i.test(perOpp[1]) ? { everyPlayer: true } : {});
+          holder.perOpponentFrom = Object.assign({}, holder.targets[0], must ? { mandatory: true } : { upTo: true }, /player/i.test(perOpp[1]) ? { everyPlayer: true } : {});
           delete holder.targets;
           inner.text = s;
           return inner;
@@ -15304,6 +15313,12 @@
       make: (m) => [Object.assign({ op: 'revealUntil', who: 'you', filter: m[1].replace(/,/g, '').trim(), n: 1, dest: 'stay', rest: 'stay' }, m[2] ? { maxMv: +m[2] } : {}),
         { op: 'castFree', from: 'revealed', upTo: 1 },
         { op: 'revealedToBottom' }] },
+    /* Creative Technique: "Shuffle your library, then reveal cards from the top of it until you reveal a nonland card. Exile
+       that card and put the rest on the bottom of your library in a random order. You may cast the exiled card without paying
+       its mana cost." — the card found exiled (dest exile), the rest under; not cast, it stays in exile */
+    { re: /^Shuffle your library, then reveal cards from the top of it until you reveal a nonland card\. Exile that card and put the rest on the bottom of your library in a random order\. You may cast the exiled card without paying its mana cost\.?$/i,
+      make: () => [{ op: 'shuffle' }, { op: 'revealUntil', who: 'you', filter: 'nonland', n: 1, dest: 'exile' },
+        { op: 'castFree', from: 'lastExiled', upTo: 1 }] },
     /* Shiko and Narset, Unified: "copy that spell if it targets a permanent or player, and you may choose new targets
        for the copy. If you don't copy a spell this way, draw a card." */
     { re: /^copy that spell if it targets a permanent or player, and you may choose new targets for the copy\. If you don'?t copy a spell this way, draw a card\.?$/i,

@@ -22902,6 +22902,14 @@
           return;
         }
         if (e2.scope === 'self') { if (src) fn(src); return; }
+        // Haunted One: "it and other creatures you control that share a creature type with it" — this creature and its kin (selfAndKin)
+        if (e2.scope === 'selfAndKin') {
+          if (!src) return;
+          if (src.zone === 'battlefield' && !src.phasedOut) fn(src);
+          for (const o of this.battlefield.slice()) if (o !== src && o.controller === ctx.controller && !o.phasedOut &&
+            (this.characteristics(o) || {}).isCreature && this._shareCreatureType(src, o)) fn(o);
+          return;
+        }
         /* "That token gains haste": the token just made, a copy or not —
            never the permanent that made it */
         if (e2.scope === 'thatToken') {
@@ -23423,6 +23431,8 @@
         if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer() || firstPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
         // Molten Psyche: "the number of cards that player has drawn this turn" (triggerPlayerDrawn)
         if (v && typeof v === 'object' && v.triggerPlayerDrawn) { const p = triggerPlayer() || firstPlayer(); return (p ? p.drawnThisTurn || 0 : 0) * (v.mult || 1) + (v.plus || 0); }
+        // Olórin's Searing Light: "the power of the creature they exiled" — that player's, from sacGreatestMv (theirExiledPower)
+        if (v && typeof v === 'object' && v.theirExiledPower) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, (p && (this._exiledPowerBy || {})[p.id]) || 0); }
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
@@ -24200,7 +24210,8 @@
             const perPlayer = e.n && typeof e.n === 'object' && e.n.scope && e.n.scope.thatPlayer;
             // Stormbreath Dragon: "equal to the number of cards in that player's hand", each in turn
             // (Molten Psyche: "equal to the number of cards that player has drawn this turn" — triggerPlayerDrawn)
-            const perHand = e.n && typeof e.n === 'object' && (e.n.triggerPlayerHand || e.n.triggerPlayerDrawn);
+            // (Olórin's Searing Light: "equal to the power of the creature they exiled" — theirExiledPower)
+            const perHand = e.n && typeof e.n === 'object' && (e.n.triggerPlayerHand || e.n.triggerPlayerDrawn || e.n.theirExiledPower);
             if (/opponent/.test(e.each.replace(/(?:creatures?|planeswalkers?) your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) {
               let k = cnt;
               if (perPlayer) { const was = this._thatPlayer; this._thatPlayer = p.id; k = n(e.n); this._thatPlayer = was; }
@@ -26814,9 +26825,12 @@
               this._revealedUntil = shown.map(c => c.id);
               continue;
             }
+            // (Creative Technique: "Exile that card" — the one found, to cast from there: lastExiled)
+            if (e.dest === 'exile') this._lastExiledList = [];
             for (const c of found) {
               if (e.dest === 'hand') this.moveObject(c, 'hand');
               else if (e.dest === 'graveyard') this.moveObject(c, 'graveyard');
+              else if (e.dest === 'exile') { this.moveObject(c, 'exile'); if (c.zone === 'exile') { this._lastExiledList.push(c.id); this._lastExiled = c.id; } }
               else {
                 // Polymorph: its controller's card, onto the battlefield under that player's control
                 this.moveObject(c, 'battlefield', { controller: e.toOwner ? p.id : ctx.controller, tapped: !!(e.tapped) });
@@ -27148,6 +27162,8 @@
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
             // Papalymo Totolymo: only the opponents who lost life this turn (lostLifeOnly)
             .filter(q => !e.lostLifeOnly || (q.lifeLostThisTurn || 0) > 0);
+          // (Olórin's Searing Light: "equal to the power of the creature they exiled" — each one's, as it last was: _exiledPowerBy)
+          if (e.exile) this._exiledPowerBy = {};
           for (const q of whom) {
             const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
             if (!pool.length) continue;
@@ -27158,11 +27174,12 @@
             let pick = tied[0];
             if (tied.length > 1) {
               const got = this._choose({ playerId: q.id, purpose: 'sacrifice', kind: 'objects', zone: 'battlefield', harmful: true,
-                items: this._chooseItems(tied), min: 1, max: 1, prompt: 'Sacrifice one of these.' }, 'sgm' + q.id);
+                items: this._chooseItems(tied), min: 1, max: 1, prompt: e.exile ? 'Exile one of these.' : 'Sacrifice one of these.' }, 'sgm' + q.id);
               if (got === SUSPEND) return SUSPEND;
               pick = (got && got.picks.length && this.obj(got.picks[0])) || tied[0];
             }
-            if (e.exile) { this.moveObject(pick, 'exile'); this.logEvent('exile', `${q.name} exiles ${pick.name}.`); continue; }
+            if (e.exile) { const pw = this.powerOf(pick); this.moveObject(pick, 'exile'); if (pick.zone === 'exile') this._exiledPowerBy[q.id] = pw;
+              this.logEvent('exile', `${q.name} exiles ${pick.name}.`); continue; }
             this._sacrificeNow(q.id, [pick], ctx);   // (it tells the table: oneSacrificeEach)
           }
           break;

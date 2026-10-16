@@ -80111,4 +80111,103 @@ module.exports = (test) => {
     T.resolve();
     t.zone(so, 'battlefield', 'no player without creatures: it stays');
   });
+
+  test('Cards: Blatant Thievery — for each opponent, gain control of one permanent that player controls (one each, not up to one)', (mk, t) => {
+    t.auto('Blatant Thievery');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears'), isl = T.bf('B', 'Island'), giant = T.bf('C', 'Hill Giant');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [bear.id] }; });
+    T.mana('A', '4UUU');
+    T.cast('A', T.hand('A', 'Blatant Thievery'));
+    t.ok(asked && asked.min === 1, 'one of B\'s must be chosen');
+    t.ok(asked && asked.items.some(x => x.id === isl.id), 'any permanent: the Island too');
+    t.eq(bear.controller, 'A', 'B\'s Bears taken');
+    t.eq(isl.controller, 'B', 'not B\'s Island');
+    t.eq(giant.controller, 'A', 'C\'s only permanent taken');
+  });
+
+  test('Cards: Phyrexian Scriptures — I: a +1/+1 counter and it becomes an artifact; II: nonartifact creatures destroyed; III: opponents\' graveyards exiled', (mk, t) => {
+    t.auto('Phyrexian Scriptures');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves'), giant = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === bear.id)] }));
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'Phyrexian Scriptures'));
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'a +1/+1 counter');
+    t.ok(bear.analysis().isArtifact, 'an artifact now');
+    t.ok(bear.analysis().isCreature, 'still a creature');
+    t.no(elf.analysis().isArtifact, 'not the other one');
+    T.nextTurn('A');
+    t.zone(bear, 'battlefield', 'II: the artifact creature survives');
+    t.zone(elf, 'graveyard', 'II: a nonartifact creature destroyed');
+    t.zone(giant, 'graveyard', 'II: an opponent\'s too');
+    T.nextTurn('A');
+    t.zone(giant, 'exile', 'III: the opponent\'s graveyard exiled');
+    t.zone(elf, 'graveyard', 'III: not yours');
+  });
+
+  test('Cards: Creative Technique — shuffle, reveal to a nonland card, exile it, the rest to the bottom; cast it free or it stays exiled', (mk, t) => {
+    t.auto('Creative Technique');
+    for (const yes of [true, false]) {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.toMain('A');
+      const bear = T.top('A', 'Grizzly Bears');
+      const libN = T.zone('A', 'library').length;
+      const asked = [];
+      T.answer('confirm', (ch) => { asked.push(ch.prompt); return { yes: /Grizzly Bears/.test(ch.prompt || '') ? yes : false }; });
+      T.answer('confirm', (ch) => { asked.push(ch.prompt); return { yes: /Grizzly Bears/.test(ch.prompt || '') ? yes : false }; });
+      T.mana('A', '4R');
+      T.cast('A', T.hand('A', 'Creative Technique'));
+      t.zone(bear, yes ? 'battlefield' : 'exile', yes ? 'cast for free' : 'not cast: left in exile');
+      t.eq(T.zone('A', 'library').length, libN - 1, 'the rest back in the library');
+      t.ok(T.zone('A', 'library').every(o => o.name === 'Island'), 'only lands left');
+    }
+  });
+
+  test('Cards: Olórin\'s Searing Light — each opponent exiles its greatest-power creature; spell mastery: damage equal to the power each exiled', (mk, t) => {
+    t.auto("Olórin's Searing Light");
+    for (const mastery of [true, false]) {
+      const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+      T.toMain('A');
+      const giant = T.bf('B', 'Hill Giant'), bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('C', 'Llanowar Elves');
+      giant.counters['+1/+1'] = 1; T.g.bumpBoard();
+      if (mastery) { T.grave('A', 'Lightning Bolt'); T.grave('A', 'Divination'); } else T.grave('A', 'Lightning Bolt');
+      const lb = T.life('B'), lc = T.life('C');
+      T.mana('A', '2RW');
+      T.cast('A', T.hand('A', "Olórin's Searing Light"));
+      t.zone(giant, 'exile', 'B\'s greatest power exiled');
+      t.zone(bear, 'battlefield', 'not the smaller one');
+      t.zone(elf, 'exile', 'C\'s exiled');
+      t.eq(T.life('B'), lb - (mastery ? 4 : 0), mastery ? 'B takes 4: its creature\'s power as it was exiled' : 'no spell mastery: no damage');
+      t.eq(T.life('C'), lc - (mastery ? 1 : 0), mastery ? 'C takes 1' : 'C neither');
+    }
+  });
+
+  test('Cards: Haunted One — your commander becomes tapped: it and your creatures sharing a type get +2/+0 and undying', (mk, t) => {
+    t.auto('Haunted One');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Haunted One');
+    const cmd = T.bf('A', 'Llanowar Elves'); cmd.isCommander = true; cmd.summoningSick = false;
+    const kin = T.bf('A', 'Elvish Visionary'), bear = T.bf('A', 'Grizzly Bears'), opp = T.bf('B', 'Elvish Visionary');
+    const plain = T.bf('A', 'Llanowar Elves'); plain.summoningSick = false;
+    T.g.bumpBoard();
+    t.ok(T.g.tapForMana('A', plain.id, 0), 'a creature that is not a commander tapped');
+    T.resolve();
+    t.eq(T.g.powerOf(kin), 1, 'not your commander: nothing');
+    t.ok(T.g.tapForMana('A', cmd.id, 0), 'the commander tapped');
+    T.resolve();
+    t.eq(T.g.powerOf(cmd), 3, 'it gets +2/+0');
+    t.ok(T.g.hasKw(cmd, 'undying'), 'and undying');
+    t.eq(T.g.powerOf(kin), 3, 'an Elf you control too');
+    t.ok(T.g.hasKw(kin, 'undying'), 'with undying');
+    t.eq(T.g.powerOf(bear), 2, 'not a Bear');
+    t.eq(T.g.powerOf(opp), 1, 'not an opponent\'s Elf');
+    t.eq(T.g.powerOf(plain), 3, 'the other Elf too');
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(kin), 1, 'until end of turn');
+  });
 };
