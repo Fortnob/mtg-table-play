@@ -3659,6 +3659,13 @@
     // (Aerid Konstrari: "create a Heartwood token")
     { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Mutagen|Heartwood) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
+    // Bloodroot Apothecary: "you and target opponent each create a Treasure token" — you, then the opponent targeted
+    { re: /^You and target (opponent|player) each create (a|an|one|two) (Treasure|Clue|Food|Blood|Map|Gold) tokens?\.?$/i,
+      make: (m) => [{ op: 'createNamedToken', n: num(m[2].replace(/^an?$/i, 'one')), token: m[3] },
+        { op: 'createNamedToken', n: num(m[2].replace(/^an?$/i, 'one')), token: m[3], who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }] },
+    // Mutable Explorer: "create a tapped Mutavault token" (its words in _createNamedToken's list)
+    { re: /^Create (a|one|two) (tapped )?Mutavault tokens?\.?$/i,
+      make: (m) => Object.assign({ op: 'createNamedToken', n: num(m[1]), token: 'Mutavault' }, m[2] ? { tapped: true } : {}) },
 
     // --- sentences that need no action from the engine ---
     /* "They can't be regenerated": a rider on the destruction before it,
@@ -4477,6 +4484,11 @@
        toughness" — each its own number, all counted before any go on (eachOwn) */
     { re: /^Put a number of (\+1\/\+1|[a-z]+) counters on each ([a-z ]+?) equal to that creature'?s (power|toughness)\.?$/i,
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: 0, scope: sc, eachOwn: m[3].toLowerCase() } : null; } },
+    /* Astarion's Thirst: "Put X +1/+1 counters on a commander creature you control, where X is the power of the creature
+       exiled this way." — chosen as it resolves, not targeted (chooseFrom commander); X as the creature last was */
+    { re: /^Put X (\+1\/\+1) counters on a commander creature you control, where X is the power of the creature exiled this way\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: { exiledLastPower: true },
+        chooseFrom: { type: 'creature', filter: 'commander creature you control', zone: 'battlefield', controller: 'you', commander: true } }) },
     // Szarel, Genesis Shepherd: "put a number of +1/+1 counters equal to CARDNAME's power on up to one other target creature" (countersEqualTo)
     { re: /^Put a number of (\+1\/\+1|[a-z]+) counters equal to (.+?) on (up to one )?(other |another )?(target creature(?: you control)?)\.?$/i,
       make: (m) => {
@@ -6763,6 +6775,10 @@
 
 
     /* ===== a land that gets up and attacks ===== */
+    /* Mutable Explorer's Mutavault token: "{1}: This token becomes a 2/2 creature with all creature types until end of
+       turn. It's still a land." — every creature type is changeling's (as Mutavault itself) */
+    { re: /^(?:This token|This creature) becomes an? (\d+)\/(\d+) creature with all creature types until end of turn\.?$/i,
+      make: (m) => ({ op: 'becomes', scope: 'self', duration: 'eot', eff: { addTypes: ['Creature'], keywords: ['Changeling'], setPt: { p: +m[1], t: +m[2] } } }) },
     // (Ride the Shoopuf: "This enchantment becomes a 7/7 Beast creature in addition to its other types." — for good)
     { re: /^(?=.*(?:until end of turn|in addition to its other types)\.?$)(?:This (?:land|permanent|artifact|enchantment)|CARDNAME) becomes an? ([\dX*]+\/[\dX*]+)((?: (?:white|blue|black|red|green|colorless|and))*) ([A-Za-z][-A-Za-z ]*?) creature(?: with ((?:(?! in addition)[a-z, '])+?))?(?: in addition to its other types)?( until end of turn)?\.?$/i,
       make: (m) => ({ op: 'animate', pt: m[1],
@@ -13621,6 +13637,16 @@
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
           m[5] ? { anyMana: true } : {})];
       } },
+    /* Diluvian Primordial: "for each opponent, you may cast up to one target instant or sorcery card from that player's
+       graveyard without paying its mana cost. If a spell cast this way would be put into a graveyard, exile it instead."
+       — one target in each opponent's graveyard, each cast or not as it resolves (perOpponentFrom, exileAfter) */
+    { re: /^For each opponent, you may cast up to one target ([a-z ,]+?) card from that player'?s graveyard without paying its mana cost\. If a spell cast this way would be put into a graveyard, exile it instead\.?$/i,
+      make: (m) => {
+        const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', upTo: true });
+        if (spec.unknown) return null;
+        return [{ op: 'castFree', from: 'targets', must: false, exileAfter: true, perOpponentFrom: spec }];
+      } },
     /* Satya, Aetherflux Genius: "create a tapped and attacking token that's a copy of up to one other target nontoken
        creature you control. You get {E}{E}. At the beginning of the next end step, sacrifice that token unless you pay
        an amount of {E} equal to its mana value." — the copy made, if one was; the energy counted then (energyMv) */
@@ -18572,6 +18598,10 @@
     // Henry Wu, InGen Geneticist: "Whenever a creature you control exploits a non-Human creature," (exploitedNotType)
     { re: /^Whenever a creature you control exploits a non-([A-Z][a-z]+) creature,? /, event: 'exploits', extraOf: (m) => ({ exploitedNotType: m[1] }) },
     /* an Aura or Equipment watching the creature it is on */
+    /* Infiltration Lens: "Whenever equipped creature becomes blocked by a creature," — once for each blocker; the creature
+       it is on is the attacker (ofEnchanted, ofEnchantedSource) */
+    { re: /^Whenever (?:equipped|enchanted) creature becomes blocked by a creature,? /i,
+      event: 'blockedByCreature', aboutObject: true, extra: { ofEnchanted: true, ofEnchantedSource: true } },
     // (The Aetherspark: "Whenever equipped creature deals combat damage during your turn" — yourTurnOnly)
     { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked)( during your turn)?,? /i,
       event: 'becomesTapped', aboutObject: true,
@@ -18785,9 +18815,10 @@
     { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
     /* Mortician Beetle, Legate Lanius, It That Betrays: "Whenever a player (an opponent) sacrifices
        a (nontoken) creature (permanent)," — anyone's sacrifice, and what it was (sacrificedAny) */
-    { re: /^Whenever (a player|an opponent) sacrifices (?:a|an|another) (nontoken )?(creature|permanent|artifact|land), /i,
+    // (Bloodroot Apothecary: "Whenever an opponent sacrifices a noncreature token")
+    { re: /^Whenever (a player|an opponent) sacrifices (?:a|an|another) (nontoken |noncreature )?(creature|permanent|artifact|land|token), /i,
       event: 'anySacrifice', aboutObject: true,
-      filt: (m) => ({ words: (m[2] ? 'nontoken ' : '') + m[3].toLowerCase() }),
+      filt: (m) => ({ words: (m[2] ? m[2].toLowerCase() : '') + m[3].toLowerCase() }),
       extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
     // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed," — anyone's (permDestroyed)
     { re: /^Whenever an? (noncreature artifact|artifact|creature|permanent|nontoken permanent) is sacrificed or destroyed,? /i,

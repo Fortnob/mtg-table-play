@@ -20610,7 +20610,8 @@
             if (earlier.length) continue;
           }
           // an Aura or Equipment watching the creature it is on, whoever controls that creature
-          if (ab.ofEnchanted && !(data.object && o.attachedTo === data.object.id)) continue;
+          // (Infiltration Lens: "becomes blocked by a creature" — the creature it is on is the attacker, the source: ofEnchantedSource)
+          if (ab.ofEnchanted && !((ab.ofEnchantedSource ? data.source : data.object) && o.attachedTo === (ab.ofEnchantedSource ? data.source : data.object).id)) continue;
           // Harsh Mentor: only an opponent's activation
           if (ab.activatorIsOpponent && data.playerId === o.controller) continue;
           // "a creature dealt damage by this creature this turn dies"
@@ -22843,6 +22844,11 @@
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
         // Balin, Loremaster: "the number of cards discarded this way" — by this player, as this resolves (discardedThisRes)
         if (v && typeof v === 'object' && v.discardedThisRes) return (((this.resolving || {})._discBy) || []).filter(d => d.pid === ctx.controller).length * (v.mult || 1);
+        // Astarion's Thirst: "the power of the creature exiled this way" — as it last was on the battlefield (exiledLastPower)
+        if (v && typeof v === 'object' && v.exiledLastPower) {
+          const xo = this._lastExiled && this.obj(this._lastExiled);
+          return xo && xo.zone === 'exile' ? Math.max(0, Number(xo._lastPower) || 0) * (v.mult || 1) : 0;
+        }
         // Stitcher Geralf: "the total power of the cards exiled this way" — as the cards say (exiledPower)
         if (v && typeof v === 'object' && v.exiledPower) {
           const ids = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
@@ -40997,6 +41003,8 @@
         Heartwood: { type: 'Token Artifact — Heartwood', text: '{T}: Add {R} or {G}.', colors: ['R', 'G'] },
         // T'Challa, the Black Panther: "an artifact with indestructible and "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.""
         Vibranium: { type: 'Token Artifact — Vibranium', text: 'Indestructible\n{T}: Add {C}. This mana can’t be spent to cast a nonartifact spell.' },
+        // Mutable Explorer: "a tapped Mutavault token. (It's a land with "{T}: Add {C}" and "{1}: This token becomes …")"
+        Mutavault: { type: 'Token Land', text: '{T}: Add {C}.\n{1}: This token becomes a 2/2 creature with all creature types until end of turn. It’s still a land.' },
         // Ginger, Queen of Sweets: "a Gingerbrute token. (It's a {1} 1/1 Food Golem artifact creature with haste, …)"
         Gingerbrute: { type: 'Token Artifact Creature — Food Golem', manaCost: '{1}', cmc: 1, power: 1, toughness: 1, text: 'Haste\n{1}: This creature can’t be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this creature: You gain 3 life.' },
       };
