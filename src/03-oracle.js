@@ -2060,6 +2060,9 @@
        untap Slicer, goad it, and it can't be sacrificed this turn." — whose upkeep it is */
     { re: /^Have that player gain control of CARDNAME until end of turn\.?$/i,
       make: () => ({ op: 'giveControl', to: 'triggerPlayer', self: true, until: 'eot' }) },
+    // Assault Suit: "you may have that player gain control of equipped creature until end of turn. If you do, untap it." (attached)
+    { re: /^Have that player gain control of equipped creature until end of turn\.?$/i,
+      make: () => ({ op: 'giveControl', to: 'triggerPlayer', attached: true, until: 'eot' }) },
     /* Rat King, Verminister: "Return target creature card and all other cards with the same name as that card from your
        graveyard to the battlefield tapped." (sameNameToo) */
     { re: /^Return target creature card and all other cards with the same name as that card from your graveyard to the battlefield( tapped)?\.?$/i,
@@ -6246,6 +6249,13 @@
     // (Ureni of the Unwritten: "look at the top eight cards of your library")
     { re: /^Look at the top (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0 }) },
+    // Stargaze: "Look at twice X cards from the top of your library." — read with X, then doubled ("twice X")
+    { re: /^Look at (two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards from the top of your library\.?$/i,
+      make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0 }) },
+    // Stargaze: "Put X cards from among them into your hand and the rest into your graveyard."
+    { re: /^Put (two|three|four|five|\d+|X) cards from among them into your hand and the rest into your graveyard\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: 'any', to: 'hand', mustTake: true, rest: 'graveyard',
+        prompt: `Put ${m[1]} cards from among them into your hand. The rest go into your graveyard.` }) },
     // Florian, Voldaren Scion: "look at the top X cards of your library, where X is the total amount of life your opponents lost this turn"
     { re: /^Look at the top X cards of your library, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'lookAt', n: k, keep: 0 } : null; } },
@@ -12014,6 +12024,18 @@
        finality counter on it and is a Vampire in addition to its other types." (finality, addSubtypes) */
     { re: /^You may cast a creature spell from your graveyard this turn\. If you do, it enters with a finality counter on it(?: and is an? ([A-Z][a-z]+) in addition to its other types)?\.?$/,
       make: (m) => [Object.assign({ op: 'graveCreatureOnce', finality: true }, m[1] ? { addSubtypes: [m[1]] } : {})] },
+    /* Cosmic Intervention: "If a permanent you control would be put into a graveyard from the battlefield this turn, exile
+       it instead. Return it to the battlefield under its owner's control at the beginning of the next end step." — for
+       the turn, each one exiled this way coming back (returnNextEnd) */
+    { re: /^If a permanent you control would be put into a graveyard from the battlefield this turn, exile it instead\. Return it to the battlefield under its owner'?s control at the beginning of the next end step\.?$/i,
+      make: () => [{ op: 'floatingReplace', ef: { op: 'replace', id: 'gyExileReturnTurn', event: 'zoneChange', fromZone: 'battlefield', toZone: 'graveyard',
+        how: 'toZone', zone: 'exile', who: 'you', returnNextEnd: true } }] },
+    /* Azure Beastbinder: "up to one target artifact, creature, or planeswalker an opponent controls loses all abilities
+       until your next turn. If it's a creature, it also has base power and toughness 2/2 until your next turn." — the
+       size only for a creature, as it resolves (setPtIfCreature) */
+    { re: /^(up to one )?(target [a-z, ]+?) loses all abilities until your next turn\. If it'?s a creature, it also has base power and toughness (\d+)\/(\d+) until your next turn\.?$/i,
+      make: (m) => { const sp = targetSpec(m[2]); if (!sp || sp.unknown) return null;
+        return [{ op: 'becomes', duration: 'nextTurn', eff: { loseAll: true, setPt: { p: +m[3], t: +m[4] }, setPtIfCreature: true }, targets: [Object.assign(sp, m[1] ? { upTo: true } : {})] }]; } },
     /* Chaos Dragon: "each player rolls a d20. If one or more opponents had the highest result, this creature can't
        attack those players or planeswalkers they control this combat." (rollOffNoAttack) */
     { re: /^Each player rolls a d(4|6|8|10|12|20)\. If one or more opponents had the highest result, (?:CARDNAME|this creature) can'?t attack those players or planeswalkers they control this combat\.?$/i,
@@ -19313,6 +19335,9 @@
        creatures attacked you." — only an attack with none of them at you (noneAttackingYou) */
     { re: /^Whenever another player attacks with (two|three) or more creatures, (?=they draw a card if none of those creatures attacked you\.?$)/i, event: 'anyPlayerAttacks',
       extraOf: (m) => ({ attackerIsOpponent: true, minAttackers: num(m[1]), noneAttackingYou: true }) },
+    // Emberwilde Captain: "Whenever an opponent attacks you while you're the monarch" — as the attack is made (whileCond)
+    { re: /^Whenever an opponent attacks you while you'?re the monarch,? /i, event: 'anyPlayerAttacks',
+      extra: { attackersAtYou: 1, attackerIsOpponent: true, whileCond: { kind: 'monarch' } } },
     // (Tahngarth, First Mate: "Whenever an opponent attacks with one or more creatures" — any attack at all)
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures| with one or more creatures)?,? /i, event: 'anyPlayerAttacks',
       extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
@@ -22760,6 +22785,17 @@
         const CW = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
         return { op: 'continuous', layer: 4, scope: { attached: true }, loseAll: true, setTypes: ['Creature'], setCreatureTypes: [m[2]],
           setColors: m[1].split(' and ').map(c => CW[c]), setPt: { p: +m[3], t: +m[4] } };
+      } },
+    /* Assault Suit: "Equipped creature gets +2/+2, has haste, can't attack you or planeswalkers you control, and can't be
+       sacrificed." — "you" the Equipment's controller, whoever controls the creature */
+    { re: /^Equipped creature gets ([+-]\d+)\/([+-]\d+), has ([a-z ]+?), can'?t attack you or planeswalkers you control, and can'?t be sacrificed\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[3]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true }, pt: { p: pmNum(m[1]), t: pmNum(m[2]) } },
+          { op: 'continuous', layer: 6, scope: { attached: true }, grant: kws },
+          { op: 'cantAttackYou', scope: { attached: true }, walkers: true },
+          restrictionPart({ attached: true }, "can't be sacrificed")] };
       } },
     { re: /^(.+?) gets? ([+-]\d+)\/([+-]\d+) and (can'?t block|can'?t be blocked|attacks each combat if able|(?:doesn'?t|don'?t) untap during [a-z' ]+ untap steps?|loses? all abilities|can'?t be sacrificed)\.?$/i,
       make: (m) => {

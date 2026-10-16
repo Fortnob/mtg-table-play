@@ -15644,7 +15644,9 @@
         case 'addSelfCounters': ev.n = Math.max(0, (ev.n || 0) + (src.zone === 'battlefield' ? Number((src.counters || {})[ef.selfCounter]) || 0 : 0)); break;
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) { ev.withCounter = ef.withCounter; if (ef.withCounterN) ev.withCounterN = ef.withCounterN; }
           // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
-          if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
+          // (Cosmic Intervention: not "exiled with" anything — it comes back at the next end step: returnNextEnd)
+          if (ef.zone === 'exile' && src && !ef.returnNextEnd) ev.exiledWith = src.id;
+          if (ef.zone === 'exile' && ef.returnNextEnd && src) ev.returnNextEnd = { controller: src.controller, name: src.name };
           // The Doctor's Tomb (a plane): "and that creature's controller loses 2 life" (ctrlLoses)
           if (ef.ctrlLoses && ev.object) { const q = this.player(ev.object.controller); if (q && !q.hasLost) this.changeLife(q, -ef.ctrlLoses); }
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
@@ -19199,7 +19201,7 @@
         toZone = this._moxEnter(o, opts.controller != null ? opts.controller : (o.controller || o.owner));
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null, markCounterN = 1;
-      let exiledWith = null;
+      let exiledWith = null, returnLater = null;
       if (!opts.noReplace) {
         const ev = this._replace({ kind: 'zoneChange', object: o, from, zone: toZone,
           controller: o.controller || o.owner });
@@ -19209,6 +19211,7 @@
         // (Darigaaz Reincarnated: "with three egg counters on it" — withCounterN)
         markCounterN = ev.withCounterN || 1;
         exiledWith = toZone === 'exile' ? ev.exiledWith || null : null;
+        returnLater = toZone === 'exile' ? ev.returnNextEnd || null : null;
         // Blightsteel Colossus, Nexus of Fate: shuffled back in, from anywhere
         if (toZone === 'graveyard') {
           const own = o.analysis();
@@ -19604,6 +19607,11 @@
         if (exiledWith) o.exiledWithId = exiledWith;
         // which time in exile this is: Dragonhawk's "those cards that are still exiled" are these, not a later one (exileStamp)
         if (from !== 'exile') o.exileStamp = this._exileSeq = (this._exileSeq || 0) + 1;
+        // Cosmic Intervention: "Return it to the battlefield under its owner's control at the beginning of the next end step" (returnNextEnd)
+        if (returnLater && from === 'battlefield') {
+          this.scheduleDelayed({ event: 'eachEndStep', controller: returnLater.controller, sameTurnOk: true, objId: o.id, whileExiled: o.exileStamp,
+            name: `${returnLater.name}: return ${o.name} at the next end step`, effects: [{ op: 'returnThat' }] });
+        }
         if (from === 'battlefield') this.emit('sfx', 'exile', { player: o.owner });
         if (from === 'battlefield' && heldBy.length) this._fire('equippedDies', null, { object: o, attachedIds: heldBy, objController: lastCtrl, exiledFromBattlefield: true });
       }
@@ -28097,6 +28105,8 @@
           if (s0 && (s0.op === 'copyPermanent' || s0.op === 'becomeCopy') && s0.scope === 'lastTarget' && !e.who &&
             ((this.resolving && this.resolving.effects) || []).some(x => x && x.op === 'chooseTarget') &&
             !targets.some(t => t && t.kind === 'object' && (this.obj(t.id) || {}).zone === 'battlefield')) break;
+          // Assault Suit: "you may have that player gain control of equipped creature" — nothing equipped, nothing to ask
+          if (s0 && s0.op === 'giveControl' && s0.attached && !(src && src.zone === 'battlefield' && src.attachedTo && this.obj(src.attachedTo))) break;
           // Geode Golem: "you may cast your commander from the command zone …" — none there, nothing to ask
           if (s0 && s0.op === 'castCommanderFree' && !e.who && !((this.zones[ctx.controller] || {}).command || []).some(c => c.isCommander && c.owner === ctx.controller)) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
@@ -28108,7 +28118,8 @@
           const nm = (src && src.name) || ctx.name || 'Effect';
           const ask = d1 && String(e.text || '').replace(/^(?:its|that [a-z]+'?s) controller may /i, '').replace(/\.$/, '');
           // Slicer, Hired Muscle: lending itself to the player whose upkeep it is (lendSelf, for the bots)
-          const lend = (e.then || []).some(x => x && x.op === 'giveControl' && x.self);
+          // (Assault Suit: the creature it equips — attached)
+          const lend = (e.then || []).some(x => x && x.op === 'giveControl' && (x.self || x.attached));
           /* Containment Construct, Moonstone: "you may exile that card from your graveyard" — by its name, with
              several discarded at once; nothing to ask once it has left the graveyard */
           let named = null;
@@ -32459,7 +32470,8 @@
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: Math.min(want, legal.length),
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               // "If it's a land card, put it into your hand": not a choice
-              optional: !e.mustTake, prompt: e.prompt || `Choose up to ${want}.` });
+              // (Stargaze: "Put X cards from among them" — told what X is)
+              optional: !e.mustTake, prompt: e.prompt ? (e.n === 'X' ? e.prompt.replace(/\bX\b/g, String(want)) : e.prompt) : `Choose up to ${want}.` });
             if (picked === SUSPEND) return SUSPEND;
             taken = (picked || []).slice(0, want).map(id => this.obj(id)).filter(Boolean);
           }
@@ -37348,7 +37360,8 @@
           const sideId = e.to === 'left' || e.to === 'right' ? this._specCtx().sideOf(ctx.controller, e.to) : null;
           const p = sideId ? this.player(sideId) : e.to === 'left' || e.to === 'right' ? null : e.to === 'triggerPlayer' ? triggerPlayer() : e.to === 'targetController'
             ? (tgo ? this.player(tgo.zone === 'battlefield' ? tgo.controller : (tgo._leftController || tgo.controller)) : null) : firstPlayer();
-          const x = e.self ? src : firstObj();
+          // (Assault Suit: "gain control of equipped creature" — attached)
+          const x = e.self ? src : e.attached ? (src && src.zone === 'battlefield' && src.attachedTo ? this.obj(src.attachedTo) : null) : firstObj();
           if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
           // (Slicer, Hired Muscle: "until end of turn")
           x.effects.push({ control: p.id, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() });
@@ -40144,6 +40157,8 @@
             if (one.setPtMv) { const k = (o.card && o.card.cmc) || 0; one.setPt = { p: k, t: k }; delete one.setPtMv; }
             // Katsumasa, the Animator: "If it's not a Vehicle, it has base power and toughness 1/1" (setPtUnless)
             if (one.setPtUnless) { if (this._hasSubtype(o, one.setPtUnless)) delete one.setPt; delete one.setPtUnless; }
+            // Azure Beastbinder: "If it's a creature, it also has base power and toughness 2/2" (setPtIfCreature)
+            if (one.setPtIfCreature) { if (!(this.characteristics(o) || {}).isCreature) delete one.setPt; delete one.setPtIfCreature; }
             /* Vraska, Betrayal's Sting: what it loses goes first, so the
                ability it is handed in the same breath stays */
             const handed = one.loseAll && one.grantText ? { grantText: one.grantText, until } : null;
