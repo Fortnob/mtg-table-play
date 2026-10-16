@@ -4709,6 +4709,9 @@
        attacking." — the tokens the sentence before made, attacking (copyPrevN, attacking) */
     { re: /^If (.+?), instead create (two|three|four|five) of those tokens that are tapped and attacking\.?$/i,
       make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'createToken', copyPrevN: num(m[2]), tapped: true, attacking: true }] } } : null; } },
+    /* Rite of Replication's kicker — the copies of a target creature, so before the general rule below */
+    { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
+      make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
     // Safana, Calimport Cutthroat: "Create three of those tokens instead if you've completed a dungeon." (read as "If …, create …")
     // (Increasing Devotion: "If this spell was cast from a graveyard, create ten of those tokens instead.")
     { re: /^If (.+?), create (two|three|four|five|six|seven|eight|nine|ten) of those tokens instead\.?$/i,
@@ -4716,9 +4719,6 @@
     // Increasing Vengeance: "If this spell was cast from a graveyard, copy that spell twice instead." — the copy before, twice (copyPrevTimes)
     { re: /^If (.+?), copy that spell (twice|three times) instead\.?$/i,
       make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'copySpell', copyPrevTimes: /twice/i.test(m[2]) ? 2 : 3 }] } } : null; } },
-    /* Rite of Replication's kicker */
-    { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
-      make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
     /* Ghalta, Stampede Tyrant */
     // (Wrenn and Seven: "… onto the battlefield tapped")
     { re: /^Put any number of (creature|artifact|permanent|land) cards from your hand onto the battlefield( tapped)?\.?$/i,
