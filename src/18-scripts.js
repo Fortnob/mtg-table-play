@@ -724,7 +724,7 @@
           { label: 'Target creature you control explores twice', auto: true,
             effects: [
               { op: 'explore', ofTarget: true, targets: [{ type: 'creature', controller: 'you' }] },
-              { op: 'explore', ofTarget: true, targets: [{ type: 'creature', controller: 'you' }] },
+              { op: 'explore', ofTarget: true },
             ] },
         ] }],
       }],
