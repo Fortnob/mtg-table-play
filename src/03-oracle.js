@@ -2433,6 +2433,11 @@
     // Drizzt Do'Urden: "put a number of +1/+1 counters on Drizzt equal to the difference" — its power over his (triggerPowerOverSelf)
     { re: /^[Pp]ut (?:a number of \+1\/\+1 counters on (?:CARDNAME|[A-Z][a-z']+) equal to the difference|X \+1\/\+1 counters on (?:CARDNAME|[A-Z][a-z']+), where X is the difference)\.?$/,
       make: () => ({ op: 'counters', kind: '+1/+1', scope: 'self', n: { triggerPowerOverSelf: true } }) },
+    /* Conformer Shuriken: "If that creature has greater power than this creature, put a number of +1/+1 counters on
+       this creature equal to the difference." — the creature it just tapped, its power over this one's now; none
+       otherwise (triggerPowerOverSelf, ofTarget) */
+    { re: /^If that creature has greater power than (?:CARDNAME|this creature), put a number of \+1\/\+1 counters on (?:CARDNAME|this creature) equal to the difference\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', scope: 'self', n: { triggerPowerOverSelf: true, ofTarget: true } }) },
     // Kozilek: "if you have fewer than seven cards in hand, draw cards equal to the difference"
     { re: /^(?:If you have fewer than (\w+) cards in hand, )?draw cards equal to the difference\.?$/i,
       // (with no number of its own, the difference is between that player's hand and yours: Sandstone Oracle)
@@ -4020,7 +4025,8 @@
        where X is the number of enchantments you control". Without "until end
        of turn" it is for good. */
     // (Wrenn and Realmbreaker: "… until your next turn" — nextTurn)
-    { re: /^(Until end of turn, )?((?:up to one |another )?target [a-z ]+?|each [a-z ]+? you control) (becomes an? (?:\d+\/\d+|X\/X) .+?)( until end of turn| until your next turn)?(?:, where X is ([^.]+?))?\.?$/i,
+    // (Cactus Preserve: "Until end of turn, this land becomes an X/X green Plant creature with reach, where X is …")
+    { re: /^(Until end of turn, )?((?:up to one |another )?target [a-z ]+?|each [a-z ]+? you control|this land) (becomes an? (?:\d+\/\d+|X\/X) .+?)( until end of turn| until your next turn)?(?:, where X is ([^.]+?))?\.?$/i,
       make: (m) => {
         let body = m[3];
         let ptX = null;
@@ -10785,6 +10791,8 @@
     if (/^your devotion to that colou?r$/i.test(p)) return { devotionChosen: true, mult: 1 };
     // Gardens of Tranquil Repose (a plane): "one plus the number of cards exiled with CARDNAME" (exiledWithSelf)
     if (/^(one plus )?the number of cards exiled with CARDNAME$/i.test(p)) return Object.assign({ exiledWithSelf: true, mult: 1 }, /^one plus/i.test(p) ? { plus: 1 } : {});
+    // Cactus Preserve: "the greatest mana value among your commanders" — wherever they are (commandersMaxMv)
+    if (/^the greatest mana value among your commanders$/i.test(p)) return { commandersMaxMv: true };
     // Maddening Hex: "roll a d6. This Aura deals damage to that player equal to the result." — the die just rolled
     if (/^the result$/i.test(p)) return 'lastRoll';
     // Elvish Mariner, Elrond: "the number of cards looked at while scrying this way" — what the trigger saw (countedTargets)
@@ -12624,9 +12632,10 @@
        counters put on it this way." (eachPlayerMayCounters) */
     /* (Orzhov Advokist: "If a player does, creatures that player controls can't attack you or planeswalkers you control
        until your next turn." — pacify) */
-    { re: /^each player may put (a|an|one|two|three|four|\d+) (\+1\/\+1|[a-z]+) counters? on a creature they control\.(?: (Goad each creature that had counters put on it this way)\.)?(?: (If a player does, creatures that player controls can'?t attack you or planeswalkers you control until your next turn)\.)?$/i,
+    { re: /^each player may put (a|an|one|two|three|four|\d+) (\+1\/\+1|[a-z]+) counters? on a creature they control\.(?: (Goad each creature that had counters put on it this way)\.)?(?: (If a player does, creatures that player controls can'?t attack you or planeswalkers you control until your next turn)\.)?(?: (For each opponent who does, you gain protection from that player until your next turn)\.)?$/i,
+      // (Noble Heritage: "For each opponent who does, you gain protection from that player until your next turn." — protFrom)
       make: (m) => [Object.assign({ op: 'eachPlayerMayCounters', kind: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : /^\d+$/.test(m[1]) ? +m[1] : num(m[1].toLowerCase()), goad: !!m[3] },
-        m[4] ? { pacify: true } : {})] },
+        m[4] ? { pacify: true } : {}, m[5] ? { protFrom: true } : {})] },
     // Mimic Vat: "you may exile that card. If you do, return each other card exiled with this artifact …" — the card that died
     { re: /^you may exile (?:that card|it)\. If you do, (return each other card exiled with (?:this artifact|this creature|CARDNAME) to its owner'?s graveyard\.)$/i,
       make: (m) => { const p = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1));
@@ -13022,6 +13031,10 @@
        way." */
     { re: /^Search your library for a card, exile it face down, then shuffle\. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell'?s mana value is (\d+) or less\. Put the exiled card into your hand if it wasn'?t cast this way\.$/i,
       make: (m) => [{ op: 'beseech', maxMv: +m[1] }] },
+    /* Mystic Reflection: "Choose target nonlegendary creature. The next time one or more creatures or planeswalkers
+       enter this turn, they enter as copies of the chosen creature." — anybody's, all of one lot (enterAsCopiesNext) */
+    { re: /^Choose target nonlegendary creature\. The next time one or more creatures or planeswalkers enter this turn, they enter as copies of the chosen creature\.?$/i,
+      make: () => [{ op: 'enterAsCopiesNext', targets: [targetSpec('target nonlegendary creature')] }] },
     /* Forge of Heroes: "Choose target commander that entered this turn. Put a +1/+1 counter on it if it's a creature and a
        loyalty counter on it if it's a planeswalker." — each counter for what it is as this resolves (countersByType) */
     { re: /^Choose target commander that entered this turn\. Put a \+1\/\+1 counter on it if it'?s a creature and a loyalty counter on it if it'?s a planeswalker\.?$/i,
@@ -21686,7 +21699,7 @@
       // "can't be blocked" granted as a word the table reads; "annihilator 2", "afflict 1": the keyword with its number
       if (/^unblockable$/i.test(w) || IMPLEMENTED_LOWER.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return true;
       const pm = w.match(/^protection from (.+)$/i);
-      if (/^hexproof from (?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*$/i.test(w)) return true;
+      if (/^hexproof from (?:white|blue|black|red|green|monocolored|multicolored|colorless|each color|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*$/i.test(w)) return true;
       // Volatile Stormdrake: "hexproof from activated and triggered abilities" — no ability an opponent controls targets it
       if (/^hexproof from activated and triggered abilities$/i.test(w)) return true;
       if (pm) return PROT_Q.test(pm[1].trim()) || pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
@@ -25378,7 +25391,8 @@
       // Nevinyrral, Urborg Tyrant: "Hexproof from artifacts, creatures, and enchantments" (hexproofFromList)
       { re: /^Hexproof from ((?:artifacts|creatures|enchantments|planeswalkers)(?:, (?:artifacts|creatures|enchantments|planeswalkers))*,? and (?:artifacts|creatures|enchantments|planeswalkers))$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and |, /) }), auto: true },
-      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries|activated and triggered abilities)(?:,? and from (?:white|blue|black|red|green))*)$/i,
+      // (Breaker of Creation: "Hexproof from each color" — any coloured source: each color)
+      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|each color|artifacts|instants|sorceries|activated and triggered abilities)(?:,? and from (?:white|blue|black|red|green))*)$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },
       /* Elenda, Saint of Dusk: "Lifelink, hexproof from instants"; Sporeweb Weaver: "Reach, hexproof from blue" — the
          keywords before it come from the card's keyword list

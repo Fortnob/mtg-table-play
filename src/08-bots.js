@@ -1970,6 +1970,9 @@
          attack and we have something to attack with: pacify) */
       if (s.pacify && s.pacifyBy !== this.pid && mine.some(o => g.powerOf(o) >= 2) &&
           !g.opponentsOf(this.pid).some(p => !p.hasLost && p.id !== s.pacifyBy)) return { picks: [] };
+      // (Noble Heritage: its controller safe from us until their next turn — the same reckoning: protFromBy)
+      if (s.protFromBy && s.protFromBy !== this.pid && mine.some(o => g.powerOf(o) >= 2) &&
+          !g.opponentsOf(this.pid).some(p => !p.hasLost && p.id !== s.protFromBy)) return { picks: [] };
       return { picks: mine.length ? [mine[0].id] : [] };
     },
     /* Stinging Study: the most cards we can afford in life (commanderMv) */

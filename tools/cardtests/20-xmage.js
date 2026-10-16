@@ -75671,4 +75671,144 @@ module.exports = (test) => {
     t.eq(r.face, 0, 'Funeral Room unlocked');
     t.eq(T.manualLines().length, 0);
   });
+  test('Cards: Conformer Shuriken — the equipped creature attacking taps a creature defending player controls, and grows by the difference in power', (mk, t) => {
+    t.auto('Conformer Shuriken');
+    const T = mk();
+    const g = T.g;
+    const lions = T.bf('A', 'Savannah Lions');
+    const sh = T.bf('A', 'Conformer Shuriken');
+    sh.attachedTo = lions.id; lions.attachments = [sh.id];
+    const wurm = T.bf('B', 'Craw Wurm'), bear = T.bf('B', 'Grizzly Bears');
+    let q = null;
+    T.answer('declareAttackers', () => [{ attackerId: lions.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [ch.options[0].find(x => x.id === wurm.id)] }; });
+    T.toMain('A', 'declareBlockers');
+    t.ok(q, 'asked which creature');
+    t.ok(wurm.tapped, 'the Wurm tapped');
+    t.eq(lions.counters['+1/+1'] || 0, 4, 'six power over two: four counters');
+    // a smaller one: tapped, no counters
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: lions.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === bear.id)] }));
+    T.toMain('A', 'declareBlockers');
+    t.ok(bear.tapped, 'the Bears tapped');
+    t.eq(lions.counters['+1/+1'] || 0, 4, 'not greater power: no more counters');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Breaker of Creation — hexproof from each color: colorless spells may target it, coloured ones may not', (mk, t) => {
+    t.auto('Breaker of Creation');
+    const T = mk();
+    const g = T.g;
+    const br = T.bf('B', 'Breaker of Creation');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const ids = (o) => g._legalTargetsFor({ type: 'creature' }, 'A', o.id).map(x => x.id);
+    t.no(ids(bolt).includes(br.id), 'a red spell can\'t target it');
+    t.ok(ids(bolt).includes(bear.id), 'the Bears can be');
+    t.ok(ids(T.bf('A', 'Walking Ballista')).includes(br.id), 'a colorless source can');
+    t.ok(g._legalTargetsFor({ type: 'creature' }, 'B', bolt.id).map(x => x.id).includes(br.id), 'its controller\'s coloured spell can');
+    // cast: a life for each colorless permanent you control
+    T.bf('A', 'Sol Ring'); T.bf('A', 'Mind Stone');
+    const br2 = T.hand('A', 'Breaker of Creation');
+    T.mana('A', 'CC6');
+    T.cast('A', br2);
+    t.eq(T.life('A'), 23, 'Sol Ring, Mind Stone and the Ballista');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Noble Heritage — your commander entering and your upkeep: each player may put two +1/+1 counters; you gain protection from each opponent who does', (mk, t) => {
+    t.auto('Noble Heritage');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Mountain') });
+    const g = T.g;
+    T.bf('A', 'Noble Heritage');
+    const bb = T.bf('B', 'Hill Giant'), cb = T.bf('C', 'Grizzly Bears');
+    const cmd = T.hand('A', 'Savannah Lions');
+    cmd.isCommander = true;
+    const seen = [];
+    const ans = (ch) => { seen.push(ch.playerId); return { picks: ch.playerId === 'C' ? [] : [ch.items[0].id] }; };
+    T.answer('choose', ans); T.answer('choose', ans); T.answer('choose', ans);
+    g.moveObject(cmd, 'battlefield', { controller: 'A' });
+    T.resolve();
+    t.eq(seen.join(','), 'A,B,C', 'each player, in turn order');
+    t.eq(cmd.counters['+1/+1'] || 0, 2, 'your own: two counters');
+    t.eq(bb.counters['+1/+1'] || 0, 2, "B's Giant: two counters");
+    t.eq(cb.counters['+1/+1'] || 0, 0, 'C declined');
+    t.ok(g._protFromPlayer('A', 'B'), 'protection from B');
+    t.no(g._protFromPlayer('A', 'C'), 'not from C');
+    // B can't target you or damage you; C can
+    const bolt = T.hand('B', 'Lightning Bolt');
+    const tg = g._legalTargetsFor({ type: 'player' }, 'B', bolt.id).map(x => x.id);
+    t.no(tg.includes('A'), "B's spell can't target you");
+    t.ok(g._legalTargetsFor({ type: 'player' }, 'C', bolt.id).some(x => x.id === 'A'), "C's can");
+    g.dealDamageToPlayer(T.player('A'), 3, bb);
+    t.eq(T.life('A'), 20, "B's creature's damage prevented");
+    g.dealDamageToPlayer(T.player('A'), 2, cb);
+    t.eq(T.life('A'), 18, "C's is not");
+    // through B's turn, gone at your next turn
+    T.nextTurn('B');
+    t.ok(g._protFromPlayer('A', 'B'), 'still, on their turn');
+    T.answer('choose', () => ({ picks: [] })); T.answer('choose', () => ({ picks: [] })); T.answer('choose', () => ({ picks: [] }));
+    T.nextTurn('A');
+    t.no(g._protFromPlayer('A', 'B'), 'until your next turn; nobody put counters at this upkeep');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Mystic Reflection — the next creatures to enter this turn enter as copies of the chosen creature; only that lot', (mk, t) => {
+    t.auto('Mystic Reflection');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Mystic Reflection'), { targets: [wurm] });
+    // two tokens made at once: both copies
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const toks = T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 2);
+    t.ok(toks.every(o => o.name === 'Craw Wurm' && g.powerOf(o) === 6), 'both Craw Wurms');
+    // the next creature is itself
+    T.mana('A', 'G1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.eq(bear.name, 'Grizzly Bears', 'only the first lot');
+    // and it is over at the end of the turn
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Mystic Reflection'), { targets: [wurm] });
+    T.nextTurn('B');
+    const ogre = T.hand('B', 'Gray Ogre');
+    T.mana('B', 'R2');
+    T.cast('B', ogre);
+    t.eq(ogre.name, 'Gray Ogre', 'this turn only');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Mystic Reflection — an opponent\'s creature entering is a copy too; a planeswalker brings no loyalty', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Forest') });
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Mystic Reflection'), { targets: [bear] });
+    const pw = T.put('B', 'Ajani Goldmane', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(pw.name, 'Grizzly Bears', "B's planeswalker enters as a Bear");
+    t.eq(pw.controller, 'B');
+    t.zone(pw, 'battlefield', 'a 2/2, no loyalty to lose');
+    t.no(pw.counters.loyalty, 'no loyalty counters');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Cactus Preserve — {3}: an X/X green Plant with reach, X the greatest mana value among your commanders, wherever they are', (mk, t) => {
+    t.auto('Cactus Preserve');
+    const T = mk();
+    const g = T.g;
+    const cp = T.bf('A', 'Cactus Preserve');
+    const c1 = T.put('A', 'Craw Wurm', 'command'); c1.isCommander = true;
+    const c2 = T.bf('A', 'Grizzly Bears'); c2.isCommander = true;
+    const a = cp.analysis();
+    const ai = (a.manaAbilities || []).length + a.abilities.filter(x => x.kind === 'activated').findIndex(x => /becomes/.test(x.text));
+    T.mana('A', '3');
+    T.activate('A', cp, ai);
+    t.ok(g.characteristics(cp).isCreature && cp.analysis().isLand, 'a creature, still a land');
+    t.eq(g.powerOf(cp), 6); t.eq(g.toughnessOf(cp), 6, 'the Wurm in the command zone: 6');
+    t.ok(g.hasKw(cp, 'reach'), 'reach');
+    t.ok(g._hasCreatureType(cp, 'Plant'));
+    T.nextTurn('B');
+    t.no(g.characteristics(cp).isCreature, 'until end of turn');
+    t.eq(T.manualLines().length, 0);
+  });
 };

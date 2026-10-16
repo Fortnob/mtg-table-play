@@ -1091,6 +1091,8 @@
       if (ap.silenceOn) { ap.silenceOn = ap.silenceOn.filter(r => r.on == null); for (const r of ap.silenceOn) r.on = this.turn; if (!ap.silenceOn.length) ap.silenceOn = null; }
       /* "until your next turn" is over, and what phased out phases back in */
       if (ap.protection && ap.protection.setTurn < this.turn) ap.protection = null;
+      // (Noble Heritage: protection from a player, until your next turn — protFrom)
+      if (ap.protFrom) { ap.protFrom = ap.protFrom.filter(r => r.setTurn >= this.turn); if (!ap.protFrom.length) ap.protFrom = null; }
       if (ap.lifeLocked && ap.lifeLocked.setTurn < this.turn) ap.lifeLocked = null;
       // (Hope of Ghirapur: "until your next turn" — silenceUntil)
       for (const q of this.players) if (q.silenceUntil) { q.silenceUntil = q.silenceUntil.filter(x => x.by !== ap.id); if (!q.silenceUntil.length) q.silenceUntil = null; }
@@ -4185,7 +4187,8 @@
          source isn't a spell being cast or on the stack */
       // (a "When you cast this spell" trigger, its source a spell, is an ability: _aimsAsAbility)
       const ability = isAbility != null ? !!isAbility : this._aimsAsAbility(source) || (source.zone !== 'stack' && source.zone !== 'hand');
-      return qs.some(q => (q === 'activated and triggered abilities' ? ability : q === 'monocolored' ? n === 1 : q === 'multicolored' ? n > 1 : q === 'colorless' ? n === 0
+      // (Breaker of Creation: "hexproof from each color" — a source of any colour: each color)
+      return qs.some(q => (q === 'activated and triggered abilities' ? ability : q === 'monocolored' ? n === 1 : q === 'multicolored' ? n > 1 : q === 'colorless' ? n === 0 : q === 'each color' ? n > 0
         : q === 'artifacts' ? !!sa.isArtifact : this._matchesProtection(q, source)));
     }
     /** Worship, Angel's Grace: is damage kept from taking this player below 1 life? */
@@ -10279,8 +10282,33 @@
 
     /** Replacement effects and triggers for a permanent entering (CR 614). */
     _onEnter(o) {
-      const a = o.analysis();
+      let a = o.analysis();
       if (!a) return;
+      /* Mystic Reflection: "they enter as copies of the chosen creature" — a creature or planeswalker entering, in the
+         lot that came first; that copy, not one its own words would make (etbAsCopy), and a planeswalker that is a
+         copy of a creature brings no loyalty (_enterAsCopies) */
+      let reflected = false;
+      if (this._enterAsCopies && (a.isCreature || a.isPlaneswalker)) {
+        const seq = this._enterSeq || 0;
+        for (const r of this._enterAsCopies) {
+          if (r.turn !== this.turn || (r.batch != null && r.batch !== seq)) continue;
+          r.batch = seq;
+          const live = this.obj(r.objId);
+          const from = live && live.zone === 'battlefield' ? { card: live.card, face: live.face || 0, name: live.name } : r;
+          const wasPw = !!a.isPlaneswalker;
+          o.printedCard = o.printedCard || o.card;
+          o.copyOf = from.card;
+          o.card = this._copyExcept(from.card, o.printedCard, {});
+          o.face = from.face || 0;
+          o._chr = null;
+          a = o.analysis();
+          if (wasPw && !a.isPlaneswalker) delete o.counters.loyalty;
+          else if (a.isPlaneswalker) o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
+          reflected = true;
+          this.bumpBoard();
+          this.logEvent('rules', `${(o.printedCard && o.printedCard.name) || o.name} enters as a copy of ${from.name}.`);
+        }
+      }
       // Teferi's Time Twist: "if it enters as a creature, it enters with an additional +1/+1 counter" (enterExtraCounter)
       if (o._enterExtraCounter) {
         const ec = o._enterExtraCounter; o._enterExtraCounter = null;
@@ -10298,6 +10326,7 @@
               ef.op !== 'etbTappedUnlessPay' && ef.op !== 'etbTappedUnlessLife' &&
               ef.op !== 'etbTappedUnlessOpponents' && ef.op !== 'etbTappedUnlessReveal' &&
               ef.op !== 'etbAsCopy' && ef.op !== 'etbTappedUnlessCond') continue;
+          if (reflected && ef.op === 'etbAsCopy') continue;
           // a land told to enter untapped is not asked whether it enters tapped
           if (o._keepUntapped && /^etbTapped/.test(ef.op)) continue;
           this._runEffect(ef, { controller: o.controller, obj: o, name: o.name });
@@ -18568,6 +18597,10 @@
         this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); prevented(amount); return;
       }
       // Absolute Virtue: protection from each of your opponents — damage from what they control
+      // (Noble Heritage: protection from that player — what they control: protFrom)
+      if (source && !this._noPrevention(combat) && this._protFromPlayer(p.id, source.controller)) {
+        this.logEvent('damage', `Damage to ${p.name} is prevented (protection from ${(this.player(source.controller) || {}).name}).`); prevented(amount); return;
+      }
       if (source && !this._noPrevention(combat) && source.controller !== p.id && this._anyStaticOf(p.id, 'protFromOpponents')) {
         this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); prevented(amount); return;
       }
@@ -20816,6 +20849,12 @@
     }
 
     _putTriggersOnStack() {
+      // (Mystic Reflection: a priority point ends the lot entering together — _enterSeq)
+      if (this._enterAsCopies) {
+        this._enterSeq = (this._enterSeq || 0) + 1;
+        this._enterAsCopies = this._enterAsCopies.filter(r => r.turn === this.turn && r.batch == null);
+        if (!this._enterAsCopies.length) this._enterAsCopies = null;
+      }
       if (!this.pendingTriggers.length) return;
       /* Ob Nixilis, Captive Kingpin: "one or more opponents each lose exactly 1 life" — three 1/1s hitting
          an opponent together is 3 life lost, and no trigger (lossExactly) */
@@ -22658,7 +22697,8 @@
         }
         // Drizzt Do'Urden: "equal to the difference" — the power of the one that died, as it last was, over his own now
         if (v && typeof v === 'object' && v.triggerPowerOverSelf) {
-          const tdP = ctx.triggerData || {}; const x = tdP.objectId && this.obj(tdP.objectId);
+          // (Conformer Shuriken: "that creature" is the one it targeted — ofTarget)
+          const tdP = ctx.triggerData || {}; const x = v.ofTarget ? firstObj() : tdP.objectId && this.obj(tdP.objectId);
           if (!x || !src || src.zone !== 'battlefield') return 0;
           const pw = x.zone !== 'battlefield' && x._lastPower != null ? x._lastPower : this.powerOf(x);
           return Math.max(0, pw - this.powerOf(src));
@@ -22771,6 +22811,14 @@
         if (v && typeof v === 'object' && v.commanderCasts) return (me ? this._commanderCastCount(me.id) : 0) * (v.mult || 1);
         // Study Hall: "the number of times it's been cast from the command zone this game" — the commander the mana paid for (spellCommanderCasts)
         if (v && typeof v === 'object' && v.spellCommanderCasts) { const id = (ctx.triggerData || {}).objectId; return (me && id ? Number((me.commanderCasts || {})[id]) || 0 : 0) * (v.mult || 1); }
+        // Cactus Preserve: "the greatest mana value among your commanders" — in any zone, the stack too (commandersMaxMv)
+        if (v && typeof v === 'object' && v.commandersMaxMv) {
+          if (!me) return 0;
+          const z = this.zones[me.id] || {};
+          const all = this.battlefield.concat(this.stack.map(s => s.obj).filter(Boolean), z.command || [], z.graveyard || [], z.exile || [], z.hand || [], z.library || []);
+          const mvs = all.filter(o => o && o.isCommander && o.owner === me.id && !o.isSignature).map(o => (o.card && o.card.cmc) || 0);
+          return mvs.length ? Math.max(...mvs) : 0;
+        }
         // Stinging Study: "the mana value of a commander you own on the battlefield or in the command zone" — the one picked (commanderMv)
         if (v && typeof v === 'object' && v.commanderMv) {
           if (ctx._commanderMv != null) return ctx._commanderMv * (v.mult || 1);
@@ -25565,6 +25613,16 @@
           o._chr = null;
           this.bumpBoard();
           this.logEvent('rules', `${me.name} locks ${o.card.card_faces[pick.door].name}.`);
+          break;
+        }
+        /* Mystic Reflection: "The next time one or more creatures or planeswalkers enter this turn, they enter as copies
+           of the chosen creature." — the creature's copiable values as they are when they enter, or as it last was
+           (kept now); the lot is whatever enters before anyone next has priority (_enterAsCopies, _onEnter) */
+        case 'enterAsCopiesNext': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          (this._enterAsCopies = this._enterAsCopies || []).push({ by: ctx.controller, objId: x.id, card: x.card, face: x.face || 0, name: x.name, turn: this.turn, batch: null });
+          this.logEvent('rules', `The next creatures or planeswalkers to enter this turn enter as copies of ${x.name}.`);
           break;
         }
         /* Ghostly Dancers: "unlock a locked door of a Room you control" — any locked door of any of yours, picked as it
@@ -29270,8 +29328,11 @@
               items: this._chooseItems(pool), min: 0, max: 1, optional: true, goad: !!e.goad,
               // (Orzhov Advokist: the price of the counters said — pacify)
               ...(e.pacify ? { pacify: true, pacifyBy: ctx.controller } : {}),
+              // (Noble Heritage: the price said too — protFromBy)
+              ...(e.protFrom ? { protFromBy: ctx.controller } : {}),
               prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put ${O.nounCount(e.n, e.kind + ' counter')} on a creature you control${e.goad ? ` (it will be goaded by ${me.name})` : ''}` +
-                `${e.pacify && p.id !== ctx.controller ? ` (if you do, creatures you control can't attack ${me.name} or planeswalkers ${me.name} controls until ${me.name}'s next turn)` : ''}.` }, 'epc' + p.id);
+                `${e.pacify && p.id !== ctx.controller ? ` (if you do, creatures you control can't attack ${me.name} or planeswalkers ${me.name} controls until ${me.name}'s next turn)` : ''}` +
+                `${e.protFrom && p.id !== ctx.controller ? ` (if you do, ${me.name} gains protection from you until ${me.name}'s next turn)` : ''}.` }, 'epc' + p.id);
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks && got.picks[0] && this.obj(got.picks[0]);
             if (x && pool.includes(x)) picks.push(x);
@@ -29290,6 +29351,12 @@
               if (e.pacify && q && by !== ctx.controller && !(q.noAttackOn || []).some(r => r.untilNext && r.who === ctx.controller)) {
                 (q.noAttackOn = q.noAttackOn || []).push({ who: ctx.controller, on: null, untilNext: true });
                 this.logEvent('rules', `${q.name}'s creatures can't attack ${me.name} or planeswalkers ${me.name} controls until ${me.name}'s next turn.`);
+              }
+              /* Noble Heritage: "For each opponent who does, you gain protection from that player until your next turn." —
+                 not targeted, dealt damage or enchanted by anything that player controls (protFrom, _protFromPlayer) */
+              if (e.protFrom && q && by !== ctx.controller && this.opponentsOf(ctx.controller).includes(q) && !(me.protFrom || []).some(r => r.from === by)) {
+                (me.protFrom = me.protFrom || []).push({ from: by, setTurn: this.turn });
+                this.logEvent('rules', `${me.name} gains protection from ${q.name} until ${me.name}'s next turn.`);
               }
             }
           }
@@ -40381,6 +40448,11 @@
 
     /** Has this player protection from everything right now (The One Ring, Teferi's Protection)? */
     _protected(p) { return !!(p && p.protection && this._protectionLive(p.protection)); }
+    /** Noble Heritage: has this player protection from that player (protFrom), until their own next turn? */
+    _protFromPlayer(pid, fromPid) {
+      const p = this.player(pid);
+      return !!(p && fromPid != null && fromPid !== pid && (p.protFrom || []).some(r => r.from === fromPid));
+    }
     _protectionLive(pr) { return !!pr && !(pr.eot != null && pr.eot !== this.turn); }
 
     /** Rebound: at your upkeep, each card you exiled with rebound may be cast for nothing. */
@@ -41731,7 +41803,7 @@
       const spec = aura && !x.bestowed && !x.licid ? a.auraSpec : null;
       const toPlayer = !!spec && (spec.type === 'player' || spec.type === 'opponent');
       if (hostP) {
-        if (!toPlayer || hostP.hasLost || this._protected(hostP)) return false;
+        if (!toPlayer || hostP.hasLost || this._protected(hostP) || this._protFromPlayer(hostP.id, x.controller)) return false;
         if ((spec.type === 'opponent' || spec.opponent) && hostP.id === x.controller) return false;
         return !this._protCardTypes(hostP.id).some(t => this._cardTypesOf(x).includes(t)) && !this._protSubtypeFrom(hostP.id, x);
       }
@@ -43481,6 +43553,8 @@
         .filter(p => !tsrc || !(this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)) || this._protSubtypeFrom(p.id, tsrc)))
         // Absolute Virtue: not by an opponent's spell or ability
         .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
+        // (Noble Heritage: protection from that player — protFrom)
+        .filter(p => !this._protFromPlayer(p.id, controllerId))
         .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn) || this._seesThroughHexproof(controllerId, p.id))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
