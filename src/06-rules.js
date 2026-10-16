@@ -1597,8 +1597,10 @@
       if (hand.length > maxHand) {
         // bots discard their worst cards
         const toss = hand.slice().sort((a, b) => this._cardValue(a) - this._cardValue(b)).slice(0, hand.length - maxHand);
-        for (const o of toss) this.moveObject(o, 'graveyard');
+        // (discarded like a person's: madness exiles it instead, and "whenever you discard" sees it — _discardOne)
+        for (const o of toss) this._discardOne(ap.id, o, 'cost');
         this.logEvent('discard', `${ap.name} discards ${toss.length} to hand size.`);
+        for (const o of toss) this._afterDiscard(ap.id, o);
       }
       this._finishCleanup();
     }
@@ -5361,7 +5363,8 @@
          (cascade, "you may cast it without paying its mana cost") ignores
          when it could normally be cast (CR 608.2g). */
       // (suspend: the last time counter off in the upkeep, cast then and there — Lotus Bloom, Amy Pond's cards)
-      const midway = opts === 'cascade' || opts === 'resolution' || opts === 'suspend';
+      // (madness: cast as its trigger resolves — CR 702.35a)
+      const midway = opts === 'cascade' || opts === 'resolution' || opts === 'suspend' || opts === 'madness';
       // Drannith Magistrate: nothing from anywhere but the hand
       // Void Winnower: "Your opponents can't cast spells with even mana values."
       for (const q of this.opponentsOf(playerId)) {
@@ -6170,7 +6173,7 @@
         }
       }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
-        escape: null, unearth: 'exile', madness: null };
+        escape: null, unearth: 'exile' };
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword) continue;
         const k = ab.keyword.toLowerCase();
@@ -6187,6 +6190,11 @@
               fetch: /^basic ?land$/.test(typed[1]) ? 'basic land' : typed[1],
               label: ab.keyword + ' ' + cyc });
           }
+        }
+        /* Madness: cast from exile for its madness cost, only as its trigger resolves (madnessOpen: madnessCast) — not
+           from the graveyard, and not later */
+        if (k === 'madness' && arg && o.zone === 'exile' && o.madnessOpen && o.owner === playerId) {
+          out.push({ kind: 'cast', via: 'madness', cost: arg, label: 'Madness ' + arg });
         }
         if (o.zone === 'graveyard' && Object.prototype.hasOwnProperty.call(GRAVE, k) && arg) {
           /* Escape prints two costs in one clause: the mana, and a number
@@ -7008,8 +7016,10 @@
         return this.fail(`Not enough mana to transmute (${use.cost}).`);
       }
       const mv = (o.card && o.card.cmc) || 0;
-      this.moveObject(o, 'graveyard');
+      // ("[Cost], Discard this card:" — a discard, CR 702.53a: madness and "whenever you discard" see it)
+      this._discardOne(playerId, o, 'cost');
       this.logEvent('rules', `${this.player(playerId).name} transmutes ${o.name}.`);
+      this._afterDiscard(playerId, o);
       this._runEffects([{ op: 'tutor', n: 1, to: 'hand', mv,
         prompt: `Search your library for a card with mana value ${mv}.` }],
       { controller: playerId, obj: o, name: o.name }, null, 'transmute');
@@ -7028,22 +7038,19 @@
     }
 
     /**
-     * Madness (CR 702.35): a card discarded with madness can be cast for
-     * its madness cost instead of lying in the graveyard. The offer is
-     * made once, to the player who discarded it, and only when they could
-     * actually pay.
+     * Madness (CR 702.35a): "When this card is exiled this way, its owner may cast it by paying [cost] rather than
+     * paying its mana cost. If that player doesn't, they put this card into their graveyard." — a trigger of its
+     * owner's, for a card the discard sent into exile (madnessExiled: _discardWays); the cast is made as it resolves
+     * (madnessCast).
      */
     _offerMadness(playerId, o) {
-      if (!o || o.zone !== 'graveyard') return;
-      const a = o.trueAnalysis ? o.trueAnalysis() : o.analysis();
-      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' &&
-        /^madness$/i.test(x.keyword || '') && x.arg);
-      if (!ab) return;
-      if (!this.couldPay(playerId, ab.arg, this.manaSources(playerId))) return;
-      this.queueChoice({
-        type: 'confirm', playerId, purpose: 'madness', objId: o.id, cost: ab.arg, payMana: ab.arg,
-        prompt: `Cast ${o.name} for its madness cost (${ab.arg})?`,
-      });
+      if (!o || o.zone !== 'exile' || !o.madnessExiled) return;
+      const cost = this._madnessCost(o);
+      if (!cost) return;
+      this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+        controller: o.owner, name: `${o.name} — madness`, auto: true, effects: [{ op: 'madnessCast' }],
+        abilityText: `When this card is exiled this way, its owner may cast it by paying ${cost} rather than paying its mana cost. If that player doesn't, they put this card into their graveyard.`,
+        triggerData: { event: 'madness', objectId: o.id } });
     }
 
     /**
@@ -7179,13 +7186,22 @@
        is discarded. It never touches the graveyard, so nothing that watches the graveyard sees it; it is still
        discarded, so the discard triggers fire (_afterDiscard). Only a discard as something resolves: a cost (cycling,
        "Discard a card:") and the cleanup step's discard are not made by an effect. Each way is one row of
-       DISCARD_INSTEAD below — another "instead of into your graveyard" is another row. */
-    /** The ways this card, being discarded from pid's hand, may go instead of the graveyard: { to, may, srcId, srcName, counters }. */
-    _discardWays(pid, o) {
+       DISCARD_INSTEAD below — another "instead of into your graveyard" is another row; a row marked `every` replaces
+       every discard, costs and the cleanup's included (madness). */
+    /**
+     * The ways this card, being discarded from pid's hand, may go instead of the graveyard: { to, may, srcId, srcName,
+     * counters }. `how`: 'cost' for a discard no effect makes (a cost, the cleanup step's), 'effect' for one an effect
+     * makes outside a resolution (Mox Diamond's, as it would enter); otherwise an effect's while something resolves.
+     */
+    _discardWays(pid, o, how) {
       const r = this.resolving;
-      if (!r || !o || o.zone !== 'hand') return [];
-      const cause = r.ctx && r.ctx.controller;
+      if (!o || o.zone !== 'hand') return [];
+      const effect = how === 'effect' || (how !== 'cost' && !!r);
+      const cause = r && r.ctx && r.ctx.controller;
       const DISCARD_INSTEAD = [
+        /* Madness (CR 702.35a): "If a player would discard this card, that player discards it, but exiles it instead of
+           putting it into their graveyard" — the card's own, for any discard (madnessExile; its trigger: _offerMadness) */
+        { own: true, has: (c) => !!this._madnessCost(c), to: 'exile', may: false, every: true, label: 'Into exile (madness)' },
         /* Obstinate Baloth, Wilt-Leaf Liege: "If a spell or ability an opponent controls causes you to discard this card,
            put it onto the battlefield instead of putting it into your graveyard." — the card's own (discardToBattlefield;
            Dodecapod: "with two +1/+1 counters on it" — counters) */
@@ -7196,14 +7212,30 @@
       ];
       const ways = [];
       for (const row of DISCARD_INSTEAD) {
+        if (!row.every && !effect) continue;
         if (row.when && !row.when()) continue;
-        const src = row.own ? (this._staticOp(o, row.op) ? o : null)
+        const src = row.own ? ((row.has ? row.has(o) : this._staticOp(o, row.op)) ? o : null)
           : this.battlefield.find(x => x.controller === pid && !x.phasedOut && this._staticOp(x, row.op));
         if (!src || ways.some(w => w.to === row.to)) continue;
-        const e = this._staticOp(src, row.op) || {};
-        ways.push({ to: row.to, may: row.may, srcId: src.id, srcName: src.name, counters: e.counters || 0 });
+        const e = (row.op && this._staticOp(src, row.op)) || {};
+        const w = { to: row.to, may: row.may, srcId: src.id, srcName: src.name, counters: e.counters || 0 };
+        if (row.label) w.label = row.label;
+        ways.push(w);
       }
       return ways;
+    }
+    /** Madness (CR 702.35): the card's madness cost, or null. */
+    _madnessCost(o) {
+      const a = o && (o.trueAnalysis ? o.trueAnalysis() : o.analysis());
+      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^madness$/i.test(x.keyword || '') && x.arg);
+      return ab ? ab.arg : null;
+    }
+    /** One card discarded where it goes by itself: the graveyard, or a way that must be taken (madness) — `how` as for
+        _discardWays ('cost': cycling, channel, an additional cost, the cleanup step). The caller calls _afterDiscard. */
+    _discardOne(pid, c, how) {
+      if (!c || c.zone !== 'hand') return false;
+      this._discardMove(pid, [{ c, way: this._discardSettledWay(pid, c, how) }]);
+      return true;
     }
     /** What may be chosen for this card: the ways, with the graveyard among them while every way is a "may" (CR 616.1). */
     _discardOptions(ways) {
@@ -7217,9 +7249,9 @@
         return { type: 'confirm', playerId: pid, purpose: 'discardToTop', objId: o.id, sourceId: w.srcId, sourceName: w.srcName,
           prompt: `${w.srcName}: put ${o.name} on top of your library instead of into your graveyard?` };
       }
-      const say = { graveyard: 'Into your graveyard', library: 'On top of your library', battlefield: 'Onto the battlefield' };
+      const say = { graveyard: 'Into your graveyard', library: 'On top of your library', battlefield: 'Onto the battlefield', exile: 'Into exile' };
       return { kind: 'options', playerId: pid, purpose: 'discardInstead', objId: o.id, sourceId: o.id, sourceName: o.name, min: 1, max: 1,
-        options: opts.map(w => ({ label: say[w.to] + (w.srcName && w.srcId !== o.id ? ` (${w.srcName})` : ''), key: w.to })),
+        options: opts.map(w => ({ label: w.label || (say[w.to] + (w.srcName && w.srcId !== o.id ? ` (${w.srcName})` : '')), key: w.to })),
         prompt: `${o.name} is discarded: where does it go instead of into your graveyard?` };
     }
     /** The way an answer chose (null: the graveyard). */
@@ -7240,8 +7272,8 @@
       return plan === SUSPEND ? SUSPEND : this._discardMove(pid, plan);
     }
     /** The way a card goes when its player has no choice in it: a way that must be taken, or null (the graveyard). */
-    _discardSettledWay(pid, c) {
-      const ways = this._discardWays(pid, c);
+    _discardSettledWay(pid, c, how) {
+      const ways = this._discardWays(pid, c, how);
       const opts = this._discardOptions(ways);
       return ways.length && opts.length === 1 ? opts[0] : null;
     }
@@ -7277,6 +7309,11 @@
           this.moveObject(c, 'battlefield', { controller: c.owner });
           if (way.counters && c.zone === 'battlefield') this.addCounters(c, '+1/+1', way.counters);
           this.logEvent('rules', `${c.name} is put onto the battlefield instead of into the graveyard.`);
+        } else if (way.to === 'exile') {
+          // Madness: exiled instead, and its trigger goes on once the discard is done (madnessExiled: _offerMadness)
+          this.moveObject(c, 'exile');
+          if (c.zone === 'exile') c.madnessExiled = true;
+          this.logEvent('rules', `${c.name} is exiled instead of put into the graveyard (madness).`);
         }
       }
       return plan.map(x => x.c);
@@ -7433,7 +7470,8 @@
       if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts))) {
         return this.fail(`Not enough mana to cycle (${use.cost}).`);
       }
-      this.moveObject(o, 'graveyard');
+      // (a discard: madness exiles it instead — _discardOne)
+      this._discardOne(playerId, o, 'cost');
       this.logEvent('cycle', `${this.player(playerId).name} cycles ${o.name}.`);
       // Yidaro, Wandering Monster: "If you've cycled a card named Yidaro … four or more times this game" — by name (cycledNames)
       { const cp = this.player(playerId); cp.cycledNames = Object.assign({}, cp.cycledNames); cp.cycledNames[o.name] = (cp.cycledNames[o.name] || 0) + 1; cp.cycledTurn = this.turn; }
@@ -7531,7 +7569,7 @@
         this.moveObject(o, 'exile');
         this.logEvent('ability', `${this.player(playerId).name} exiles ${o.name} from their hand.`);
       } else if (!a.channel.keep) {
-        this.moveObject(o, 'graveyard');
+        this._discardOne(playerId, o, 'cost');
         this._afterDiscard(playerId, o);
       }
       // (and not the X of some earlier cast of the card, which "X" would otherwise fall back on)
@@ -8765,7 +8803,7 @@
       o.bargainedTurn = bargained ? this.turn : null;
 
       if (toDiscard) {
-        this.moveObject(toDiscard, 'graveyard');
+        this._discardOne(playerId, toDiscard, 'cost');
         this.logEvent('discard', `${p.name} discards ${toDiscard.name}.`);
         this._afterDiscard(playerId, toDiscard);
       }
@@ -8774,7 +8812,7 @@
         if (x && x.zone === 'battlefield') this._sacrificeNow(playerId, [x], null);
       }
       if (toDiscardN.length) {
-        for (const c of toDiscardN) this.moveObject(c, 'graveyard');
+        for (const c of toDiscardN) this._discardOne(playerId, c, 'cost');
         this.logEvent('discard', `${p.name} discards ${toDiscardN.map(c => c.name).join(' and ')} to cast ${o.name}.`);
         for (const c of toDiscardN) this._afterDiscard(playerId, c);
       }
@@ -12070,7 +12108,7 @@
         plan = this._discardPlan(pid, cards, 'n' + (this._discardSeq = (this._discardSeq || 0) + 1));
         if (plan === SUSPEND) return SUSPEND;
       } else if (effect && this._discardWaitFor(pid, cards, { kind: 'discardNow', stackId: (item && item.id) || null })) return;
-      else plan = cards.map(c => ({ c, way: effect ? this._discardSettledWay(pid, c) : null }));
+      else plan = cards.map(c => ({ c, way: this._discardSettledWay(pid, c, effect ? undefined : 'cost') }));
       const gone = [];
       for (const x of plan) {
         gone.push({ id: x.c.id, name: x.c.name, mv: (x.c.card && x.c.card.cmc) || 0 });
@@ -18667,7 +18705,7 @@
       if (from === 'graveyard' && toZone !== 'graveyard') { o.graveAdvBy = null; o.flashbackGrant = null; }
       // (Bell Borca, Spectral Sergeant: a new object has nothing noted for it)
       if (from === 'battlefield' && toZone !== 'battlefield' && o._notedMv) o._notedMv = null;
-      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; }
+      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; o.madnessExiled = false; o.madnessOpen = false; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
       if (o._exileFromStack) {
@@ -37213,6 +37251,39 @@
           }
           break;
         }
+        /* Madness: "its owner may cast it by paying [cost] rather than paying its mana cost. If that player doesn't, they
+           put this card into their graveyard." — still the card exiled this way (madnessExiled); asked only when the cost
+           could be paid (madnessOpen: the cast it offers, altUsesFor) */
+        case 'madnessCast': {
+          const x = src;
+          if (!x || x.zone !== 'exile' || !x.madnessExiled) break;
+          const pid = x.owner, q = this.player(pid);
+          const cost = this._madnessCost(x);
+          let cast = false;
+          if (cost && q && !q.hasLost) {
+            x.madnessOpen = true;
+            const can = this.canCast(pid, x.id, 'madness');
+            const use = can.ok ? this.altUsesFor(pid, x.id).find(u => u.kind === 'cast' && u.via === 'madness') : null;
+            const price = use ? use.cost || '' : cost;
+            const payable = !!use && this.couldPay(pid, price, this.manaSources(pid));
+            const yes = payable ? this._ask({ type: 'confirm', playerId: pid, purpose: 'madness', objId: x.id, cost: price, payMana: price,
+              prompt: `Cast ${x.name} for its madness cost (${price || '{0}'})? If you don't, it goes to your graveyard.` }, 'mad') : null;
+            if (yes === SUSPEND) { x.madnessOpen = false; return SUSPEND; }
+            const go = payable && yes && yes.yes !== false;
+            // its targets (and modes), chosen as it is cast; none it could take, and it isn't cast
+            const tg = go ? this._askSpellTargets(pid, x, 'madT') : null;
+            if (tg === SUSPEND) { x.madnessOpen = false; return SUSPEND; }
+            // (open while the cast asks its questions; leaving exile closes it — moveObject)
+            if (go && tg) cast = this.castSpell(pid, x.id, { via: 'madness', auto: true, targets: tg }) !== false;
+            if (!cast) x.madnessOpen = false;
+            if (payable && yes && yes.yes !== false && !cast) this.logEvent('rules', `${x.name} could not be cast for its madness cost.`);
+          }
+          if (!cast && x.zone === 'exile') {
+            this.moveObject(x, 'graveyard');
+            this.logEvent('zone', `${q ? q.name : 'Its owner'} puts ${x.name} into their graveyard.`);
+          }
+          break;
+        }
         /* Alaundo the Seer: "exile a card from your hand and put a number of time counters on it equal to its mana value.
            It gains "When the last time counter is removed from this card, …"" — the card marked (timeCastBy) */
         case 'exileHandTimeCounters': {
@@ -41526,12 +41597,6 @@
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
           }
-          if (ch.purpose === 'madness') {
-            const o = this.obj(ch.objId);
-            if (!o || !(data && data.yes)) break;
-            this.castSpell(playerId, o.id, { via: 'madness', auto: true, targets: [], sacOk: (ch.sacMana && ch.sacMana.n) || 0 });
-            break;
-          }
           // Paradigm: a copy of the exiled card, cast for nothing (it is not a card)
           if (ch.purpose === 'paradigm') {
             const o = this.obj(ch.objId);
@@ -42990,7 +43055,8 @@
       }
       // (an effect's discard, not the cleanup's: where each card goes instead is asked first — _discardWaitFor)
       if (ch.type === 'discard' && this._discardWaitFor(playerId, pick, { kind: 'answer', stackId: ch.stackId || null })) return;
-      for (const o of pick) { this._discardMove(playerId, [{ c: o, way: ch.type === 'discard' ? this._discardSettledWay(playerId, o) : null }]); tossed.push(o); }
+      // (the cleanup step's discard: only what replaces every discard — madness)
+      for (const o of pick) { this._discardMove(playerId, [{ c: o, way: this._discardSettledWay(playerId, o, ch.type === 'discard' ? undefined : 'cost') }]); tossed.push(o); }
       const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
       if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
       this._lastDiscarded = tossed.map(o => o.id);

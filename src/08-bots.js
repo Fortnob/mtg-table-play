@@ -1581,7 +1581,10 @@
        Leng): onto the battlefield first, then the top of the library as a Library of Leng question would be answered */
     discardInstead(s) {
       const keys = (s.options || []).map(o => o.key);
+      // (madness with Library of Leng: into exile to cast it cheap when its madness cost can be paid)
+      const g = this.game, o = s.objId ? g.obj(s.objId) : null, mad = o && g._madnessCost(o);
       const k = keys.indexOf('battlefield') >= 0 ? keys.indexOf('battlefield')
+        : keys.indexOf('exile') >= 0 && mad && g.couldPay(this.pid, mad, this.manaSources()) ? keys.indexOf('exile')
         : keys.indexOf('library') >= 0 && this.confirmChoice({ type: 'confirm', purpose: 'discardToTop', objId: s.objId, playerId: this.pid }) ? keys.indexOf('library')
         : keys.indexOf('graveyard');
       return { picks: [Math.max(0, k)] };

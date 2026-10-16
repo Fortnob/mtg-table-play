@@ -72607,4 +72607,102 @@ module.exports = (test) => {
     T3.cast('A', T3.hand('A', 'Murder'), { targets: [d3] });
     t.zone(d3, 'graveyard', 'a spell may target it');
   });
+
+  /* Madness as a replacement (CR 702.35a): discarded into exile, never into the graveyard; its trigger then casts it
+     from exile for the madness cost, or puts it into the graveyard */
+  test('Cards: Basking Rootwalla — madness exiles it as it is discarded: Syr Konrad sees nothing, Megrim sees the discard, its trigger casts it', (mk, t) => {
+    t.auto('Basking Rootwalla');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('B', 'Megrim');
+    T.bf('A', 'Syr Konrad, the Grim');
+    const rw = T.hand('A', 'Basking Rootwalla'), bears = T.hand('A', 'Grizzly Bears');
+    T.nextTurn('B');
+    let seen = null;
+    T.answer('confirm', (ch) => { seen = { purpose: ch.purpose, zone: T.g.obj(ch.objId).zone, res: T.g.resolving && T.g.resolving.ctx && T.g.resolving.ctx.name }; return { yes: true }; });
+    const lifeA = T.life('A'), lifeB = T.life('B');
+    T.mana('B', '2B');
+    T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.ok(seen && seen.purpose === 'madness', 'asked to cast it for its madness cost');
+    t.eq(seen && seen.zone, 'exile', 'asked while it is in exile');
+    t.ok(seen && /madness/.test(seen.res || ''), 'asked as the madness trigger resolves');
+    t.zone(rw, 'battlefield', 'cast from exile');
+    t.zone(bears, 'graveyard');
+    t.eq(T.life('B'), lifeB - 1, 'Syr Konrad: only the Bears went to a graveyard; nothing left one');
+    t.eq(T.life('A'), lifeA - 4, 'Megrim: two discards');
+    t.ok(T.g.log.some(l => /Basking Rootwalla is exiled instead/.test(l.text)), 'the log says it was exiled');
+    // no: from exile into the graveyard, which Syr Konrad sees once
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Syr Konrad, the Grim');
+    const rw2 = T2.hand('A', 'Basking Rootwalla');
+    T2.nextTurn('B');
+    T2.answer('confirm', () => ({ yes: false }));
+    const lb = T2.life('B');
+    T2.mana('B', '2B');
+    T2.cast('B', T2.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.zone(rw2, 'graveyard', 'into the graveyard');
+    t.eq(T2.life('B'), lb - 1, 'Syr Konrad: once');
+    // in the graveyard, madness casts nothing
+    t.no(T2.g.altUsesFor('A', rw2.id).some(u => u.via === 'madness'), 'no madness cast from the graveyard');
+  });
+
+  test('Cards: Fiery Temper — madness on a cost discard (Wild Mongrel) and the cleanup step\'s; no question when its cost can\'t be paid', (mk, t) => {
+    t.auto('Fiery Temper');
+    const T = mk({ library: Array(30).fill('Island') });
+    const mg = T.bf('A', 'Wild Mongrel');
+    T.bf('A', 'Mountain');
+    const ft = T.hand('A', 'Fiery Temper');
+    T.answer('pickTarget', () => ({ targets: ['B'] }));
+    const lb = T.life('B');
+    T.activate('A', mg, 0, {});
+    t.eq(T.life('B'), lb - 3, 'cast for {R} from exile, at B');
+    t.zone(ft, 'graveyard', 'resolved');
+    t.ok(T.asked.some(ch => ch.purpose === 'madness' && /\(\{R\}\)/.test(ch.prompt)), 'asked, naming the madness cost');
+    // no red mana: no question, and it goes to the graveyard from exile
+    const T2 = mk({ library: Array(30).fill('Island') });
+    const mg2 = T2.bf('A', 'Wild Mongrel');
+    const ft2 = T2.hand('A', 'Fiery Temper');
+    let was = null;
+    const move = T2.g.moveObject.bind(T2.g);
+    T2.g.moveObject = (o, z, op) => { if (o === ft2 && !was) was = z; return move(o, z, op); };
+    T2.activate('A', mg2, 0, {});
+    t.eq(was, 'exile', 'exiled first');
+    t.zone(ft2, 'graveyard', 'then into the graveyard');
+    t.eq(T2.asked.filter(ch => ch.purpose === 'madness').length, 0, 'not asked: {R} can\'t be paid');
+    // the cleanup step's discard: exiled, and cast for {R}
+    const T3 = mk({ library: Array(30).fill('Island') });
+    T3.bf('A', 'Mountain');
+    for (let i = 0; i < 7; i++) T3.hand('A', 'Island');
+    const ft3 = T3.hand('A', 'Fiery Temper');
+    T3.answer('discardToHandSize', () => ({ cardIds: [ft3.id] }));
+    T3.answer('pickTarget', () => ({ targets: ['B'] }));
+    const lb3 = T3.life('B');
+    T3.nextTurn('B');
+    t.eq(T3.life('B'), lb3 - 3, 'cast in the cleanup step for its madness cost');
+    t.zone(ft3, 'graveyard');
+  });
+
+  test('Cards: Basking Rootwalla — with Library of Leng, its player chooses between madness and the top of the library (CR 616.1)', (mk, t) => {
+    t.auto('Basking Rootwalla');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Library of Leng');
+    const rw = T.hand('A', 'Basking Rootwalla');
+    T.nextTurn('B');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => o.key === 'library')] }; });
+    T.mana('B', '2B');
+    T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.ok(q && q.purpose === 'discardInstead', 'asked where it goes');
+    t.eq(q && q.options.map(o => o.key).join(), 'exile,library', 'madness or the library, no graveyard');
+    t.eq(T.zone('A', 'library')[0], rw, 'on top, as chosen');
+    t.eq(T.asked.filter(ch => ch.purpose === 'madness').length, 0, 'no madness trigger');
+    // exile chosen: the madness trigger follows
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Library of Leng');
+    const rw2 = T2.hand('A', 'Basking Rootwalla');
+    T2.nextTurn('B');
+    T2.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.key === 'exile')] }));
+    T2.mana('B', '2B');
+    T2.cast('B', T2.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.zone(rw2, 'battlefield', 'cast for its madness cost');
+  });
 };
