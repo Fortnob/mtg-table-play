@@ -140,8 +140,9 @@
       return v;
     });
     /* A printing is the same printing however it was fetched: the card
-       cache stamps each one with when it arrived, which is not the game. */
-    const text = JSON.stringify(views, (k, x) => ((k === 'card' || k === 'printedCard' || k === 'copyOf') && x && typeof x === 'object' ? (x.id || x.name || '?') : x));
+       cache stamps each one with when it arrived, which is not the game.
+       (Wherever a view carries a card — a question's sourceCard too: any object with that stamp.) */
+    const text = JSON.stringify(views, (k, x) => (x && typeof x === 'object' && ((k === 'card' || k === 'printedCard' || k === 'copyOf') || (x._t != null && x.oracle_id)) ? (x.id || x.name || '?') : x));
     return { v: g.stateVersion, turn: g.turn, over: !!g.over, hash: U.hash(text) };
   }
 

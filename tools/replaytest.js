@@ -30,7 +30,8 @@ function args() {
    printing with when it was fetched; neither is the game. Printings are
    compared by id. */
 const stripLog = (v) => { v.log = (v.log || []).map(l => [l.turn, l.type, l.text]); return v; };
-const byPrint = (k, x) => ((k === 'card' || k === 'printedCard' || k === 'copyOf') && x && typeof x === 'object' ? (x.id || x.name || '?') : x);
+// (any card object, wherever a view carries it — a question's sourceCard too — by its printing: one with a fetch stamp)
+const byPrint = (k, x) => (x && typeof x === 'object' && ((k === 'card' || k === 'printedCard' || k === 'copyOf') || (x._t != null && x.oracle_id)) ? (x.id || x.name || '?') : x);
 function views(g) {
   return g.players.map(p => p.id).concat(['__watching']).map(id => JSON.stringify(stripLog(g.viewFor(id)), byPrint));
 }
