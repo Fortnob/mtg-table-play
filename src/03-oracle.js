@@ -2800,6 +2800,12 @@
     // Archfiend of Despair: "each opponent loses life equal to the life that player lost this turn"
     { re: /^Each opponent loses life equal to the life that player lost this turn\.?$/i,
       make: () => ({ op: 'loseLife', who: 'opponents', n: { lifeLostBy: 'each' } }) },
+    // One Ring to Rule Them All: "each player mills cards equal to your Ring-bearer's power" (ringBearerPower)
+    { re: /^(Each player|Each opponent|You) mills? cards equal to your Ring-bearer'?s power\.?$/i,
+      make: (m) => ({ op: 'mill', who: /player/i.test(m[1]) ? 'each' : /opponent/i.test(m[1]) ? 'opponents' : 'you', n: { ringBearerPower: true } }) },
+    // One Ring to Rule Them All: "Each opponent loses 1 life for each creature card in that player's graveyard." (ownGraveEach)
+    { re: /^Each opponent loses (one|two|three|\d+) life for each ([a-z]+ )?card in (?:that player'?s|their) graveyard\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'opponents', n: { ownGraveEach: (m[2] || '').trim() || 'card', mult: num(m[1]) } }) },
     // Folio of Fancies: "Each opponent mills cards equal to the number of cards in their hand."
     { re: /^Each opponent mills cards equal to the number of cards in their hand\.?$/i,
       make: () => ({ op: 'mill', who: 'opponents', n: { cardsInHandEach: true } }) },
@@ -10521,7 +10527,7 @@
       if (sc) return done({ subtypesAmongScope: sc, mult: 1 }); }
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
-    if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
+    if ((m = p.match(/^the sacrificed (?:creature|artifact|enchantment|permanent|land)'s (power|toughness|mana value)$/i)))
       return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
     // Morbid Curiosity, Shadow: "the mana value of the sacrificed permanent"
     if ((m = p.match(/^the (power|toughness|mana value) of the sacrificed (?:creature|artifact|permanent|land)$/i)))
@@ -12618,6 +12624,11 @@
        value from your hand onto the battlefield." */
     { re: /^(?:if it wasn'?t put onto the battlefield with this ability, )?you may put a permanent card with equal or lesser mana value from your hand onto the battlefield\.$/i,
       make: () => [{ op: 'kodamaPut' }] },
+    /* World at War: "After the second main phase this turn, there's an additional combat phase followed by an additional
+       main phase. At the beginning of that combat, untap all creatures that attacked this turn." (extraCombatAfterMain) */
+    { re: /^After the second main phase this turn, there'?s an additional combat phase( followed by an additional main phase)?\. At the beginning of that combat, untap all creatures that attacked this turn\.?$/i,
+      make: (m) => [{ op: 'extraCombatAfterMain', nth: 2, withMain: !!m[1], beginName: 'Untap all creatures that attacked this turn',
+        beginEffects: [{ op: 'untapAttackedThisTurn', all: true }] }] },
     /* Moraug, Fury of Akoum: "if it's your main phase, there's an additional
        combat phase after this phase. At the beginning of that combat, untap
        all creatures you control." */
@@ -20247,6 +20258,17 @@
         autoLines++;
         continue;
       }
+      /* Collective Effort: "Escalate—Tap an untapped creature you control."; Collective Brutality: "Escalate—Discard a
+         card." — a price that isn't mana, paid once for each mode beyond the first (escalateThing) */
+      const escT = !out.isPermanent && line.match(/^Escalate\s*[—-]\s*([A-Z][^{}]+?)\.?$/);
+      const escC = escT && oneAdditionalCost(escT[1].charAt(0).toLowerCase() + escT[1].slice(1), false);
+      if (escC && ((escC.tapCreatures && escC.tapCreatures.n === 1) || (escC.discard && escC.discard.n === 1))) {
+        out.escalateThing = Object.assign(escC.tapCreatures ? { tapCreatures: escC.tapCreatures } : { discard: escC.discard },
+          { text: escT[1].charAt(0).toLowerCase() + escT[1].slice(1) });
+        out.abilities.push({ kind: 'castModifier', keyword: 'Escalate', arg: escT[1], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       // Fuse (CR 702.102): both halves of a split card cast together from hand, which the table offers
       if (!out.isPermanent && /^Fuse$/i.test(line)) {
         out.abilities.push({ kind: 'castModifier', keyword: 'Fuse', text: line, auto: true, effects: [] });
@@ -20456,15 +20478,18 @@
           (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || '') && !(multi.length && multi.every(countedOk)))) { ab.auto = false; out._keywordManual = true; }
     }
     // Escalate: the "choose one or more" modes, bought as the spell is cast
-    if (out.escalate) {
+    if (out.escalate || out.escalateThing) {
       const sp = out.abilities.find(ab => ab.kind === 'spell' && (ab.effects || []).length === 1 && ab.effects[0].op === 'modal' && !ab.effects[0].spree);
       const md = sp && sp.effects[0];
       if (md && (md.modes || []).length > 1) {
         md.spree = true;
         out.spreeModes = md.modes.map((m, i) => ({ i, cost: '', label: m.label }));
-        out.spreeEscalate = out.escalate;
+        if (out.escalate) out.spreeEscalate = out.escalate;
+        // (Collective Effort: a price that isn't mana — spreeEscalateThing)
+        if (out.escalateThing) out.spreeEscalateThing = out.escalateThing;
       }
     }
+
 
     if (pawModes.length) {
       out.abilities.push({
@@ -23414,6 +23439,9 @@
       // (Vision, Spectral Synthezoid: "a noncreature or Robot spell")
       { re: /^Once during each of your turns, you may cast an? (instant or sorcery|creature|noncreature|artifact|enchantment|noncreature or [A-Z][a-z]+) spell from your hand without paying its mana cost\.?$/i,
         make: (m) => ({ op: 'freeFromHandOnce', filter: m[1].toLowerCase() }), auto: true },
+      // Demon of Fate's Design: "Once during each of your turns, you may cast an enchantment spell by paying life equal to its mana value rather than paying its mana cost." (grantAltLifeOnce)
+      { re: /^Once during each of your turns, you may cast an? ([a-z]+(?: or [a-z]+)?) spell by paying life equal to its mana value rather than paying its mana cost\.?$/i,
+        make: (m) => ({ op: 'grantAltLifeOnce', words: m[1].toLowerCase() }), auto: true },
       // One with the Multiverse: "Once during each of your turns, you may cast a spell from your hand or the top of your library without paying its mana cost." (orTop)
       { re: /^Once during each of your turns, you may cast a spell from your hand or the top of your library without paying its mana cost\.?$/i,
         eff: { op: 'freeFromHandOnce', filter: 'card', orTop: true }, auto: true },
@@ -24969,6 +24997,9 @@
       // Arwen: "Each other creature you control enters with a number of additional +1/+1 counters on it equal to CARDNAME's toughness."
       { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s toughness\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourceToughness: true }, auto: true },
+      // Master Biomancer: "… equal to this creature's power and as a Mutant in addition to its other types." (bySourcePower, addSubtypes)
+      { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s power(?: and as an? ([A-Z][a-z]+) in addition to its other types)?\.?$/,
+        make: (m) => Object.assign({ op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourcePower: true }, m[1] ? { addSubtypes: [m[1]] } : {}), auto: true },
       // Kalain, Reclusive Painter: "Other creatures you control enter with an additional +1/+1 counter on them for each mana from a Treasure spent to cast them." (perTreasureMana)
       { re: /^Other creatures you control enter with an additional \+1\/\+1 counter on them for each mana from a Treasure spent to cast them\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', perTreasureMana: true }, auto: true },

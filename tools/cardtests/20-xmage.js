@@ -72149,4 +72149,151 @@ module.exports = (test) => {
     T.toMain('B', 'declareBlockers');
     t.no(T.g.hasKw(theirs, 'menace'), 'B attacking A: not one of your opponents');
   });
+  test('Cards: Collective Effort — escalate by tapping an untapped creature you control for each mode past the first', (mk, t) => {
+    t.auto('Collective Effort');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears'), lion = T.bf('A', 'Savannah Lions');
+    const wurm = T.bf('B', 'Craw Wurm'), anthem = T.bf('B', 'Glorious Anthem');
+    const ex = g.extraCostsFor(T.hand('A', 'Collective Effort').id, 'A').find(x => x.kind === 'spree');
+    t.ok(ex && ex.escalateThing && /tap an untapped creature/.test(ex.label), 'escalate offered with its price');
+    // three modes: two creatures tapped (asked which, as they differ — both go)
+    T.mana('A', '1WW');
+    const ce = T.zone('A', 'hand').find(o => o.name === 'Collective Effort');
+    T.answer('pickCard', (ch) => { t.eq(ch.purpose, 'tapCost'); return { cardIds: [bear.id, lion.id] }; });
+    t.ok(g.castSpell('A', ce.id, { auto: true, spree: [0, 1, 2], targets: [{ kind: 'object', id: wurm.id }, { kind: 'object', id: anthem.id }, { kind: 'player', id: 'A' }] }), g.lastError);
+    T.settle();
+    t.ok(bear.tapped && lion.tapped, 'two creatures tapped for the two extra modes');
+    T.resolve();
+    t.zone(wurm, 'graveyard', 'power 4 or greater: destroyed'); t.zone(anthem, 'graveyard', 'the enchantment destroyed');
+    t.eq(bear.counters['+1/+1'], 1, 'a counter on each of your creatures'); t.eq(lion.counters['+1/+1'], 1);
+    // two extra modes with one creature: can't
+    const T2 = mk();
+    T2.bf('A', 'Grizzly Bears');
+    const w2 = T2.bf('B', 'Craw Wurm'), a2 = T2.bf('B', 'Glorious Anthem');
+    T2.mana('A', '1WW');
+    t.no(T2.g.castSpell('A', T2.hand('A', 'Collective Effort').id, { auto: true, spree: [0, 1, 2], targets: [{ kind: 'object', id: w2.id }, { kind: 'object', id: a2.id }, { kind: 'player', id: 'A' }] }), 'not enough creatures to tap');
+    // one mode: nothing tapped
+    const b3 = T2.bfOf('A').find(o => o.name === 'Grizzly Bears');
+    t.ok(T2.g.castSpell('A', T2.zone('A', 'hand').find(o => o.name === 'Collective Effort').id, { auto: true, spree: [1], targets: [{ kind: 'object', id: a2.id }] }), T2.g.lastError);
+    T2.resolve();
+    t.zone(a2, 'graveyard'); t.no(b3.tapped, 'one mode: no escalate');
+  });
+  test('Cards: Collective Brutality — escalate by discarding a card for each mode past the first', (mk, t) => {
+    t.auto('Collective Brutality');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('B', 'Grizzly Bears');
+    const junk = T.hand('A', 'Island');
+    T.mana('A', '1B');
+    const cb = T.hand('A', 'Collective Brutality');
+    const mi = (g._castModeOffer('A', cb, cb.analysis(), {}) || { options: [] }).options.findIndex(o => /-2\/-2/.test(o.label || ''));
+    const li = (g._castModeOffer('A', cb, cb.analysis(), {}) || { options: [] }).options.findIndex(o => /loses 2 life/.test(o.label || ''));
+    t.ok(mi >= 0 && li >= 0, 'the modes');
+    t.ok(g.castSpell('A', cb.id, { auto: true, spree: [mi, li], targets: [{ kind: 'object', id: bear.id }, { kind: 'player', id: 'B' }] }), g.lastError);
+    T.resolve();
+    t.zone(junk, 'graveyard', 'a card discarded for the second mode');
+    t.zone(bear, 'graveyard', '-2/-2');
+    t.eq(T.life('B'), 18); t.eq(T.life('A'), 22);
+    // nothing else in hand: one mode only
+    const T2 = mk();
+    const b2 = T2.bf('B', 'Grizzly Bears');
+    T2.mana('A', '1B');
+    t.no(T2.g.castSpell('A', T2.hand('A', 'Collective Brutality').id, { auto: true, spree: [mi, li], targets: [{ kind: 'object', id: b2.id }, { kind: 'player', id: 'B' }] }), 'no card to discard');
+  });
+  test('Cards: Master Biomancer — your other creatures enter with counters equal to its power, and as Mutants', (mk, t) => {
+    t.auto('Master Biomancer');
+    const T = mk();
+    const mb = T.bf('A', 'Master Biomancer');   // 2/4
+    T.g.addCounters(mb, '+1/+1', 1);            // 3/5
+    T.mana('A', '1G');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.eq(bear.counters['+1/+1'], 3, 'three counters: its power');
+    t.ok(T.g._hasCreatureType(bear, 'Mutant') && T.g._hasCreatureType(bear, 'Bear'), 'a Mutant Bear');
+    t.eq((mb.counters['+1/+1'] || 0), 1, 'not itself');
+    // an opponent's creature: nothing
+    const theirs = T.bf('B', 'Grizzly Bears', { etb: true });
+    t.no(theirs.counters['+1/+1'], "not an opponent's");
+    t.no(T.g._hasCreatureType(theirs, 'Mutant'));
+  });
+  test('Cards: One Ring to Rule Them All — the Ring tempts you and each player mills its bearer\'s power; a sweep; life for creature cards', (mk, t) => {
+    t.auto('One Ring to Rule Them All');
+    const T = mk({ library: Array(20).fill('Grizzly Bears') });
+    const wurm = T.bf('A', 'Craw Wurm');   // 6/4
+    const legend = T.bf('A', 'Isamaru, Hound of Konda');
+    T.answer('choose', (ch) => (ch.purpose === 'ringBearer' ? { picks: [wurm.id] } : null));
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'One Ring to Rule Them All'));
+    t.eq(T.player('A').ringBearer, wurm.id, 'the Wurm is the Ring-bearer');
+    t.eq(T.zone('A', 'graveyard').length, 6, 'A milled six');
+    t.eq(T.zone('B', 'graveyard').length, 6, 'B milled six');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(wurm, 'graveyard', 'II: nonlegendary creatures destroyed');
+    t.zone(theirs, 'graveyard');
+    t.zone(legend, 'battlefield', 'a legendary one stays');
+    const crB = T.zone('B', 'graveyard').filter(c => (c.analysis() || {}).isCreature).length;
+    const life = T.life('B');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.life('B'), life - crB, 'III: one life for each creature card in their graveyard');
+    t.eq(T.life('A'), 20, 'not A');
+  });
+  test('Cards: World at War — after the second main phase, another combat (attackers untapped as it begins) and another main phase', (mk, t) => {
+    t.auto('World at War');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears'), lion = T.bf('A', 'Savannah Lions');
+    lion.tapped = true;   // never attacks: stays tapped
+    T.mana('A', '3RR');
+    const ww = T.hand('A', 'World at War');
+    T.cast('A', ww);
+    t.zone(ww, 'exile', 'rebound');
+    let combats = 0;
+    T.answer('declareAttackers', () => { combats++; return [{ attackerId: bear.id, defenderId: 'B' }]; });
+    T.answer('declareAttackers', () => { combats++; t.no(bear.tapped, 'untapped at the beginning of that combat'); return [{ attackerId: bear.id, defenderId: 'B' }]; });
+    T.toMain('A', 'end');
+    t.eq(combats, 2, 'two combats');
+    t.eq(T.life('B'), 16, 'the Bears hit twice');
+    t.ok(lion.tapped, 'a creature that did not attack stays tapped');
+    t.ok(g.log.some(l => /additional combat phase/.test(l.text)), 'said so');
+    // cast in the second main phase: the extra phases come right after it
+    const T2 = mk();
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    for (let i = 0; i < 20 && T2.g.phase.id !== 'postcombat'; i++) { T2.settle(); T2.g.passPriority(T2.g.priorityPlayer.id, true); }
+
+    t.eq(T2.g.phase.id, 'postcombat', 'in the second main phase');
+    T2.mana('A', '3RR');
+    T2.cast('A', T2.hand('A', 'World at War'));
+    T2.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    T2.toMain('A', 'end');
+    t.eq(T2.life('B'), 16, 'a second attack');
+  });
+  test("Cards: Demon of Fate's Design — once during each of your turns an enchantment for life equal to its mana value; +X/+0 for a sacrificed enchantment", (mk, t) => {
+    t.auto("Demon of Fate's Design");
+    const T = mk();
+    const g = T.g;
+    const demon = T.bf('A', "Demon of Fate's Design");
+    const arena = T.hand('A', 'Phyrexian Arena');
+    const use = (g.altUsesFor('A', arena.id) || []).find(u => u.via === 'grantLifeOnce');
+    t.ok(use && /Pay 3 life/.test(use.label), 'offered: 3 life');
+    t.ok(g.castSpell('A', arena.id, { auto: true, via: 'grantLifeOnce' }), g.lastError);
+    T.resolve();
+    t.zone(arena, 'battlefield'); t.eq(T.life('A'), 17, 'paid 3 life, no mana');
+    const study = T.hand('A', 'Rhystic Study');
+    t.no((g.altUsesFor('A', study.id) || []).some(u => u.via === 'grantLifeOnce'), 'once a turn');
+    t.no((g.altUsesFor('A', T.hand('A', 'Grizzly Bears').id) || []).some(u => u.via === 'grantLifeOnce'), 'enchantments only');
+    // the activated ability: +X/+0, X the sacrificed enchantment's mana value
+    T.mana('A', '2B');
+    T.activate('A', demon, 0, { sacrificeIds: [arena.id] });
+    t.zone(arena, 'graveyard');
+    t.eq(g.powerOf(demon), 6 + 3, '+3/+0');
+    // not on an opponent's turn
+    T.nextTurn('B');
+    t.no((g.altUsesFor('A', study.id) || []).some(u => u.via === 'grantLifeOnce'), "not on an opponent's turn");
+    T.nextTurn('A');
+    t.ok((g.altUsesFor('A', study.id) || []).some(u => u.via === 'grantLifeOnce'), 'again on your next turn');
+  });
 };

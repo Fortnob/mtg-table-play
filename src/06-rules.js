@@ -1173,13 +1173,16 @@
        from where it would have gone. */
     _nextPhaseIndex() {
       const cur = this.phaseIndex;
-      const due = (this._extraPhases || []).filter(x => x.turn === this.turn && x.after === cur);
+      // (World at War: only after the second main phase of the turn — afterMainN)
+      const mainsNow = this._mainPhases && this._mainPhases.turn === this.turn ? this._mainPhases.n : 0;
+      const due = (this._extraPhases || []).filter(x => x.turn === this.turn && x.after === cur && (x.afterMainN == null || x.afterMainN === mainsNow));
       if (due.length) {
         this._extraPhases = this._extraPhases.filter(x => !due.includes(x));
         if (this._resumePhase == null) this._resumePhase = cur + 1;
         const add = [];
         // (Bumi, Unleashed: a combat only some creatures can attack in — onlyAttack)
         for (const x of due) add.push(...x.phases.map(ph => (x.onlyAttack && ph === 2 ? { ph, onlyAttack: x.onlyAttack } : ph)));
+        // (a promised phase may already carry what happens as it begins: World at War's beginDelayed)
         this._phaseQueue = add.concat(this._phaseQueue || []);
       }
       this._combatOnlyAttack = null;
@@ -1187,7 +1190,12 @@
         const nx = this._phaseQueue.shift();
         // Obeka, Splitter of Seconds: an additional upkeep step, alone (upkeepOnly)
         if (nx && typeof nx === 'object' && nx.upkeepOnly) { this._upkeepOnly = true; return nx.ph; }
-        if (nx && typeof nx === 'object') { this._combatOnlyAttack = { turn: this.turn, words: nx.onlyAttack }; return nx.ph; }
+        if (nx && typeof nx === 'object') {
+          if (nx.onlyAttack) this._combatOnlyAttack = { turn: this.turn, words: nx.onlyAttack };
+          // World at War: "At the beginning of that combat, …" — a delayed trigger for this combat, set up as it comes (beginDelayed)
+          if (nx.beginDelayed) this.scheduleDelayed(Object.assign({ event: 'eachCombatBegin', sameTurnOk: true }, JSON.parse(JSON.stringify(nx.beginDelayed))));
+          return nx.ph;
+        }
         return nx;
       }
       if (this._resumePhase != null) { const r = this._resumePhase; this._resumePhase = null; return r; }
@@ -1238,6 +1246,8 @@
           this._fire('opponentUpkeep', null, { except: this.activePlayer.id, playerId: this.activePlayer.id }); break;
         case 'draw': this._drawStep(); break;
         case 'main':
+          // World at War: "after the second main phase this turn" — how many main phases have begun (_mainPhases)
+          this._mainPhases = { turn: this.turn, n: (this._mainPhases && this._mainPhases.turn === this.turn ? this._mainPhases.n : 0) + 1 };
           if (this.phase.id === 'precombat') {
             for (const o of this.battlefield.slice()) {
               const sa = o.analysis();
@@ -4678,6 +4688,11 @@
       if (v.commanderCasts) return this._commanderCastCount(pid) * mult;
       // Vishgraz: the poison counters among your opponents
       if (v.opponentsPoison) return this.opponentsOf(pid).reduce((acc, q) => acc + (Number(q.poison) || 0), 0) * mult;
+      // One Ring to Rule Them All: "equal to your Ring-bearer's power" — none, nothing (ringBearerPower)
+      if (v.ringBearerPower) {
+        const me0 = this.player(pid), rb = me0 && this.obj(me0.ringBearer);
+        return (rb && rb.zone === 'battlefield' && rb.controller === pid ? Math.max(0, this.powerOf(rb)) : 0) * mult;
+      }
       // (Yes Man, Personal Securitron: "for each quest counter on it" as it left the battlefield)
       if (v.countersOnSelf) return (src ? Number(((src.zone === 'battlefield' ? src.counters : src._diedCounters) || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
@@ -6498,6 +6513,18 @@
           const tax = this._commanderTax(o).mana;
           out.push({ kind: 'cast', via: 'grantZero', cost: tax ? this._addGeneric('', tax) : '', srcId: az.id, alt: { mana: '', label: 'Pay {0}' }, label: `Pay {0} instead (${az.name})` });
         }
+        /* Demon of Fate's Design: "Once during each of your turns, you may cast an enchantment spell by paying life equal
+           to its mana value rather than paying its mana cost." — on your turn, while that much life can be paid; used up
+           as it is cast (grantAltLifeOnce, _altLifeTurn) */
+        const alOk = (s0) => { const l0 = this._staticOp(s0, 'grantAltLifeOnce'); return !!l0 && (!l0.words || this._cardFitsWords(o, l0.words)); };
+        const al = this.activePlayer && this.activePlayer.id === playerId &&
+          this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && s0._altLifeTurn !== this.turn && alOk(s0));
+        const alMv = (o.card && o.card.cmc) || 0;
+        if (al && this._canPayLifeMv(this.player(playerId), alMv)) {
+          const tax = this._commanderTax(o).mana;
+          out.push({ kind: 'cast', via: 'grantLifeOnce', cost: tax ? this._addGeneric('', tax) : '', srcId: al.id,
+            alt: Object.assign({ mana: '', label: `Pay ${alMv} life` }, alMv > 0 ? { life: alMv } : {}), label: `Pay ${alMv} life instead (${al.name})` });
+        }
         /* Nissa, Worldsoul Speaker: "You may pay eight {E} rather than pay the mana cost for permanent spells you cast."
            — energy for the price, offered while there is that much (grantAltCost energy) */
         const ge = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && (this._staticOp(s0, 'grantAltCost') || {}).energy);
@@ -7351,6 +7378,10 @@
       if (a.spreeModes && a.spreeModes.length) {
         out.push(a.spreeEscalate
           ? { kind: 'spree', cost: '', modes: a.spreeModes.slice(), escalate: a.spreeEscalate, label: 'Escalate ' + a.spreeEscalate + ' (choose one or more; each beyond the first costs that)' }
+          // Collective Effort: "Escalate—Tap an untapped creature you control." (escalateThing)
+          : a.spreeEscalateThing
+          ? { kind: 'spree', cost: '', modes: a.spreeModes.slice(), escalateThing: Object.assign({}, a.spreeEscalateThing),
+            label: 'Escalate — ' + a.spreeEscalateThing.text + ' (choose one or more; each beyond the first costs that)' }
           : a.spreeOne
           ? { kind: 'spree', cost: '', modes: a.spreeModes.slice(), one: true, label: 'Tiered (choose one)' }
           : { kind: 'spree', cost: '', modes: a.spreeModes.slice(), label: 'Spree (choose one or more)' });
@@ -8002,6 +8033,9 @@
         if (via && via.via === 'freeHandOnce') { const zx = this.obj(via.srcId); if (zx) zx._freeHandOnceTurn = this.turn; }
         // As Foretold: "Once each turn" — used up (grantAltZeroOnce)
         if (via && via.via === 'grantZero') { const fx = this.obj(via.srcId); if (fx) fx._altZeroTurn = this.turn; }
+        // Demon of Fate's Design: "Once during each of your turns" — used up (grantAltLifeOnce)
+        if (via && via.via === 'grantLifeOnce') { const lx = this.obj(via.srcId); if (lx) lx._altLifeTurn = this.turn; }
+
         // Kotis, Sibsig Champion: "Once during each of your turns" — used up (graveCastExile)
         if (via && via.via === 'graveExile') { const kx = this.obj(via.srcId); if (kx) kx._graveExileTurn = this.turn; }
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
@@ -8170,6 +8204,15 @@
           for (const i of picked) cost += ex.modes[i].cost;
           // escalate: its cost once for each mode beyond the first
           if (ex.escalate) cost += ex.escalate.repeat(Math.max(0, picked.length - 1));
+          /* Collective Effort: "Tap an untapped creature you control" (Collective Brutality: "Discard a card") once for each
+             mode beyond the first — there to be paid, or the modes can't be bought (escalateThing) */
+          if (ex.escalateThing && picked.length > 1) {
+            const k = picked.length - 1, et = ex.escalateThing;
+            const have = et.tapCreatures ? this._tapCostPool(playerId, et.tapCreatures, o).length
+              : this.zones[playerId].hand.filter(c => c !== o && this._cardFitsWords(c, et.discard.filter || 'card')).length;
+            if (have < k) return this.fail(`Escalate: not enough to ${et.text} ${k} time${k === 1 ? '' : 's'}.`);
+            chose.escalateThing = et.tapCreatures ? { tapCreatures: Object.assign({}, et.tapCreatures, { n: k }) } : { discard: Object.assign({}, et.discard, { n: k }) };
+          }
           chose.spree = picked;
         } else if (ex.kind === 'casualty' && opts.casualty) {
           /* The sacrifice is part of the cost, so it happens now. The
@@ -8698,8 +8741,11 @@
         this._payThingCosts(playerId, Object.assign({}, add, { spellExile: true }), o, opts, item);
         if (addPick) this.logEvent('rules', `${p.name} pays the additional cost: ${addPick.label.toLowerCase()}.`);
       }
+      // Collective Effort: the escalate price that isn't mana, now the spell is on the stack (escalateThing)
+      if (chose.escalateThing) this._payThingCosts(playerId, chose.escalateThing, o, opts, item);
       if (chose.casualty) {
         const dup = this._register(new GObj(o.card, playerId, 'stack'));
+
         dup.isCopy = true; dup.chosenX = o.chosenX;
         // (Ashad, the Lone Cyberman: "A copy of an artifact spell becomes a token." — CR 707.10f)
         if ((o.analysis() || {}).isPermanent) dup.isToken = true;
@@ -9859,9 +9905,14 @@
           }
           continue;
         }
+        /* Master Biomancer: "and as a Mutant in addition to its other types" — for as long as it stays (addSubtypes) */
+        if ((ex.addSubtypes || []).length) { o.effects.push({ addSubtypes: ex.addSubtypes.slice(), until: null }); o._chr = null; }
         let k = 1;
         // Arwen: "equal to CARDNAME's toughness"
         if (ex.bySourceToughness) k = Math.max(0, this.toughnessOf(s0));
+        // Master Biomancer: "equal to this creature's power" (bySourcePower)
+        else if (ex.bySourcePower) k = Math.max(0, this.powerOf(s0));
+
         // Gev, Scaled Scorch, Gorma: "for each opponent who lost life this turn" (perCount)
         else if (ex.perCount) k = Math.max(0, this._countValue(ex.perCount, s0.controller, s0));
         // Kalain, Reclusive Painter: "for each mana from a Treasure spent to cast them" — cast, and just now
@@ -21971,7 +22022,7 @@
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
         if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -22548,6 +22599,13 @@
           const cnt = n(e.n);
           // Archfiend of Despair: each loses what they lost this turn
           if (e.who === 'opponents' && e.n && e.n.lifeLostBy === 'each') { for (const p of this.opponentsOf(ctx.controller)) { const k = p.lifeLostThisTurn || 0; if (k > 0) this.changeLife(p, -k); } }
+          /* One Ring to Rule Them All: "Each opponent loses 1 life for each creature card in that player's graveyard." —
+             each their own count, all counted first (ownGraveEach) */
+          else if (e.who === 'opponents' && e.n && e.n.ownGraveEach) {
+            const lose = this.opponentsOf(ctx.controller).filter(p => !p.hasLost).map(p => [p, (((this.zones[p.id] || {}).graveyard || []).filter(c => this._cardFitsWords(c, e.n.ownGraveEach)).length) * (e.n.mult || 1)]);
+            for (const [p, k] of lose) if (k > 0) this.changeLife(p, -k);
+          }
+
           // Within Range: "each opponent loses life equal to the number of creatures attacking them" — each their own count
           else if (e.who === 'opponents' && e.n && e.n.attackingThem) {
             for (const p of this.opponentsOf(ctx.controller)) {
@@ -31739,10 +31797,28 @@
           this._lastGroup = (this.combat.attackers || []).slice();
           break;
         case 'untapAttackedThisTurn':
+          // (World at War: "untap all creatures that attacked this turn" — whoever's they are: all)
           for (const o of this.battlefield) {
-            if (o.controller === ctx.controller && o.attackedTurn === this.turn) this._markUntapped(o);
+            if ((e.all || o.controller === ctx.controller) && o.attackedTurn === this.turn) this._markUntapped(o);
           }
           break;
+        /* World at War: "After the second main phase this turn, there's an additional combat phase followed by an
+           additional main phase. At the beginning of that combat, untap all creatures that attacked this turn." — after
+           the second main phase, in it or still to come; past it, nothing (afterMainN, beginDelayed) */
+        case 'extraCombatAfterMain': {
+          if (!this.phase) break;
+          const nth = e.nth || 2;
+          const begun = this._mainPhases && this._mainPhases.turn === this.turn ? this._mainPhases.n : 0;
+          const inMain = /^(?:precombat|postcombat)$/.test(this.phase.id);
+          if (begun > nth || (begun === nth && !inMain)) { this.logEvent('rules', `${ctx.name || 'It'}: the ${nth === 2 ? 'second' : 'that'} main phase has passed; no additional phases.`); break; }
+          const combat = { ph: 2 };
+          if ((e.beginEffects || []).length) combat.beginDelayed = { controller: ctx.controller, objId: src ? src.id : null, name: e.beginName || 'At the beginning of that combat', effects: e.beginEffects };
+          const phases = [combat].concat(e.withMain ? [3] : []);
+          (this._extraPhases = this._extraPhases || []).push({ turn: this.turn, after: begun === nth ? this.phaseIndex : 3, afterMainN: nth, phases });
+          this.logEvent('rules', `After the ${nth === 2 ? 'second' : 'next'} main phase this turn there is an additional combat phase${e.withMain ? ' and main phase' : ''}.`);
+          break;
+        }
+
         /* "Look at the top card of your library. If it's a land card, you
            may put it onto the battlefield tapped." */
         /* Runo Stromkirk: "look at the top card of your library. You may reveal that card. If a creature card with mana

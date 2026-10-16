@@ -4050,6 +4050,8 @@
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
           // (Zaffai and the Tempests: free from hand once a turn — worth it even when it could be paid for)
           if (use.kind === 'cast' && use.via === 'freeHandOnce') { consider(o, use); continue; }
+          // (Demon of Fate's Design: life for the mana, once a turn — while what is left is a safe amount)
+          if (use.kind === 'cast' && use.via === 'grantLifeOnce') { if ((g.player(this.pid).life || 0) - ((use.alt && use.alt.life) || 0) >= 8) consider(o, use); continue; }
           if (use.kind !== 'cast' || !/^(morph|evoke|dash|blitz|warp|bestow|spectacle)$/.test(use.via)) continue;
           if (out.some(x => x.o.id === o.id && !x.via)) continue;
           consider(o, use);
@@ -4293,9 +4295,15 @@
               .sort((x, y) => y.v - x.v);
             const picked = [];
             let left = spare;
+            /* Collective Effort: "Escalate—Tap an untapped creature you control." — as many modes past the first as there
+               are creatures (or cards, for a discard) to give, and only a mode worth more than what it costs (escalateThing) */
+            const et = ex.escalateThing;
+            const etRoom = !et ? Infinity : et.tapCreatures ? g._tapCostPool(this.pid, et.tapCreatures, choice.o).length
+              : g.zones[this.pid].hand.filter(c => c !== choice.o).length;
             for (const r of ranked) {
               // (a mode with nothing it could target can't be chosen)
               if (modal && modal.options[r.m.i] && !modal.options[r.m.i].ok) continue;
+              if (et && picked.length && (picked.length > etRoom || r.v <= 1.5)) continue;
               // escalate: each mode beyond the first costs the escalate cost
               const c = MTG.mana.cmc(r.m.cost || '') + (ex.escalate && picked.length ? MTG.mana.cmc(ex.escalate) : 0);
               if (c <= left && (r.v > 0 || !picked.length)) { picked.push(r.m.i); left -= c; }

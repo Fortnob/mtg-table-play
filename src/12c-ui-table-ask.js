@@ -1413,6 +1413,13 @@
                 html: `Escalate ${MTG.mana.html(ex.escalate)} for each mode after the first` +
                   (extra ? ` — paying it ${extra === 1 ? 'once' : extra + ' times'}.` : '.') }));
             }
+            // (Collective Effort: "Escalate—Tap an untapped creature you control." — a price that isn't mana)
+            if (ex.escalateThing) {
+              const extra = Math.max(0, st.spree.length - 1);
+              rows.appendChild(el('div', { class: 'tiny dim', style: { margin: '4px 2px 0' },
+                text: `Escalate — ${ex.escalateThing.text} for each mode after the first` +
+                  (extra ? ` — ${extra === 1 ? 'once' : extra + ' times'}.` : '.') }));
+            }
           } else if (ex.kind === 'kicker' && ex.costs) {
             // "Kicker {B} and/or {R}": a toggle for each cost, any or all of them
             ex.costs.forEach((c, i) => {
