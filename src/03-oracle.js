@@ -471,9 +471,10 @@
       if (/^Return (?:this (?:creature|artifact|enchantment|permanent|Aura|land)|CARDNAME) to its owner'?s hand$/i.test(p)) { cost.returnSelf = true; continue; }
       /* "Return a land you control to its owner's hand", "Return two Islands
          you control to their owner's hand": permanents bounced as the price */
-      if ((m = p.match(/^Return (a|an|one|two|three) (?:untapped )?([A-Za-z -]+?) you control to (?:its|their) owner'?s'? hands?$/i))) {
-        const w = m[2].trim().replace(/ies$/, 'y').replace(/s$/, '');
-        cost.returnOwn = { n: WORDN(m[1]), filter: w.toLowerCase(), untapped: /untapped/i.test(p) || undefined };
+      // (Urban Retreat: "Return a tapped creature you control to its owner's hand" — tapped)
+      if ((m = p.match(/^Return (a|an|one|two|three) (?:(un)?tapped )?([A-Za-z -]+?) you control to (?:its|their) owner'?s'? hands?$/i))) {
+        const w = m[3].trim().replace(/ies$/, 'y').replace(/s$/, '');
+        cost.returnOwn = { n: WORDN(m[1]), filter: w.toLowerCase(), untapped: /untapped/i.test(p) || undefined, tapped: /^Return \S+ tapped /i.test(p) || undefined };
         continue;
       }
       // Millikin: "Mill a card" as the price
@@ -7520,7 +7521,7 @@
         if (!k) return null;
         return { op: /gain/i.test(m[1]) ? 'gainLife' : 'loseLife', n: k, who: 'you' };
       } },
-    { re: /^(CARDNAME|This creature|It|That creature|Target creature you control) deals damage equal to (.+?) to (any target|any other target|(?:another )?target [a-z' ]+?|each opponent|each other creature|each creature|each other creature and each opponent)\.?$/i,
+    { re: /^(CARDNAME|This creature|It|That creature|Target creature you control) deals damage equal to (.+?) to (any target|any other target|(?:another )?target [a-z' ]+?|each opponent|each other creature|each creature|each other creature and each opponent|each creature your opponents control)\.?$/i,
       make: (m) => {
         // (Spider-Man 2099: "deals damage equal to his power" — his own, as "its")
         if (/^CARDNAME$/.test(m[1])) m[2] = m[2].replace(/^(?:his|her) (power|toughness)\b/i, 'its $1');
@@ -7541,6 +7542,8 @@
         if (/^each other creature and each opponent$/i.test(m[3])) { e.each = 'creature opponent'; e.eachOther = true; }
         else if (/^each opponent$/i.test(m[3])) e.each = 'opponent';
         else if (/^each (?:other )?creature$/i.test(m[3])) { e.each = 'creature'; if (/other/i.test(m[3])) e.eachOther = true; }
+        // (Volcanic Vision: "equal to that card's mana value to each creature your opponents control")
+        else if (/^each creature your opponents control$/i.test(m[3])) e.each = 'creature your opponents control';
         else e.targets = (e.targets || []).concat([targetSpec(m[3])]);
         return e;
       } },
@@ -20623,9 +20626,13 @@
       }
       /* Talon Gates of Madara: "{4}: Put this card from your hand onto the battlefield." An
          ability used from the hand that keeps the card, through channel's door. */
-      const hpb = line.match(/^((?:\{[^}]+\})+):\s*Put (?:this card|CARDNAME) from your hand onto the battlefield( tapped)?\.?$/i);
-      if (hpb) {
-        out.channel = { cost: hpb[1], keep: true, effects: [{ op: 'selfFromGraveyard', from: 'hand', to: 'battlefield', tapped: !!hpb[2] }] };
+      /* (Urban Retreat: "{2}, Return a tapped creature you control to its owner's hand: Put this card from your hand
+         onto the battlefield. Activate only as a sorcery." — a price beyond mana, and a sorcery's timing: thing, sorcery) */
+      const hpb = line.match(/^((?:\{[^}]+\})+)(?:,\s*(Return [^:]+? to (?:its|their) owner'?s'? hands?))?:\s*Put (?:this card|CARDNAME) from your hand onto the battlefield( tapped)?\.?(\s*Activate only as a sorcery\.)?$/i);
+      const hpbThing = hpb && hpb[2] ? parseCost(hpb[2]) : null;
+      if (hpb && (!hpbThing || (hpbThing.returnOwn && !hpbThing.other.length))) {
+        out.channel = Object.assign({ cost: hpb[1], keep: true, effects: [{ op: 'selfFromGraveyard', from: 'hand', to: 'battlefield', tapped: !!hpb[3] }] },
+          hpbThing ? { thing: { returnOwn: hpbThing.returnOwn } } : {}, hpb[4] ? { sorcery: true } : {});
         out.abilities.push({ kind: 'castModifier', keyword: 'Put onto the battlefield', arg: hpb[1], text: line, auto: true, effects: [] });
         autoLines++;
         continue;
@@ -26206,6 +26213,9 @@
       { re: /^Players reveal each card they draw\.?$/i, eff: { op: 'revealDraws' }, auto: true },
       // Tidal Barracuda: "Any player may cast spells as though they had flash."
       { re: /^Any player may cast spells as though they had flash\.?$/i, eff: { op: 'flashGrant', anyPlayer: true }, auto: true },
+      // Quick Sliver: "Any player may cast Sliver spells as though they had flash."
+      { re: /^Any player may cast ([A-Z][a-z]+|creature|artifact|enchantment|sorcery|noncreature) spells as though they had flash\.?$/,
+        make: (m) => ({ op: 'flashGrant', anyPlayer: true, filter: m[1].toLowerCase() }), auto: true },
       // Teferi, Mage of Zhalfir: "Creature cards you own that aren't on the battlefield have flash."
       { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
       // Everlasting Torment: "All damage is dealt as though its source had wither."
@@ -26847,6 +26857,10 @@
          (tokenCopyEquipped) */
       { re: /^As long as (?:this Equipment|CARDNAME) is attached to a creature, the first time you would create one or more tokens each turn, you may instead create that many tokens that are copies of equipped creature\.?$/i,
         eff: { op: 'tokenCopyEquipped' }, auto: true },
+      /* Moonlit Meditation: "The first time you would create one or more tokens each turn, you may instead create that
+         many tokens that are copies of enchanted permanent." — the Crown's question, for the Aura's permanent (anyKind) */
+      { re: /^The first time you would create one or more tokens each turn, you may instead create that many tokens that are copies of enchanted (permanent|creature|artifact)\.?$/i,
+        make: (m) => ({ op: 'tokenCopyEquipped', anyKind: m[1].toLowerCase() === 'permanent' }), auto: true },
       // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
       /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead. Put
@@ -27022,6 +27036,10 @@
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, cond: { kind: 'sacrificedThisTurn', what: 'nontoken', n: 1 } }, auto: true },
       // The Matrix of Time (a plane): "During your turn, you may play lands and cast spells from among cards exiled with The Matrix of Time." (exiledWith)
       { re: /^During your turn, you may play lands and cast spells from among cards exiled with CARDNAME\.?$/i, eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true }, auto: true },
+      /* Theater of Horrors: "During your turn, if an opponent lost life this turn, you may play lands and cast spells from
+         among cards exiled with this enchantment." (exiledWith, cond lostLife) */
+      { re: /^During your turn, if an opponent lost life this turn, you may play lands and cast spells from among cards exiled with (?:CARDNAME|this enchantment|this artifact|this creature)\.?$/i,
+        eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, cond: { kind: 'lostLife', who: 'opponent', n: 1 } }, auto: true },
       { re: /^You may play lands and cast spells from among cards exiled with CARDNAME\.?$/i, eff: { op: 'playFrom', zone: 'exiledWith', what: 'any' }, auto: true },
       // Windriddle Palaces (a plane): "You may play lands and cast spells from the top of any player's library." (playTopAny)
       { re: /^You may play lands and cast spells from the top of any player'?s library\.?$/i, eff: { op: 'playTopAny' }, auto: true },

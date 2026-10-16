@@ -6984,7 +6984,10 @@
         out.push({ kind: 'cycle', channel: true, forecast: true, cost: a.forecast.cost || '', label: 'Forecast ' + (a.forecast.cost || (a.forecast.thing ? '' : '{0}')) });
       }
       // (Tetzimoc, Primal Death: "Activate only during your turn." — yourTurn)
-      if (o.zone === 'hand' && a.channel && !(a.channel.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId))) {
+      // (Urban Retreat: "Activate only as a sorcery.", and a creature to return — sorcery, thing)
+      if (o.zone === 'hand' && a.channel && !(a.channel.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId)) &&
+          !(a.channel.sorcery && !(this.activePlayer && this.activePlayer.id === playerId && this.isMain && this.stackEmpty)) &&
+          !(a.channel.thing && this._thingCostBlocked(playerId, a.channel.thing, o, {}))) {
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
         // (a Spirit Guide's is a mana ability: `mana`, for the table to offer it as a source while a spell waits for mana)
@@ -7886,6 +7889,9 @@
         }
         opts = Object.assign({}, opts, { x });
       }
+      // (Urban Retreat: the creature to return, there still — thing)
+      const chThing = !use.forecast && a.channel && a.channel.thing;
+      if (chThing) { const why = this._thingCostBlocked(playerId, chThing, o, opts); if (why) return this.fail(why); }
       if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts))) {
         return this.fail(`Not enough mana to ${use.forecast ? 'forecast' : 'channel'} (${use.cost}).`);
       }
@@ -7934,6 +7940,7 @@
         x,
       };
       this.stack.push(item);
+      if (chThing) this._payThingCosts(playerId, chThing, o, opts, item);
       // (Tetzimoc, Primal Death: shown from the hand, and kept — reveal)
       this.logEvent('ability', a.channel.reveal ? `${this.player(playerId).name} reveals ${o.name} from their hand.` : `${this.player(playerId).name} channels ${o.name}.`);
       this.emit('sfx', 'cast');
@@ -12546,7 +12553,8 @@
         else if (pool.length) {
           ask({ type: 'pickCard', count: need, purpose: 'returnCost', worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: `Return ${need === 1 ? 'a ' + cost.returnOwn.filter : O.nounCount(need, cost.returnOwn.filter)} you control to their owner's hand.` });
+            // (Urban Retreat: "Return a tapped creature")
+            prompt: `Return ${need === 1 ? 'a ' : need + ' '}${cost.returnOwn.tapped ? 'tapped ' : cost.returnOwn.untapped ? 'untapped ' : ''}${need === 1 ? cost.returnOwn.filter : O.nounPlural(cost.returnOwn.filter)} you control to their owner's hand.` });
         }
       }
       /* Permanents tapped to pay ("Tap an untapped creature you control"):
@@ -42418,8 +42426,10 @@
       /* Mirrormind Crown: "As long as this Equipment is attached to a creature, the first time you would create one or
          more tokens each turn, you may instead create that many tokens that are copies of equipped creature." — each
          Crown of yours once (crown:<id>), asked as Esix's question with the one creature in it */
-      const crown = ev.firstAny && this.battlefield.find(x => x.controller === controller && !x.phasedOut && !ev.done.includes('crown:' + x.id) &&
-        this._staticOp(x, 'tokenCopyEquipped') && x.attachedTo && !!(this.characteristics(this.obj(x.attachedTo)) || {}).isCreature);
+      // (Moonlit Meditation: "copies of enchanted permanent" — an artifact will do: anyKind)
+      const crown = ev.firstAny && this.battlefield.find(x => { if (x.controller !== controller || x.phasedOut || ev.done.includes('crown:' + x.id) || !x.attachedTo) return false;
+        const op = this._staticOp(x, 'tokenCopyEquipped'), at = this.obj(x.attachedTo);
+        return !!op && !!at && at.zone === 'battlefield' && (op.anyKind || !!(this.characteristics(at) || {}).isCreature); });
       if (crown) {
         const eq = this.obj(crown.attachedTo);
         return { which: 'crown:' + crown.id, spec: MTG.choice.normalize({ type: 'choose', playerId: controller, purpose: 'tokenCopyFirst', kind: 'objects', zone: 'battlefield',
