@@ -4658,7 +4658,8 @@
         ? [{ op: 'counters', kind: m[1], n: 1, scope: 'triggerObject' }, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'triggerObject' },
           { op: 'addTypes', subtypes: [m[3]], scope: 'triggerObject' }] : null; } },
     // Guide of Souls: "It becomes an Angel in addition to its other types."
-    { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+    // (The Legend of Kyoshi: "That land becomes an Island in addition to its other types." — the land just earthbent)
+    { re: /^(?:It|That creature|That land) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
         : { op: 'addTypes', subtypes: [m[1]], scope: 'lastTarget' }) },
     // Succumb to the Cold: "Put a stun counter on each of them." — every target just tapped
@@ -7668,14 +7669,21 @@
     { re: /^(?:You )?[Uu]ntap (up to )?(one|two|three|four|five|six|seven|eight|nine|ten|\d+) (lands|creatures|artifacts|permanents)( you control)?\.?$/,
       make: (m) => ({ op: 'untapChosen', n: num(m[2]), upTo: !!m[1], filter: m[3].replace(/s$/, '') }) },
     // (Old Rutstein: "If a noncreature, nonland card is milled this way, …" — the comma in a list of "non-" words is the condition's)
+    // (Splash Portal: "If that creature is a Bird, Frog, Otter, or Rat, draw a card." — the comma ending a list is the condition's too)
     { re: /^(?:Then )?[Ii]f (.+?), (?!non[a-z]+ [a-z]+ (?:is|was) )(.+)$/,
       make: (m) => {
-        const cond = condOf(m[1]);
-        if (!cond) return null;
-        const rest = m[2].replace(/^(\w)/, (c) => c.toUpperCase());
-        const inner = parseSentenceList(splitSentences(rest));
-        if (!inner.auto || !inner.effects.length) return null;
-        return { op: 'ifCond', cond, then: inner.effects };
+        const one = (c0, r0) => {
+          const cond = condOf(c0);
+          if (!cond) return null;
+          const rest = r0.replace(/^(\w)/, (c) => c.toUpperCase());
+          const inner = parseSentenceList(splitSentences(rest));
+          if (!inner.auto || !inner.effects.length) return null;
+          return { op: 'ifCond', cond, then: inner.effects };
+        };
+        const first = one(m[1], m[2]);
+        if (first) return first;
+        const list = m[2].match(/^((?:[A-Z][a-z]+, )*(?:or|and\/or) an? [A-Z][a-z]+|(?:[A-Z][a-z]+, )*or [A-Z][a-z]+), (.+)$/);
+        return list ? one(m[1] + ', ' + list[1], list[2]) : null;
       } },
 
     /* ===== a condition on the thing just handled ===== */
@@ -8735,6 +8743,10 @@
     // "…dealt to creatures this turn", "…dealt this turn to creatures you control"
     { re: /^Prevent all (combat )?damage that would be dealt (?:to creatures( you control)? this turn|this turn to creatures( you control)?)\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: m[2] || m[3] ? 'yourCreatures' : 'creatures' }) },
+    // Surge of Salvation: "Prevent all damage that black and/or red sources would deal to creatures you control this turn." (fromColors)
+    { re: /^Prevent all damage that ((?:white|blue|black|red|green)(?: and\/or (?:white|blue|black|red|green))*) sources would deal to creatures you control this turn\.?$/i,
+      make: (m) => ({ op: 'preventDamage', to: 'yourCreatures',
+        fromColors: m[1].toLowerCase().split(/ and\/or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[w]) }) },
     // Pack Leader: "Prevent all combat damage that would be dealt this turn to Dogs you control."
     { re: /^Prevent all (combat )?damage that would be dealt (?:this turn to ([A-Z][a-z]+)s you control|to ([A-Z][a-z]+)s you control this turn)\.?$/,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'yourCreatures', toSubtype: (m[2] || m[3]).toLowerCase() }) },
@@ -9928,6 +9940,13 @@
         return { op: /Destroy/.test(m[1]) ? 'destroyAll' : 'exileAll', scope: sc, what: sc.what,
           noRegen: /regenerated/i.test(m[0]) };
       } },
+    // Ajani, Strength of the Pride: "exile Ajani and each artifact and creature your opponents control" — itself, then the rest
+    { re: /^Exile (?:CARDNAME|this (?:creature|artifact|enchantment|planeswalker|permanent)) and ((?:each|all) [a-zA-Z0-9 ,'/+-]+?)\.?$/,
+      make: (m) => {
+        const sc = eachScope(m[1]);
+        if (!sc || sc.self || sc.attached) return null;
+        return { op: 'sequence', list: [{ op: 'exileSelf' }, { op: 'exileAll', scope: sc, what: sc.what, noRegen: false }] };
+      } },
     { re: /^(Destroy|Exile) all ([a-zA-Z0-9 ,'/+-]+?)\.?(?: They can'?t be regenerated\.?)?$/,
       make: (m) => {
         const sc = scopeOf(m[2]);
@@ -10108,7 +10127,9 @@
   function eachScope(phrase) {
     const p = String(phrase).trim().replace(/^(?:each|all) /i, '');
     // (Perplexing Test: "all creature tokens" are tokens that are creatures, not creatures and tokens)
-    return scopeOf(p.replace(/\b(creature|permanent|artifact|enchantment|land|planeswalker|battle)\b(?!s)(?! tokens?\b)/, '$1s'));
+    return scopeOf(p.replace(/\b(creature|permanent|artifact|enchantment|land|planeswalker|battle)\b(?!s)(?! tokens?\b)/, '$1s')
+      // Ajani, Strength of the Pride: "each artifact and creature your opponents control" — both nouns plural
+      .replace(/ and (creature|permanent|artifact|enchantment|land|planeswalker|battle)\b(?!s)(?! tokens?\b)/, ' and $1s'));
   }
 
   /* "for each creature you control with a +1/+1 counter on it", "for each
@@ -22465,6 +22486,9 @@
     // Absorbing Man and Titania: "Double all damage that creature sources you control would deal." (doubleSourcesYours)
     { re: /^Double all damage that (creature |red|green |white |blue |black )?sources you control would deal\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgDoubleYours', event: 'damage', who: 'you', how: 'double', sourceWords: m[1] ? m[1].trim().toLowerCase() : null }) },
+    // Collective Inferno: "Double all damage that sources you control of the chosen type would deal." (sourceChosenType)
+    { re: /^Double all damage that sources you control of the chosen type would deal\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgDoubleChosen', event: 'damage', who: 'you', how: 'double', sourceChosenType: true }) },
     /* The Sound of Drums, Inquisitor's Flail: "If enchanted (equipped) creature would
        deal combat damage (to a permanent or player), it deals double that damage
        instead"; "If another creature would deal combat damage to equipped creature" */

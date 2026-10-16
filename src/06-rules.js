@@ -14721,6 +14721,8 @@
         // Tor Wauki the Younger: "another source you control" — not itself (otherSource)
         if (ef.otherSource && ev.source && ev.source.id === src.id) return false;
         if (ef.sourceWords && !this._cardFitsWords(ev.source, ef.sourceWords)) return false;
+        // Collective Inferno: "sources you control of the chosen type" — a creature or a Kindred spell of that type (sourceChosenType)
+        if (ef.sourceChosenType && !(ev.source && src.chosenType && this._hasCreatureType(ev.source, src.chosenType))) return false;
         // The Sound of Drums, Inquisitor's Flail: combat damage from (or to) the creature it's attached to
         if (ef.combatOnly && !ev.combat) return false;
         if (ef.fromAttached && !(ev.source && src.attachedTo === ev.source.id)) return false;
@@ -32778,13 +32780,14 @@
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
             tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking, toSubtype: e.toSubtype || null,
-            fromMaxPower: e.fromMaxPower != null ? e.fromMaxPower : null,
+            fromMaxPower: e.fromMaxPower != null ? e.fromMaxPower : null, fromColors: e.fromColors || null,
             // Comeuppance: "by sources you don't control", and the damage turned back (fromNotYours, reflectBySource)
             fromNotYours: !!e.fromNotYours, reflectBySource: e.reflectBySource ? ((src && src.id) || true) : null });
           {
             // "Damage from attacking creatures to Alice is prevented this turn." — said the way the card says it
             const by = e.fromCreatures ? ' that creatures would deal' : e.fromAttacking ? ' from attacking creatures'
-              : e.fromMaxPower != null ? ` from creatures with power ${e.fromMaxPower} or less` : '';
+              : e.fromMaxPower != null ? ` from creatures with power ${e.fromMaxPower} or less`
+              : e.fromColors ? ` from ${e.fromColors.map(c => ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[c]).join(' and/or ')} sources` : '';
             const to = e.to === 'you' ? ` to ${me.name}` : e.to === 'creatures' ? ' to creatures'
               : e.to === 'youAndWalkers' ? ` to ${me.name} and planeswalkers they control${e.fromNotYours ? ' by sources they don\'t control' : ''}`
               : e.to === 'yourCreatures' ? ` to ${e.toSubtype ? e.toSubtype.charAt(0).toUpperCase() + e.toSubtype.slice(1) + 's' : 'creatures'} ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
@@ -38883,6 +38886,8 @@
         if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;
         // Avacyn, Guardian Angel: "by sources of the color of your choice" (fromColor)
         if (pv.fromColor && !(source && source.analysis && ((source.analysis() || {}).colors || []).includes(pv.fromColor))) continue;
+        // Surge of Salvation: "black and/or red sources" — a source of either colour, as it is now (fromColors)
+        if (pv.fromColors && !(source && ((source.zone === 'battlefield' && (this.characteristics(source) || {}).colors) || (source.analysis() || {}).colors || []).some(c => pv.fromColors.includes(c)))) continue;
         if (pv.fromAttacking && !(source && source.attacking)) continue;
         // Fog of War: only what creatures with power 2 or less deal
         if (pv.fromMaxPower != null && !(source && (this.characteristics(source) || {}).isCreature && this.powerOf(source) <= pv.fromMaxPower)) continue;
