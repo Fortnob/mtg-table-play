@@ -19320,6 +19320,9 @@
       if (o.zone === 'battlefield') {
         const i = this.battlefield.indexOf(o);
         if (i >= 0) this.battlefield.splice(i, 1);
+        // Hateful Eidolon: "each Aura you controlled that was attached to it" — who controlled each, as it went
+        const aurasBy = o.attachments.map(id => this.obj(id)).filter(x => x && this._auraNow(x)).map(x => x.controller);
+        o._lastAurasBy = aurasBy.length ? aurasBy : null;
         // detach (an Aura that was on it goes to the graveyard, and looks for no new host: _needsHost)
         for (const aid of o.attachments.slice()) { const at = this.obj(aid); if (at) { at.attachedTo = null; at._needsHost = false; } }
         // Stone Haven Outfitter: "whenever an equipped creature you control dies" — what it had on it as it went
@@ -23371,6 +23374,11 @@
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Ensnared by the Mara: "the total mana value of those exiled cards" — the ones just exiled
         if (v && typeof v === 'object' && v.exiledMv) return (this._lastExiledList || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Hateful Eidolon: "for each Aura you controlled that was attached to it" — as it went (_lastAurasBy)
+        if (v && typeof v === 'object' && v.aurasYoursOnTrigger) {
+          const it = this.obj((ctx.triggerData || {}).objectId);
+          return ((it && it.zone !== 'battlefield' && it._lastAurasBy) || []).filter(id => id === ctx.controller).length * (v.mult || 1);
+        }
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
         if (v && typeof v === 'object' && v.countersOnTrigger) {
           const tdC = ctx.triggerData || {};
@@ -25429,6 +25437,12 @@
             alive.forEach((p, i) => { if (counts[i] === least) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); });
             break;
           }
+          // Fade from History: "each player who controls an artifact or enchantment" — who does, before any is made (controlsWords)
+          if (e.who === 'controlsWords') {
+            const has = this.players.filter(p => !p.hasLost && this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._cardFitsWords(x, e.controlsWords)));
+            for (const p of has) this._createToken(p.id, Object.assign({}, e, { n: many }, sized));
+            break;
+          }
           // Slaughter Specialist: "each opponent creates …"
           if (e.who === 'opponents') { for (const p of this.opponentsOf(ctx.controller)) if (!p.hasLost) this._createToken(p.id, Object.assign({}, e, { n: many }, sized)); break; }
           // Brimaz: "a token that's blocking that creature" — the creature the trigger is about
@@ -25515,6 +25529,8 @@
             if (e.op === 'destroyAll' && this.hasKw(x, 'indestructible')) return false;
             // Fell the Mighty: "with power greater than target creature's power"
             if (e.aboveTargetPower) { const tg = firstObj(); if (!tg || this.powerOf(x) <= this.powerOf(tg)) return false; }
+            // Mandate of Abaddon: "with power less than that creature's power" — the creature chosen as the target
+            if (e.belowTargetPower) { const tg = firstObj(); if (!tg || tg.zone !== 'battlefield' || this.powerOf(x) >= this.powerOf(tg)) return false; }
             if (e.exceptMade && (this._madeThisResolution || []).includes(x.id)) return false;
             // Slash the Ranks: "except for commanders"
             if (e.exceptCommanders && x.isCommander) return false;
@@ -44939,6 +44955,8 @@
     /** Krile Baldesion: "target creature card with mana value equal to that spell's mana value" (mvEqTrigger) */
     _mvEqTriggerSpec(spec, td) {
       const v = this._triggerSpellMv(td);
+      // (Hammerhead Tyrant: "less than or equal to that spell's mana value" — atMost)
+      if (spec.mvEqTrigger === 'atMost') return Object.assign({}, spec, { mvEqTrigger: false, maxMv: v });
       return Object.assign({}, spec, { mvEqTrigger: false, minMv: v, maxMv: v });
     }
     _auraNow(x) {

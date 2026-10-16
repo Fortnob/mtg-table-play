@@ -2394,6 +2394,9 @@
     // Gor Muldrak, Amphinologist: "each player who controls the fewest creatures creates a 4/3 … token" (fewestCreatures)
     { re: /^Each player who controls the fewest creatures creates (.+)$/i,
       make: (m) => { const inner = parseTokenSentence('Create ' + m[1]); return inner && inner.op === 'createToken' ? Object.assign(inner, { who: 'fewestCreatures' }) : null; } },
+    // Fade from History: "Each player who controls an artifact or enchantment creates a 2/2 green Bear creature token." (who controlsWords)
+    { re: /^Each player who controls an? ([a-z]+(?: or (?:an? )?[a-z]+)?) creates (.+)$/i,
+      make: (m) => { const inner = parseTokenSentence('Create ' + m[2]); return inner && inner.op === 'createToken' ? Object.assign(inner, { who: 'controlsWords', controlsWords: m[1].toLowerCase().replace(/ or an? /, ' or ') }) : null; } },
     // Into the Fire: "2 damage to each creature, planeswalker, and battle"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each creature, planeswalker, and battle\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), scope: { who: 'all', what: 'permanent', anyOf: ['creature', 'planeswalker', 'battle'] } }) },
@@ -4031,6 +4034,10 @@
     // (Empress Galina: "Gain control of target legendary permanent.")
     { re: /^Gain control of target ((?:legendary )?(?:creature|permanent|artifact)|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
+    /* Hammerhead Tyrant: "return up to one target nonland permanent an opponent controls with mana value less than or
+       equal to that spell's mana value to its owner's hand." (mvEqTrigger 'atMost') */
+    { re: /^Return (up to one )?(target [a-z ]+?) with mana value less than or equal to that spell'?s mana value to its owner'?s hand\.?$/i,
+      make: (m) => { const spec = targetSpec(m[2]); return spec && !spec.unknown ? { op: 'bounce', targets: [Object.assign(spec, { mvEqTrigger: 'atMost' }, m[1] ? { upTo: true } : {})] } : null; } },
     // Skyfire Kirin: "gain control of target creature with that spell's mana value until end of turn" (mvEqTrigger)
     { re: /^Gain control of (target creature) with that spell'?s mana value until end of turn\.?$/i,
       make: (m) => ({ op: 'gainControl', until: 'eot', targets: [Object.assign(targetSpec(m[1]), { mvEqTrigger: true })] }) },
@@ -9559,6 +9566,16 @@
         abilities: [{ kind: 'triggered', event: 'permAttacks', self: false, optional: false, auto: true, condition: null,
           objectIdIs: '$tgt', attacksYourOppPlayer: true, text: 'Whenever the chosen creature attacks one of your opponents, you draw a card.',
           effects: [{ op: 'draw', n: 1, who: 'you' }] }] }) },
+    // Hateful Eidolon: "draw a card for each Aura you controlled that was attached to it" — the creature that died (aurasYoursOnTrigger)
+    { re: /^Draw a card for each Aura you controlled that was attached to it\.?$/i, make: () => ({ op: 'draw', n: { aurasYoursOnTrigger: true }, who: 'you' }) },
+    /* Wand of Orcus: "it and Zombies you control gain deathtouch until end of turn." — the creature the trigger is
+       about, and the rest as the sentence alone would say (triggerObject) */
+    { re: /^(?:It|That creature) and ((?:other )?[A-Za-z]+s you control) gain ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => {
+        const rest = parseEffectSentence(U.titleCase(m[1].charAt(0)) + m[1].slice(1) + ' gain ' + m[2] + ' until end of turn.');
+        if (!rest || Array.isArray(rest) || rest.op !== 'grantKeyword' || (rest.targets || []).length) return null;
+        return [Object.assign({}, rest, { scope: 'triggerObject', text: m[0] }), Object.assign(rest, { text: m[0] })];
+      } },
     /* Surge to Victory: "Whenever a creature you control deals combat damage to a player this turn, copy the exiled card.
        You may cast the copy without paying its mana cost." — the card targeted and exiled, linked to an emblem for the
        turn (castCopy of 'linked') */
@@ -9812,6 +9829,9 @@
     // Fell the Mighty: "Destroy all creatures with power greater than target creature's power."
     { re: /^Destroy all creatures with power greater than target creature'?s power\.?$/i,
       make: () => ({ op: 'destroyAll', what: 'creature', aboveTargetPower: true, targets: [{ type: 'creature' }] }) },
+    // Mandate of Abaddon: "Choose target creature you control. Destroy all creatures with power less than that creature's power." (belowTargetPower)
+    { re: /^Destroy all creatures with power less than that creature'?s power\.?$/i,
+      make: () => ({ op: 'destroyAll', what: 'creature', belowTargetPower: true }) },
     /* Mob Rule: "Gain control of all creatures with power 4 or greater until end of turn." — those yours already among
        "those creatures" the next sentence untaps (threatenAll noUntap, minPower/maxPower) */
     { re: /^Gain control of all creatures(?: with power (\d+) or (greater|less))? until end of turn\.?$/i,
@@ -19264,6 +19284,8 @@
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals combat damage to an opponent(?:,| )/i, event: 'equippedCombatDamage', extra: { toOpponent: true } },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals damage to (a player|an opponent)(?:,| )/i, event: 'equippedDealsDamage',
       extraOf: (m) => (/opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
+    // Wand of Orcus: "Whenever equipped creature attacks or blocks"
+    { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks or blocks(?:,| )/i, event: 'permAttacks', also: 'permBlocks', filt: () => ({ words: 'creature', equipped: true }) },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks(?:,| )/i, event: 'permAttacks', filt: () => ({ words: 'creature', equipped: true }) },
     // (Zurzoth, Chaos Rider: "draws their first card each turn")
     { re: /^When(?:ever)? an opponent draws their (first|second|third) card each turn(?:,| )/i, event: 'opponentDraw',

@@ -79860,4 +79860,116 @@ module.exports = (test) => {
     t.eq(toks('C', 'Elf').length, 3, 'C: three Elf Warriors');
     t.eq(toks('B', 'Elf').length, 0, 'B: none');
   });
+
+  test('Cards: Wand of Orcus — attacks or blocks: it and your Zombies gain deathtouch; combat damage makes that many Zombies', (mk, t) => {
+    t.auto('Wand of Orcus');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const zom = T.bf('A', 'Gravecrawler');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const w = T.bf('A', 'Wand of Orcus');
+    w.attachedTo = bear.id; bear.attachments = [w.id];
+    g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(g.hasKw(bear, 'deathtouch'), 'the equipped creature has deathtouch');
+    t.ok(g.hasKw(zom, 'deathtouch'), 'and the Zombie');
+    t.no(g.hasKw(elf, 'deathtouch'), 'not the Elf');
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    const zs = () => g.battlefield.filter(o => o.isToken && o.controller === 'A' && /Zombie/.test(o.card.type_line || '')).length;
+    t.eq(zs(), 2, '2 combat damage: two Zombies');
+    // blocking
+    T.nextTurn('B');
+    t.no(g.hasKw(bear, 'deathtouch'), 'deathtouch wore off');
+    const ogre = T.bf('B', 'Hill Giant');
+    bear.tapped = false;
+    T.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bear.id, attackerIds: [ogre.id] }]);
+    T.toMain('B', 'declareBlockers');
+    T.resolve();
+    t.ok(g.hasKw(bear, 'deathtouch'), 'it blocks: deathtouch');
+    T.toMain('B', 'endCombat');
+    T.resolve();
+    t.zone(ogre, 'graveyard', 'the blocked Giant dies to deathtouch');
+  });
+
+  test('Cards: Fade from History — a Bear for each player with an artifact or enchantment, then those are destroyed', (mk, t) => {
+    t.auto('Fade from History');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const ring = T.bf('B', 'Sol Ring');
+    const pac = T.bf('C', 'Pacifism');
+    T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'GG2');
+    T.cast('A', T.hand('A', 'Fade from History'));
+    const bears = (pid) => g.battlefield.filter(o => o.isToken && o.controller === pid && /Bear/.test(o.card.type_line || '')).length;
+    t.eq(bears('B'), 1, 'B had an artifact: a Bear');
+    t.eq(bears('C'), 1, 'C had an enchantment: a Bear');
+    t.eq(bears('A'), 0, 'A had neither: none');
+    t.zone(ring, 'graveyard', 'the artifact destroyed');
+    t.zone(pac, 'graveyard', 'the enchantment destroyed');
+  });
+
+  test('Cards: Mandate of Abaddon — destroys every creature with less power than the one chosen', (mk, t) => {
+    t.auto('Mandate of Abaddon');
+    const T = mk();
+    const g = T.g;
+    const giant = T.bf('A', 'Hill Giant');
+    const elf = T.bf('A', 'Llanowar Elves');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const ogre = T.bf('B', 'Hill Giant');
+    const serra = T.bf('B', 'Serra Angel');
+    T.mana('A', 'B3');
+    T.cast('A', T.hand('A', 'Mandate of Abaddon'), { targets: [giant] });
+    t.zone(elf, 'graveyard', 'your 1-power Elf');
+    t.zone(bear, 'graveyard', 'their 2-power Bears');
+    t.zone(giant, 'battlefield', 'the chosen creature stays');
+    t.zone(ogre, 'battlefield', 'as much power: stays');
+    t.zone(serra, 'battlefield', 'more power: stays');
+  });
+
+  test('Cards: Hammerhead Tyrant — each spell bounces up to one opponent nonland permanent of no greater mana value', (mk, t) => {
+    t.auto('Hammerhead Tyrant');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Hammerhead Tyrant');
+    const ring = T.bf('B', 'Sol Ring');
+    const serra = T.bf('B', 'Serra Angel');
+    const bear = T.bf('B', 'Grizzly Bears');
+    let tq = null;
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.ok(tq, 'a target asked');
+    const offered = [].concat(...(tq.options || [])).map(x => x && x.id);
+    t.ok(offered.includes(ring.id) && offered.includes(bear.id), 'mana value 3 or less offered');
+    t.no(offered.includes(serra.id), 'Serra Angel (5) not');
+    t.zone(bear, 'hand', 'the Bears bounced');
+    t.zone(serra, 'battlefield', 'the Angel stays');
+  });
+
+  test('Cards: Hateful Eidolon — an enchanted creature dies: a card for each of your Auras that was on it', (mk, t) => {
+    t.auto('Hateful Eidolon');
+    const T = mk({ library: Array(10).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Hateful Eidolon');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const a1 = T.bf('A', 'Pacifism'); const a2 = T.bf('A', 'Pacifism'); const a3 = T.bf('B', 'Pacifism');
+    for (const a of [a1, a2, a3]) { a.attachedTo = bear.id; bear.attachments.push(a.id); }
+    g.bumpBoard();
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'the creature died');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'two of the three Auras were A\'s: two cards');
+    // not enchanted: nothing
+    const elf = T.bf('B', 'Llanowar Elves');
+    const h1 = T.zone('A', 'hand').length;
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [elf] });
+    t.eq(T.zone('A', 'hand').length, h1, 'an unenchanted creature: no card');
+  });
 };
