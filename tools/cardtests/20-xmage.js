@@ -80766,4 +80766,67 @@ module.exports = (test) => {
       if (gift) { T.nextTurn('A'); T.player('A').pool.clear(); T.mana('A', '1G'); t.ok(g.castSpell('A', bears.id, { auto: true }), 'next turn: fine'); }
     }
   });
+  test('Cards: Sorin, Lord of Innistrad — −6: destroy up to three creatures and/or other planeswalkers, and they return under your control', (mk, t) => {
+    t.auto('Sorin, Lord of Innistrad');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    const sorin = T.bf('A', 'Sorin, Lord of Innistrad', { counters: { loyalty: 7 } });
+    const giant = T.bf('B', 'Hill Giant'), angel = T.bf('B', 'Serra Angel'), aj = T.bf('B', 'Ajani Goldmane');
+    const tok = T.bf('B', 'Grizzly Bears'); tok.isToken = true;
+    t.no(g._legalTargetsFor({ type: 'permanent', filter: 'creature or planeswalker', zone: 'battlefield', anyOf: ['creature', 'planeswalker'], another: true }, 'A', sorin.id).some(x => x.id === sorin.id), 'not Sorin himself');
+    T.activate('A', sorin, 2, { targets: [giant, angel, aj] });
+    t.eq(sorin.counters.loyalty, 1, '−6');
+    for (const o of [giant, angel, aj]) t.eq(o.zone + ':' + o.controller, 'battlefield:A', o.name + ' back under my control');
+    t.eq(tok.zone + ':' + tok.controller, 'battlefield:B', 'the untargeted one stays');
+  });
+  test('Cards: Tempt with Mayhem — each opponent may copy the spell; you copy it once, and once more for each who did', (mk, t) => {
+    t.auto('Tempt with Mayhem');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Mountain') });
+    const g = T.g;
+    T.toMain('A');
+    const shock = T.hand('A', 'Shock');
+    T.mana('A', 'R');
+    T.cast('A', shock, { targets: ['B'], resolve: false });
+    const asked = [];
+    T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: ch.playerId === 'B' }; });
+    T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: ch.playerId === 'B' }; });
+    T.mana('A', '1RR');
+    const tm = T.hand('A', 'Tempt with Mayhem');
+    t.ok(g.castSpell('A', tm.id, { auto: true, targets: [T.stackTarget(shock)] }), 'cast: ' + g.lastError);
+    // Tempt with Mayhem resolves: the copies go on the stack above the Shock
+    for (let i = 0; i < 8 && tm.zone === 'stack'; i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    T.settle();
+    t.eq(asked.sort().join(','), 'B,C', 'both opponents asked');
+    const copies = g.stack.filter(s => s.isCopy);
+    t.eq(copies.map(s => s.controller).sort().join(','), 'A,A,B', "B's copy, and two of mine (once, plus one for B)");
+    T.resolve();
+    t.eq(T.life('B') + T.life('C') + T.life('A'), 60 - 8, 'four Shocks in all');
+  });
+  test('Cards: Doors of Durin — whenever you attack: scry 2, then a creature from the top enters tapped and attacking', (mk, t) => {
+    t.auto('Doors of Durin');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    T.bf('A', 'Doors of Durin');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Dwarven Miner', { tapped: true });
+    const giant = T.top('A', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.answer('confirm', (ch) => ({ yes: true }));
+    T.toMain('A', 'declareBlockers'); T.resolve();
+    t.eq(giant.zone + ':' + giant.attacking + ':' + giant.tapped, 'battlefield:B:true', 'the Hill Giant enters tapped and attacking B');
+    t.ok(g.hasKw(giant, 'trample'), 'trample: I control a Dwarf');
+    t.no(g.hasKw(giant, 'hexproof'), 'no hexproof: no Elf');
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 15, 'both hit');
+    T.nextTurn('B');
+    t.ok(g.hasKw(giant, 'trample'), "still on the opponent's turn");
+    T.nextTurn('A');
+    t.no(g.hasKw(giant, 'trample'), 'gone as my next turn begins');
+    const land = T.top('A', 'Forest');
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.answer('confirm', (ch) => ({ yes: true }));
+    T.toMain('A', 'declareBlockers'); T.resolve();
+    t.zone(land, 'library', 'a land stays on top');
+  });
 };

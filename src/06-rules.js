@@ -27086,6 +27086,13 @@
           break;
         }
         // Starfall Invocation: one of the cards that sweep put into your graveyard
+        // Sorin, Lord of Innistrad: "Return each card put into a graveyard this way to the battlefield under your control." — all at once
+        case 'returnDestroyed': {
+          const back = ((this.resolving || {})._destroyed || []).map(d => this.obj(d.id)).filter(c => c && c.zone === 'graveyard' && !c.isToken);
+          for (const c of back) this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (back.length) this.logEvent('reanimate', `${me.name} returns ${back.map(c => c.name).join(', ')}.`);
+          break;
+        }
         case 'returnSwept': {
           const pool = (this._lastSwept || []).map(id => this.obj(id))
             // (Necromantic Selection: "put into a graveyard this way" — anyone's: anyGraveyard)
@@ -38128,7 +38135,36 @@
           if (!c) break;
           this._know([c], '*');
           this.logEvent('reveal', `${me.name} reveals ${c.name}.`);
-          if (!(c.analysis() || {}).isCreature) { this.moveObject(c, 'hand'); this.logEvent('zone', `${me.name} puts ${c.name} into their hand.`); break; }
+          // (Doors of Durin: a card that isn't a creature stays where it is — keepOnTop)
+          if (!(c.analysis() || {}).isCreature) { if (e.keepOnTop) break; this.moveObject(c, 'hand'); this.logEvent('zone', `${me.name} puts ${c.name} into their hand.`); break; }
+          /* Doors of Durin: "put it onto the battlefield tapped and attacking" — a player or planeswalker of its controller's
+             choice that it could attack (CR 508.4: anyDefender) */
+          if (e.anyDefender) {
+            const defs = this._legalDefenders(ctx.controller).map(d => d.id);
+            let def = defs[0] || null;
+            if (defs.length > 1) {
+              const label = (id) => (this.player(id) || this.obj(id) || {}).name || '?';
+              const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'attackWhom', values: defs,
+                options: defs.map((d, i) => ({ i, label: label(d) })), prompt: `${ctx.name ? ctx.name + ': ' : ''}${c.name} enters attacking — which player or planeswalker?` }, 'def');
+              if (picked === SUSPEND) return SUSPEND;
+              const idx = Array.isArray(picked) ? picked[0] : picked;
+              def = defs[idx == null ? 0 : idx] || defs[0];
+            }
+            this.moveObject(c, 'battlefield', { controller: ctx.controller, tapped: true });
+            if (c.zone !== 'battlefield') break;
+            c.tapped = true;
+            if (def && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+              c.attacking = def;
+              if (!this.combat.attackers.includes(c.id)) this.combat.attackers.push(c.id);
+            }
+            this._putThisWay = c.id;
+            this._lastPut = c.id;
+            this.logEvent('rules', `${me.name} puts ${c.name} onto the battlefield tapped${c.attacking ? ' and attacking' : ''}.`);
+            // ("Until your next turn, it gains trample if you control a Dwarf and hexproof if you control an Elf." — gains)
+            const kws = (e.gains || []).filter(gk => this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut && this._hasCreatureType(x, gk.ifType))).map(gk => gk.keyword);
+            if (kws.length) { c.effects.push({ keywords: kws, until: null, untilTurnOf: ctx.controller }); c._chr = null; this.bumpBoard(); }
+            break;
+          }
           // defending player: whom this creature attacks (or, a planeswalker, its controller)
           const at = src && src.attacking ? src.attacking : (ctx.triggerData || {}).defenderId;
           const dp = this.player(at) ? this.player(at) : this.player((this.obj(at) || {}).controller);

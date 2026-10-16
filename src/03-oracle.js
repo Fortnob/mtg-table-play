@@ -9679,6 +9679,12 @@
     { re: /^Exile up to (one|two|three) ([a-z]+) cards put into graveyards this way\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].toLowerCase(), anyOwner: true, to: 'exile',
         prompt: `Choose up to ${m[1].toLowerCase()} ${m[2].toLowerCase()} cards put into graveyards this way to exile.` }) },
+    /* Sorin, Lord of Innistrad: "Destroy up to three target creatures and/or other planeswalkers. Return each card put
+       into a graveyard this way to the battlefield under your control." — what the destroying put there (returnDestroyed) */
+    { re: /^Destroy up to (two|three|four) target creatures and\/or other planeswalkers\.?$/i,
+      make: (m) => ({ op: 'destroy', targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'creature or planeswalker', zone: 'battlefield',
+        anyOf: ['creature', 'planeswalker'], another: true, upTo: true })) }) },
+    { re: /^Return each card put into a graveyard this way to the battlefield under your control\.?$/i, make: () => ({ op: 'returnDestroyed' }) },
     // Starfall Invocation: "return a creature card put into your graveyard this way to the battlefield under your control"
     { re: /^[Rr]eturn an? ([a-z]+) card put into your graveyard this way to the battlefield under your control\.?$/,
       make: (m) => ({ op: 'returnSwept', filter: m[1].toLowerCase() }) },
@@ -12865,6 +12871,14 @@
     { re: /^[Rr]eveal the top card of your library\. If it'?s a creature card, put it onto the battlefield tapped and attacking defending player or a planeswalker they control\. Otherwise, put that card into your hand\. When you put a creature card onto the battlefield this way, it fights CARDNAME\.?$/,
       make: () => [{ op: 'revealTopAttacking' }, { op: 'reflexive', ifPut: true, whenText: 'When you put a creature card onto the battlefield this way, it fights CARDNAME.',
         effects: [{ op: 'fightSelf', vsTriggerObj: true }] }] },
+    /* Doors of Durin: "scry 2, then you may reveal the top card of your library. If a creature card is revealed this way,
+       put it onto the battlefield tapped and attacking. Until your next turn, it gains trample if you control a Dwarf and
+       hexproof if you control an Elf." — attacking whichever player or planeswalker you choose (anyDefender), anything
+       else left on top (keepOnTop), each keyword for its own creature type (gains) */
+    { re: /^[Ss]cry (\w+), then you may reveal the top card of your library\. If a creature card is revealed this way, put it onto the battlefield tapped and attacking\. Until your next turn, it gains ([a-z]+) if you control an? ([A-Z][a-z]+) and ([a-z]+) if you control an? ([A-Z][a-z]+)\.?$/,
+      make: (m) => (typeof num(m[1]) === 'number' ? [{ op: 'scry', n: num(m[1]) }, { op: 'may', prompt: 'Reveal the top card of your library? A creature card goes onto the battlefield tapped and attacking.',
+        then: [{ op: 'revealTopAttacking', anyDefender: true, keepOnTop: true,
+          gains: [{ keyword: U.titleCase(m[2]), ifType: m[3] }, { keyword: U.titleCase(m[4]), ifType: m[5] }] }] }] : null) },
     /* Zara, Renegade Recruiter: "look at defending player's hand. You may put a creature card from it onto the
        battlefield under your control tapped and attacking that player or a planeswalker they control." — the look and
        the pick one question (putFromTheirHand); "Return that creature …" is the one put */
@@ -14117,6 +14131,12 @@
         if (!pre.auto || !theirs.auto || !again.auto) return null;
         return [...pre.effects, { op: 'temptingOffer', offer: m[2], theirs: theirs.effects, again: again.effects }];
       } },
+    /* Tempt with Mayhem: "Choose target instant or sorcery spell. Each opponent may copy that spell and may choose new
+       targets for the copy they control. You copy that spell once plus an additional time for each opponent who copied
+       the spell this way. You may choose new targets for the copies you control." — a tempting offer, and one copy more */
+    { re: /^Choose target instant or sorcery spell\. Each opponent may copy that spell and may choose new targets for the copy they control\. You copy that spell once plus an additional time for each opponent who copied the spell this way\. You may choose new targets for the copies you control\.?$/i,
+      make: () => [{ op: 'noop', targets: [targetSpec('target instant or sorcery spell')] },
+        { op: 'temptingOffer', offer: 'copy that spell', theirs: [{ op: 'copySpell' }], again: [{ op: 'copySpell' }] }, { op: 'copySpell' }] },
     /* Twinflame: "Choose any number of target creatures you control. For
        each of them, create a token that's a copy of that creature, except it
        has haste. Exile those tokens at the beginning of the next end step." */
