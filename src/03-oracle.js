@@ -3301,6 +3301,11 @@
     { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura|Saga)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
         /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
+    /* Calix, Destiny's Hand: "Exile target creature or enchantment you don't control until target enchantment you
+       control leaves the battlefield." — held by that enchantment; nothing exiled if it is gone by then (holderTarget) */
+    { re: /^Exile (target [a-z ]+? you don'?t control) until (target [a-z ]+? you control) leaves the battlefield\.?$/i,
+      make: (m) => { const a = targetSpec(m[1]), b = targetSpec(m[2]);
+        return a && b && !a.unknown && !b.unknown ? { op: 'exileUntilLeaves', holderTarget: true, targets: [a, b] } : null; } },
     // Palace Jailer: "exile target creature an opponent controls until an opponent becomes the monarch" (exileUntilMonarch)
     { re: /^Exile (target [a-z ]+?) until an opponent becomes the monarch\.?$/i,
       make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'exileUntilMonarch', targets: [sp] } : null; } },
@@ -8257,6 +8262,9 @@
     { re: /^Choose target creature\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'creature' }] }) },
     // Curious Herd, Haunt the Network: "Choose target opponent." — "that player" in what follows
     { re: /^Choose target opponent\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'player', opponent: true }] }) },
+    /* Evercoat Ursine: "you may play one of them without paying its mana cost" — one of the cards hidden under it,
+       picked and played as this resolves (castFree from 'hidden', pickOne, lands) */
+    { re: /^(?:You may )?play one of them without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'hidden', pickOne: true, lands: true }) },
     { re: /^You may play the exiled card without paying its mana cost(?: if (.+?))?\.?$/i,
       make: (m) => {
         const cond = m[1] ? condOf(m[1]) : null;
@@ -17755,6 +17763,9 @@
   const COND_RULES = [
     // The Deck of Many Things: "If the result is 0 or less" — of the roll just made, what was subtracted taken off (rollResultAtMost)
     [/^the result is (\d+) or less$/i, (m) => ({ kind: 'rollResultAtMost', n: +m[1] })],
+    /* Sword of Hours: "If the result is greater than the damage dealt or the result is 12" — the damage the trigger is
+       about (rollResultAboveDamage), or that number exactly (rollResultIs) */
+    [/^the result is greater than the damage dealt or the result is (\d+)$/i, (m) => ({ kind: 'any', of: [{ kind: 'rollResultAboveDamage' }, { kind: 'rollResultIs', n: +m[1] }] })],
     // Luck Bobblehead: "If you rolled 6 exactly seven times" — among the dice just rolled (rolledTimes)
     [/^you rolled (\d+) exactly (\w+) times$/i, (m) => (typeof num(m[2]) === 'number' ? { kind: 'rolledTimes', value: +m[1], n: num(m[2]) } : null)],
     // Unyaro: "if you planeswalked to Unyaro this turn" — this plane, turned up this turn (planeswalkedHere)
@@ -17851,6 +17862,8 @@
     // Beza: "an opponent has more life than you", "an opponent has more cards in hand than you"
     [/^an opponent has more life than you$/i, () => ({ kind: 'opponentMoreLife' })],
     [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
+    // Aerial Surveyor: "if defending player controls more lands than you" — the player this attacks (defendingMoreLands)
+    [/^defending player controls more lands than you$/i, () => ({ kind: 'defendingMoreLands' })],
     // Akuta, Born of Ash: "you have more cards in hand than each opponent"
     [/^you have more cards in hand than each opponent$/i, () => ({ kind: 'moreHandThanEachOpp' })],
     // Merry, Esquire of Rohan: "it's equipped"
@@ -17989,6 +18002,8 @@
     [/^(?:it|this creature|CARDNAME) doesn'?t have an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Ugin's Labyrinth: "If a card is exiled with this land" (selfHoldsExiled)
     [/^a card is exiled with (?:this land|this artifact|CARDNAME)$/i, () => ({ kind: 'selfHoldsExiled' })],
+    // Evercoat Ursine: "if there are cards exiled with it" — its hideaway cards too
+    [/^there are cards exiled with (?:it|this creature|CARDNAME)$/i, () => ({ kind: 'selfHoldsExiled' })],
     // Darigaaz Reincarnated: "if this card is exiled with an egg counter on it" — a trigger that works from exile (fromExile, analyze)
     [/^this card is exiled with an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
     // Blaster, Morale Booster: "If Blaster has no +1/+1 counters on it"
@@ -22109,8 +22124,8 @@
     }
 
     /* Hideaway N (CR 702.75): as it enters, a card is hidden under it */
-    const hide = out.keywords.find(k => /^hideaway$/i.test(k.keyword));
-    if (hide) {
+    // (Evercoat Ursine: "Hideaway 3, hideaway 3" — each one its own trigger)
+    for (const hide of out.keywords.filter(k => /^hideaway$/i.test(k.keyword))) {
       out.abilities.push({ kind: 'triggered', event: 'etb', self: true, auto: true, text: 'Hideaway ' + (hide.arg || 4),
         effects: [{ op: 'hideaway', n: parseInt(hide.arg, 10) || 4 }] });
     }
@@ -25142,7 +25157,8 @@
       { re: /^As (?:CARDNAME|this land) enters(?: the battlefield)?,? you may reveal an? ([A-Za-z]+) card from your hand\. (?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you revealed an? [A-Za-z]+ card this way or you control an? ([A-Za-z]+)\.?$/i,
         make: (m) => ({ op: 'etbTappedUnlessReveal', types: [m[1].toLowerCase()], orControl: m[2].toLowerCase() }), auto: true },
       // (Luxior, Giada's Gift: "Equip planeswalker {1}" — a planeswalker you control)
-      { re: /^Equip (legendary creature|commander|planeswalker|Knight|Samurai|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,
+      // (Robe of the Archmagi: "Equip Shaman, Warlock, or Wizard {1}" — any of those types)
+      { re: /^Equip (legendary creature|commander|planeswalker|Knight|Samurai|[A-Z][a-z]+(?:, [A-Z][a-z]+)*,? or [A-Z][a-z]+|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,
         make: (m) => ({ op: 'equip', cost: m[2], only: m[1] }), auto: true },
       // Mjölnir, Hammer of Thor: "Equip worthy {1} (A creature is worthy if it's a legendary non-Villain that's red and/or white.)"
       { re: /^Equip worthy (\{[^}]+\}(?:\{[^}]+\})*)$/,
@@ -27438,7 +27454,7 @@
         else if (eff.only === 'worthy') Object.assign(spec, { legendary: true, notSubtype: 'villain', colors: ['R', 'W'] });
         else if (eff.only === 'commander') spec.commander = true;
         else if (eff.only === 'planeswalker') { /* the spec above */ }
-        else if (eff.only) spec.subtypes = [eff.only.toLowerCase()];
+        else if (eff.only) spec.subtypes = eff.only.toLowerCase().split(/,\s*(?:or\s+)?|\s+or\s+/).filter(Boolean);
         return {
           kind: 'activated', text: line, auto: true, sorcerySpeed: true,
           cost: eff.costObj || parseCost(eff.cost),

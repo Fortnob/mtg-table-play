@@ -17022,6 +17022,9 @@
         case 'rolledAtLeast': return Number(((ctx && ctx.triggerData) || {}).amount) >= (cond.n || 0);
         // Luck Bobblehead: "If you rolled 6 exactly seven times" — the dice of the roll just made (_lastRolls)
         case 'rollResultAtMost': return (this._lastRollTotal != null ? this._lastRollTotal : (this._lastRoll || 0)) <= cond.n;
+        // (Sword of Hours: "greater than the damage dealt" — the trigger's; "or the result is 12")
+        case 'rollResultAboveDamage': return (this._lastRollTotal != null ? this._lastRollTotal : (this._lastRoll || 0)) > (Number(((ctx && ctx.triggerData) || {}).amount) || 0);
+        case 'rollResultIs': return (this._lastRollTotal != null ? this._lastRollTotal : (this._lastRoll || 0)) === cond.n;
         case 'rolledTimes': return (this._lastRolls || []).filter(x => x === cond.value).length === cond.n;
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         // Unyaro (a plane, src/06f-planechase.js): "if you planeswalked to Unyaro this turn"
@@ -17776,6 +17779,13 @@
           const p = this.player(((ctx && ctx.triggerData) || {}).player), me2 = this.player(ctx && ctx.controller);
           return !!p && !!me2 && p.life > me2.life;
         }
+        // Aerial Surveyor: "if defending player controls more lands than you" — the player it attacks (defendingMoreLands)
+        case 'defendingMoreLands': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = (src && this._defenderOf(src)) || this.player(this._defPid(td.defenderId || td.attackedPlayer || td.defender));
+          const lands = (pid) => this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._matchesCategory(x, 'land')).length;
+          return !!p && !!me && p.id !== me.id && lands(p.id) > lands(me.id);
+        }
         // Cartographer's Hawk: "a player who controls more lands than you" — the player hit
         case 'thatPlayerMoreLands': {
           const p = this.player(((ctx && ctx.triggerData) || {}).player), me2 = this.player(ctx && ctx.controller);
@@ -18083,7 +18093,8 @@
         // Ugin's Labyrinth: "If a card is exiled with this land" — the card it imprinted, still in exile (selfHoldsExiled)
         case 'selfHoldsExiled': {
           const im = src && src.imprinted && this.obj(src.imprinted);
-          return !!im && im.zone === 'exile';
+          // (Evercoat Ursine: "if there are cards exiled with it" — its hideaway cards: hiddenBy)
+          return (!!im && im.zone === 'exile') || (!!src && this.players.some(q => ((this.zones[q.id] || {}).exile || []).some(c => c.hiddenBy === src.id)));
         }
         case 'attackedWith': return ((this.turnHistory || {}).attackers || 0) >= (cond.n || 1);
         case 'controlLegend':
@@ -33902,6 +33913,18 @@
         case 'exileUntilLeaves': {
           // Hixus, Prison Warden: "exile that creature until Hixus leaves" — nothing, if Hixus has left already (CR 610.3c)
           if (e.scope === 'triggerObject' && (!src || src.zone !== 'battlefield')) break;
+          /* Calix, Destiny's Hand: "until target enchantment you control leaves the battlefield" — the second target holds
+             the first; gone (an illegal target) by now, nothing is exiled (holderTarget) */
+          if (e.holderTarget) {
+            const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+            const holder = objs.find(o => o.zone === 'battlefield' && o.controller === ctx.controller);
+            const o = objs.find(x => x !== holder && x.controller !== ctx.controller && x.zone === 'battlefield');
+            if (!holder || !o) break;
+            this.moveObject(o, 'exile');
+            if (o.zone === 'exile') { o.exiledBy = holder.id; this.logEvent('exile', `${o.name} is exiled until ${holder.name} leaves the battlefield.`); }
+            this._lastExiled = o.id;
+            break;
+          }
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
@@ -36368,6 +36391,8 @@
               : e.from === 'selfFromGrave' ? [src && src.id].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
               // Scarlet Witch, Chaotic Avenger: "from among cards exiled with Scarlet Witch" — this time's and before (exiledWith)
               : e.from === 'exiledWith' ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
+              // Evercoat Ursine: "play one of them" — the cards hidden under it (hidden)
+              : e.from === 'hidden' ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.hiddenBy === src.id).map(c => c.id) : [])
               // Power Pack: "you may cast that card" — the card a delayed trigger is about, still in exile (delayedObj)
               : e.from === 'delayedObj' ? [(ctx.obj && ctx.obj.id) || ctx.objId].filter(id => id && (this.obj(id) || {}).zone === 'exile')
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
@@ -36381,7 +36406,9 @@
             const mv1 = e.maxMv == null ? null : n(e.maxMv);
             // Kaho, Minamo Historian: "a spell with mana value X" (exactMv)
             const mvEq = e.exactMv == null ? null : n(e.exactMv);
-            const able = pool.map(id => this.obj(id)).filter(c => c && c.zone !== 'stack' && c.zone !== 'battlefield' && !(c.analysis() || {}).isLand &&
+            // (Evercoat Ursine: "play one of them" — a land too, with a land play left: lands)
+            const landOk = (c) => !!e.lands && c.zone === 'exile' && this._landPlayLeft(me);
+            const able = pool.map(id => this.obj(id)).filter(c => c && c.zone !== 'stack' && c.zone !== 'battlefield' && (!(c.analysis() || {}).isLand || landOk(c)) &&
               (!e.filter || this._cardFitsWords(c, e.filter)) && (mv1 == null || ((c.card && c.card.cmc) || 0) <= mv1) &&
               (mvEq == null || ((c.card && c.card.cmc) || 0) === mvEq) &&
               // (Sanwell, Avenger Ace: paying its costs — only what could be paid for)
@@ -36395,11 +36422,13 @@
             }
             if (able.length) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: e.from === 'hand' || e.from === 'triggerPlayerHand' ? 'hand' : 'library', items: this._chooseItems(able),
-                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''}${mvEq != null ? ' with mana value ' + mvEq : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
+                min: 0, max: 1, prompt: e.lands && !e.filter ? `You may play one of ${e.among || 'them'} without paying its mana cost.` : `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''}${mvEq != null ? ' with mana value ' + mvEq : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
               if (got === SUSPEND) return SUSPEND;
               picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
             }
             pool = picks;
+            // (a hidden card picked: face up now)
+            if (e.from === 'hidden') for (const id of picks) { const c = this.obj(id); if (c) c.faceDownExile = false; }
             if (r) { r.marks[slot] = pool; r.marks[slot + 'picked'] = true; }
           }
           if (pool === SUSPEND) { if (r) delete r.marks[slot]; return SUSPEND; }
@@ -36423,7 +36452,8 @@
             if (ca.isLand) {
               // (Quicksilver Sea: "reveal the top card of your library. You may play it …" — a land still there, revealed)
               if (!e.lands || (r && r.marks[slot + 'done' + k]) || (c.zone !== 'exile' && !(e.from === 'revealed' && c.zone === 'library')) || !this._landPlayLeft(me)) continue;
-              const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Play ${c.name}?` }, 'fl' + k);
+              // (picked already: pickOne)
+              const yes = e.pickOne ? true : this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Play ${c.name}?` }, 'fl' + k);
               if (yes === SUSPEND) return SUSPEND;
               if (r) r.marks[slot + 'done' + k] = true;
               if (yes === false || !this._landPlayLeft(me)) continue;

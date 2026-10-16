@@ -81553,4 +81553,151 @@ module.exports = (test) => {
     M.activate('A', elder, 0);
     t.zone(elder, 'graveyard', 'the Angel gone, the Elder may be sacrificed');
   });
+
+  test('Cards: Evercoat Ursine — hideaway twice; combat damage to a player: play one of the hidden cards free, a land too', (mk, t) => {
+    t.auto('Evercoat Ursine');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    // the first hideaway looks at the top three, the second at the next three
+    const lib = [];
+    for (const nm of ['Grizzly Bears', 'Opt', 'Opt', 'Forest', 'Opt', 'Opt']) lib.push(T.top('A', nm));
+    lib.reverse();
+    let looks = 0;
+    T.answer('pickCard', (ch) => { looks++; return { cardIds: [ch.cards.find(c => c.name !== 'Opt').id] }; });
+    T.answer('pickCard', (ch) => { looks++; return { cardIds: [ch.cards.find(c => c.name !== 'Opt').id] }; });
+    const ur = T.bf('A', 'Evercoat Ursine', { etb: true });
+    T.resolve();
+    t.eq(looks, 2, 'two hideaway looks');
+    const bears = lib.find(c => c.name === 'Grizzly Bears'), forest = lib.find(c => c.name === 'Forest');
+    t.zone(bears, 'exile', 'the Bears hidden'); t.zone(forest, 'exile', 'the Forest hidden');
+    t.eq(bears.hiddenBy, ur.id); t.eq(forest.hiddenBy, ur.id);
+    ur.summoningSick = false;
+    let offered = null;
+    T.answer('declareAttackers', () => [{ attackerId: ur.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.answer('choose', (ch) => { offered = ch; return { picks: [bears.id] }; });
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.ok(offered && offered.items && offered.items.length === 2 && /play one of/.test(offered.prompt), 'both offered: ' + (offered && offered.prompt));
+    t.zone(bears, 'battlefield', 'the Bears played free');
+    t.zone(forest, 'exile', 'the Forest stays hidden');
+    t.eq(T.life('B'), 14, 'six trample damage');
+    // next turn: the Forest played as a land
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: ur.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.answer('choose', (ch) => ({ picks: [forest.id] }));
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.zone(forest, 'battlefield', 'the Forest played');
+    t.eq(g.player('A').landsPlayedThisTurn || g.player('A').landsPlayed || 1, 1, 'as the land play');
+    // nothing left under it: no trigger
+    T.nextTurn('A');
+    let asked = false;
+    T.answer('declareAttackers', () => [{ attackerId: ur.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.answer('choose', () => { asked = true; return { picks: [] }; });
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.no(asked, 'no cards exiled with it: nothing asked');
+  });
+
+  test('Cards: Calix, Destiny\'s Hand — −3: exiled until the target enchantment you control leaves; gone first, nothing exiled', (mk, t) => {
+    t.auto('Calix, Destiny\'s Hand');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    const calix = T.bf('A', 'Calix, Destiny\'s Hand');
+    calix.counters.loyalty = 6;
+    const ench = T.bf('A', 'Pacifism'), ench2 = T.bf('A', 'Glorious Anthem');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.activate('A', calix, 1, { targets: [bear, ench2] });
+    t.zone(bear, 'exile', 'the Bears exiled');
+    t.eq(calix.counters.loyalty, 3);
+    g.moveObject(ench, 'graveyard');
+    t.zone(bear, 'exile', 'another enchantment leaving does nothing');
+    g.moveObject(ench2, 'graveyard');
+    T.resolve();
+    t.zone(bear, 'battlefield', 'the Anthem gone: the Bears return');
+    // the enchantment gone before it resolves: nothing exiled
+    const T2 = mk({ library: Array(20).fill('Plains') });
+    T2.toMain('A');
+    const c2 = T2.bf('A', 'Calix, Destiny\'s Hand');
+    c2.counters.loyalty = 6;
+    const an = T2.bf('A', 'Glorious Anthem');
+    const b2 = T2.bf('B', 'Grizzly Bears');
+    T2.activate('A', c2, 1, { targets: [b2, an], resolve: false });
+    T2.g.moveObject(an, 'graveyard');
+    T2.resolve();
+    t.zone(b2, 'battlefield', 'the holder gone first: the Bears stay');
+  });
+
+  test('Cards: Aerial Surveyor — attacks: if defending player controls more lands than you, a basic Plains onto the battlefield tapped', (mk, t) => {
+    t.auto('Aerial Surveyor');
+    const run = (theirLands) => {
+      const T = mk({ library: ['Plains'].concat(Array(20).fill('Island')) });
+      T.toMain('A');
+      T.bf('A', 'Island');
+      for (let i = 0; i < theirLands; i++) T.bf('B', 'Forest');
+      const as = T.bf('A', 'Aerial Surveyor'), giant = T.bf('A', 'Hill Giant');
+      as.summoningSick = false; giant.summoningSick = false;
+      const all = as.analysis().manaAbilities.concat(as.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+      T.activate('A', as, all.findIndex(a => /^Crew/i.test(a.text || '')), { tapCostIds: [giant.id] });
+      T.answer('declareAttackers', () => [{ attackerId: as.id, defenderId: 'B' }]);
+      T.answer('declareBlockers', () => []);
+      T.toMain('A', 'declareBlockers');
+      T.resolve();
+      return T.bfOf('A').filter(o => o.name === 'Plains');
+    };
+    const got = run(3);
+    t.eq(got.length, 1, 'B has three lands to your one: a Plains');
+    t.ok(got[0] && got[0].tapped, 'tapped');
+    t.eq(run(1).length, 0, 'the same number of lands: nothing');
+  });
+
+  test('Cards: Sword of Hours — attacks: a +1/+1 counter; combat damage: a d12 above the damage (or a 12) doubles its counters', (mk, t) => {
+    t.auto('Sword of Hours');
+    const run = (roll) => {
+      const T = mk({ library: Array(20).fill('Island') });
+      T.toMain('A');
+      const bear = T.bf('A', 'Grizzly Bears'), sw = T.bf('A', 'Sword of Hours');
+      bear.summoningSick = false;
+      bear.counters['+1/+1'] = 1;
+      sw.attachedTo = bear.id; bear.attachments = [sw.id];
+      const d = [roll]; T.g.rng.range = (a) => (d.length ? d.shift() : a);
+      T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+      T.answer('declareBlockers', () => []);
+      T.toMain('A', 'endCombat');
+      T.resolve();
+      return { n: bear.counters['+1/+1'] || 0, life: T.life('B') };
+    };
+    const hi = run(5);
+    t.eq(hi.life, 16, 'attacked with one counter put on: 4 damage');
+    t.eq(hi.n, 4, 'rolled 5 > 4 damage: two counters doubled to four');
+    t.eq(run(4).n, 2, 'rolled 4, not greater than 4: not doubled');
+    t.eq(run(12).n, 4, '12 always doubles');
+  });
+
+  test('Cards: Robe of the Archmagi — equip a Shaman, Warlock or Wizard for {1}; combat damage to a player draws that many', (mk, t) => {
+    t.auto('Robe of the Archmagi');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const robe = T.bf('A', 'Robe of the Archmagi');
+    const wiz = T.bf('A', 'Prodigal Sorcerer'), bear = T.bf('A', 'Grizzly Bears');
+    wiz.summoningSick = false;
+    const all = robe.analysis().manaAbilities.concat(robe.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const cheap = all.findIndex(a => /Wizard \{1\}/.test(a.text || ''));
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', robe.id, cheap, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'not on a Bear for {1}');
+    T.activate('A', robe, cheap, { targets: [wiz] });
+    t.eq(robe.attachedTo, wiz.id, 'on the Wizard for {1}');
+    const hand = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: wiz.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'one damage: one card');
+  });
 };
