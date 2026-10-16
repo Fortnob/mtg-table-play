@@ -10748,6 +10748,21 @@
         values = (rule.types || []).slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0));
         labels = values.slice();
       }
+      /* Sower of Discord: "choose two players" — kept as a list (chosenPlayers); the likeliest two opponents, its own
+         controller only when there are not two of them; asked only when there is more than one way */
+      if (rule.what === 'players') {
+        const want = rule.n || 2;
+        const list = this.players.filter(q => !q.hasLost).sort((a, b) => (a.id === p.id) - (b.id === p.id));
+        if (list.length < want) return;
+        o.chosenPlayers = list.slice(0, want).map(q => q.id);
+        this.bumpBoard();
+        this.logEvent('rules', `${o.name}: ${list.slice(0, want).map(q => q.name).join(' and ')} are chosen.`);
+        if (!p.isBot && list.length > want) {
+          this.queueChoice({ type: 'mode', playerId: p.id, count: want, purpose: 'chooseValue', objId: o.id, field: 'chosenPlayers', values: list.map(q => q.id),
+            options: list.map((q, i) => ({ i, label: q.id === p.id ? q.name + ' (you)' : q.name })), prompt: `${o.name}: choose ${want === 2 ? 'two' : want} players.` });
+        }
+        return;
+      }
       /* Greymond, Avacyn's Stalwart: "choose two abilities from among first strike, vigilance, and lifelink" — as many
          as it says, kept as a list (chosenKeywords) */
       if (rule.what === 'keywords') {
@@ -20497,6 +20512,8 @@
           // "the upkeep of enchanted creature's controller", "enchanted player's upkeep"
           if (ab.enchantedController) { const host = o.attachedTo && this.obj(o.attachedTo); if (!host || data.playerId !== host.controller) continue; }
           if (ab.enchantedPlayer && (data.playerId != null ? data.playerId : data.drawer != null ? data.drawer : data.player) !== o.attachedTo) continue;
+          // (Sower of Discord: "one of the chosen players" — chosenPlayersOnly)
+          if (ab.chosenPlayersOnly && !(o.chosenPlayers || []).includes(data.player)) continue;
           // Paradox Haze: "first upkeep each turn" (firstUpkeepOnly)
           if (ab.firstUpkeepOnly && !(this._upkeepsBegun && this._upkeepsBegun.turn === this.turn && this._upkeepsBegun.n === 1)) continue;
           // "Whenever a creature attacks enchanted player"
@@ -21178,7 +21195,9 @@
         let k = 0;
         for (const sl of asked) {
           const c = answer[k];
-          if (c && sl.options.some(x => same(x, c)) && !(sl.multi && got.some(x => x.sl.ui === sl.ui && same(x.t, c)))) { got.push({ sl, t: c }); k++; continue; }
+          // (Smile at Death: "up to two target creature cards" — not the same card twice: distinct)
+          const twice = sl.spec && sl.spec.distinct && (got.some(x => same(x.t, c)) || picked.some(l => l.some(x => same(x, c))));
+          if (c && sl.options.some(x => same(x, c)) && !twice && !(sl.multi && got.some(x => x.sl.ui === sl.ui && same(x.t, c)))) { got.push({ sl, t: c }); k++; continue; }
           if (answer.length === asked.length) k++;
           if (sl.spec && sl.spec.upTo) continue;
           const fill = sl.options.find(x => !got.some(y => same(y.t, x)));
@@ -21950,7 +21969,9 @@
         : spec && spec.distinctModePlayer ? Object.assign({}, spec, { distinctModePlayer: false, notPlayers: (ctx._modePlayers || []).slice() })
         // Toralf, God of Fury: "any target other than that permanent" — the one the trigger is about (notTriggerObject)
         : spec && spec.notTriggerObject ? Object.assign({}, spec, { notTriggerObject: false, notObject: td.objectId || null })
-        : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
+        : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid })
+        // Echoing Assault: "target nontoken creature that's attacking that player" — the player attacked (attackingTriggerPlayer)
+        : spec && spec.attackingTriggerPlayer ? Object.assign({}, spec, { attackingTriggerPlayer: false, attackingId: td.attackedPlayer || tp }) : spec))
         // Scrap Trawler: "with lesser mana value" than the one the trigger is about
         .map(spec => {
           if (!spec || !spec.mvBelowTrigger) return spec;
@@ -23415,6 +23436,13 @@
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Sower of Discord: "the other chosen player" — of the two chosen, the one not dealt the damage (otherChosen)
+          else if (e.who === 'otherChosen') {
+            const hit = (ctx.triggerData || {}).player;
+            const ids = (src && src.chosenPlayers) || [];
+            const p = ids.includes(hit) && this.player(ids.find(id => id !== hit));
+            if (p && !p.hasLost && cnt > 0) this.changeLife(p, -cnt);
+          }
           // Xantcha, Sleeper Agent: "Xantcha's controller loses 2 life" — whoever controls it, not who activated it (selfController)
           else if (e.who === 'selfController') { const p = src && this.player(src.controller); if (p) this.changeLife(p, -cnt); }
           // Burakos, Party Leader: "defending player loses X life" — the one its source attacks (defendingLosesX)
@@ -28611,6 +28639,8 @@
             }
             break;
           }
+          // Echoing Assault: "The token enters tapped and attacking that player." — the player the trigger's attack is at (attackingWho)
+          if (e.attackingWho === 'attackedPlayer' && !e.attackingId) e = Object.assign({}, e, { attackingId: (ctx.triggerData || {}).attackedPlayer || null });
           // Doppelgang: "For each of X target permanents, create X tokens that are copies of that permanent." (eachTarget)
           if (e.eachTarget) {
             for (const t of targets.filter(x => x.kind === 'object')) {
@@ -33507,6 +33537,8 @@
           const host = tid ? this.obj(tid) : firstObj();
           if (host && host.zone !== 'battlefield') break;
           if (!src || !host) break;
+          // (Nim Deathmantle: "attach this Equipment to it" — gone from the battlefield, it attaches to nothing)
+          if (e.scope === 'triggerObject' && src.zone !== 'battlefield') break;
           /* Marvin with an Equipment creature's equip ability: what is not an
              Aura, Equipment or Fortification can't be attached, and stays where it is (CR 701.3b) */
           {
@@ -42388,6 +42420,14 @@
               if (got.length === (ch.count || 1)) { o.chosenKeywords = got; o._chr = null; this.bumpBoard(); this.logEvent('rules', `${this.player(playerId).name} chooses ${got.join(' and ')} for ${o.name}.`); }
               break;
             }
+            // Sower of Discord: two players at once (chosenPlayers)
+            if (o && ch.field === 'chosenPlayers') {
+              const got = [...new Set(((data && data.modes) || []).map(i => ch.values[i]).filter(x => x !== undefined))].slice(0, ch.count || 2);
+              if (got.length !== (ch.count || 2)) return this.fail(`Choose ${ch.count || 2} players.`);
+              o.chosenPlayers = got; this.bumpBoard();
+              this.logEvent('rules', `${this.player(playerId).name} chooses ${got.map(id => (this.player(id) || {}).name || id).join(' and ')} for ${o.name}.`);
+              break;
+            }
             // a card name typed in (nameAny): any card's, but what the card must be when it is known
             if (ch.nameAny && data && data.name != null) {
               const nm = MTG.choice.cleanName(data.name);
@@ -44526,6 +44566,8 @@
           if (o.chosenColor) c.color = o.chosenColor;
           if (o.chosenName) c.name = o.chosenName;
           if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
+          // (Sower of Discord: the two chosen players)
+          if ((o.chosenPlayers || []).length) c.player = o.chosenPlayers.map(id => (this.player(id) || {}).name || String(id)).join(' and ');
           if (o.chosenNumber != null) c.number = o.chosenNumber;
           if (o.chosenCardType) c.cardType = o.chosenCardType;
           // Gollum, Riddle Master: odd or even

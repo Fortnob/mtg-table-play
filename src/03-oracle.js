@@ -2377,6 +2377,10 @@
        battlefield." — X the mana value of the creature sacrificed to pay for it, worked out from the target (mvXPlus) */
     { re: /^Return (target [a-z ]+?) card with mana value X plus (\d+) from your graveyard to the battlefield\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'reanimate', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you', mvXPlus: +m[2] })] } : null; } },
+    // Smile at Death: "return up to two target creature cards with power 2 or less from your graveyard to the battlefield"
+    { re: /^Return up to (one|two|three) (target [a-z ]+?) cards with power (\d+) or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => { const one = () => tgt(m[2] + ' with power ' + m[3] + ' or less');
+        return one() ? { op: 'reanimate', targets: Array.from({ length: num(m[1]) }, () => Object.assign(one(), { zone: 'graveyard', controller: 'you', upTo: true, distinct: true })) } : null; } },
     // (Alesha, Who Smiles at Death: "… to the battlefield tapped and attacking" — at whoever it attacks: attacking)
     { re: /^Return (target [a-z ]+?) card with power (\d+|X) or less from your graveyard to the battlefield( tapped)?( and attacking)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with power ' + m[2] + ' or less'); return t ? Object.assign({ op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] }, m[4] ? { attacking: true } : {}) : null; } },
@@ -3580,6 +3584,10 @@
         const e = { op: 'copyPermanent', n: 1, scope: 'lastTarget', ifExiled: true, grant: [] };
         return copyExceptions(m[1], e) && !e.keepOwn && !e.keepThis && !e.keepName ? e : null;
       } },
+    /* Echoing Assault: "choose target nontoken creature … Create a token that's a copy of that creature, except it's
+       1/1." — the creature chosen, or else the one the trigger is about (orTrigger) */
+    { re: /^Create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+)\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: 1, grant: [], setPt: m[1] + '/' + m[2], orTrigger: true }) },
     /* "You get an emblem with 'Creatures you control get +2/+2 and have
        flying.'" — one or more abilities in quotation marks */
     { re: /^You get an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
@@ -8102,6 +8110,8 @@
     { re: /^You choose an? ([-a-z ]*?)card from it\.?$/i,
       make: (m) => ({ op: 'chooseFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any' }) },
     { re: /^That player discards that card\.?$/i, make: () => ({ op: 'discardChosen' }) },
+    // Sower of Discord: "the other chosen player also loses that much life" — not the one dealt the damage (otherChosen)
+    { re: /^[Tt]he other chosen player also loses that much life\.?$/, make: () => ({ op: 'loseLife', n: 'triggerAmount', who: 'otherChosen' }) },
     { re: /^Exile that card\.?$/i, make: () => ({ op: 'exileChosen' }) },
     // U.S.Agent, John Walker: "create … an Equipment artifact token named Sturdy Shield … Attach it to U.S.Agent." (attachMade, toSelf)
     { re: /^Attach it to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachMade', toSelf: true }) },
@@ -8112,6 +8122,10 @@
     /* "Whenever a creature you control enters, you may attach this
        Equipment to it." */
     { re: /^Attach (?:this Equipment|this Aura|CARDNAME) to (?:it|that creature)\.?$/i, make: () => ({ op: 'attachSelf', scope: 'triggerObject' }) },
+    /* Nim Deathmantle: "Whenever a nontoken creature is put into your graveyard from the battlefield, you may pay {4}. If
+       you do, return that card to the battlefield and attach this Equipment to it." — the card that died */
+    { re: /^Return that card to the battlefield and attach (?:this Equipment|CARDNAME) to it\.?$/i,
+      make: () => [{ op: 'returnTriggerCard', triggerOnly: true, fromGrave: true }, { op: 'attachSelf', scope: 'triggerObject' }] },
     /* Inspiring Refrain: "Exile it with three time counters on it" — the
        spell suspended as it resolves */
     { re: /^Exile (?:CARDNAME|this spell|it) with (two|three|four|five|\d+) time counters on it\.?$/i,
@@ -9452,7 +9466,8 @@
     // (Yenna, Redtooth Regent: "… you control that doesn't have the same name as another permanent you control")
     // (Willowdusk, Essence Seer: "Choose another target creature.")
     // (Together Forever: "Choose target creature with a counter on it.")
-    { re: /^Choose ((?:another )?target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control| with a counter on it)?)\.?$/i,
+    // (Echoing Assault: "choose target nontoken creature that's attacking that player")
+    { re: /^Choose ((?:another )?target (?:nontoken )?(?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you| that'?s attacking that player)?(?: that doesn'?t have the same name as another permanent you control| with a counter on it)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     // Court of Vantress: "choose up to one other target enchantment or artifact" — what "it" is in the sentences after
     { re: /^Choose (up to one )?(other |another )?target ((?:enchantment|artifact|creature|land|planeswalker)(?: or (?:enchantment|artifact|creature|land|planeswalker))+)\.?$/i,
@@ -11069,6 +11084,9 @@
     // Viper, Cruel Conspirator: "target creature that's attacking alone" — attacking, and no other creature is (attackingAlone)
     const alone = /\s+that'?s attacking alone$/i.test(String(phrase));
     if (alone) phrase = String(phrase).replace(/\s+that'?s attacking alone$/i, '');
+    // Echoing Assault: "target nontoken creature that's attacking that player" — the player the trigger's attack is at (attackingTriggerPlayer)
+    const atThat = /\s+that'?s attacking that player$/i.test(String(phrase));
+    if (atThat) phrase = String(phrase).replace(/\s+that'?s attacking that player$/i, '');
     const atYou = /\s+(?:that'?s )?attacking you$/i.test(String(phrase));
     if (atYou) phrase = String(phrase).replace(/\s+(?:that'?s )?attacking you$/i, '');
     // Yenna, Redtooth Regent: "target enchantment you control that doesn't have the same name as another permanent you control" (uniqueName)
@@ -11083,6 +11101,7 @@
     if (isnt) { spec.notSubtype = isnt[1].toLowerCase(); spec.filter = p + " that isn't a " + isnt[1]; }
     if (unique) spec.uniqueName = true;
     if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
+    if (atThat) { spec.attacking = true; spec.attackingTriggerPlayer = true; }
     if (alone) { spec.attacking = true; spec.attackingAlone = true; spec.filter = p + " that's attacking alone"; }
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
@@ -11389,6 +11408,8 @@
     if (spec.attacking && !obj.attacking) return false;
     if (spec.nonattacking && obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
+    // (Echoing Assault: "attacking that player" — the one settled from the trigger: attackingId)
+    if (spec.attackingId && obj.attacking !== spec.attackingId) return false;
     // (Viper, Cruel Conspirator: "attacking alone" — no other creature attacking)
     if (spec.attackingAlone && ctx && ctx.attackingAlone && !ctx.attackingAlone(obj)) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
@@ -16673,6 +16694,17 @@
         if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
       }
     }
+    /* Echoing Assault: "Create a token that's a copy of that creature, except it's 1/1. The token enters tapped and
+       attacking that player." — the player the trigger's attack is at (attackingWho) */
+    if (res && res.effects) {
+      const k = res.effects.findIndex(e => e && e.op === 'copyPermanent');
+      const nx = k >= 0 ? res.effects[k + 1] : null;
+      if (nx && nx.op === 'manual' && /^The token enters tapped and attacking that player\.?$/i.test(String(nx.text || '').trim())) {
+        Object.assign(res.effects[k], { tapped: true, attacking: true, attackingWho: 'attackedPlayer' });
+        res.effects.splice(k + 1, 1);
+        if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
+      }
+    }
     // Hellion Eruption: "Sacrifice all creatures you control, then create that many …" — as many as were sacrificed (sacrificeAllYours)
     if (res && res.effects && res.effects.some(e => e && e.op === 'sacrificeAllYours')) {
       let after = false;
@@ -18579,6 +18611,8 @@
     { re: /^Whenever enchanted (?:player|opponent) casts (?:a|an) ([a-zA-Z ,-]*?)spell,? /i,
       event: 'anyCastSpell', extra: { enchantedPlayer: true }, filt: (m) => spellFilter(m[1]) },
     { re: /^Whenever enchanted (?:player|opponent) is dealt damage,? /i, event: 'playerDealtDamage', extra: { enchantedPlayer: true } },
+    // Sower of Discord: "Whenever damage is dealt to one of the chosen players, …" (chosenPlayersOnly)
+    { re: /^Whenever damage is dealt to one of the chosen players,? /i, event: 'playerDealtDamage', extra: { chosenPlayersOnly: true } },
     { re: /^At the beginning of each player's end step,? /i, event: 'eachEndStep' },
     { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
     // Carpet of Flowers: "At the beginning of each of your main phases" — the first and the second
@@ -22550,6 +22584,9 @@
         if (/mana value/i.test(m[0])) ef.setPt = { mv: true };
         return ef;
       } },
+    // Awakened Skyclave: "As long as this creature is on the battlefield, it's a land in addition to its other types."
+    { re: /^As long as (?:this creature|CARDNAME) is on the battlefield, it'?s an? (land|artifact|enchantment) in addition to its other types\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 4, scope: { self: true }, addTypes: [U.titleCase(m[1])] }) },
     // Planar Nexus: "This land is every nonbasic land type."
     { re: /^(?:This land|CARDNAME) is every nonbasic land type\.?$/i,
       make: () => ({ op: 'continuous', layer: 4, scope: { self: true },
@@ -23758,6 +23795,9 @@
         eff: { op: 'chooseOnEnter', what: 'name', nonland: true, oppHands: true }, auto: true },
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose (a player|an opponent)\.?$/i,
         make: (m) => ({ op: 'chooseOnEnter', what: /opponent/i.test(m[1]) ? 'opponent' : 'player' }), auto: true },
+      // Sower of Discord: "As this creature enters, choose two players." (chosenPlayers)
+      { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose two players\.?$/i,
+        eff: { op: 'chooseOnEnter', what: 'players', n: 2 }, auto: true },
       // Gollum, Riddle Master: "As Gollum enters, choose odd or even." (chosenParity)
       { re: /^As (?:CARDNAME|this (?:creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose odd or even\.?$/i,
         eff: { op: 'chooseOnEnter', what: 'parity' }, auto: true },
@@ -24382,6 +24422,16 @@
           if (!scope || !kws.every(k => kwKnown(k))) return null;
           return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
             { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[5]] }] };
+        }, auto: true },
+      /* Nim Deathmantle: "Equipped creature gets +2/+2, has intimidate, and is a black Zombie." — black instead of its
+         colors, a Zombie instead of its creature types (setColors, setCreatureTypes) */
+      { re: /^(Enchanted creature|Equipped creature) gets ([+-]\d+)\/([+-]\d+), has ([a-z ,]+?),? and is an? (white|blue|black|red|green) ([A-Z][a-z]+)\.?$/,
+        make: (m) => {
+          const kws = keywordList(m[4]);
+          const scope = scopeOf(m[1]);
+          if (!scope || !kws.every(k => kwKnown(k))) return null;
+          return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
+            { op: 'continuous', layer: 4, scope: Object.assign({}, scope), setCreatureTypes: [m[6]], setColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[5]]] }] };
         }, auto: true },
       // Queen Mother Ramonda: "As long as you're the monarch, creatures with power 2 or less can't attack you." (cantAttackYouWhile)
       { re: /^As long as (.+?), (.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,

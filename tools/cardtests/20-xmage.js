@@ -79,8 +79,9 @@ module.exports = (test) => {
     t.eq(T.life('B'), 18);
   });
 
-  test('XMage: Reveillark brings back two small creatures', (mk, t) => {
-    generated(t, 'Reveillark');
+  // (read by the parser now, as Smile at Death's "return up to two target creature cards with power 2 or less" is)
+  test('Reveillark brings back two small creatures', (mk, t) => {
+    t.auto('Reveillark');
     const T = mk();
     const lark = T.bf('A', 'Reveillark');
     const a = T.grave('A', 'Llanowar Elves'), b = T.grave('A', 'Grizzly Bears'), big = T.grave('A', 'Craw Wurm');
@@ -74708,5 +74709,130 @@ module.exports = (test) => {
     t.eq(asked, 2, 'once for each creature blocking it (not for the Bears\' blocker)');
     t.eq(T.zone('A', 'hand').length - h0, 4, 'two cards each time');
     t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Nim Deathmantle — a black Zombie, +2/+2 and intimidate; pay {4} as a nontoken creature dies to return it equipped', (mk, t) => {
+    t.auto('Nim Deathmantle');
+    const T = mk();
+    const nim = T.bf('A', 'Nim Deathmantle');
+    const elf = T.bf('A', 'Llanowar Elves');
+    nim.attachedTo = elf.id; elf.attachments = [nim.id]; T.g.bumpBoard();
+    const ch = elf.analysis();
+    t.eq(T.g.powerOf(elf), 3, '+2/+2');
+    t.ok(T.g.hasKw(elf, 'intimidate'), 'intimidate');
+    t.eq((ch.colors || []).join(''), 'B', 'black instead of green');
+    t.ok(T.g._hasCreatureType(elf, 'Zombie') && !T.g._hasCreatureType(elf, 'Elf'), 'a Zombie instead of an Elf');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R4');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    t.zone(bear, 'battlefield', 'paid {4}: back');
+    t.eq(nim.attachedTo, bear.id, 'and equipped');
+    t.ok(T.g._hasCreatureType(bear, 'Zombie'), 'a Zombie now');
+    // declined: it stays in the graveyard; a token: no trigger
+    const U = mk();
+    U.bf('A', 'Nim Deathmantle');
+    const b2 = U.bf('A', 'Grizzly Bears');
+    U.answer('confirm', { yes: false });
+    U.mana('A', 'R4');
+    U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: [b2] });
+    t.zone(b2, 'graveyard', 'not paid');
+    const V = mk();
+    V.bf('A', 'Nim Deathmantle');
+    const tok = V.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    V.mana('A', 'R4');
+    V.cast('A', V.hand('A', 'Lightning Bolt'), { targets: [tok] });
+    t.eq(V.asked.filter(c => c.type === 'confirm').length, 0, 'a token: no trigger');
+  });
+  test('Cards: Echoing Assault — a 1/1 copy of a nontoken creature attacking each player, tapped and attacking that player, sacrificed at the end step', (mk, t) => {
+    t.auto('Echoing Assault');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    T.bf('A', 'Echoing Assault');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves'), giant = T.bf('A', 'Hill Giant');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: elf.id, defenderId: 'B' }, { attackerId: giant.id, defenderId: 'C' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    const offered = q ? (q.options || [])[0].map(x => x.id) : [];
+    t.ok(q && offered.length === 2 && offered.includes(bear.id) && offered.includes(elf.id), 'asked among those attacking B only');
+    const toks = T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 2, 'one copy for each player attacked');
+    const tb = toks.find(o => o.name === 'Grizzly Bears'), tg = toks.find(o => o.name === 'Hill Giant');
+    t.ok(tb && tb.tapped && tb.attacking === 'B', 'the Bears copy tapped and attacking B');
+    t.ok(tg && tg.tapped && tg.attacking === 'C', 'the Giant copy attacking C');
+    t.eq(T.g.powerOf(tg) + '/' + T.g.toughnessOf(tg), '1/1', "except it's 1/1");
+    t.ok(T.g.hasKw(tg, 'menace'), 'a creature token: menace');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'sacrificed at the end step');
+    // only a token attacking: nothing to copy
+    const U = mk({ library: Array(20).fill('Island') });
+    U.bf('A', 'Echoing Assault');
+    const tok = U.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    U.answer('declareAttackers', () => [{ attackerId: tok.id, defenderId: 'B' }]);
+    U.toMain('A', 'declareAttackers'); U.resolve();
+    t.eq(U.bfOf('A').filter(o => o.isToken).length, 1, 'a token is no target: no copy');
+  });
+  test('Cards: Invasion of Zendikar // Awakened Skyclave — two basic lands tapped; transformed, a land creature with vigilance and haste', (mk, t) => {
+    t.auto('Invasion of Zendikar // Awakened Skyclave');
+    const T = mk({ library: ['Forest', 'Island', 'Grizzly Bears'], libraryEach: 3 });
+    const before = T.bfOf('A').length;
+    T.bf('A', 'Invasion of Zendikar // Awakened Skyclave', { etb: true }); T.resolve();
+    const lands = T.bfOf('A').filter(o => (o.analysis() || {}).isLand);
+    t.eq(lands.length, 2, 'two basic lands');
+    t.ok(lands.every(o => o.tapped), 'tapped');
+    t.eq(T.bfOf('A').length, before + 3, 'and the Siege');
+    const U = mk();
+    const sk = U.bf('A', 'Invasion of Zendikar // Awakened Skyclave');
+    sk.face = 1; sk._chr = null; U.g.bumpBoard();
+    const a = sk.analysis();
+    t.ok(a.isLand && a.isCreature, 'a land in addition to a creature');
+    t.ok(U.g.hasKw(sk, 'vigilance') && U.g.hasKw(sk, 'haste'), 'vigilance, haste');
+    U.mana('A', 'R2');
+    U.cast('A', U.hand('A', 'Stone Rain'), { targets: [sk] });
+    t.zone(sk, 'graveyard', 'Stone Rain destroys it: a land');
+  });
+  test('Cards: Smile at Death — at your upkeep up to two creature cards with power 2 or less back, each with a +1/+1 counter', (mk, t) => {
+    t.auto('Smile at Death');
+    const T = mk({ library: Array(20).fill('Plains') });
+    T.bf('A', 'Smile at Death');
+    const bear = T.grave('A', 'Grizzly Bears'), elf = T.grave('A', 'Llanowar Elves'), giant = T.grave('A', 'Hill Giant');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: elf.id }] }; });
+    T.nextTurn('A');
+    t.ok(q && !(q.options || []).some(l => l.some(x => x.id === giant.id)), 'Hill Giant (power 3) not offered');
+    t.zone(bear, 'battlefield'); t.zone(elf, 'battlefield');
+    t.eq(bear.counters['+1/+1'], 1, 'a counter on the Bears'); t.eq(elf.counters['+1/+1'], 1, 'and on the Elves');
+    t.zone(giant, 'graveyard');
+    // only one: that one comes back
+    const U = mk({ library: Array(20).fill('Plains') });
+    U.bf('A', 'Smile at Death');
+    const b2 = U.grave('A', 'Grizzly Bears');
+    U.nextTurn('A');
+    t.zone(b2, 'battlefield', 'the one card');
+    t.eq(b2.counters['+1/+1'], 1, 'with its counter');
+  });
+  test('Cards: Sower of Discord — two players chosen as it enters; damage dealt to one, the other loses that much life', (mk, t) => {
+    t.auto('Sower of Discord');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    let q = null;
+    T.answer('mode', (ch) => { q = ch; return { modes: [ch.values.indexOf('A'), ch.values.indexOf('C')] }; });
+    const s = T.bf('A', 'Sower of Discord', { etb: true });
+    t.ok(q && q.purpose === 'chooseValue' && q.count === 2 && q.values.length === 3, 'asked for two of the three players');
+    t.eq(JSON.stringify(s.chosenPlayers), JSON.stringify(['A', 'C']), 'A and C chosen');
+    t.eq(T.g.viewFor('A').battlefield.find(o => o.id === s.id).chosen.player, 'A and C', 'shown on the card');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['C'] });
+    t.eq(T.life('C'), 17, 'C dealt 3');
+    t.eq(T.life('A'), 17, 'A loses 3 too');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'B not chosen');
+    t.eq(T.life('A') + '/' + T.life('C'), '17/17', 'nobody else loses life');
+    // two players: both chosen, nothing asked
+    const U = mk();
+    const s2 = U.bf('A', 'Sower of Discord', { etb: true });
+    t.eq(U.asked.filter(c => c.purpose === 'chooseValue').length, 0, 'two players: not asked');
+    t.eq((s2.chosenPlayers || []).slice().sort().join(''), 'AB', 'both chosen');
+    U.mana('A', 'R');
+    U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(U.life('B'), 17, 'damage to A: B loses 3');
   });
 };
