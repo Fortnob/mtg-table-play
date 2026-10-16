@@ -131,13 +131,15 @@ module.exports = (test) => {
 
   test('Collected Company puts up to two qualifying creatures in play and bottoms the rest', (mk, t) => {
     const T = mk();
+    const below = T.top('A', 'Island');
     const bears = [T.top('A', 'Grizzly Bears'), T.top('A', 'Grizzly Bears')];
     const wurms = [T.top('A', 'Craw Wurm'), T.top('A', 'Craw Wurm'), T.top('A', 'Craw Wurm'), T.top('A', 'Craw Wurm')];
     T.mana('A', 'GG3');
     T.answer('choose', ch => ({ picks: ch.items.filter(x => x.name === 'Grizzly Bears').map(x => x.id) }));
     T.cast('A', T.hand('A', 'Collected Company'));
     for (const bear of bears) t.zone(bear, 'battlefield');
-    for (const wurm of wurms) t.zone(wurm, 'library', 'mana value above three stays on the bottom');
+    for (const wurm of wurms) t.zone(wurm, 'library', 'mana value above three stays in the library');
+    t.eq(T.zone('A', 'library')[0].id, below.id, 'the unselected cards go below cards outside the six-card look');
   });
 
   test('Topography Tracker creates a Map and doubles a creature explore', (mk, t) => {
@@ -178,8 +180,10 @@ module.exports = (test) => {
     const shaper = T.hand('A', 'Tide Shaper');
     T.cast('A', shaper, { kick: 1, targets: [forest] });
     t.ok(T.g.characteristics(forest).subtypes.includes('Island'), 'the kicked ETB makes the target an Island');
+    t.eq(T.g.powerOf(shaper), 2, 'the opponent-controlled Island turns on Tide Shaper’s bonus');
     T.g.moveObject(shaper, 'graveyard');
     t.no(T.g.characteristics(forest).subtypes.includes('Island'), 'the Island effect ends when Tide Shaper leaves');
+    t.eq(T.g.powerOf(shaper), 1, 'Tide Shaper loses the bonus when the only opposing Island goes away');
   });
 
   test('Deeproot Historian grants retrace to Merfolk and Druid cards, not other cards', (mk, t) => {
@@ -189,6 +193,11 @@ module.exports = (test) => {
     const bear = T.grave('A', 'Grizzly Bears');
     t.ok(T.g.altUsesFor('A', merfolk.id).some(u => u.via === 'retrace'), 'Merfolk in the graveyard can retrace');
     t.no(T.g.altUsesFor('A', bear.id).some(u => u.via === 'retrace'), 'a Bear does not gain retrace');
+    const land = T.hand('A', 'Forest');
+    T.mana('A', 'GU');
+    T.cast('A', merfolk, { via: 'retrace' });
+    t.zone(merfolk, 'battlefield', 'the Merfolk can be cast from the graveyard');
+    t.zone(land, 'graveyard', 'retrace pays its extra cost by discarding a land');
   });
 
   test('Over the Edge resolves its double-explore mode on the same creature', (mk, t) => {
