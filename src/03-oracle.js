@@ -1323,6 +1323,7 @@
     if (!orAlso && (q = s.match(/^ or an? ([a-z]+(?: [a-z]+)?) card with mana value (\d+) or less(?=,|$)/))) {
       e.alt = { filter: q[1], maxMv: +q[2] }; altSaid = q[0]; s = s.slice(q[0].length);
     }
+    // (Navigation Orb: "basic land cards and/or Gate cards" — the same andOr reading)
     // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
@@ -4516,6 +4517,10 @@
       make: () => ({ op: 'impulseLast', duration: 'nextEnd' }) },
     { re: /^You may play (?:that card|it|those cards|them) for as long as (?:it remains|they remain) exiled\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'exiled' }) },
+    /* Unstable Amulet, Furious Rise, Superior Foes of Spider-Man: "You may play it until you exile another card with this
+       artifact." — till this source exiles the next one, wherever it is by then (untilAnother) */
+    { re: /^You may play (?:that card|it) until you exile another card with (?:CARDNAME|this (?:artifact|enchantment|creature|permanent))\.?$/i,
+      make: () => ({ op: 'impulseLast', duration: 'untilAnother' }) },
     // Gwen Stacy: "You may play that card for as long as you control this creature." (whileControl)
     { re: /^You may play (?:that card|it|those cards|them) for as long as you control (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'whileControl' }) },
@@ -8521,7 +8526,7 @@
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
     // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
     // (Kotose, the Silent Spider: "For as long as you control Kotose, you may play one of the exiled cards" — whileControl)
-    { re: /^(?:(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn)|For as long as you control CARDNAME), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|the exiled nonland card|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|one of (?:those cards|them|the exiled cards)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
+    { re: /^(?:(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn)|For as long as you control CARDNAME), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|the exiled nonland card|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|an? (?:instant or sorcery|instant|sorcery|creature|noncreature|artifact) spell from among (?:them|those cards|those exiled cards)|one of (?:those cards|them|the exiled cards)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
@@ -8530,6 +8535,9 @@
         // Ral, Leyline Prodigy: "You may cast instant and sorcery spells from among them" — only those (words)
         const kinds = m[0].match(/ may cast (instant and sorcery|instant|sorcery|creature|noncreature|artifact) spells from among /i);
         if (kinds) e.words = kinds[1].toLowerCase().replace(' and ', ' or ');
+        // Chandra, Hope's Beacon: "you may cast an instant or sorcery spell from among those exiled cards" — one of those (words, oneOf)
+        const oneKind = m[0].match(/ may cast an? (instant or sorcery|instant|sorcery|creature|noncreature|artifact) spell from among /i);
+        if (oneKind) { e.words = oneKind[1].toLowerCase(); e.oneOf = true; }
         // (Stolen Goods: "until they exile a nonland card. Until end of turn, you may cast that card …" — the one card: thatCard)
         // (Black Widow, Super Spy: "the exiled nonland card" — the same)
         if (/ may (?:play|cast) (?:that card|the exiled nonland card)\b/i.test(m[0])) e.thatCard = true;
@@ -10801,6 +10809,8 @@
     if ((m = p.match(/^opponents? (?:who|that) drew (two|three|four|\d+) or more cards this turn$/i))) return { opponentsDrewAtLeast: num(m[1]), mult: k };
     // (Smuggler's Share: "opponent who had two or more lands enter the battlefield under their control this turn" — opponentsLandsEntered)
     if ((m = p.match(/^opponents? (?:who|that) had (two|three|four|\d+) or more lands enter the battlefield under their control this turn$/i))) return { opponentsLandsEntered: num(m[1]), mult: k };
+    // Consuming Tide: "for each opponent who has more cards in their hand than you" (opponentsMoreHand)
+    if (/^opponents? (?:who|that) (?:has|have) more cards in (?:hand|their hands?) than you$/i.test(p)) return { opponentsMoreHand: true, mult: k };
     // Bandit's Talent: "for each opponent who has one or fewer cards in hand" (opponentsHandAtMost)
     if ((m = p.match(/^opponents? (?:who|that) (?:has|have) (one|two|three|four|\d+) or fewer cards in (?:hand|their hands?)$/i))) return { opponentsHandAtMost: num(m[1]), mult: k };
     // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
@@ -13286,6 +13296,14 @@
        they control not chosen this way." — you choose for everybody (chooser you, perPlayer) */
     { re: /^For each player, choose a creature that player controls\. Each player sacrifices all creatures they control not chosen this way\.?$/i,
       make: () => [{ op: 'keepRest', who: 'each', chooser: 'you', perPlayer: true, n: 1, filter: 'creature', rest: 'creature' }] },
+    /* Consuming Tide: "Each player chooses a nonland permanent they control. Return all nonland permanents not chosen this
+       way to their owners' hands." — kept or bounced, all at once (keepRest bounce) */
+    { re: /^Each player chooses a nonland permanent they control\. Return all nonland permanents not chosen this way to their owners'? hands\.(?: (Then [\s\S]+))?$/i,
+      make: (m) => {
+        // ("Then you draw a card for each opponent who has more cards in their hand than you.")
+        const tail = m[1] ? voteBody(m[1]) : [];
+        return tail ? [{ op: 'keepRest', who: 'each', n: 1, filter: 'nonland permanent', rest: 'nonland', bounce: true }, ...tail] : null;
+      } },
     /* Conduit of Worlds: "Choose target nonland permanent card in your
        graveyard. If you haven't cast a spell this turn, you may cast that
        card. If you do, you can't cast additional spells this turn." */
@@ -23730,7 +23748,8 @@
     /* Fiery Emancipation, Twinflame Tyrant, Torbran, Gratuitous Violence */
     // (Tor Wauki the Younger: "If another source you control would deal noncombat damage …" — otherSource)
     // (Trance Kuja, Fate Defied: "If a Wizard you control would deal damage to a permanent or player" — a creature type)
-    { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)|[A-Z][a-z]+) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls|an opponent), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
+    // (Mechanized Warfare: "If a red or artifact source you control would deal damage to an opponent …" — either)
+    { re: /^If (?:an?|(another)) ((?:(?:red|green|white|blue|black)(?: or artifact)? )?(?:source|creature)|[A-Z][a-z]+) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls|an opponent), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
       make: (mm) => {
         const other = !!mm[1];
         const m0 = [mm[0], mm[2], mm[3], mm[4], mm[5]];

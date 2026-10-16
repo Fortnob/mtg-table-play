@@ -78159,4 +78159,144 @@ module.exports = (test) => {
     T.resolve();
     t.ok(g.player('A').hasLost, 'no Throne left: A loses');
   });
+
+  test("Cards: Chandra, Hope's Beacon — +1: five exiled, one instant or sorcery of them may be cast; the copy trigger copies it", (mk, t) => {
+    t.auto("Chandra, Hope's Beacon");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ch = T.bf('A', "Chandra, Hope's Beacon");
+    ch.counters.loyalty = 5;
+    const isl = T.top('A', 'Island'), shock = T.top('A', 'Shock'), bears = T.top('A', 'Grizzly Bears'), bolt = T.top('A', 'Lightning Bolt');
+    const idx = ch.analysis().manaAbilities.length + ch.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^\+1:/.test(x.text));
+    T.activate('A', ch, idx);
+    t.eq(ch.counters.loyalty, 6, '+1');
+    for (const c of [isl, shock, bears, bolt]) t.zone(c, 'exile');
+    T.mana('A', 'G1');
+    t.no(g.castSpell('A', bears.id, { auto: true }), 'not a creature spell');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 14, 'the Bolt and its copy');
+    T.mana('A', 'R');
+    t.no(g.castSpell('A', shock.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'only one spell from among them');
+    t.zone(shock, 'exile');
+  });
+  test("Cards: Chandra, Hope's Beacon — +1: the leave lasts through your next turn, then ends", (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ch = T.bf('A', "Chandra, Hope's Beacon");
+    ch.counters.loyalty = 5;
+    const bolt = T.top('A', 'Lightning Bolt');
+    const idx = ch.analysis().manaAbilities.length + ch.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^\+1:/.test(x.text));
+    T.activate('A', ch, idx);
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'R');
+    t.ok(g.castSpell('A', bolt.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'still castable on your next turn');
+  });
+
+  test('Cards: Mechanized Warfare — red or artifact sources you control deal 1 more to opponents and their permanents', (mk, t) => {
+    t.auto('Mechanized Warfare');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Mechanized Warfare');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'Shock deals 3 to B');
+    const giant = T.bf('A', 'Hill Giant');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: [giant] });
+    t.eq(giant.damage, 2, 'your own creature: 2');
+    const rod = T.bf('A', 'Rod of Ruin');
+    T.mana('A', '3');
+    T.activate('A', rod, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 15, 'an artifact source: 2');
+    T.g.passPriority('A', true);
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] });
+    t.eq(T.life('A'), 18, "an opponent's red source: 2");
+  });
+
+  test('Cards: Unstable Amulet — two energy; each card exiled may be played until the next one is', (mk, t) => {
+    t.auto('Unstable Amulet');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const am = T.bf('A', 'Unstable Amulet', { etb: true }); T.resolve();
+    t.eq(T.player('A').energy, 2, 'two energy');
+    const bears = T.top('A', 'Grizzly Bears');
+    T.activate('A', am, 0);
+    t.zone(bears, 'exile');
+    t.eq(T.player('A').energy, 0, 'paid');
+    t.eq(bears.impulseBy, 'A', 'the Bears may be played');
+    T.player('A').energy = 2; am.tapped = false;
+    const shock = T.top('A', 'Shock');
+    T.activate('A', am, 0);
+    t.zone(shock, 'exile');
+    T.mana('A', 'G1');
+    t.no(g.castSpell('A', bears.id, { auto: true }), 'another card exiled: the Bears no longer');
+    T.mana('A', 'R');
+    T.cast('A', shock, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'Shock 2, and 1 for a spell cast from anywhere other than your hand');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.life('B'), 15, 'from your hand: no trigger');
+  });
+  test('Cards: Unstable Amulet — the leave outlasts the Amulet', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const am = T.bf('A', 'Unstable Amulet', { etb: true }); T.resolve();
+    const mtn = T.top('A', 'Mountain');
+    T.activate('A', am, 0);
+    T.g.moveObject(am, 'graveyard');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.playLand('A', mtn);
+    t.zone(mtn, 'battlefield', 'played from exile a turn later');
+  });
+
+  test('Cards: Consuming Tide — each player keeps one nonland permanent, the rest bounce; you draw for each opponent with more cards', (mk, t) => {
+    t.auto('Consuming Tide');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    const a1 = T.bf('A', 'Grizzly Bears'), a2 = T.bf('A', 'Hill Giant'), aL = T.bf('A', 'Island');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Sol Ring'), b3 = T.bf('B', 'Hill Giant');
+    const c1 = T.bf('C', 'Hill Giant');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [a2.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [b2.id] }; });
+    const tide = T.hand('A', 'Consuming Tide');
+    T.mana('A', 'U3');
+    const h0 = T.zone('A', 'hand').length - 1;
+    T.cast('A', tide);
+    t.eq(asked[0] && asked[0].playerId, 'A'); t.eq(asked[1] && asked[1].playerId, 'B', 'each player chooses their own');
+    t.zone(a2, 'battlefield'); t.zone(aL, 'battlefield', 'lands stay'); t.zone(b2, 'battlefield'); t.zone(c1, 'battlefield', 'C had only one');
+    t.zone(a1, 'hand'); t.zone(b1, 'hand'); t.zone(b3, 'hand');
+    t.eq(T.zone('A', 'hand').length, h0 + 1 + 1, 'A: the Bears back, and one card for B (two cards to one); C has none');
+  });
+
+  test('Cards: Navigation Orb — up to two basic lands and/or Gates: one onto the battlefield tapped, the other into your hand', (mk, t) => {
+    t.auto('Navigation Orb');
+    const T = mk({ library: Array(10).fill('Grizzly Bears') });
+    const gate = T.top('A', 'Azorius Guildgate'), isl = T.top('A', 'Island'), tower = T.top('A', 'Command Tower');
+    const offered = [];
+    T.answer('pickCard', (ch) => { offered.push(...ch.cards.map(c => c.name)); return { cardIds: [gate.id, isl.id] }; });
+    T.answer('pickCard', () => ({ cardIds: [gate.id] }));
+    const orb = T.bf('A', 'Navigation Orb');
+    T.mana('A', '2');
+    T.activate('A', orb, 0);
+    t.ok(offered.includes('Azorius Guildgate') && offered.includes('Island'), 'Gates and basics offered');
+    t.no(offered.includes('Command Tower') || offered.includes('Grizzly Bears'), 'nothing else');
+    t.zone(gate, 'battlefield'); t.ok(gate.tapped, 'tapped');
+    t.zone(isl, 'hand'); t.zone(tower, 'library'); t.zone(orb, 'graveyard');
+  });
+
+  test('Cards: Furious Rise — the card exiled at your end step may be played until the next one is exiled', (mk, t) => {
+    t.auto('Furious Rise');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Furious Rise'); T.bf('A', 'Hill Giant', { counters: { '+1/+1': 1 } });
+    const mtn = T.top('A', 'Mountain');
+    T.nextTurn('B');
+    t.zone(mtn, 'exile');
+    T.nextTurn('A');
+    const isl = T.top('A', 'Island');
+    t.eq(mtn.impulseBy, 'A', 'still playable');
+    T.nextTurn('B');
+    t.zone(isl, 'exile');
+    t.eq(mtn.impulseBy, null, 'another card exiled: no longer');
+    t.eq(isl.impulseBy, 'A');
+  });
 };

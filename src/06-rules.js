@@ -19237,7 +19237,7 @@
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
-        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null; o.impulseUndaunted = null;
+        o.impulseGroup = null; o.impulseAnotherOf = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null; o.impulseUndaunted = null;
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
       if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
@@ -23238,7 +23238,7 @@
         // Wojek Investigator: the opponents holding more cards than you
         // Volo, Itinerant Scholar: "for each creature type noted for target permanent … named Volo's Journal" (notedTypes)
         if (v && typeof v === 'object' && v.notedTypes) { const t = targets.find(x => x.kind === 'object'), o = t && this.obj(t.id); return ((o && o.notedTypes) || []).length; }
-        if (v && typeof v === 'object' && v.opponentsMoreHand) return this.opponentsOf(ctx.controller).filter(p => this.zones[p.id].hand.length > this.zones[ctx.controller].hand.length).length;
+        if (v && typeof v === 'object' && v.opponentsMoreHand) return this.opponentsOf(ctx.controller).filter(p => this.zones[p.id].hand.length > this.zones[ctx.controller].hand.length).length * (v.mult || 1);
         // Oona, Queen of the Fae: "For each card of the chosen color exiled this way"
         if (v && typeof v === 'object' && v.exiledChosenColor) {
           const col = ctx.chosenColor || (src && src.chosenColor);
@@ -31811,7 +31811,7 @@
                 // (The Eternal Wanderer: a creature chosen for each player — a bot keeps its own best, another's least: perPlayer)
                 const got = this._choose({ playerId: chooser, purpose: e.perPlayer ? 'keepCreatures' : 'keep', kind: 'objects', items: this._chooseItems(byValue(pool)),
                   min: e.upTo ? 0 : Math.min(want, pool.length), max: Math.min(want, pool.length),
-                  prompt: `Choose ${want === 1 ? (/^[aeiou]/i.test(t) ? 'an ' : 'a ') + t : (e.upTo ? 'up to ' : '') + want + ' ' + t + 's'}${p ? ' ' + p.name + ' keeps' : ' to keep'}; the rest ${e.destroy ? 'are destroyed' : 'are sacrificed'}.` }, 'keep' + gi + ':' + ai);
+                  prompt: `Choose ${want === 1 ? (/^[aeiou]/i.test(t) ? 'an ' : 'a ') + t : (e.upTo ? 'up to ' : '') + want + ' ' + t + 's'}${p ? ' ' + p.name + ' keeps' : ' to keep'}; the rest ${e.destroy ? 'are destroyed' : e.bounce ? "return to their owners' hands" : 'are sacrificed'}.` }, 'keep' + gi + ':' + ai);
                 if (got === SUSPEND) return SUSPEND;
                 picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o));
               }
@@ -31819,7 +31819,11 @@
             }
             for (const o of list) if (!kept.has(o)) doomed.push(o);
           }
-          if (e.destroy) {
+          // Consuming Tide: "Return all nonland permanents not chosen this way to their owners' hands." (bounce)
+          if (e.bounce) {
+            for (const o of doomed) if (o.zone === 'battlefield') this.moveObject(o, 'hand');
+            if (doomed.length) this.logEvent('rules', `${doomed.length} ${doomed.length === 1 ? 'permanent returns' : 'permanents return'} to ${doomed.length === 1 ? "its owner's hand" : "their owners' hands"}.`);
+          } else if (e.destroy) {
             for (const o of doomed) {
               if (o.zone !== 'battlefield' || this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
               this.moveObject(o, 'graveyard');
@@ -36848,7 +36852,16 @@
           // Intet, the Dreamer: "for as long as Intet remains on the battlefield" — whoever controls it (whileHere)
           const here = e.duration === 'whileHere';
           if (here && !(src && src.zone === 'battlefield')) break;
-          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' || here ? 99999
+          /* Unstable Amulet: "You may play it until you exile another card with this artifact." — the card before loses its
+             leave as the next one comes (impulseAnotherOf) */
+          const another = e.duration === 'untilAnother' && src ? src.id : null;
+          if (another) {
+            for (const q of this.players) for (const c of this.zones[q.id].exile) {
+              if (c.impulseAnotherOf !== another || ids.includes(c.id)) continue;
+              c.impulseBy = null; c.impulseUntil = null; c.impulseAnotherOf = null;
+            }
+          }
+          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' || here || another ? 99999
             : e.duration === 'nextEnd' ? (mineNow ? this.turn : this._endOfNextTurnOf(ctx.controller)) : this.turn;
           for (const id of ids) {
             const c = this.obj(id);
@@ -36860,6 +36873,7 @@
               continue;
             }
             c.impulseBy = e.owners ? c.owner : ctx.controller; c.impulseUntil = until;
+            c.impulseAnotherOf = another;
             /* Dragonhawk, Fate's Tempest, Inti: "until your next end step" — up to it, not through it
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
