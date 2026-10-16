@@ -77766,4 +77766,137 @@ module.exports = (test) => {
     T.nextTurn('A');
     t.no(g.hasKw(dr, 'hexproof'), 'gone on your next turn');
   });
+
+  test('Cards: Starfield Shepherd — a basic Plains, or a creature card with mana value 1 or less', (mk, t) => {
+    t.auto('Starfield Shepherd');
+    const T = mk({ library: Array(10).fill('Island') });
+    const pl = T.top('A', 'Plains'), elf = T.top('A', 'Llanowar Elves'), bear = T.top('A', 'Grizzly Bears'), mem = T.top('A', 'Memnite');
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [elf.id] }; });
+    T.mana('A', 'WW3');
+    T.cast('A', T.hand('A', 'Starfield Shepherd'));
+    t.ok(q, 'asked');
+    t.eq(q && q.prompt, 'Search your library for a basic Plains card or a creature card with mana value 1 or less.');
+    const offered = ((q && q.cards) || []).map(c => c.id);
+    t.ok(offered.includes(pl.id) && offered.includes(elf.id) && offered.includes(mem.id), 'the Plains, the Elves and Memnite');
+    t.no(offered.includes(bear.id), 'not a two-mana creature');
+    t.no(offered.some(id => T.g.obj(id).name === 'Island'), 'not an Island');
+    t.zone(elf, 'hand');
+  });
+
+  test('Cards: Depthshaker Titan — any number of noncreature artifacts become 3/3s with melee, trample and haste, sacrificed at end of turn', (mk, t) => {
+    t.auto('Depthshaker Titan');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const ring = T.bf('A', 'Sol Ring'), stone = T.bf('A', 'Mind Stone'), signet = T.bf('A', 'Arcane Signet');
+    const bear = T.bf('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('choose', (ch) => { if (ch.purpose === 'anyTargets') { q = ch; return { picks: [ring.id, stone.id] }; } return { picks: [0] }; });
+    const titan = T.bf('A', 'Depthshaker Titan', { etb: true });
+    T.resolve();
+    t.ok(q, 'asked which');
+    t.no(((q && q.items) || []).some(it => it.id === bear.id || it.id === titan.id), 'noncreature artifacts only');
+    t.eq(g.powerOf(ring), 3); t.eq(g.toughnessOf(ring), 3);
+    t.ok(g.characteristics(ring).isCreature, 'a creature now');
+    t.no(g.characteristics(signet).isCreature, 'the Signet left alone');
+    t.ok(g.hasKw(ring, 'haste') && g.hasKw(ring, 'trample') && g.hasKw(ring, 'melee'), 'melee, trample and haste');
+    t.ok(g.hasKw(titan, 'melee'), 'the Titan itself too');
+    t.no(g.hasKw(bear, 'haste'), 'not a nonartifact creature');
+    T.answer('declareAttackers', () => [{ attackerId: ring.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 16, 'Sol Ring hits for 3, +1 from melee');
+    T.nextTurn('B');
+    t.zone(ring, 'graveyard', 'sacrificed at the end step'); t.zone(stone, 'graveyard');
+    t.zone(signet, 'battlefield'); t.zone(titan, 'battlefield');
+  });
+
+  test('Cards: Foil — discard an Island card and another card instead of its mana cost', (mk, t) => {
+    t.auto('Foil');
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    const foil = T.hand('B', 'Foil'), isl = T.hand('B', 'Island');
+    t.no(T.g.altUsesFor('B', foil.id).some(u => /^alt/.test(u.via)), 'an Island alone is not enough');
+    const mtn = T.hand('B', 'Mountain');
+    t.ok(T.g.altUsesFor('B', foil.id).some(u => /^alt/.test(u.via)), 'an Island and another card');
+    T.cast('B', foil, { via: 'alt0', targets: [T.stackTarget(bolt)] });
+    t.zone(isl, 'graveyard'); t.zone(mtn, 'graveyard');
+    t.zone(bolt, 'graveyard', 'countered');
+    t.eq(T.life('B'), 20);
+  });
+  test('Cards: Foil — with two Islands and another card, the Island asked for, then the other card', (mk, t) => {
+    const T = mk();
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    const foil = T.hand('B', 'Foil'), i1 = T.hand('B', 'Island'), i2 = T.hand('B', 'Snow-Covered Island'), bear = T.hand('B', 'Grizzly Bears');
+    const asked = [];
+    T.answer('discard', (ch) => { asked.push(ch); return { cardIds: [asked.length === 1 ? i2.id : bear.id] }; });
+    T.answer('discard', (ch) => { asked.push(ch); return { cardIds: [bear.id] }; });
+    T.cast('B', foil, { via: 'alt0', targets: [T.stackTarget(bolt)] });
+    t.eq(asked[0] && asked[0].prompt, 'Discard an Island card to pay the cost.');
+    t.no(((asked[0] && asked[0].candidates) || []).includes(bear.id), 'the first: an Island');
+    t.eq(asked[1] && asked[1].prompt, 'Discard another card to pay the cost.');
+    t.zone(i2, 'graveyard'); t.zone(bear, 'graveyard'); t.zone(i1, 'hand');
+    t.zone(bolt, 'graveyard', 'countered');
+  });
+
+  test("Cards: Lolth, Spider Queen — −8: the emblem tops each opponent hit in combat up to 8 life lost this turn", (mk, t) => {
+    t.auto('Lolth, Spider Queen');
+    const T = mk({ library: Array(20).fill('Swamp'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const lolth = T.bf('A', 'Lolth, Spider Queen', { counters: { loyalty: 8 } });
+    T.activate('A', lolth, 2);
+    t.zone(lolth, 'graveyard', 'Lolth is gone');
+    g.changeLife(g.player('C'), -9);
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears'), b3 = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }, { attackerId: b3.id, defenderId: 'C' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 12, 'B lost 4 in combat, then 4 more: 8 in all');
+    t.eq(T.life('C'), 9, 'C had already lost 9: nothing more');
+  });
+  test('Cards: Lolth, Spider Queen — a creature of yours dying adds loyalty', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const lolth = T.bf('A', 'Lolth, Spider Queen', { counters: { loyalty: 3 } });
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear.id] });
+    T.resolve();
+    t.eq((lolth.counters || {}).loyalty, 4);
+  });
+
+  test('Cards: Notorious Throng — X Faerie Rogues, X the damage dealt to your opponents this turn; prowl: an extra turn', (mk, t) => {
+    t.auto('Notorious Throng');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Notorious Throng'));
+    const rogues = g.battlefield.filter(o => o.name === 'Faerie Rogue' && o.controller === 'A');
+    t.eq(rogues.length, 3, 'three: the damage to B, not to A');
+    t.ok(rogues.every(o => g.hasKw(o, 'flying')), 'with flying');
+    t.no((g.extraTurnsQueue || []).length, 'no prowl: no extra turn');
+  });
+  test('Cards: Notorious Throng — prowl after a Rogue hit: the combat damage counted, and an extra turn', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const rogue = T.bf('A', "Thieves' Guild Enforcer");
+    T.answer('declareAttackers', () => [{ attackerId: rogue.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    for (let i = 0; i < 5 && g.phase.id !== 'postcombat'; i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    t.eq(g.phase.id, 'postcombat');
+    t.eq(T.life('B'), 19);
+    T.mana('A', 'U5');
+    T.cast('A', T.hand('A', 'Notorious Throng'), { via: 'prowl' });
+    t.eq(g.battlefield.filter(o => o.name === 'Faerie Rogue').length, 1, 'one: the one combat damage');
+    t.eq((g.extraTurnsQueue || []).length, 1, 'an extra turn');
+  });
 };

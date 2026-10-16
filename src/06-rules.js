@@ -6832,7 +6832,7 @@
       if ((o.zone === 'hand' || o.zone === 'command') && a.altCosts) {
         a.altCosts.forEach((alt, i) => {
           if (alt.cond && !this._condMet(alt.cond, { controller: playerId, obj: o })) return;
-          if (this._thingCostBlocked(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn }, o, null)) return;
+          if (this._thingCostBlocked(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, discardAlso: alt.discardAlso, returnOwn: alt.returnOwn }, o, null)) return;
           // Sephara: enough untapped creatures to tap
           if (alt.tapCreatures && this._tapCostPool(playerId, alt.tapCreatures, o).length < (alt.tapCreatures.n || 1)) return;
           if (alt.exileFromHand && this._discardPool(playerId, alt.exileFromHand, o).length < (alt.exileFromHand.n || 1)) return;
@@ -9318,7 +9318,7 @@
               prompt: `Exile ${need === 1 ? this._aCard(alt.exileFromHand.filter, 'card') : need + ' ' + this._aCard(alt.exileFromHand.filter, 'card', true)} from your hand.` });
           }
         }
-        this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, returnOwn: alt.returnOwn, tapCreatures: alt.tapCreatures }, o, opts, item);
+        this._payThingCosts(playerId, { sacrifice: alt.sacrifice, discard: alt.discard, discardAlso: alt.discardAlso, returnOwn: alt.returnOwn, tapCreatures: alt.tapCreatures }, o, opts, item);
       }
       /* The rest of the price: life, and anything to be given up. */
       if (a && a.additionalCost && !opts.skipAdditional && !(optAdd && !opts.payAdditional)) {
@@ -10210,8 +10210,8 @@
             kwTrig('dethrone', twice);
           }
         }
-        // melee: +1/+1 per opponent you attacked
-        if (a.keywordSet.has('melee') && defenders.size) {
+        // melee: +1/+1 per opponent you attacked (Depthshaker Titan: one handed out too)
+        if (this.hasKw(o, 'melee') && defenders.size) {
           const m = defenders.size * twice;
           o.effects.push({ p: m, t: m, until: 'eot' });
           this.logEvent('keyword', `${o.name} gets +${m}/+${m} from melee.`);
@@ -12064,6 +12064,9 @@
         const need = this._costCount(cost.discard.n, opts);
         const dpool = this._discardPool(pid, cost.discard, self, opts);
         if ((cost.discard.differentNames ? this._distinctNames(dpool) : dpool.length) < need) return cost.discard.differentNames ? 'Not enough cards with different names in hand to discard.' : 'Not enough cards in hand to discard.';
+        // Foil: "discard an Island card and another card" — enough different cards for both (discardAlso)
+        if (cost.discardAlso && new Set(dpool.concat(this._discardPool(pid, cost.discardAlso, self, opts))).size < need + this._costCount(cost.discardAlso.n, opts))
+          return 'Not enough cards in hand to discard.';
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && !cost.exile.viaAbility) {
         const need = this._costCount(cost.exile.n, opts, pid);
@@ -12264,7 +12267,11 @@
         }
       }
       if (cost.discard) {
-        const pool = this._discardPool(pid, cost.discard, self, opts);
+        let pool = this._discardPool(pid, cost.discard, self, opts);
+        // Foil: "discard an Island card and another card" — the Island never the card the second part needs (discardAlso)
+        const dAlso = cost.discardAlso ? this._discardPool(pid, cost.discardAlso, self, opts) : null;
+        const dn2 = dAlso ? this._costCount(cost.discardAlso.n, opts) : 0;
+        if (dAlso) pool = pool.filter(x => dAlso.filter(y => y !== x).length >= dn2);
         const need = cost.discard.n === 'all' ? pool.length : Math.min(pool.length, this._costCount(cost.discard.n, opts));
         const dn = !!cost.discard.differentNames;
         // (Ormos, Archive Keeper: "with different names" — one card of a name, the first named — differentNames)
@@ -12275,10 +12282,25 @@
           else {
             pick = null;
             ask(Object.assign({ type: 'discard', count: need, candidates: pool.map(x => x.id),
-              prompt: `Discard ${need === 1 ? 'a card' : need + ' cards'}${dn ? ' with different names' : ''} to pay the cost.` }, dn ? { differentNames: true } : {}));
+              prompt: `Discard ${need === 1 ? (dAlso ? this._aCard(cost.discard.filter || 'card', 'card') : 'a card') : need + ' cards'}${dn ? ' with different names' : ''} to pay the cost.` }, dn ? { differentNames: true } : {}));
           }
         }
         if (pick) this._discardNow(pid, pick, item, { cost: true });
+        // (the second part, from what is left — asked after the first is answered)
+        if (dAlso) {
+          const pool2 = this._discardPool(pid, cost.discardAlso, self, opts).filter(x => !(pick || []).includes(x));
+          const need2 = Math.min(pool2.length, dn2);
+          let pick2 = (opts.discardAlsoIds || []).map(id => pool2.find(x => x.id === id)).filter(Boolean).slice(0, need2);
+          if (need2 > 0 && pick2.length < need2) {
+            if (auto || pool2.length === need2 || this._alike(pool2)) pick2 = this._cheapestFirst(pool2).slice(0, need2);
+            else {
+              pick2 = null;
+              ask({ type: 'discard', count: need2, candidates: pool2.map(x => x.id),
+                prompt: `Discard ${need2 === 1 ? 'another card' : need2 + ' other cards'} to pay the cost.` });
+            }
+          }
+          if (pick2) this._discardNow(pid, pick2, item, { cost: true });
+        }
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && cost.spellExile) {
         const pool = this._exileCostPool(pid, cost.exile, self);
@@ -16861,7 +16883,9 @@
         // Essence Channeler: "if you've lost life this turn"
         case 'lostLife': {
           if (!me) return false;
-          const who = cond.who === 'opponent' ? this.opponentsOf(me.id) : cond.who === 'other' ? this.players.filter(q => q.id !== me.id) : [me];
+          // (Lolth, Spider Queen's emblem: "that player" — the one the trigger is about: triggerPlayer)
+          const who = cond.who === 'opponent' ? this.opponentsOf(me.id) : cond.who === 'other' ? this.players.filter(q => q.id !== me.id)
+            : cond.who === 'triggerPlayer' ? [this.player(((ctx && ctx.triggerData) || {}).player)].filter(Boolean) : [me];
           return who.some(q => (q.lifeLostThisTurn || 0) >= (cond.n || 1));
         }
         case 'controlNotOwned': return !!me && this.battlefield.filter(x => x.controller === me.id && x.owner !== me.id && !x.phasedOut).length >= (cond.n || 1);
@@ -23131,7 +23155,7 @@
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
         if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.sharedTypeMax || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsHandAtMost || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsHandAtMost || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.opponentsDamaged || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Ensnared by the Mara: "the total mana value of those exiled cards" — the ones just exiled
@@ -23772,6 +23796,8 @@
           else if (e.who === 'opponents' && e.emptyHanded) { for (const p of this.opponentsOf(ctx.controller)) if (!((this.zones[p.id] || {}).hand || []).length) this.changeLife(p, -cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
+          // Lolth, Spider Queen's emblem: "they lose life equal to the difference" — up to N lost this turn (lostTopUp)
+          else if (e.who === 'triggerPlayer' && e.lostTopUp) { const p = triggerPlayer(); const k = p ? e.lostTopUp - (p.lifeLostThisTurn || 0) : 0; if (k > 0) this.changeLife(p, -k); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           // Sower of Discord: "the other chosen player" — of the two chosen, the one not dealt the damage (otherChosen)
           else if (e.who === 'otherChosen') {
@@ -27193,6 +27219,8 @@
             (e.sharesColorWith === 'commander' ? x.isCommander && (this.characteristics(x) || {}).isCreature : this._cardFitsWords(x, e.sharesColorWith)))
             .flatMap(x => (this.characteristics(x) || {}).colors || (x.analysis() || {}).colors || [])) : null;
           const matches = (c) => {
+            // Starfield Shepherd: "a basic Plains card or a creature card with mana value 1 or less" — the second kind, its limit its own (alt)
+            if (e.alt && mvOf(c) <= e.alt.maxMv && this._cardFitsWords(c, e.alt.filter)) return true;
             if (shareCols && !((c.analysis() || {}).colors || []).some(k => shareCols.has(k))) return false;
             /* Transmute looks for a mana value, not a card type. */
             if (e.mv != null && mvOf(c) !== n(e.mv)) return false;
@@ -32306,6 +32334,12 @@
           // "Exile them at the beginning of the next end step": a note for each token just made
           if (e.subject === 'made') {
             for (const id of (this._madeThisResolution || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
+          // Depthshaker Titan: "Sacrifice them at the beginning of the next end step" — each one the sentence before aimed at (aimed)
+          if (e.subject === 'aimed') {
+            const ids = ctx._lastAimed ? ctx._lastAimed.filter(t => t && t.kind === 'object').map(t => t.id) : (this._lastAffectedAll || []).map(x => x.id);
+            for (const id of ids) if (this.obj(id) && this.obj(id).zone === 'battlefield') this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
           /* Lagomos, War Effort, Manaform Hellkite: "create a … token. Sacrifice it (exile that token)

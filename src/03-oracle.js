@@ -1317,6 +1317,12 @@
     // (Reach the Horizon: "up to two basic land cards and/or Town cards with different names" — either kind, any mix: andOr)
     let andOr = false;
     if (!orAlso && (q = s.match(/^ and\/or ([A-Z][-a-zA-Z']*) cards(?=,| with|$)/))) { orAlso = q[1].toLowerCase(); andOr = true; s = s.slice(q[0].length); }
+    /* Starfield Shepherd: "a basic Plains card or a creature card with mana value 1 or less" — the limit the second
+       kind's alone (alt: filter, maxMv) */
+    let altSaid = '';
+    if (!orAlso && (q = s.match(/^ or an? ([a-z]+(?: [a-z]+)?) card with mana value (\d+) or less(?=,|$)/))) {
+      e.alt = { filter: q[1], maxMv: +q[2] }; altSaid = q[0]; s = s.slice(q[0].length);
+    }
     // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
@@ -1388,7 +1394,7 @@
     const asPrinted = (w) => { const hit = String(sentence).match(new RegExp('\\b' + w.replace(/[^a-z'-]/gi, '') + '\\b', 'i')); return hit && /^[A-Z]/.test(hit[0]) ? hit[0] : w; };
     const said = (f) => f.split(' ').map(w => w.replace(/^[a-z'-]+/, (x) => asPrinted(x))).join(' ');
     // (Spinewoods Armadillo: "a basic land card or a Desert card", as printed)
-    const what = e.filter === 'any' ? 'card' : andOr ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' cards and/or ' + said(orAlso) + ' card' : orAlso && e.n === 1 ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' card or ' + (/^[aeiou]/i.test(orAlso) ? 'an ' : 'a ') + said(orAlso) + ' card'
+    const what = e.alt && e.n === 1 ? said(e.filter) + ' card' + altSaid : e.filter === 'any' ? 'card' : andOr ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' cards and/or ' + said(orAlso) + ' card' : orAlso && e.n === 1 ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' card or ' + (/^[aeiou]/i.test(orAlso) ? 'an ' : 'a ') + said(orAlso) + ' card'
       : said(e.filter) + ' card';
     const NW = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
     e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : e.n === 99 ? 'any number of ' : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
@@ -11050,6 +11056,8 @@
     if (/^the total amount of life your opponents (?:have )?lost this turn$/i.test(p)) return done({ opponentsLifeLost: true, mult: 1 });
     // Chandra's Incinerator: "the total amount of noncombat damage dealt to your opponents this turn" (opponentsNoncombatDamage)
     if (/^the total amount of noncombat damage dealt to your opponents this turn$/i.test(p)) return done({ opponentsNoncombatDamage: true, mult: 1 });
+    // Notorious Throng: "the damage dealt to your opponents this turn" (opponentsDamaged, as Bloodthirst X counts it)
+    if (/^the (?:total amount of )?damage dealt to your opponents this turn$/i.test(p)) return done({ opponentsDamaged: true, mult: 1 });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     // The Mycotyrant: "the number of times you descended this turn"
     if (/^the number of times you descended this turn$/i.test(p)) return done({ playerStat: 'descendedThisTurn' });
@@ -15312,6 +15320,8 @@
         alt.sacrifice = { n: num(k[1]), filter: k[2].trim().toLowerCase() };
       else if ((k = part.match(/^discard (a|an|one|two) ([a-z ]*?)cards?$/i)))
         alt.discard = { n: num(k[1]), filter: k[2].trim() || 'card' };
+      // Foil: "discard an Island card and another card" — one more card, any (discardAlso)
+      else if (/^another card$/i.test(part) && alt.discard && !alt.discardAlso) alt.discardAlso = { n: 1, filter: 'card' };
       // Daze, Gush, the Borderposts: "return an Island you control to its owner's hand"
       /* Sephara, Lashknife: "tap four untapped creatures you control with
          flying", "tap an untapped creature you control" */
@@ -15717,6 +15727,8 @@
     if (!atStart) return one;
     return one.replace(/^(target [a-z ',]+?) (?:each )?(get|gain|phase|become|have|can't)\b/i, (x, a, v) => a + ' ' + (/can't/i.test(v) ? v : v === 'have' ? 'has' : v + 's'))
       .replace(/ and (get|gain|have) /, (x, v) => ' and ' + (v === 'have' ? 'has' : v + 's') + ' ')
+      // Depthshaker Titan: "… become 3/3 artifact creatures" — each "becomes a 3/3 artifact creature"
+      .replace(/ becomes (\d+\/\d+) ((?:[a-z]+ )*)creatures\b/, (x, pt, w) => ' becomes ' + (/^(?:8|11|18)\//.test(pt) ? 'an ' : 'a ') + pt + ' ' + w + 'creature')
       .replace(/^t/, 'T');
   }
 
@@ -17089,6 +17101,13 @@
         if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
       }
     }
+    /* Depthshaker Titan: "any number of target noncreature artifacts you control become 3/3 artifact creatures. Sacrifice
+       them at the beginning of the next end step." — "them" the ones aimed at, nothing having been made (subject aimed) */
+    if (res && res.effects) {
+      const k = res.effects.findIndex(e => e && e.op === 'becomes' && (e.anyFrom || (e.targets || []).length));
+      const nx = k >= 0 ? res.effects[k + 1] : null;
+      if (nx && nx.op === 'delayed' && nx.subject === 'made' && res.effects.length === k + 2) nx.subject = 'aimed';
+    }
     /* Shark Shredder, Killer Clone: "put up to one target creature card from that player's graveyard onto the
        battlefield under your control. It enters tapped and attacking that player." (attackTriggerPlayer) */
     if (res && res.effects) {
@@ -17330,6 +17349,8 @@
     [/^a creature or planeswalker an opponent controlled was dealt excess damage this turn$/i, () => ({ kind: 'oppExcessThisTurn' })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
+    // Lolth, Spider Queen's emblem: "if that player lost less than 8 life this turn" — the player the trigger is about
+    [/^that player lost less than (\w+) life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'not', cond: { kind: 'lostLife', who: 'triggerPlayer', n: num(m[1]) } } : null)],
     // Ludevic, Necro-Alchemist: "a player other than you lost life this turn" (who other)
     [/^a player other than you lost life this turn$/i, () => ({ kind: 'lostLife', who: 'other', n: 1 })],
     // Ennis, Debate Moderator: "if one or more cards were put into exile this turn"
@@ -18825,6 +18846,9 @@
     // (Parapet Thrasher: "Whenever one or more Dragons you control deal combat damage to an opponent" — once for each opponent hit)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to an opponent(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extraOf: (m) => (/^one or more /i.test(m[1]) ? { hitYourOpponent: true, batchPerPlayer: true } : { hitYourOpponent: true }) },
+    // Lolth, Spider Queen's emblem: "Whenever an opponent is dealt combat damage by one or more creatures you control," — once for each opponent hit
+    { re: /^Whenever an opponent is dealt combat damage by one or more creatures you control,? /i,
+      event: 'permCombatDamage', filt: () => ({ batch: true, who: 'you', words: 'creatures' }), extra: { hitYourOpponent: true, batchPerPlayer: true } },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
     // The Master, Mesmerist: "Whenever a creature with skulk deals combat damage to one of your opponents," — anyone's
@@ -20538,6 +20562,13 @@
         const mayFirst = !linked && (/^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body) || /^you may [^.]+\. Then [^.]+\.?$/i.test(body));
         const optional = !linked && !mayFirst && /^you may /i.test(body);
         const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
+        /* Lolth, Spider Queen's emblem: "if that player lost less than 8 life this turn, they lose life equal to the
+           difference" — up to 8 lost this turn, counted as it resolves (lostTopUp) */
+        const short = condition && condition.kind === 'not' && condition.cond && condition.cond.kind === 'lostLife' && condition.cond.who === 'triggerPlayer' ? condition.cond.n : null;
+        if (short && /^They lose life equal to the difference\.?$/i.test(body.trim())) {
+          parsed.effects = [{ op: 'loseLife', who: 'triggerPlayer', n: 0, lostTopUp: short, text: body.trim() }];
+          parsed.auto = true;
+        }
         // Disa the Restless: "… card is put into your graveyard from …, put it onto the battlefield" — that card
         if (trig.event === 'cardToGraveyardAny' && /^put it onto the battlefield\.?$/i.test(body.trim())) {
           parsed.effects = [{ op: 'batchToBattlefield', filter: 'permanent', text: 'Put it onto the battlefield.' }];
@@ -24018,7 +24049,15 @@
       const again = parseStatic((eachKind[1] ? 'Other ' : '') + pl + ' you control ' + (eachKind[3] === 'gets' ? 'get' : 'have') + ' ' + rest, ctx);
       if (again && again.auto) return Object.assign({}, again, { text: line });
     }
-    /* Zendikons: "Enchanted land is a 3/3 black Ooze creature. It's still a
+    // Depthshaker Titan: "Each artifact creature you control has melee, trample, and haste." — "Artifact creatures you control have …"
+    const eachCard = String(line).match(/^Each (other )?(artifact|enchantment|legendary|colorless) creature you control (gets|has) (.+)$/);
+    if (eachCard) {
+      const rest = eachCard[4].replace(/ and has /, ' and have ').replace(/, has /, ', have ');
+      const again = parseStatic((eachCard[1] ? 'Other ' + eachCard[2] : eachCard[2].charAt(0).toUpperCase() + eachCard[2].slice(1)) + ' creatures you control ' +
+        (eachCard[3] === 'gets' ? 'get' : 'have') + ' ' + rest, ctx);
+      if (again && again.auto) return Object.assign({}, again, { text: line });
+    }
+    /* Zendikons:"Enchanted land is a 3/3 black Ooze creature. It's still a
        land." — the second sentence only says the land keeps its card type,
        which being made a creature never took away */
     const still = String(line).match(/^((?:Enchanted|Each|All) lands?\b[^.]* (?:is|are) an? \d+\/\d+ [^.]*creatures?[^.]*\.) It'?s still a land\.?$/);

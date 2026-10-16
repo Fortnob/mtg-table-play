@@ -1963,7 +1963,10 @@ module.exports = (test) => {
   test('Audit: generated readings that dropped a mana value or nontoken limit are left to a person', (mk, t) => {
     const { card } = require('../harness');
     const T = mk();
-    t.no(T.MTG.oracle.analyze(card('Starfield Shepherd')).fullyAutomated, 'Starfield Shepherd');
+    // (Starfield Shepherd now reads its search itself, the limit kept to the creature card — alt)
+    const ss = T.MTG.oracle.analyze(card('Starfield Shepherd')).abilities.find(a => a.event === 'etb');
+    const tu = ss && ss.effects.find(e => e.op === 'tutor');
+    t.ok(tu && tu.alt && tu.alt.maxMv === 1 && tu.filter === 'basic plains', 'Starfield Shepherd: a basic Plains, or a creature card with mana value 1 or less');
     // (Szarel, Genesis Shepherd now reads its trigger itself, the nontoken limit kept — sacAnotherYourTurn)
     const sz = T.MTG.oracle.analyze(card('Szarel, Genesis Shepherd')).abilities.find(a => a.event === 'youSacrifice');
     t.ok(sz && sz.objFilter && sz.objFilter.nontoken && sz.objFilter.other, 'Szarel, Genesis Shepherd: another nontoken permanent');
