@@ -4181,14 +4181,17 @@
      * Nashi, Moon Sage's Scion: an exiled card played with its leave — "one
      * of those cards", so the rest of its lot can no longer be played that way.
      */
-    _impulseUsed(o, playerId) {
-      // (Lobelia, Defender of Bag End: "a card … without paying its mana cost" — a free one uses the lot's leave too)
-      if (!o || o.zone !== 'exile' || !o.impulseGroup || (o.impulseBy !== playerId && o.freeCastBy !== playerId)) return;
+    _impulseUsed(o, playerId, via) {
+      /* (Lobelia, Defender of Bag End: "a card … without paying its mana cost" — a free one uses the lot's leave too)
+         (Court of Locthwain: a free cast uses up only the lot's free leave, each card's own leave to play it paying staying
+         — the free leave's lot in freeCastGroup, the other's in impulseGroup) */
+      const g = o && (via && via.via === 'free' && o.freeCastGroup ? o.freeCastGroup : o.impulseGroup);
+      if (!o || o.zone !== 'exile' || !g || (o.impulseBy !== playerId && o.freeCastBy !== playerId)) return;
       for (const q of this.players) {
         for (const c of ((this.zones[q.id] || {}).exile || [])) {
-          if (c === o || c.impulseGroup !== o.impulseGroup) continue;
-          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null; c.impulseLess = null; c.impulseUndaunted = null;
-          if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; }
+          if (c === o || (c.impulseGroup !== g && c.freeCastGroup !== g)) continue;
+          if (c.impulseGroup === g) { c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null; c.impulseLess = null; c.impulseUndaunted = null; }
+          if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; c.freeCastGroup = null; }
         }
       }
     }
@@ -8975,7 +8978,7 @@
         if (gg && gg.once && pp) pp.graveCastGrants = (pp.graveCastGrants || []).filter(g => g !== gg);
       }
       // Nashi, Moon Sage's Scion: "one of those cards" — the others' leave is used up
-      if (o.zone === 'exile') this._impulseUsed(o, playerId);
+      if (o.zone === 'exile') this._impulseUsed(o, playerId, via);
       // Aminatou's Augury: one card of the lot cast, its types are spoken for (freeTypeGroup)
       if (o.zone === 'exile' && via && via.via === 'free') this._freeTypeUsed(o);
       const fromZone = o.zone;
@@ -18761,6 +18764,7 @@
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
       if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
+      if (from !== toZone && o.freeCastGroup) o.freeCastGroup = null;
       // (Aminatou's Augury: out of exile, out of its lot — freeTypeGroup)
       if (from !== toZone && o.freeTypeGroup) { o.freeTypeGroup = null; o.freeTypesCast = null; }
       // (foretold: a card that leaves exile is foretold no more)
@@ -22826,6 +22830,8 @@
         }
         case 'addManaAny': {
           const amt = n(e.amount);
+          // (Coalition Relic: "for each charge counter removed this way" — none removed, nothing added, nothing asked)
+          if (!(amt > 0)) break;
           /* "any color in your commander's color identity" is only those */
           // (Omnath, Locus of All: "in any combination of its colors" — allowedColors)
           const pool = this._manaAnyPool(e, ctx.controller);
@@ -30571,7 +30577,8 @@
               continue;
             }
             // Tariel: "Put that card onto the battlefield under your control."
-            if (e.to === 'battlefield') {
+            // (Deadbridge Chant: "If it's a creature card, put it onto the battlefield. Otherwise, put it into your hand." — creatureOrHand)
+            if (e.to === 'battlefield' || (e.to === 'creatureOrHand' && this._cardFitsWords(c, 'creature'))) {
               this.logEvent('zone', `${me.name} chooses ${c.name} at random from ${gyOf.name}'s graveyard.`);
               this.moveObject(c, 'battlefield', { controller: ctx.controller });
               continue;
@@ -31941,14 +31948,13 @@
             const until = e.duration === 'eot' || nextEndNow ? this.turn : e.duration === 'exiled' || e.duration === 'whileControl' ? 99999 : this._endOfNextTurnOf(pid);
             if (e.duration === 'whileControl') c.impulseWhileSrc = src.id;
             // (a land "played without paying its mana cost" is simply played)
-            if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; }
-            else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; }
+            if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; if (group) c.freeCastGroup = group; }
+            else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; if (group) c.impulseGroup = group; }
             if (e.anyMana) c.impulseAnyMana = pid;
             // Arvinox, the Mind Flail: "you may cast permanent spells from among them" (impulseFilter)
             c.impulseFilter = e.filter || null;
             // Gandalf, Goblins' Bane (Flameshape): "if you control a Wizard" — asked each time it is played (impulseIfControl)
             c.impulseIfControl = e.ifControl || null;
-            if (group) c.impulseGroup = group;
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             // Nashi: "If you cast a spell this way, pay life equal to its mana value rather than paying its mana cost."
             if (e.payLife) c.impulsePayLife = pid;
@@ -34220,6 +34226,8 @@
               out.push(c.id);
               // Expensive Taste: "Exile the top two cards of target opponent's library face down." — nobody sees them yet
               if (e.faceDown && c.zone === 'exile') { c.faceDownExile = true; c.lookableBy = null; }
+              // Court of Locthwain: one of the "cards exiled with this enchantment" (withSrc)
+              if (e.withSrc && src && src.zone === 'battlefield' && c.zone === 'exile') c.exiledWithId = src.id;
               // Evelyn, the Covetous: "with a collection counter on it"
               if (e.counter && c.zone === 'exile') { c.counters = c.counters || {}; c.counters[e.counter] = (Number(c.counters[e.counter]) || 0) + 1; this.bumpBoard(); }
               // Maralen, Fae Ascendant: "cards exiled with Maralen this turn" — which, and when (exiledBySrc)
@@ -37837,6 +37845,35 @@
           const again = (list) => (list || []).map(x => (!x ? x : x.op === 'rollAgain' ? Object.assign({}, e, { text: x.text || e.text })
             : x.then ? Object.assign({}, x, { then: again(x.then) }) : x));
           if (row && (row.effects || []).length) this._spliceNext(again(row.effects));
+          break;
+        }
+        /* Reckless Endeavor: "Roll two d12 and choose one result. … equal to that result … Then … equal to the other
+           result." — rolled once, kept through the question (marks); the same two numbers ask nothing */
+        case 'rollPick': {
+          const sides = n(e.sides) || 12;
+          const r0 = this.resolving, marks = r0 ? (r0.marks = r0.marks || {}) : {};
+          const key = (r0 ? r0.index : 0) + ':rollPick';
+          let rolls = marks[key];
+          if (!rolls) {
+            const dice = { group: this._newRollGroup(), of: 2 };
+            rolls = [this._rollDie(me, sides, dice), this._rollDie(me, sides, dice)];
+            marks[key] = rolls;
+            rolls.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolls, dieIndex: k, playerId: ctx.controller }));
+          }
+          const nm = src ? U.frontName(src.name) : 'it';
+          const say = (t, v) => String(t || '').replace(/\b99\b/g, String(v)).replace(/CARDNAME/g, nm);
+          let k = 0;
+          if (rolls[0] !== rolls[1]) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'rollPick', kind: 'options', min: 1, max: 1,
+              options: [0, 1].map(i => ({ i, label: `${rolls[i]}: ${say(e.chosenText, rolls[i])}. Then ${say(e.otherText, rolls[1 - i]).replace(/^./, c => c.toLowerCase())}.`, chosen: rolls[i], other: rolls[1 - i] })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you rolled ${rolls[0]} and ${rolls[1]}. Choose one result.` }, 'rollPick');
+            if (got === SUSPEND) return SUSPEND;
+            k = got && got.picks && got.picks.length ? got.picks[0] : 0;
+          }
+          const chosen = rolls[k], other = rolls[1 - k];
+          this.logEvent('rules', `${me.name} chooses ${chosen}; the other result is ${other}.`);
+          const fill = (list, v) => JSON.parse(JSON.stringify(list || []), (kk, x) => (x === 'rollPickValue' ? v : x));
+          this._spliceNext(fill(e.chosen, chosen).concat(fill(e.other, other)));
           break;
         }
         // "Flip three coins", "Flip a coin until you lose a flip": the wins counted

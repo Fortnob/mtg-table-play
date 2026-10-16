@@ -2137,6 +2137,18 @@
       opts.forEach((o, i) => { if (harm(o) < harm(opts[best])) best = i; });
       return { picks: [best] };
     },
+    /* Reckless Endeavor: which result goes where — each split weighed, a sweep by what it kills on each side */
+    rollPick(s) {
+      const e = this._resolvingEffect();
+      if (!e || e.op !== 'rollPick') return null;
+      const worth = (list, v) => U.sum((list || []).map(x => {
+        const y = JSON.parse(JSON.stringify(x), (k, z) => (z === 'rollPickValue' ? v : z));
+        return y.op === 'destroyAll' || y.op === 'exileAll' || (y.op === 'damage' && y.each) ? this._wipeWorth(y) : effectWorth(y, 0);
+      }));
+      let best = 0, bv = -Infinity;
+      (s.options || []).forEach((o, i) => { const v = worth(e.chosen, o.chosen) + worth(e.other, o.other); if (v > bv) { bv = v; best = i; } });
+      return { picks: [best] };
+    },
     /* Torment of Hailfire: pay in life while it is plentiful, then in cards, then in permanents */
     torment(s) {
       const opts = s.options || [];

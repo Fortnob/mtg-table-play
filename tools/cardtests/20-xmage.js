@@ -73004,4 +73004,131 @@ module.exports = (test) => {
     t.eq(o2.counters.eon, 2); t.eq(T2.zone('A', 'graveyard').length, 2, 'milled two');
     t.ok(ot);
   });
+  test('Cards: Deadbridge Chant — mills ten; each upkeep a random graveyard card: a creature onto the battlefield, else into the hand', (mk, t) => {
+    t.auto('Deadbridge Chant');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.put('A', 'Deadbridge Chant', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.zone('A', 'graveyard').length, 10, 'milled ten');
+    T.g.zones.A.graveyard.length = 0;
+    const bears = T.grave('A', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(bears, 'battlefield', 'a creature card: onto the battlefield');
+    const isl = T.grave('A', 'Swamp');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(isl, 'hand', 'otherwise into the hand');
+  });
+  test('Cards: Court of Locthwain — each upkeep an opponent\'s top card, playable while exiled; as the monarch one spell among them free this turn', (mk, t) => {
+    t.auto('Court of Locthwain');
+    const T = mk();
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'Court of Locthwain'));
+    t.ok(T.player('A').monarch, 'the monarch');
+    T.nextTurn('B');
+    const bolt = T.top('B', 'Lightning Bolt'); T.g.setMonarch('A'); T.nextTurn('A');
+    t.zone(bolt, 'exile', 'B\'s top card exiled');
+    t.eq(bolt.impulseBy, 'A', 'A may play it');
+    t.ok(bolt.impulseAnyMana, 'with mana of any type');
+    t.eq(bolt.freeCastBy, 'A', 'the monarch: free this turn');
+    // the next upkeep: another, and one free spell among them both; the other may still be played, paying
+    T.nextTurn('B');
+    const wurm = T.top('B', 'Craw Wurm'); T.g.setMonarch('A'); T.nextTurn('A');
+    t.zone(wurm, 'exile');
+    t.eq(bolt.freeCastBy, 'A', 'the Bolt from before is among them');
+    t.ok(T.g.castSpell('A', wurm.id, { auto: true, via: 'free' }), T.g.lastError);
+    T.resolve();
+    t.zone(wurm, 'battlefield', 'the Wurm cast free');
+    t.no(bolt.freeCastBy, 'one free spell only');
+    t.eq(bolt.impulseBy, 'A', 'the Bolt may still be played, paying');
+    T.mana('A', 'G');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'the Bolt cast with green mana');
+    // not the monarch: no free spell
+    T.nextTurn('B');
+    const bears = T.top('B', 'Grizzly Bears');
+    T.top('B', 'Island');   // (drawn by B, the monarch, at the end step)
+    T.g.setMonarch('B'); T.nextTurn('A');
+    t.zone(bears, 'exile');
+    t.eq(bears.impulseBy, 'A');
+    t.no(bears.freeCastBy, 'not the monarch: nothing free');
+  });
+  test('Cards: Reckless Endeavor — two d12, one result as damage to each creature, the other as Treasures', (mk, t) => {
+    t.auto('Reckless Endeavor');
+    const faces = (T, list) => { const d = list.slice(); T.g.rng.range = (a) => (d.length ? d.shift() : a); };
+    const T = mk();
+    const bears = T.bf('B', 'Grizzly Bears'), wurm = T.bf('B', 'Craw Wurm'), giant = T.bf('A', 'Colossal Dreadmaw');
+    faces(T, [3, 8]);
+    T.answer('choose', (ch) => {
+      t.eq(ch.purpose, 'rollPick');
+      t.eq(ch.options.map(o => o.label).join(' | '), '3: Reckless Endeavor deals 3 damage to each creature. Then create 8 Treasure tokens. | 8: Reckless Endeavor deals 8 damage to each creature. Then create 3 Treasure tokens.');
+      return { picks: [1] };
+    });
+    T.mana('A', '5RR');
+    T.cast('A', T.hand('A', 'Reckless Endeavor'));
+    t.zone(bears, 'graveyard'); t.zone(wurm, 'graveyard'); t.zone(giant, 'graveyard', '8 damage kills the Dreadmaw too');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 3, 'three Treasures');
+    // the same number twice: nothing to choose
+    const T2 = mk();
+    faces(T2, [5, 5]);
+    T2.mana('A', '5RR');
+    T2.cast('A', T2.hand('A', 'Reckless Endeavor'));
+    t.eq(T2.asked.filter(c => c.type === 'choose').length, 0, 'not asked');
+    t.eq(T2.bfOf('A').filter(o => o.name === 'Treasure').length, 5);
+    // a bot keeps its own big creature: the small result as damage
+    const T3 = mk();
+    T3.player('A').isBot = true;
+    const mine = T3.bf('A', 'Colossal Dreadmaw'), theirs = T3.bf('B', 'Grizzly Bears');
+    faces(T3, [2, 9]);
+    T3.mana('A', '5RR');
+    T3.g.castSpell('A', T3.hand('A', 'Reckless Endeavor').id, { auto: true });
+    T3.resolve();
+    t.zone(mine, 'battlefield', 'the bot\'s Dreadmaw lives'); t.zone(theirs, 'graveyard', 'the Bears die');
+    t.eq(T3.bfOf('A').filter(o => o.name === 'Treasure').length, 9, 'nine Treasures');
+  });
+  test('Cards: Coalition Relic — charge counters stored, all removed at the first main phase for that much mana of any colors', (mk, t) => {
+    t.auto('Coalition Relic');
+    const T = mk();
+    const relic = T.bf('A', 'Coalition Relic');
+    T.activate('A', relic, 1);
+    t.eq(relic.counters.charge, 1, 'a charge counter');
+    relic.counters.charge = 2;
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'manaColors'); return { picks: [0, 4] }; });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(relic.counters.charge || 0, 0, 'all removed');
+    t.eq(T.player('A').pool.total(), 2, 'two mana');
+    // none stored: nothing added, nothing asked
+    const q0 = T.asked.length;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(T.player('A').pool.total(), 0);
+    t.eq(T.asked.slice(q0).filter(c => c.type === 'choose').length, 0, 'not asked');
+  });
+  test('Cards: River Kelpie — a card for any permanent entering from a graveyard, itself too, and for any spell cast from a graveyard', (mk, t) => {
+    t.auto('River Kelpie');
+    const T = mk({ library: Array(20).fill('Island') });
+    const kelpie = T.bf('A', 'River Kelpie');
+    const h = () => T.zone('A', 'hand').length;
+    let h0 = h();
+    // an opponent's creature from their graveyard
+    const bears = T.grave('B', 'Grizzly Bears');
+    T.g.moveObject(bears, 'battlefield', { controller: 'B' }); T.resolve();
+    t.eq(h(), h0 + 1, 'B\'s Bears from the graveyard: a card');
+    // from the hand: nothing
+    h0 = h();
+    T.put('B', 'Grizzly Bears', 'battlefield', { etb: true }); T.resolve();
+    t.eq(h(), h0, 'from the hand: nothing');
+    // a spell cast from a graveyard (flashback), by anybody
+    h0 = h();
+    const ft = T.grave('B', 'Faithless Looting');
+    T.nextTurn('B');
+    T.mana('B', '2R');
+    t.ok(T.g.castSpell('B', ft.id, { auto: true, via: 'flashback' }), T.g.lastError);
+    T.resolve();
+    t.eq(h(), h0 + 1, 'B cast a spell from a graveyard: a card');
+    // persist: it dies and comes back from the graveyard — a card for itself
+    h0 = h();
+    T.g.moveObject(kelpie, 'graveyard'); T.resolve();
+    const back = T.bfOf('A').find(o => o.name === 'River Kelpie');
+    t.ok(back, 'persisted back');
+    t.eq(h(), h0 + 1, 'itself from the graveyard: a card');
+  });
 };

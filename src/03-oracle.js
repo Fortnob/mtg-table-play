@@ -12376,6 +12376,44 @@
     // Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." (castCopiesExiled)
     { re: /^copy each exiled card you own with an? ([a-z]+) counter on it\. You may cast the copies\.?$/i,
       make: (m) => [{ op: 'castCopiesExiled', counter: m[1].toLowerCase() }] },
+    /* Coalition Relic: "remove all charge counters from this artifact. Add one mana of any color for each charge counter
+       removed this way." (removeAllButCounters keep 0, then that many) */
+    { re: /^remove all ([a-z]+) counters from (?:CARDNAME|this artifact|this permanent|this creature)\. Add one mana of any colou?r for each \1 counter removed this way\.?$/i,
+      make: (m) => [{ op: 'removeAllButCounters', kind: m[1].toLowerCase(), keep: 0 }, { op: 'addManaAny', amount: { removedCounters: true, thisWay: true, mult: 1 } }] },
+    /* Reckless Endeavor: "Roll two d12 and choose one result. Reckless Endeavor deals damage equal to that result to each
+       creature. Then create a number of Treasure tokens equal to the other result." — each sentence read with its number
+       to come (rollPick: the result chosen, the other) */
+    { re: /^Roll two d(4|6|8|10|12|20) and choose one result\. (.+?)\. Then (.+?)\.?$/i,
+      make: (m) => {
+        const amt = (t, ph) => {
+          const s = t.replace(new RegExp('deals damage equal to ' + ph + ' to (.+)$', 'i'), 'deals 99 damage to $1')
+            .replace(new RegExp('^create a number of (.+?) tokens? equal to ' + ph + '$', 'i'), 'create 99 $1 tokens')
+            .replace(new RegExp('^you gain life equal to ' + ph + '$', 'i'), 'you gain 99 life')
+            .replace(new RegExp('^draw cards equal to ' + ph + '$', 'i'), 'draw 99 cards');
+          if (!/\b99\b/.test(s)) return null;
+          const p = parseEffects(s.charAt(0).toUpperCase() + s.slice(1) + '.');
+          if (!p.auto || !p.effects.length || p.effects.some(e => e.op === 'manual')) return null;
+          let seen = false;
+          const swap = (v, k) => (k === 'text' ? v : v === 99 || v === '99' ? (seen = true, 'rollPickValue') : Array.isArray(v) ? v.map(x => swap(x))
+            : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k2, x]) => [k2, swap(x, k2)])) : v);
+          const effects = swap(p.effects);
+          return seen ? { effects, text: s.charAt(0).toUpperCase() + s.slice(1) } : null;
+        };
+        const a = amt(m[2], 'that result'), b = amt(m[3], 'the other result');
+        return a && b ? [{ op: 'rollPick', sides: +m[1], chosen: a.effects, other: b.effects, chosenText: a.text, otherText: b.text }] : null;
+      } },
+    /* Court of Locthwain: "exile the top card of target opponent's library. You may play that card for as long as it
+       remains exiled, and mana of any type can be spent to cast it. If you're the monarch, until end of turn, you may cast
+       a spell from among cards exiled with this enchantment without paying its mana cost." — kept with it (withSrc), and
+       one free spell among them all, this turn's and before (mayPlayExiled exiledWith, oneOf, free) */
+    { re: /^exile the top card of target opponent'?s library\. You may play that card for as long as it remains exiled, and mana of any type can be spent to cast it\. If you'?re the monarch, until end of turn, you may cast a spell from among cards exiled with (?:CARDNAME|this enchantment|this artifact) without paying its mana cost\.?$/i,
+      make: () => [{ op: 'exileTop', who: 'target', n: 1, withSrc: true, targets: [{ type: 'player', opponent: true }] },
+        { op: 'mayPlayExiled', castOnly: false, anyMana: true, duration: 'exiled' },
+        { op: 'ifCond', cond: { kind: 'monarch' }, then: [{ op: 'mayPlayExiled', exiledWith: true, oneOf: true, duration: 'eot', free: true, castOnly: true }] }] },
+    /* Deadbridge Chant: "choose a card at random in your graveyard. If it's a creature card, put it onto the battlefield.
+       Otherwise, put it into your hand." (to creatureOrHand) */
+    { re: /^choose a card at random in your graveyard\. If it'?s a creature card, put it onto the battlefield\. Otherwise, put it into your hand\.?$/i,
+      make: () => [{ op: 'randomFromGraveyard', filter: 'card', to: 'creatureOrHand' }] },
     /* Arcane Bombardment: "exile an instant or sorcery card at random from your graveyard. Then copy each card exiled
        with this enchantment. You may cast any number of the copies without paying their mana costs." — the card kept
        with it (markSelf), then a copy of each one so far, each cast or not in turn (castCopiesExiled exiledWith, free) */
@@ -17402,6 +17440,10 @@
   }
 
   const TRIGGER_PATTERNS = [
+    /* River Kelpie: "Whenever this creature or another permanent enters from a graveyard" — anyone's, from any graveyard
+       (before the general "this creature or another … enters") */
+    { re: /^Whenever (?:this creature|CARDNAME) or another permanent enters from a graveyard,? /i, event: 'permEnters',
+      filt: () => ({ words: 'permanent' }), extra: { fromGraveyardEnter: true } },
     /* Senu, Keen-Eyed Protector: "When a legendary creature you control attacks and isn't blocked, if this card is
        exiled, put it onto the battlefield attacking." — a trigger that works from exile, and only there (fromExile) */
     { re: /^When(?:ever)? (an? [a-z ]+? you control) attacks and isn'?t blocked,? (?=if this card is exiled,)/i, event: 'attacksUnblocked',
@@ -17885,6 +17927,8 @@
       event: 'youCastSpell', also: 'youActivateAbility', extra: { fromGraveyardOnly: true } },
     // Secrets of the Dead: "Whenever you cast a spell from your graveyard"
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
+    // River Kelpie: "Whenever a player casts a spell from a graveyard" — anyone's, from any graveyard
+    { re: /^Whenever a player casts a spell from a graveyard,? /i, event: 'anyCastSpell', extra: { fromGraveyardOnly: true } },
     // Melek, Izzet Paragon: "Whenever you cast an instant or sorcery spell from your library" (castFromLibraryOnly)
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your library,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ castFromLibraryOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
