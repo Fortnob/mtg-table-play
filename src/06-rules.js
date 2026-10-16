@@ -17931,6 +17931,10 @@
           if (cond.scope) return !!me && at(this._scopeList(cond.scope, me.id, src, null, true).length);
           if (cond.who === 'anOpponent') return !!me && this.opponentsOf(me.id).some(p => at(this.countPermanents(p.id, { per: cond.what || 'permanent', who: 'you' })));
           return !!me && at(this.countPermanents(me.id, { per: cond.what || 'permanent', who: cond.who || 'you' }));
+        // Case of the Stashed Skeleton: "You control no suspected Skeletons." (controlSuspected)
+        case 'controlSuspected':
+          return !!me && at(this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && (o.effects || []).some(f => f && f.suspected) &&
+            (!cond.subtype || this._hasCreatureType(o, cond.subtype))).length);
         case 'controlPower': {
           if (!me) return false;
           return this.battlefield.some(o => o.controller === me.id && !(cond.other && src && o.id === src.id) &&
@@ -20516,6 +20520,8 @@
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
             finalChapter: c === lastCh || undefined,   // (finalChapterResolved)
           });
+          // Historian's Boon: "Whenever the final chapter ability of a Saga you control triggers" (finalChapterTriggers)
+          if (c === lastCh) this._fire('finalChapterTriggers', o.controller, { object: o, objController: o.controller });
         }
       }
       // (Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — put like any counter)
@@ -23128,6 +23134,11 @@
         }
         if (e2.scope === 'yourCreatures' || e2.scope === 'opponentCreatures') {
           for (const o of this.creaturesOf(ctx.controller, e2.scope)) fn(o);
+          return;
+        }
+        // Case of the Stashed Skeleton: "create a 2/1 black Skeleton creature token and suspect it" — each token just made (madeTokens)
+        if (e2.scope === 'madeTokens') {
+          for (const id of (this._lastTokenGroup || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
           return;
         }
         // Nelly Borca, Impulsive Accuser: "goad all suspected creatures"
@@ -40952,7 +40963,15 @@
         case 'nextSpellUncounterable': me.nextSpellUncounterable = this.turn; me.nextSpellUncounterableWords = e.words || null; break;
         /* Reality Shift: the top card of a library, face down, as a 2/2 */
         case 'manifest': {
-          const who = e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
+          /* Unexplained Absence: "For each permanent exiled this way, its controller cloaks the top card of their library."
+             — whoever controlled each as it was exiled, once for each (eachExiledController) */
+          if (e.who === 'eachExiledController') {
+            for (const x of (this._lastAffectedAll || []).filter(y => (this.obj(y.id) || {}).zone === 'exile')) {
+              if (this.player(x.controller) && !this.player(x.controller).hasLost) this._runEffect(Object.assign({}, e, { who: 'fixed', playerId: x.controller }), ctx);
+            }
+            break;
+          }
+          const who = e.who === 'targetController' ? (this._lastAffectedController() || me) : e.who === 'fixed' ? this.player(e.playerId) : me;
           // Etrata, Deadly Fugitive: "cloak the top card of that player's library" — theirs, under your control (libOf)
           const libP = e.libOf === 'triggerPlayer' ? triggerPlayer() : who;
           if (!libP) break;

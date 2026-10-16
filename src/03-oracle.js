@@ -4869,6 +4869,10 @@
     { re: /^Its controller manifests dread\.?$/i, make: () => ({ op: 'manifestDread', who: 'targetController' }) },
     { re: /^If it'?s suspected, exile it\.?$/i, make: () => ({ op: 'ifCond', cond: { kind: 'itSuspected' }, then: [{ op: 'exile', scope: 'lastTarget' }] }) },
     // (Agrus Kos, Spirit of Justice: "If it's suspected, exile it. Otherwise, suspect it." — the other branch: otherwiseOf)
+    // Case of the Stashed Skeleton: "create a 2/1 black Skeleton creature token and suspect it." — each one made (madeTokens)
+    { re: /^([Cc]reate an? [^."]+? creature token) and suspect it\.?$/,
+      make: (m) => { const t = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
+        return t && !Array.isArray(t) && t.op === 'createToken' ? [t, { op: 'suspect', scope: 'madeTokens' }] : null; } },
     { re: /^(Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,
       make: (m) => (/^target/i.test(m[2]) ? { op: 'suspect', targets: [targetSpec(m[2])] }
         : m[1] ? { op: 'noop', otherwiseOf: [{ op: 'suspect', scope: 'lastTarget' }] } : { op: 'suspect', scope: 'lastTarget' }) },
@@ -6364,8 +6368,9 @@
     /* Thanos, the Mad Titan: "Choose odd or even. Destroy each other creature with mana value of the chosen quality."
        — chosen as it resolves (chooseParityNow), for the sentence after (mvParity 'chosen') */
     { re: /^Choose odd or even\.?$/i, make: () => ({ op: 'chooseParityNow' }) },
-    { re: /^Destroy each other creature with mana value of the chosen quality\.?$/i,
-      make: () => ({ op: 'destroyAll', what: 'creature', other: true, mvParity: 'chosen' }) },
+    // (Mutinous Massacre: "Destroy each creature with mana value of the chosen quality." — not "other")
+    { re: /^Destroy each (other )?creature with mana value of the chosen quality\.?$/i,
+      make: (m) => ({ op: 'destroyAll', what: 'creature', other: !!m[1], mvParity: 'chosen' }) },
     // Éowyn, Fearless Knight: "Legendary creatures you control gain protection from each of that creature's colors until end of turn."
     { re: /^([a-z ]*creatures you control) gain protection from each of that creature'?s colou?rs until end of turn\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'grantProtColorsOf', scope: sc, duration: 'eot' } : null; } },
@@ -8337,6 +8342,8 @@
       make: () => ({ op: 'restrict', flag: 'cantBlock', targets: [{ type: 'creature' }, { type: 'creature', upTo: true }] }) },
     { re: /^(?:A creature|Creatures) destroyed this way can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
     { re: /^Its controller manifests the top card of their library\.?$/i, make: () => ({ op: 'manifest', who: 'targetController' }) },
+    // Unexplained Absence: "For each permanent exiled this way, its controller cloaks the top card of their library." (eachExiledController)
+    { re: /^For each permanent exiled this way, its controller cloaks the top card of their library\.?$/i, make: () => ({ op: 'manifest', cloak: true, who: 'eachExiledController' }) },
     { re: /^Manifest the top card of your library\.?$/i, make: () => ({ op: 'manifest' }) },
     // Omarthis, Ghostfire Initiate: "manifest a number of cards from the top of your library equal to the number of counters on it"
     { re: /^Manifest a number of cards from the top of your library equal to the number of counters on (?:it|CARDNAME)\.?$/i,
@@ -9147,6 +9154,10 @@
     // Skyclave Relic: "create two tapped tokens that are copies of this artifact"
     { re: /^Create (two|three|four|\d+) (tapped )?tokens that are copies of (?:CARDNAME|this (?:artifact|creature|enchantment|permanent))\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), self: true, tapped: !!m[2], grant: [] }) },
+    /* Aggressive Biomancy: "Create X tokens that are copies of target creature you control, except they have 'When this
+       token enters, it fights up to one target creature you don't control.'" — words of their own (addText) */
+    { re: /^Create (two|three|four|five|\d+|X) tokens that are copies of (target [a-z ]+?), except they have "([^"]+)"\.?$/i,
+      make: (m) => { const sp = targetSpec(m[2]); return sp && !sp.unknown ? { op: 'copyPermanent', n: num(m[1]), targets: [sp], grant: [], addText: [m[3]] } : null; } },
     // (Orthion, Hero of Lavabrink: "Create five tokens that are copies of another target creature you control.")
     { re: /^Create (two|three|four|five|six|seven|eight|nine|ten|\d+|X) tokens that are copies of ((?:another )?target [a-z0-9 '-]+?)(?:, except they (?:have|gain) ([a-z, ']+))?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', n: num(m[1]), targets: [targetSpec(m[2])],
@@ -17940,7 +17951,9 @@
     // Sab-Sunen, Luxa Embodied: "it has an even number of counters on it", "if it has an odd number of counters on it" (selfCountersParity)
     [/^(?:it|this creature|CARDNAME) has an (even|odd) number of counters on it$/i, (m) => ({ kind: 'selfCountersParity', even: /even/i.test(m[1]) })],
     // Jadar: "you control no creatures with decayed"
-    [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
+    // Case of the Stashed Skeleton: "You control no suspected Skeletons." (controlSuspected)
+    [/^you control no suspected ([A-Z][a-z]+?)s$/, (m) => ({ kind: 'controlSuspected', subtype: m[1], n: 0, cmp: 'atMost' })],
+    [/^you control no creatures with ([a-z]+)$/i,(m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
     [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
     /* Satoru, the Infiltrator: "if none of them were cast or no mana was spent to cast them" — every one of the lot
@@ -18813,6 +18826,8 @@
     { re: /^Whenever one or more players sacrifice one or more creatures,? /i, event: 'anySacrifice', filt: () => ({ words: 'creature' }) },
     // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
     { re: /^Whenever the final chapter ability of a Saga you control resolves,? /i, event: 'finalChapterResolved' },
+    // Historian's Boon: "Whenever the final chapter ability of a Saga you control triggers" (finalChapterTriggers)
+    { re: /^Whenever the final chapter ability of a Saga you control triggers,? /i, event: 'finalChapterTriggers' },
     // Faldorn, Dread Wolf Herald: "Whenever a land you control enters from exile" (enteredFromExile)
     { re: /^Whenever (an? (?:land|creature|artifact|enchantment|permanent|nontoken creature)(?: you control)?) enters from exile,? /i, event: 'permEnters',
       filt: (m) => subjectFilter(m[1]), extra: { fromExileEnter: true } },
