@@ -5684,6 +5684,23 @@
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
     // Bad Wolf Bay: "cards can't enter from exile this turn"
     { re: /^Cards can'?t enter from exile this turn\.?$/i, make: () => ({ op: 'planar', what: 'noEnterFromExile' }) },
+    // Kharasha Foothills: "for each other opponent, you may create a token that's a copy of that creature, tapped and attacking that opponent"
+    { re: /^For each other opponent, you may create a token that'?s a copy of that creature, tapped and attacking that opponent\.?$/i,
+      make: () => ({ op: 'copyAttackingOthers', optional: true }) },
+    // Ood Sphere: "until your next turn, those creatures can't become tapped unless they're being declared as attackers"
+    { re: /^Until your next turn, those creatures can'?t become tapped unless they'?re being declared as attackers\.?$/i, make: () => ({ op: 'noTapUnlessAttack' }) },
+    /* New New York: "until end of turn, noncreature artifacts you control become 3/3 Vehicles in addition to their other types
+       and gain flying, haste, and crew 1"; Ghirapur: "until end of turn, each noncreature, non-Vehicle artifact you control
+       becomes a 5/3 Vehicle in addition to its other types and gains trample, haste, and crew 2" — base power and toughness,
+       a creature only once crewed */
+    { re: /^Until end of turn, (noncreature artifacts you control become|each noncreature, non-Vehicle artifact you control becomes an?) (\d+)\/(\d+) Vehicles? in addition to (?:their|its) other types and gains? ([a-z ,]+?),? and crew (\d+)\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[4]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        const scope = { who: 'you', what: 'artifact', notType: ['creature'] };
+        if (/non-Vehicle/i.test(m[1])) scope.notSubtype = 'vehicle';
+        return { op: 'becomes', duration: 'eot', scope, eff: { addSubtypes: ['Vehicle'], setPt: { p: +m[2], t: +m[3] }, keywords: kws, grantText: 'Crew ' + m[5] } };
+      } },
     // Mondassian Colony Ship: "it gets +1/+1 until end of turn for each other creature its controller controls that shares a creature type with it"
     { re: /^It gets \+1\/\+1 until end of turn for each other creature its controller controls that shares a creature type with it\.?$/i,
       make: () => ({ op: 'planar', what: 'kinPump', n: 1 }) },
@@ -14129,6 +14146,15 @@
       make: () => [{ op: 'chooseColor' },
         { op: 'counters', kind: '+1/+1', n: { devotionChosen: true, mult: 1 }, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], scope: null },
         { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true, notTarget: true }] },
+    /* Math is for Blockers: "exile it. Return it to the battlefield under its owner's control tapped and attacking at the
+       beginning of that player's next declare attackers step." — the attacker (warpReturn, without Noctis's "can't be blocked") */
+    { re: /^Exile it\. Return it to the battlefield under its owner'?s control tapped and attacking at the beginning of that player'?s next declare attackers step\.?$/i,
+      make: () => [{ op: 'exile', scope: 'triggerObject' }, { op: 'warpReturn', plain: true }] },
+    /* The Doctor's Childhood Barn: "for each opponent, choose up to one target nonland permanent that opponent controls. Untap
+       those permanents. They phase out. They can't phase in for as long as CARDNAME remains face up. When a player
+       planeswalks, those permanents phase in." */
+    { re: /^For each opponent, choose up to one target nonland permanent that opponent controls\. Untap those permanents\. They phase out\. They can'?t phase in for as long as CARDNAME remains face up\. When a player planeswalks, those permanents phase in\.?$/i,
+      make: () => [{ op: 'planar', what: 'barn', perOpponentFrom: { type: 'permanent', filter: 'nonland permanent', zone: 'battlefield', nonland: true, upTo: true } }] },
     // Mondassian Colony Ship, Cyber Conversion: "turn target creature face down. It becomes (It's) a 2/2 Cyberman artifact creature."
     { re: /^Turn target creature face down\. It(?: becomes| is|'s) a 2\/2 ([a-z]+) artifact creature\.?$/i,
       make: (m) => [{ op: 'turnFaceDown', as: 'Artifact Creature — ' + m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }] },

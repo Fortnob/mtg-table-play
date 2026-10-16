@@ -2059,4 +2059,100 @@ module.exports = (test) => {
       options: [{ i: 0, label: 'A (15)', life: 15 }, { i: 1, label: 'B (30)', life: 30 }] };
     t.eq(bots.answerChoose(T.g, 'A', ls).picks[0], 1, 'the higher total for itself');
   });
+
+  test('Planes: Math is for Blockers — a nontoken attacker is exiled, back tapped and attacking at its owner\'s next declare attackers step', (mk, t) => {
+    t.auto('Math is for Blockers (Plane)');
+    const T = onPlane(mk, 'Math is for Blockers (Plane)');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const life = T.life('B');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.zone(bear, 'exile', 'exiled as it attacked');
+    t.eq(T.life('B'), life, 'no damage this turn');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => []);
+    T.toMain('A', 'combatDamage');
+    t.zone(bear, 'battlefield', 'back at A\'s declare attackers step');
+    t.ok(bear.tapped && bear.attacking === 'B', 'tapped and attacking B');
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), life - 2, 'and it deals its damage');
+  });
+
+  test('Planes: Kharasha Foothills — an attacker gets a token copy attacking each other opponent, exiled at the end step', (mk, t) => {
+    t.auto('Kharasha Foothills');
+    const T = onPlane(mk, 'Kharasha Foothills', { players: ['A', 'B', 'C'] });
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    let asked = null;
+    T.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    T.toMain('A', 'declareBlockers');
+    t.ok(asked && asked.purpose === 'copyAttack' && /attacking C/.test(asked.prompt), asked && asked.prompt);
+    const tok = T.bfOf('A').find(o => o.isToken && o.name === 'Grizzly Bears');
+    t.ok(tok && tok.tapped && tok.attacking === 'C', 'a tapped copy attacking C');
+    t.no(T.bfOf('A').some(o => o.isToken && o.attacking === 'B'), 'none at B, the one attacked');
+    T.toMain('A', 'end'); T.resolve();
+    t.no(T.g.battlefield.includes(tok), 'exiled at the end step');
+  });
+
+  test('Planes: The Doctor\'s Childhood Barn — chaos: an opponent\'s nonland permanent untaps and phases out until a player planeswalks', (mk, t) => {
+    t.auto('The Doctor\'s Childhood Barn');
+    const T = onPlane(mk, 'The Doctor\'s Childhood Barn');
+    const g = T.bf('B', 'Hill Giant', { tapped: true }), f = T.bf('B', 'Forest');
+    T.answer('choose', (ch) => { t.no(ch.items.some(x => x.id === f.id), 'no land offered'); return { picks: [g.id] }; });
+    chaos(T);
+    t.ok(g.phasedOut, 'the Giant phases out'); t.no(g.tapped, 'untapped');
+    t.no(f.phasedOut, 'not the land');
+    T.nextTurn('B');
+    t.ok(g.phasedOut, 'B\'s untap step does not phase it in');
+    T.nextTurn('A');
+    walkTo(T, 'Shiv');
+    t.no(g.phasedOut, 'in again once A planeswalks');
+  });
+
+  test('Planes: Ood Sphere — chaos: goaded creatures can\'t become tapped except to attack until your next turn', (mk, t) => {
+    t.auto('Ood Sphere');
+    const T = onPlane(mk, 'Ood Sphere');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.answer('choose', () => ({ picks: [elf.id] }));
+    chaos(T);
+    t.ok(T.g._goaders(elf).length, 'goaded');
+    const mi = 0;
+    t.no(T.g.activateAbility('B', elf.id, mi, {}), 'B can\'t tap the Elves for mana'); t.ok(/can't become tapped/.test(T.g.lastError), T.g.lastError);
+    T.nextTurn('B');
+    T.toMain('B', 'combatDamage');
+    t.ok(elf.attacking && elf.tapped, 'it attacks (goaded), tapped as an attacker');
+    T.nextTurn('A');
+    t.no(T.g._cantBecomeTapped(elf), 'over at A\'s next turn');
+  });
+
+  test('Planes: New New York — at your beginning of combat noncreature artifacts become 3/3 flying hasty Vehicles with crew 1', (mk, t) => {
+    t.auto('New New York');
+    const T = onPlane(mk, 'New New York');
+    const stone = T.bf('A', 'Mind Stone'), bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('A', 'beginCombat');
+    t.ok(T.g._hasSubtype(stone, 'Vehicle'), 'a Vehicle');
+    t.no((T.g.characteristics(stone) || {}).isCreature, 'not a creature yet');
+    t.eq(T.g.powerOf(stone) + '/' + T.g.toughnessOf(stone), '3/3', '3/3');
+    t.ok(T.g.hasKw(stone, 'flying') && T.g.hasKw(stone, 'haste'), 'flying, haste');
+    const a = stone.analysis();
+    const ci = a.manaAbilities.length + a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^Crew/i.test(x.text || ''));
+    t.ok(ci >= a.manaAbilities.length, 'it has crew');
+    T.activate('A', stone, ci);
+    t.ok((T.g.characteristics(stone) || {}).isCreature, 'crewed: a creature');
+    t.ok(bear.tapped, 'the Bears crewed it');
+    T.nextTurn('B');
+    t.no(T.g._hasSubtype(stone, 'Vehicle'), 'until end of turn');
+  });
+
+  test('Planes: Ghirapur — at your beginning of combat each noncreature, non-Vehicle artifact becomes a 5/3 Vehicle with crew 2', (mk, t) => {
+    t.auto('Ghirapur');
+    const T = onPlane(mk, 'Ghirapur');
+    const stone = T.bf('A', 'Mind Stone'), copter = T.bf('A', 'Smuggler\'s Copter');
+    T.toMain('A', 'beginCombat');
+    t.eq(T.g.powerOf(stone) + '/' + T.g.toughnessOf(stone), '5/3', 'the Mind Stone is a 5/3');
+    t.ok(T.g.hasKw(stone, 'trample') && T.g.hasKw(stone, 'haste'), 'trample, haste');
+    t.eq(T.g.powerOf(copter), 3, 'the Copter, a Vehicle already, unchanged');
+    t.no(T.g.hasKw(copter, 'trample'), 'no trample for it');
+  });
 };

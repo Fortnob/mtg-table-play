@@ -5041,8 +5041,8 @@
       let cut = 0;
       const count = (fn) => this.battlefield.filter(x => x.controller === pid && fn(x)).length;
 
-      if (cr.convoke) cut += Math.max(0, count(x => { const xa = x.analysis(); return xa && xa.isCreature && !x.tapped; }) - this._convokeColors(pid, o).length);
-      if (cr.improvise) cut += count(x => { const xa = x.analysis(); return xa && xa.isArtifact && !x.tapped; });
+      if (cr.convoke) cut += Math.max(0, count(x => { const xa = x.analysis(); return xa && xa.isCreature && !x.tapped && !this._cantBecomeTapped(x); }) - this._convokeColors(pid, o).length);
+      if (cr.improvise) cut += count(x => { const xa = x.analysis(); return xa && xa.isArtifact && !x.tapped && !this._cantBecomeTapped(x); });
       if (cr.delve) cut += this.zones[pid] ? this.zones[pid].graveyard.length : 0;
       if (cr.affinity) {
         const f = cr.affinity;
@@ -5128,7 +5128,7 @@
     _reductionCandidates(pid, o, kind) {
       if (kind === 'delve') return ((this.zones[pid] || {}).graveyard || []).filter(c => c !== o);
       return this.battlefield.filter(x => {
-        if (x.controller !== pid || x.tapped || x.phasedOut) return false;
+        if (x.controller !== pid || x.tapped || x.phasedOut || this._cantBecomeTapped(x)) return false;
         if (kind === 'improvise') return !!(x.analysis() || {}).isArtifact || ((this.characteristics(x) || {}).addTypes || []).includes('Artifact');
         return !!(this.characteristics(x) || {}).isCreature;
       });
@@ -11498,7 +11498,7 @@
     }
     _tapCostPool(pid, spec, self, selfTaps) {
       const f = String((spec && spec.filter) || 'creature');
-      return this.battlefield.filter(x => x.controller === pid && !x.tapped && !x.phasedOut &&
+      return this.battlefield.filter(x => x.controller === pid && !x.tapped && !x.phasedOut && !this._cantBecomeTapped(x) &&
         !(self && x.id === self.id && (spec.another || selfTaps)) &&
         // Sephara: "untapped creatures you control with flying"
         (!spec.keyword || this.hasKw(x, spec.keyword)) &&
@@ -12222,6 +12222,7 @@
       if (thing) return this.fail(thing);
       if (cost.tap) {
         if (o.tapped) return this.fail(`${o.name} is already tapped.`);
+        if (this._cantBecomeTapped(o)) return this.fail(`${o.name} can't become tapped.`);
         const a = o.analysis();
         if (a && a.isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o))
           return this.fail(`${o.name} has summoning sickness.`);
@@ -12415,6 +12416,7 @@
         const ab = a.manaAbilities.length ? extra[abilityIndex] : (extra[abilityIndex || 0] || extra[0]);
         if (!ab) return this.fail(`${o.name} has no mana ability.`);
         if (ab.cost && ab.cost.tap && o.tapped) return this.fail(`${o.name} is already tapped.`);
+        if (ab.cost && ab.cost.tap && this._cantBecomeTapped(o)) return this.fail(`${o.name} can't become tapped.`);
         if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o) && ab.cost && ab.cost.tap)
           return this.fail(`${o.name} has summoning sickness.`);
         if (!this._activateManaDirect(playerId, o, ab, manaChoice)) return this.fail(`${o.name} cannot make mana right now.`);
@@ -13115,6 +13117,8 @@
       // Lavinia, Foil to Conspiracy: "Activate only during an opponent's turn." — nor reached for outside it
       if (ab && ab.only && this._activationBlocked(o, ab, playerId)) return false;
       if ((c.other || []).length) return false;
+      // (Ood Sphere: a permanent that can't become tapped pays no {T})
+      if (c.tap && o && this._cantBecomeTapped(o)) return false;
       // choosing which other permanent to give up is the player's call
       if (c.sacrifice || c.discard || c.exile || c.removeCounters || c.exileOwn || c.exileHand) return false;
       // and so is which creatures to tap (Springleaf Drum): it is clicked, never reached for
@@ -20469,6 +20473,10 @@
       return same.every(l => l.length) ? same : null;
     }
 
+    /** Ood Sphere: "Until your next turn, those creatures can't become tapped unless they're being declared as attackers." */
+    _cantBecomeTapped(o) {
+      return !!(o && o.zone === 'battlefield' && (o.effects || []).some(e => e && e.noTapUnlessAttack));
+    }
     /** The players this creature dealt combat damage to this combat (Glen Elendra). */
     _hitThisCombat(o) {
       const h = o && o._hitPlayersCombat;
@@ -29174,8 +29182,9 @@
           const x = src && src.zone === 'exile' ? src : (this._lastExiled && this.obj(this._lastExiled));
           if (!x || x.zone !== 'exile') break;
           const owner = x.owner || ctx.controller;
+          // (Math is for Blockers: without "It can't be blocked that combat." — plain)
           this.scheduleDelayed({ event: 'declareAttackersBegin', controller: owner, forPlayer: owner, objId: x.id, whileExiled: x.exileStamp,
-            name: 'Return it tapped and attacking', effects: [{ op: 'warpReturnNow' }] });
+            name: 'Return it tapped and attacking', effects: [Object.assign({ op: 'warpReturnNow' }, e.plain ? { plain: true } : {})] });
           this.logEvent('rules', `${x.name} returns at the beginning of ${(this.player(owner) || me).name}'s next declare attackers step.`);
           break;
         }
@@ -29201,10 +29210,10 @@
           if (!def) break;
           x.attacking = def.id;
           if (!this.combat.attackers.includes(x.id)) this.combat.attackers.push(x.id);
-          x.effects.push({ flag: 'unblockable', until: 'eot', untilEndOfCombat: true });
+          if (!e.plain) x.effects.push({ flag: 'unblockable', until: 'eot', untilEndOfCombat: true });
           x._chr = null;
           this.bumpBoard();
-          this.logEvent('combat', `${x.name} returns tapped and attacking ${def.name}; it can't be blocked this combat.`);
+          this.logEvent('combat', `${x.name} returns tapped and attacking ${def.name}${e.plain ? '' : '; it can\'t be blocked this combat'}.`);
           break;
         }
         // Kodama of the East Tree: a permanent card from hand no costlier than what entered
@@ -35614,6 +35623,38 @@
           }
           break;
         }
+        /* Kharasha Foothills: "for each other opponent, you may create a token that's a copy of that creature, tapped and
+           attacking that opponent" — the attacker the trigger is about; the tokens are this resolution's ("those tokens") */
+        case 'copyAttackingOthers': {
+          const tdK = ctx.triggerData || {};
+          const x = this.obj(tdK.objectId);
+          if (!x || x.zone !== 'battlefield' || !this.combat) break;
+          const def = tdK.player;
+          for (const p of this.opponentsOf(ctx.controller)) {
+            if (p.hasLost || p.id === def) continue;
+            if (e.optional) {
+              const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'copyAttack', yesLabel: 'Create it', noLabel: 'Don\u2019t',
+                prompt: `${src ? src.name + ': ' : ''}create a token that's a copy of ${x.name}, tapped and attacking ${p.name}?` }, 'cao' + p.id);
+              if (yes === SUSPEND) return SUSPEND;
+              if (!yes) continue;
+            }
+            if (this._doneHere('caoMade' + p.id)) continue;
+            this._myriadCopy(ctx.controller, x.id, p.id, { keep: true });
+          }
+          break;
+        }
+        /* Ood Sphere: "Until your next turn, those creatures can't become tapped unless they're being declared as
+           attackers." — the creatures the ability targets (_cantBecomeTapped) */
+        case 'noTapUnlessAttack': {
+          const all = (ctx.resolvedTargets || ctx.targets || []).filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
+          for (const o of all) {
+            o.effects.push({ noTapUnlessAttack: true, until: null, untilTurnOf: ctx.controller });
+            o._chr = null;
+          }
+          if (all.length) this.logEvent('rules', `Until ${me.name}'s next turn, ${all.map(o => o.name).join(' and ')} can't become tapped unless declared as attackers.`);
+          this.bumpBoard();
+          break;
+        }
         /* Enlist: "When you do, add its power to this creature's until end of turn." — the creature tapped for it as
            attackers were declared (declareAttackers), its power now, or as it last was */
         case 'enlist': {
@@ -39021,6 +39062,8 @@
     }
     _markTapped(o, asAttacker, why) {
       if (!o || o.tapped) return;
+      // Ood Sphere: "can't become tapped unless they're being declared as attackers"
+      if (!asAttacker && this._cantBecomeTapped(o)) return;
       o.tapped = true;
       if (!o._tappedTurn || o._tappedTurn.turn !== this.turn) o._tappedTurn = { turn: this.turn, n: 0 };
       o._tappedTurn.n++;
@@ -39995,12 +40038,15 @@
       this._fire('youCreateToken', controller, { object: copy });
     }
     /** Myriad: a copy tapped and attacking another opponent, exiled as combat ends (TOKEN_MAKERS). */
-    _myriadCopy(controller, srcId, foeId) {
+    _myriadCopy(controller, srcId, foeId, how) {
       const src = this.obj(srcId), p = this.player(foeId);
       if (!src || !p || !this.combat) return;
       const copy = this._register(new GObj(src.card, controller, 'battlefield'));
+      // (Kharasha Foothills: kept past combat, gone by its own delayed trigger instead — keep; "those tokens": _madeThisResolution)
+      const keep = !!(how && how.keep);
       Object.assign(copy, { isToken: true, controller, zone: 'battlefield', entered: this.turn,
-        summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
+        summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: !keep });
+      if (keep) (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
       copy.ts = this._stampNew();
       this.battlefield.push(copy);
       copy.attacking = p.id;
@@ -40009,7 +40055,7 @@
       this._onEnter(copy);
       this._fireEnters(copy);
       this._fire('youCreateToken', controller, { object: copy });
-      this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+      this.logEvent('token', `${src.name}: a copy attacks ${p.name}${keep ? '' : ' (myriad)'}.`);
     }
     /** Three Dog: a copy of the Aura attached to that creature; null when it could not be (TOKEN_MAKERS). */
     _auraCopyOnto(controller, card, hostId) {

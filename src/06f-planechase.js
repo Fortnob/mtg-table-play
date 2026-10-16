@@ -960,6 +960,20 @@
           const r = this._planeswalk(pid, { ctx });
           return r === SUSPEND ? r : null;
         }
+        /* The Doctor's Childhood Barn: "Untap those permanents. They phase out. They can't phase in for as long as CARDNAME
+           remains face up. When a player planeswalks, those permanents phase in." — the targets, phased out until a player
+           planeswalks (phasedOutBy 'planeswalk': no untap step brings them back) */
+        case 'barn': {
+          const objs = (targets || []).filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield' && !o.phasedOut);
+          for (const o of objs) {
+            this._markUntapped(o);
+            o.phasedOut = true; o.phasedOutBy = 'planeswalk'; o.phasedTurn = this.turn;
+            for (const id of (o.attachments || [])) { const at = this.obj(id); if (at && !at.phasedOut) { at.phasedOut = true; at.phasedOutBy = 'planeswalk'; at.phasedTurn = this.turn; } }
+          }
+          if (objs.length) this.logEvent('rules', `${objs.map(o => o.name).join(' and ')} untap${objs.length === 1 ? 's' : ''} and phase${objs.length === 1 ? 's' : ''} out until a player planeswalks.`);
+          this.bumpBoard();
+          return null;
+        }
         /* Mondassian Colony Ship: "it gets +1/+1 until end of turn for each other creature its controller controls that shares
            a creature type with it" — the attacker the trigger is about, counted as it resolves */
         case 'kinPump': {
