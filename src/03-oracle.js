@@ -10292,7 +10292,8 @@
     { re: /^(?:You )?[Dd]raw cards equal to the greatest power among ([-a-zA-Z ]+?)\.?$/,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'draw', who: 'you', n: { greatestPower: sc } } : null; } },
     /* "Draw a card for each creature you control with a +1/+1 counter on it." */
-    { re: /^(?:You )?[Dd]raw a card for each ([-a-zA-Z0-9+/ ]+?)\.?$/,
+    // (Bandit's Talent: "draw an additional card for each opponent who has one or fewer cards in hand")
+    { re: /^(?:You )?[Dd]raw (?:a|an additional) card for each ([-a-zA-Z0-9+/ ]+?)\.?$/,
       make: (m) => { const c = countOf(m[1]); return c ? { op: 'draw', who: 'you', n: c } : null; } },
     // (Search for Glory: "You gain 1 life for each {S} spent to cast this spell." — snowSpent)
     { re: /^You gain (one|two|three|four|five|\d+) life for each ([-a-zA-Z0-9+/ ]+?|\{S\} spent to cast this spell)\.?$/i,
@@ -10755,6 +10756,8 @@
     if ((m = p.match(/^opponents? (?:who|that) drew (two|three|four|\d+) or more cards this turn$/i))) return { opponentsDrewAtLeast: num(m[1]), mult: k };
     // (Smuggler's Share: "opponent who had two or more lands enter the battlefield under their control this turn" — opponentsLandsEntered)
     if ((m = p.match(/^opponents? (?:who|that) had (two|three|four|\d+) or more lands enter the battlefield under their control this turn$/i))) return { opponentsLandsEntered: num(m[1]), mult: k };
+    // Bandit's Talent: "for each opponent who has one or fewer cards in hand" (opponentsHandAtMost)
+    if ((m = p.match(/^opponents? (?:who|that) (?:has|have) (one|two|three|four|\d+) or fewer cards in (?:hand|their hands?)$/i))) return { opponentsHandAtMost: num(m[1]), mult: k };
     // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
     if (/^opponents? whose life totals? (?:is|are) less than half their starting life totals?$/i.test(p)) return { opponentsBelowHalfLife: true, mult: k };
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
@@ -12090,6 +12093,11 @@
     { re: /^Exile target instant or sorcery card from a graveyard\. Copy that card (twice|three times|four times)\. You may cast the copies without paying their mana costs\. Exile CARDNAME\.?$/i,
       make: (m) => [{ op: 'exileCopyCast', copies: ({ twice: 2, 'three times': 3, 'four times': 4 })[m[1].toLowerCase()],
         targets: [{ type: 'card', filter: 'instant or sorcery', zone: 'graveyard' }] }, { op: 'exileSelf' }] },
+    /* Dance with Calamity: "Shuffle your library. As many times as you choose, you may exile the top card of your library. If
+       the total mana value of the cards exiled this way is 13 or less, you may cast any number of spells from among those
+       cards without paying their mana costs." (exileTopAsMany, then castFree from those) */
+    { re: /^Shuffle your library\. As many times as you choose, you may exile the top card of your library\. If the total mana value of the cards exiled this way is (\d+) or less, you may cast any number of spells from among those cards without paying their mana costs\.?$/i,
+      make: (m) => [{ op: 'shuffle' }, { op: 'exileTopAsMany', maxTotalMv: +m[1] }, { op: 'castFree', from: 'lastExiled' }] },
     /* Invoke Calamity: "You may cast up to two instant and/or sorcery spells with total mana value 6 or less from your
        graveyard and/or hand without paying their mana costs. If those spells would be put into your graveyard, exile them
        instead. Exile Invoke Calamity." (castFree handOrGraveyard, upTo, totalMv, exileAfter) */
@@ -13855,12 +13863,14 @@
     /* Intuition: "Search your library for three cards and reveal them. Target
        opponent chooses one. Put that card into your hand and the rest into
        your graveyard. Then shuffle." Gifts Ungiven the other way round. */
-    { re: /^Search your library for (up to )?(\w+) cards( with different names)? and reveal them\. Target opponent chooses (\w+)(?: of those cards)?\. Put (?:that card|the chosen cards?) into your (hand|graveyard) and the rest into your (hand|graveyard)\. Then shuffle\.$/i,
+    // (Realms Uncharted: "up to four land cards with different names … An opponent chooses two of those cards" — filter, no target)
+    { re: /^Search your library for (up to )?(\w+) ((?:land |creature |artifact |nonland )?)cards( with different names)? and reveal them\. (Target opponent|An opponent) chooses (\w+)(?: of those cards)?\. Put (?:that card|the chosen cards?) into your (hand|graveyard) and the rest into your (hand|graveyard)\. Then shuffle\.$/i,
       make: (m) => {
-        const k = num(m[2]), c = num(m[4]);
+        const k = num(m[2]), c = num(m[6]);
         if (typeof k !== 'number' || typeof c !== 'number') return null;
-        return [{ op: 'searchOppChooses', n: k, upTo: !!m[1], distinct: !!m[3], k: c, chosenTo: m[5].toLowerCase(), restTo: m[6].toLowerCase(),
-          targets: [{ type: 'player', opponent: true }] }];
+        return [Object.assign({ op: 'searchOppChooses', n: k, upTo: !!m[1], distinct: !!m[4], k: c, chosenTo: m[7].toLowerCase(), restTo: m[8].toLowerCase() },
+          m[3].trim() ? { filter: m[3].trim().toLowerCase() } : {},
+          /^target/i.test(m[5]) ? { targets: [{ type: 'player', opponent: true }] } : { anOpponent: true })];
       } },
     // Past in Flames: "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost."
     { re: /^Each (instant and sorcery|instant|sorcery) card in your graveyard gains flashback until end of turn\. The flashback cost is equal to its mana cost\.$/i,
@@ -23644,6 +23654,9 @@
     // Wolverine, Best There Is: "Double all damage Wolverine would deal." — itself, to anything (fromSelf)
     { re: /^Double all damage (?:CARDNAME|this creature) would deal\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgSelfDouble', event: 'damage', who: 'any', how: 'double', fromSelf: true }) },
+    // Mjölnir, Hammer of Thor: "Double all damage equipped creature would deal." — the creature it's attached to, to anything (fromAttached)
+    { re: /^Double all damage (?:equipped|enchanted) creature would deal\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgAttachedDoubleAll', event: 'damage', who: 'any', how: 'double', fromAttached: true }) },
     // Absorbing Man and Titania: "Double all damage that creature sources you control would deal." (doubleSourcesYours)
     { re: /^Double all damage that (creature |red|green |white |blue |black )?sources you control would deal\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgDoubleYours', event: 'damage', who: 'you', how: 'double', sourceWords: m[1] ? m[1].trim().toLowerCase() : null }) },
@@ -24387,6 +24400,9 @@
         make: (m) => ({ op: 'etbTappedUnlessReveal', types: [m[1].toLowerCase()], orControl: m[2].toLowerCase() }), auto: true },
       { re: /^Equip (legendary creature|commander|Knight|Samurai|[A-Z][a-z]+) (\{[^}]+\}(?:\{[^}]+\})*)$/,
         make: (m) => ({ op: 'equip', cost: m[2], only: m[1] }), auto: true },
+      // Mjölnir, Hammer of Thor: "Equip worthy {1} (A creature is worthy if it's a legendary non-Villain that's red and/or white.)"
+      { re: /^Equip worthy (\{[^}]+\}(?:\{[^}]+\})*)$/,
+        make: (m) => ({ op: 'equip', cost: m[1], only: 'worthy' }), auto: true },
       /* The Theros gods: not a creature until your devotion is high enough.
          The engine asks as it looks at the god (CR 700.5). */
       { re: /^As long as your devotion to (white|blue|black|red|green)(?: and (white|blue|black|red|green))? is less than (\w+), (?:CARDNAME|this creature|it) isn'?t a creature\.?$/i,
@@ -25775,6 +25791,8 @@
       // Notion Thief
       { re: /^If an opponent would draw a card except the first one they draw in each of their draw steps, instead that player skips that draw and you draw a card\.?$/i,
         eff: { op: 'stealDraws' }, auto: true },
+      // Alms Collector: "If an opponent would draw two or more cards, instead you and that player each draw a card." (almsDraws)
+      { re: /^If an opponent would draw two or more cards, instead you and that player each draw a card\.?$/i, eff: { op: 'almsDraws' }, auto: true },
       // Aven Mindcensor: "If an opponent would search a library, that player searches the top four cards of that library instead."
       { re: /^If an opponent would search a library, that player searches the top (two|three|four|five|\d+) cards of that library instead\.?$/i,
         make: (m) => ({ op: 'searchTopN', n: num(m[1]) }), auto: true },
@@ -26572,6 +26590,8 @@
         // Reconfigure: another creature, never itself
         if (eff.op === 'reconfigure') spec.another = true;
         if (eff.only === 'legendary creature') spec.legendary = true;
+        // (Mjölnir, Hammer of Thor: "worthy" — "a legendary non-Villain that's red and/or white")
+        else if (eff.only === 'worthy') Object.assign(spec, { legendary: true, notSubtype: 'villain', colors: ['R', 'W'] });
         else if (eff.only === 'commander') spec.commander = true;
         else if (eff.only) spec.subtypes = [eff.only.toLowerCase()];
         return {

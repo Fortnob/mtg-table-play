@@ -4968,6 +4968,8 @@
       if (v.opponentsDrewAtLeast) return this.opponentsOf(pid).filter(q => (q.drawnThisTurn || 0) >= v.opponentsDrewAtLeast).length * mult;
       // (Smuggler's Share: "who had two or more lands enter the battlefield under their control this turn" — opponentsLandsEntered)
       if (v.opponentsLandsEntered) { const by = ((this.turnHistory || {}).enteredBy) || {}; return this.opponentsOf(pid).filter(q => ((by[q.id] || {}).land || 0) >= v.opponentsLandsEntered).length * mult; }
+      // Bandit's Talent: "for each opponent who has one or fewer cards in hand" (opponentsHandAtMost)
+      if (v.opponentsHandAtMost) return this.opponentsOf(pid).filter(q => !q.hasLost && this.zones[q.id].hand.length <= v.opponentsHandAtMost).length * mult;
       // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
       if (v.opponentsBelowHalfLife) return this.opponentsOf(pid).filter(q => !q.hasLost && q.life * 2 < ((this.config && this.config.startingLife) || 20)).length * mult;
       // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
@@ -19791,6 +19793,18 @@
     _drawCards(p, n, silent) {
       /* Tomorrow, Azami's Familiar: while a replaced draw waits on its player's answer, every draw after it waits
          too, and they are made in turn once it is answered (_drawWait, _drawResume) */
+      /* Alms Collector: "If an opponent would draw two or more cards, instead you and that player each draw a card." — its
+         controller first, then that player (almsDraws) */
+      if (n >= 2) {
+        const alms = this.battlefield.find(x => !x.phasedOut && x.controller !== p.id && this.opponentsOf(x.controller).some(q => q.id === p.id) &&
+          this._staticOp(x, 'almsDraws'));
+        if (alms) {
+          const ac = this.player(alms.controller);
+          this.logEvent('draw', `${alms.name}: instead of ${p.name} drawing ${n} cards, ${ac.name} and ${p.name} each draw a card.`);
+          n = 1;
+          this._drawCards(ac, 1, silent);
+        }
+      }
       if (this._drawWait) { this._drawWait.queue.push({ pid: p.id, n, silent: !!silent }); return; }
       this._drawRun(p, { left: n, extras: 0, drawnNow: 0 }, silent);
     }
@@ -23091,7 +23105,7 @@
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
         if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.sharedTypeMax || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsHandAtMost || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Ensnared by the Mara: "the total mana value of those exiled cards" — the ones just exiled
@@ -35521,6 +35535,8 @@
               : e.from === 'revealed' ? [this._lastRevealed].filter(id => id && (this.obj(id) || {}).zone === 'library')
               // Tasha, the Witch Queen: "from among cards in exile with page counters on them" — anybody's, one picked (exiledCounter)
               : e.from === 'exiledCounter' ? this._freeFromExiledCounter(e, ctx)
+              // Dance with Calamity: "from among those cards" — what was just exiled, and nothing else (lastExiled)
+              : e.from === 'lastExiled' ? (this._lastExiledList || []).slice()
               // Oskar, Rubbish Reclaimer: "you may cast it from your graveyard" — the card discarded, still there (triggerObj)
               : e.from === 'triggerObj' ? [(ctx.triggerData || {}).objectId].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
               // Syrix, Carrier of the Flame: "cast this card from your graveyard" — this card, still there (selfFromGrave)
@@ -36532,20 +36548,64 @@
         }
         /* Intuition, Gifts Ungiven: you find and reveal the cards, an
            opponent picks which of them go where */
+        /* Dance with Calamity: "As many times as you choose, you may exile the top card of your library. If the total mana
+           value of the cards exiled this way is 13 or less, …" — one card at a time, the total told each time; what follows
+           reads those cards only while the total is within it (exileTopAsMany, _lastExiledList) */
+        case 'exileTopAsMany': {
+          const r = this.resolving;
+          const slot = 'etam' + (r ? r.index : 0);
+          const st = (r && (r.marks = r.marks || {})[slot]) || { ids: [], done: false };
+          if (r) r.marks[slot] = st;
+          const cap = Number(e.maxTotalMv) || 0;
+          const lib = this.zones[ctx.controller].library;
+          const total = () => st.ids.reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+          for (let guard = 0; !st.done && guard < 200; guard++) {
+            if (!lib.length) { st.done = true; break; }
+            let more;
+            if (me.isBot) more = total() <= cap - 4;
+            else {
+              more = this._ask({ type: 'confirm', playerId: ctx.controller, yesLabel: 'Exile the top card', noLabel: 'Stop',
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}exile the top card of your library? Total mana value exiled so far: ${total()} (${cap} or less to cast them).` }, 'etam' + st.ids.length);
+              if (more === SUSPEND) return SUSPEND;
+            }
+            if (!more) { st.done = true; break; }
+            const c = lib[0];
+            this.moveObject(c, 'exile');
+            this._know([c], '*');
+            st.ids.push(c.id);
+            this.logEvent('exile', `${me.name} exiles ${c.name} from the top of their library (total mana value ${total()}).`);
+          }
+          const ok = total() <= cap;
+          this._lastExiledList = ok ? st.ids.filter(id => (this.obj(id) || {}).zone === 'exile') : [];
+          if (!ok && st.ids.length) this.logEvent('rules', `The total mana value is ${total()}, more than ${cap}: nothing can be cast.`);
+          break;
+        }
         case 'searchOppChooses': {
           const lib = this.zones[ctx.controller].library;
           // Stranglehold, Ashiok, Dream Render: no search (the library is still shuffled)
           if (this._searchBanned(ctx.controller, ctx)) { this.rng.shuffle(lib); break; }
-          const opp = firstPlayer() || this.opponentsOf(ctx.controller).find(p => !p.hasLost);
-          const most = Math.min(n(e.n), lib.length);
+          let opp = firstPlayer() || this.opponentsOf(ctx.controller).find(p => !p.hasLost);
+          // (Realms Uncharted: "land cards" — those only: filter)
+          const pool = e.filter ? lib.filter(c => this._cardFitsWords(c, e.filter)) : lib;
+          const most = Math.min(n(e.n), pool.length);
           const got = most <= 0 ? { picks: [] } : this._choose({ playerId: ctx.controller, purpose: 'searchReveal', kind: 'objects', zone: 'library',
-            panel: true, items: this._chooseItems(lib), min: e.upTo ? 0 : most, max: most,
+            panel: true, items: this._chooseItems(pool), min: e.upTo ? 0 : most, max: most,
             constraints: e.distinct ? [{ kind: 'distinct', key: 'name', reason: 'They must have different names.' }] : [],
-            prompt: `Search your library for ${e.upTo ? 'up to ' : ''}${n(e.n)} cards${e.distinct ? ' with different names' : ''} to reveal.` }, 'socFind');
+            prompt: `Search your library for ${e.upTo ? 'up to ' : ''}${n(e.n)} ${e.filter ? e.filter + ' ' : ''}cards${e.distinct ? ' with different names' : ''} to reveal.` }, 'socFind');
           if (got === SUSPEND) return SUSPEND;
           const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'library');
           if (picked.length) { this._know(picked, '*'); this.logEvent('reveal', `${me.name} reveals ${picked.map(c => c.name).join(', ')}.`); }
           const k = Math.min(n(e.k), picked.length);
+          /* Realms Uncharted: "An opponent chooses two of those cards" — which opponent, yours to say as it resolves (anOpponent) */
+          if (e.anOpponent && picked.length > k) {
+            const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+            if (opps.length > 1) {
+              const who = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players', items: this._choosePlayers(opps), min: 1, max: 1,
+                prompt: `Choose an opponent to choose ${k} of the revealed cards.` }, 'socOpp');
+              if (who === SUSPEND) return SUSPEND;
+              opp = this.player(who && who.picks && who.picks[0]) || opps[0];
+            }
+          }
           const ch = !opp || picked.length <= k ? { picks: picked.map(c => c.id) } : this._choose({ playerId: opp.id, purpose: 'opponentPicks',
             kind: 'objects', zone: 'library', panel: true, items: this._chooseItems(picked), min: k, max: k, forPlayer: ctx.controller,
             prefer: e.chosenTo === 'hand' ? 'worst' : 'best',

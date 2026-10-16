@@ -77324,4 +77324,125 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, h0, 'none removed: no card');
     t.zone(dawn, 'graveyard'); t.eq(T.life('A'), 24);
   });
+
+  test('Cards: Mjölnir, Hammer of Thor — 4 damage as it enters; equip worthy only; the equipped creature deals double damage', (mk, t) => {
+    t.auto('Mjölnir, Hammer of Thor');
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    const giant = T.bf('B', 'Hill Giant'); T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    const mj = T.bf('A', 'Mjölnir, Hammer of Thor', { etb: true }); T.resolve();
+    t.zone(giant, 'graveyard', '4 damage to the Giant');
+    const krenko = T.bf('A', 'Krenko, Mob Boss'), bear = T.bf('A', 'Grizzly Bears'), foom = T.bf('A', 'Fin Fang Foom'), tat = T.bf('A', 'Tatyova, Benthic Druid');
+    T.mana('A', '1');
+    for (const x of [bear, foom, tat]) t.no(g.activateAbility('A', mj.id, 0, { auto: true, targets: [{ kind: 'object', id: x.id }] }), x.name + ' is not worthy');
+    T.activate('A', mj, 0, { targets: [krenko] });
+    t.eq(mj.attachedTo, krenko.id, 'Krenko, a legendary red non-Villain, is worthy');
+    T.answer('declareAttackers', () => [{ attackerId: krenko.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 14, 'Krenko deals 6 instead of 3');
+  });
+
+  test('Cards: Alms Collector — an opponent drawing two or more: you and that player each draw one instead', (mk, t) => {
+    t.auto('Alms Collector');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.bf('A', 'Alms Collector');
+    const a0 = T.zone('A', 'hand').length, b0 = T.zone('B', 'hand').length;
+    g.drawCards('B', 3);
+    t.eq(T.zone('B', 'hand').length, b0 + 1, 'B draws one, not three');
+    t.eq(T.zone('A', 'hand').length, a0 + 1, 'A draws one');
+    g.drawCards('B', 1);
+    t.eq(T.zone('B', 'hand').length, b0 + 2, 'one card: as it is');
+    t.eq(T.zone('A', 'hand').length, a0 + 1);
+    g.drawCards('A', 2);
+    t.eq(T.zone('A', 'hand').length, a0 + 3, "A's own draws: as they are");
+    t.eq(T.zone('B', 'hand').length, b0 + 2);
+  });
+  test('Cards: Alms Collector — an opponent\'s Inspiration on themselves', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Plains') });
+    T.bf('B', 'Alms Collector');
+    const a0 = T.zone('A', 'hand').length, b0 = T.zone('B', 'hand').length;
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Inspiration'), { targets: ['A'] });
+    t.eq(T.zone('A', 'hand').length, a0 + 1, 'A drew one, not two');
+    t.eq(T.zone('B', 'hand').length, b0 + 1, 'B drew one');
+  });
+
+  test('Cards: Realms Uncharted — up to four lands with different names; an opponent puts two in your graveyard, the rest go to your hand', (mk, t) => {
+    t.auto('Realms Uncharted');
+    const T = mk({ library: Array(10).fill('Grizzly Bears') });
+    const f = T.top('A', 'Forest'), i = T.top('A', 'Island'), m = T.top('A', 'Mountain'), p = T.top('A', 'Plains');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [f.id, i.id, m.id, p.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [f.id, i.id] }; });
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Realms Uncharted'));
+    t.ok(asked[0] && asked[0].items.every(it => T.g.obj(it.id).name !== 'Grizzly Bears'), 'land cards only');
+    t.ok((asked[0].constraints || []).some(c => c.kind === 'distinct'), 'different names');
+    t.eq(asked[1] && asked[1].playerId, 'B', 'the opponent chooses');
+    t.zone(f, 'graveyard'); t.zone(i, 'graveyard');
+    t.zone(m, 'hand'); t.zone(p, 'hand');
+  });
+  test('Cards: Realms Uncharted — with two opponents, you choose which one chooses', (mk, t) => {
+    const T = mk({ library: Array(10).fill('Grizzly Bears'), players: ['A', 'B', 'C'] });
+    const f = T.top('A', 'Forest'), i = T.top('A', 'Island'), m = T.top('A', 'Mountain');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [f.id, i.id, m.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: ['C'] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [m.id, i.id] }; });
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Realms Uncharted'));
+    t.eq(asked[1] && asked[1].purpose, 'chooseOpponent');
+    t.eq(asked[2] && asked[2].playerId, 'C', 'C chooses');
+    t.zone(f, 'hand'); t.zone(i, 'graveyard'); t.zone(m, 'graveyard');
+  });
+
+  test('Cards: Dance with Calamity — exile cards one at a time; 13 or less in all, cast them for free', (mk, t) => {
+    t.auto('Dance with Calamity');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    g.rng.shuffle = () => {};
+    const div = T.top('A', 'Divination'), bolt = T.top('A', 'Lightning Bolt');
+    let exiles = 0;
+    const ans = (ch) => (/exile the top card/i.test(ch.prompt || '') ? { yes: ++exiles <= 2 } : { yes: true });
+    for (let k = 0; k < 8; k++) T.answer('confirm', ans);
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    const h0 = T.zone('A', 'hand').length, l0 = T.zone('A', 'library').length;
+    T.mana('A', 'R7');
+    T.cast('A', T.hand('A', "Dance with Calamity"));
+    t.eq(exiles, 3, 'asked a third time, and stopped');
+    t.eq(T.life('B'), 17, 'the Bolt cast');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'Divination cast: two cards');
+    t.eq(T.zone('A', 'library').length, l0 - 4, 'only those two exiled (and two drawn)');
+  });
+  test('Cards: Dance with Calamity — more than 13 in all: nothing cast', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    g.rng.shuffle = () => {};
+    T.top('A', 'Emrakul, the Aeons Torn');
+    const bolt = T.top('A', 'Lightning Bolt');
+    let exiles = 0;
+    const ans = (ch) => (/exile the top card/i.test(ch.prompt || '') ? { yes: ++exiles <= 2 } : { yes: true });
+    for (let k = 0; k < 6; k++) T.answer('confirm', ans);
+    T.mana('A', 'R7');
+    T.cast('A', T.hand('A', "Dance with Calamity"));
+    t.zone(bolt, 'exile', 'the Bolt stays in exile');
+    t.eq(T.life('B'), 20, 'not cast: 16 is more than 13');
+  });
+
+  test("Cards: Bandit's Talent — level 3: an extra card at your draw step for each opponent with one or fewer cards in hand", (mk, t) => {
+    t.auto("Bandit's Talent");
+    const T = mk({ library: Array(30).fill('Swamp'), players: ['A', 'B', 'C'] });
+    T.bf('A', "Bandit's Talent", { counters: { level: 2 } });
+    for (let k = 0; k < 3; k++) T.hand('C', 'Swamp');
+    T.nextTurn('B');
+    t.eq(T.life('B'), 18, 'level 2: B, with no cards, loses 2 life at their upkeep');
+    T.nextTurn('C');
+    t.eq(T.life('C'), 20, 'C has cards: no loss');
+    const h0 = T.zone('A', 'hand').length;
+    T.nextTurn('A');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'B has one card, C four: one extra card');
+  });
 };
