@@ -8976,6 +8976,9 @@
       make: (m) => ({ op: 'returnTriggerCard', yours: true, counter: m[1].toLowerCase() }) },
     // Colossal Grave-Reaver: "put one of them onto the battlefield" — one card of the lot milled, under your control (oneOfBatch, put)
     { re: /^Put one of them onto the battlefield\.?$/i, make: () => ({ op: 'returnTriggerCard', yours: true, oneOfBatch: true, put: true }) },
+    /* Conspiracy Theorist: "Whenever you discard one or more nonland cards, you may exile one of them from your graveyard.
+       If you do, you may cast it this turn." — one card of the lot, still there (exileFromBatch) */
+    { re: /^Exile one of them from your graveyard\.?$/i, make: () => ({ op: 'exileFromBatch' }) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
@@ -12933,6 +12936,14 @@
             effects: [{ op: 'exile', targets: [Object.assign(sp, { type: 'card', controller: 'opponent', mvAtMostTrigger: true })] },
               { op: 'castCopy', of: 'last', fromRes: true }] }];
       } },
+    /* Clockspinning: "Choose a counter on target permanent or suspended card. Remove that counter from that permanent or
+       card or put another of those counters on it." (tickCounter, orSuspended) */
+    { re: /^Choose a counter on target permanent or suspended card\. Remove that counter from that permanent or card or put another of those counters on it\.?$/i,
+      make: () => [{ op: 'tickCounter', targets: [{ type: 'permanent', filter: 'permanent', zone: 'battlefield', orSuspended: true }] }] },
+    /* Jhoira's Timebug: "Choose target permanent you control or suspended card you own. If that permanent or card has a
+       time counter on it, you may remove a time counter from it or put another time counter on it." (kind time, may) */
+    { re: /^Choose target permanent you control or suspended card you own\. If that permanent or card has a time counter on it, you may remove a time counter from it or put another time counter on it\.?$/i,
+      make: () => [{ op: 'tickCounter', kind: 'time', may: true, targets: [{ type: 'permanent', filter: 'permanent', zone: 'battlefield', controller: 'you', orSuspended: 'you' }] }] },
     /* Ichormoon Gauntlet: "choose a counter on target permanent. Put an additional counter of that kind on that
        permanent." — one kind of those on it, asked when there are several (addCounterOfKind) */
     { re: /^Choose a counter on (target [a-z ]+?)\. Put an additional counter of that kind on that (?:permanent|creature|planeswalker)\.?$/i,
@@ -14207,6 +14218,18 @@
        Destroy each permanent chosen this way." (eachPlayerPicksDestroy) */
     { re: /^Starting with you, each player may choose an? ([a-z]+(?: or [a-z]+)?) you don'?t control\. Destroy each permanent chosen this way\.?$/i,
       make: (m) => [{ op: 'eachPlayerPicksDestroy', words: m[1].toLowerCase(), notYours: true }] },
+    /* The Legend of Yangchen: "Starting with you, each player chooses up to one permanent with mana value 3 or greater from
+       among permanents your opponents control. Exile those permanents." (eachPlayerPicksDestroy exile) */
+    { re: /^Starting with you, each player chooses up to one (permanent|creature|nonland permanent)( with mana value \d+ or greater)? from among permanents your opponents control\. Exile those (?:permanents|creatures)\.?$/i,
+      make: (m) => [{ op: 'eachPlayerPicksDestroy', words: m[1].toLowerCase() + (m[2] || '').toLowerCase(), notYours: true, exile: true }] },
+    /* Siphon Insight: "Look at the top two cards of target opponent's library. Exile one of them face down and put the other
+       on the bottom of that library." — the looker's pick (lookExileFaceDown, rest bottom); what follows as it reads */
+    { re: /^Look at the top (two|three|four|five) cards of target opponent'?s library\. Exile one of them face down and put the (?:other|rest) on the bottom of that library( in a random order)?\.(?: ([\s\S]+))?$/i,
+      make: (m) => {
+        const tail = m[3] ? voteBody(m[3]) : [];
+        return tail ? [{ op: 'lookExileFaceDown', n: num(m[1]), keep: 1, whose: 'target', by: 'you', rest: m[2] ? 'bottomRandom' : 'bottom',
+          targets: [{ type: 'player', opponent: true }] }, ...tail] : null;
+      } },
     /* Aminatou's Augury: "Exile the top eight cards of your library. You may put a land card from among them onto the
        battlefield. Until end of turn, for each nonland card type, you may cast a spell of that type from among the
        exiled cards without paying its mana cost." (putExiledLand fromLastExiled, freeCastByType) */
@@ -23183,6 +23206,12 @@
       make: () => { const scope = eachScope('Nonland permanents you control'); return scope ? { op: 'sequence', list: [
         { op: 'continuous', layer: 4, scope, addTypes: ['Artifact'] },
         { op: 'artifactsElsewhere' }] } : null; } },
+    /* Biotransference: "Creatures you control are artifacts in addition to their other types. The same is true for
+       creature spells you control and creature cards you own that aren't on the battlefield." (artifactsElsewhere creatures) */
+    { re: /^Creatures you control are artifacts in addition to their other types\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/i,
+      make: () => ({ op: 'sequence', list: [
+        { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature' }, addTypes: ['Artifact'] },
+        { op: 'artifactsElsewhere', creatures: true }] }) },
     // Laughing Jasper Flint: "Creatures you control but don't own are Mercenaries in addition to their other types."
     { re: /^((?:[A-Za-z]+ )*[Cc]reatures [a-z' ]+?) are ([A-Z][a-z]+) in addition to their other types\.?$/,
       make: (m) => {

@@ -178,7 +178,8 @@
       if (base && this.zone !== 'battlefield' && this.game && base.isPermanent && !base.isLand) {
         const ae = this.game._artifactsElsewhere();
         const who = this.zone === 'stack' ? (this.controller || this.owner) : this.owner;
-        const add = ae ? [...new Set(ae.filter(x => x.pid === who && (!x.stackOnly || this.zone === 'stack')).map(x => x.type))].filter(ty => !(base.types || []).includes(ty)) : [];
+        // (Biotransference: "creature spells you control and creature cards you own" — creatures only: creatureOnly)
+        const add = ae ? [...new Set(ae.filter(x => x.pid === who && (!x.stackOnly || this.zone === 'stack') && (!x.creatureOnly || base.isCreature)).map(x => x.type))].filter(ty => !(base.types || []).includes(ty)) : [];
         if (add.length) {
           const key = add.join(',');
           if (this._chrArtBase !== base || this._chrArtKey !== key) {
@@ -7223,6 +7224,20 @@
       this.logEvent('rules', `${this.player(playerId).name} suspends ${o.name} with ${counters} time counters.`);
       this._resetPriority();
       return true;
+    }
+
+    /** Time counters taken off by an effect (time travel, Clockspinning): Aeon Chronicler's trigger for each, and the last
+        one off — suspend casts it, vanishing sacrifices it — a trigger, after the ability doing it. */
+    _timeCountersOff(x, k) {
+      // Aeon Chronicler: "whenever a time counter is removed from this card while it's exiled"
+      if (x.zone === 'exile') for (let r = 0; r < k; r++) this._fire('timeCounterRemoved', x.owner, { object: x, source: x });
+      const vanish = x.zone === 'battlefield' && ((x.analysis() || {}).keywordSet || new Set()).has('vanishing');
+      if (x.counters.time === 0 && (x.zone === 'exile' || vanish)) {
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
+          controller: x.zone === 'exile' ? x.owner : x.controller, name: `${x.name} — ${x.zone === 'exile' ? 'suspend' : 'vanishing'}`, auto: true,
+          effects: [{ op: 'timeCounterGone', zone: x.zone }], abilityText: x.zone === 'exile' ? 'When the last time counter is removed from it, cast it without paying its mana cost.'
+            : 'When the last time counter is removed from it, sacrifice it.', triggerData: { event: 'timeCounterGone', objectId: x.id } });
+      }
     }
 
     /** A time counter comes off each suspended card at its owner's upkeep. */
@@ -18459,7 +18474,7 @@
     bumpBoard() { this._boardEpoch = (this._boardEpoch || 0) + 1; }
     /** Mycosynth Lattice: the colours every card off the battlefield and every spell has now, or null (allCards). */
     /** Encroaching Mycosynth: the players whose permanent spells and nonland permanent cards off the battlefield are artifacts too (artifactsElsewhere);
-        Secret Arcade: whose permanent spells are enchantments too — [{ pid, type, stackOnly }] */
+        Secret Arcade: whose permanent spells are enchantments too; Biotransference: only the creature ones — [{ pid, type, stackOnly, creatureOnly }] */
     _artifactsElsewhere() {
       if (this.__artElseKey === this._boardKey) return this.__artElse;
       // (asked again while it is being worked out: nothing yet)
@@ -18468,7 +18483,7 @@
       for (const x of this.battlefield) {
         const ae = !x.phasedOut && this._staticOp(x, 'artifactsElsewhere');
         if (!ae) continue;
-        (out = out || []).push({ pid: x.controller, type: ae.type || 'Artifact', stackOnly: !!ae.stackOnly });
+        (out = out || []).push({ pid: x.controller, type: ae.type || 'Artifact', stackOnly: !!ae.stackOnly, creatureOnly: !!ae.creatures });
       }
       this.__artElseKey = this._boardKey; this.__artElse = out;
       return out;
@@ -31253,6 +31268,28 @@
           this.bumpBoard();
           break;
         }
+        /* Conspiracy Theorist: "you may exile one of them from your graveyard. If you do, you may cast it this turn." — one
+           card of the lot the trigger was about, still in your graveyard; what follows speaks of it (_lastExiledList) */
+        case 'exileFromBatch': {
+          const td = ctx.triggerData || {};
+          const pool = (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id))
+            .filter((x, i, all) => x && all.indexOf(x) === i && x.zone === 'graveyard' && x.owner === ctx.controller && !x.isToken);
+          if (!this._doneHere('xfbReset')) this._lastExiledList = [];
+          if (!pool.length) break;
+          let x = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'exileFromBatch', kind: 'objects', zone: 'graveyard', items: this._chooseItems(pool),
+              min: 1, max: 1, prompt: 'Exile one of them from your graveyard.' }, 'xfb');
+            if (got === SUSPEND) return SUSPEND;
+            x = ((got && got.picks) || []).map(id => this.obj(id)).find(c => c && pool.includes(c)) || pool[0];
+          }
+          if (this._doneHere('xfbDid')) break;
+          this.moveObject(x, 'exile');
+          if (x.zone !== 'exile') break;
+          this._lastExiledList = [x.id]; this._lastExiled = x.id;
+          this.logEvent('zone', `${me.name} exiles ${x.name} from their graveyard.`);
+          break;
+        }
         /* Zurgo and Ojutai: "You may return one of those Dragons to its owner's hand." — one of the lot the trigger was
            about, still on the battlefield, or none */
         case 'bounceFromBatch': {
@@ -37243,9 +37280,10 @@
           for (const p of this._turnOrderFrom(ctx.controller)) {
             if (p.hasLost) continue;
             const list = pool();
+            // (The Legend of Yangchen: "Exile those permanents." — exile)
             const got = this._choose({ playerId: p.id, purpose: 'chooseToDestroy', kind: 'objects', zone: 'battlefield', harmful: true,
               items: this._chooseItems(list), min: 0, max: 1, optional: true, forPlayer: ctx.controller,
-              prompt: `${src ? src.name + ': ' : ''}you may choose ${this._aCard(e.words)} ${p.id === ctx.controller ? "you don't" : me.name + " doesn't"} control. Each permanent chosen this way is destroyed.` }, 'eppd' + p.id);
+              prompt: `${src ? src.name + ': ' : ''}you may choose ${this._aCard(e.words)} ${p.id === ctx.controller ? "you don't" : me.name + " doesn't"} control. Each permanent chosen this way is ${e.exile ? 'exiled' : 'destroyed'}.` }, 'eppd' + p.id);
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (!x || !list.includes(x)) continue;
@@ -37255,6 +37293,7 @@
           // (destroyed together: they see each other go — CR 603.10a)
           this._leavingTogether = chosen;
           for (const x of chosen) {
+            if (e.exile) { if (x.zone === 'battlefield') this.moveObject(x, 'exile'); continue; }
             if (x.zone !== 'battlefield' || this.hasKw(x, 'indestructible') || this._totemArmor(x) || this._regenerated(x)) continue;
             this.moveObject(x, 'graveyard');
           }
@@ -38726,17 +38765,40 @@
             x.counters.time = Math.max(0, have + d);
             x._chr = null;
             this.logEvent('counters', `${x.name}: ${d > 0 ? d + ' time counter' + (d === 1 ? '' : 's') + ' added' : -d + ' time counter' + (d === -1 ? '' : 's') + ' removed'} (${x.counters.time}).`);
-            // Aeon Chronicler: "whenever a time counter is removed from this card while it's exiled"
-            if (d < 0 && x.zone === 'exile') for (let r = 0; r < -d; r++) this._fire('timeCounterRemoved', x.owner, { object: x, source: x });
-            // the last one off: suspend casts it, vanishing sacrifices it — triggers, after this ability
-            const vanish = x.zone === 'battlefield' && ((x.analysis() || {}).keywordSet || new Set()).has('vanishing');
-            if (d < 0 && x.counters.time === 0 && (x.zone === 'exile' || vanish)) {
-              this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
-                controller: x.zone === 'exile' ? x.owner : x.controller, name: `${x.name} — ${x.zone === 'exile' ? 'suspend' : 'vanishing'}`, auto: true,
-                effects: [{ op: 'timeCounterGone', zone: x.zone }], abilityText: x.zone === 'exile' ? 'When the last time counter is removed from it, cast it without paying its mana cost.'
-                  : 'When the last time counter is removed from it, sacrifice it.', triggerData: { event: 'timeCounterGone', objectId: x.id } });
-            }
+            if (d < 0) this._timeCountersOff(x, -d);
           }
+          break;
+        }
+        /* Clockspinning: "Choose a counter on target permanent or suspended card. Remove that counter from that permanent
+           or card or put another of those counters on it." Jhoira's Timebug: "If that permanent or card has a time
+           counter on it, you may remove a time counter from it or put another time counter on it." — one question:
+           which kind, off or on (kind, may) */
+        case 'tickCounter': {
+          const x = firstObj();
+          if (!x || !(x.zone === 'battlefield' || (x.zone === 'exile' && x.suspendedBy != null))) break;
+          const kinds = Object.keys(x.counters || {}).filter(k => Number(x.counters[k]) > 0 && (!e.kind || k === e.kind));
+          if (!kinds.length) { this.logEvent('rules', `${x.name} has no ${e.kind ? e.kind + ' ' : ''}counters.`); break; }
+          const opts = [];
+          for (const k of kinds) opts.push({ label: `Remove a ${k} counter`, counterKind: k, delta: -1 }, { label: `Put another ${k} counter on it`, counterKind: k, delta: 1 });
+          if (e.may) opts.push({ label: 'Leave it as it is', counterKind: null, delta: 0 });
+          const got = this._choose({ playerId: ctx.controller, purpose: 'tickCounter', kind: 'options', min: 1, max: 1, objId: x.id,
+            options: opts.map((o, i) => Object.assign({ i }, o)),
+            prompt: `${x.name}: ${e.may ? 'you may remove' : 'remove'} ${kinds.length > 1 ? 'one of its counters' : MTG.oracle.nounCount(1, kinds[0] + ' counter')} or put another of ${kinds.length > 1 ? 'that kind' : 'those'} on it.` }, 'tick');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = opts[((got && got.picks) || [])[0]] || (e.may ? null : opts[0]);
+          if (!pick || !pick.delta || this._doneHere('tickDid')) break;
+          const k = pick.counterKind;
+          if (pick.delta > 0) {
+            // (a counter put on a card in exile is not put on a permanent: no replacement applies)
+            if (x.zone === 'battlefield') this.addCounters(x, k, 1, { by: ctx.controller });
+            else { x.counters[k] = (Number(x.counters[k]) || 0) + 1; this.logEvent('counters', `${x.name}: a ${k} counter added (${x.counters[k]}).`); }
+          } else {
+            x.counters[k] = Math.max(0, (Number(x.counters[k]) || 0) - 1);
+            this.logEvent('counters', `${x.name}: a ${k} counter removed (${x.counters[k]}).`);
+            if (k === 'time') this._timeCountersOff(x, 1);
+            else if (!x.counters[k]) delete x.counters[k];
+          }
+          x._chr = null; this.bumpBoard();
           break;
         }
         case 'timeCounterGone': {
@@ -44227,6 +44289,14 @@
         const bf = this._legalTargetsFor(Object.assign({}, spec, { orGraveyardCard: false }), controllerId, sourceId);
         return bf.concat(this._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'graveyard' }, controllerId, sourceId));
       }
+      /* Clockspinning: "target permanent or suspended card" — a card in exile with suspend and a time counter (CR 702.62b);
+         Jhoira's Timebug: "suspended card you own" (orSuspended 'you') */
+      if (spec.orSuspended) {
+        const bf = this._legalTargetsFor(Object.assign({}, spec, { orSuspended: false }), controllerId, sourceId);
+        const sus = [].concat(...this.players.map(q => this.zones[q.id].exile))
+          .filter(c => c.suspendedBy != null && (Number(c.counters.time) || 0) > 0 && (spec.orSuspended !== 'you' || c.owner === controllerId));
+        return bf.concat(sus.map(c => ({ kind: 'object', id: c.id })));
+      }
       // Pain for All: "any other target" — not the creature this Aura enchants
       if (spec.notAttached && sourceId) {
         const s0 = this.obj(sourceId);
@@ -45674,6 +45744,8 @@
         isSignature: o.isSignature ? true : undefined,
         // a companion, revealed outside the game beside the command zone (said only of that one card)
         companion: o.companion ? true : undefined,
+        // Clockspinning: a suspended card in exile, which "target … suspended card" may point at (said only of one)
+        suspended: o.zone === 'exile' && o.suspendedBy != null ? true : undefined,
         // what it chose as it entered: a creature type, a colour, a card name, a player, a number
         chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
           const c = {};

@@ -78299,4 +78299,135 @@ module.exports = (test) => {
     t.eq(mtn.impulseBy, null, 'another card exiled: no longer');
     t.eq(isl.impulseBy, 'A');
   });
+
+  test('Cards: The Legend of Yangchen — I: starting with you, each player may choose a permanent of mana value 3 or more your opponents control; all exiled', (mk, t) => {
+    t.auto('The Legend of Yangchen // Avatar Yangchen');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    const mine = T.bf('A', 'Hill Giant'), bg = T.bf('B', 'Hill Giant'), bb = T.bf('B', 'Grizzly Bears'), ca = T.bf('C', 'Serra Angel'), cg = T.bf('C', 'Hill Giant');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [bg.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [ca.id] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [] }; });
+    T.bf('A', 'The Legend of Yangchen // Avatar Yangchen', { etb: true }); T.resolve();
+    t.eq(asked.map(c => c.playerId).join(''), 'ABC', 'starting with you, in turn order');
+    const offered = (asked[0].items || []).map(x => x.id);
+    t.ok(offered.includes(bg.id) && offered.includes(ca.id) && offered.includes(cg.id), "the opponents' bigger permanents");
+    t.no(offered.includes(mine.id) || offered.includes(bb.id), 'not yours, not mana value 2');
+    t.zone(bg, 'exile'); t.zone(ca, 'exile');
+    t.zone(cg, 'battlefield'); t.zone(mine, 'battlefield'); t.zone(bb, 'battlefield');
+  });
+
+  test('Cards: Clockspinning — a time counter off a suspended card: the last one off casts it', (mk, t) => {
+    t.auto('Clockspinning');
+    const T = mk({ library: Array(20).fill('Island') });
+    const lb = T.put('A', 'Lotus Bloom', 'exile');
+    lb.counters.time = 1; lb.suspendedBy = 'A';
+    const bears = T.bf('B', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const legal = T.g._legalTargetsFor({ type: 'permanent', filter: 'permanent', zone: 'battlefield', orSuspended: true }, 'A');
+    t.ok(legal.some(x => x.id === lb.id) && legal.some(x => x.id === bears.id), 'a permanent or a suspended card');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => /Remove a time/.test(o.label))] }; });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Clockspinning'), { targets: [lb] });
+    t.ok(q && q.options.length === 2, 'off or on');
+    t.zone(lb, 'battlefield', 'the last time counter off: Lotus Bloom cast');
+  });
+  test('Cards: Clockspinning — another +1/+1 counter, or one of two kinds off', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const bears = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1, stun: 1 } });
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => /another \+1\/\+1/.test(o.label))] }; });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Clockspinning'), { targets: [bears] });
+    t.eq(q && q.options.length, 4, 'two kinds, off or on');
+    t.eq(bears.counters['+1/+1'], 2);
+    t.eq(bears.counters.stun, 1);
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => /Remove a stun/.test(o.label))] }));
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Clockspinning'), { targets: [bears] });
+    t.no(bears.counters.stun, 'the stun counter off');
+  });
+  test("Cards: Jhoira's Timebug — a time counter more on your suspended card, or none", (mk, t) => {
+    t.auto("Jhoira's Timebug");
+    const T = mk({ library: Array(20).fill('Island') });
+    const lb = T.put('A', 'Lotus Bloom', 'exile');
+    lb.counters.time = 2; lb.suspendedBy = 'A';
+    const other = T.put('B', 'Lotus Bloom', 'exile');
+    other.counters.time = 2; other.suspendedBy = 'B';
+    const bug = T.bf('A', "Jhoira's Timebug");
+    const legal = T.g._legalTargetsFor(bug.analysis().abilities[0].effects[0].targets[0], 'A', bug.id);
+    t.ok(legal.some(x => x.id === lb.id), 'your suspended card');
+    t.no(legal.some(x => x.id === other.id), "not another player's");
+    T.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => /another time/.test(o.label))] }));
+    T.activate('A', bug, 0, { targets: [lb] });
+    t.eq(lb.counters.time, 3);
+  });
+
+  test('Cards: Biotransference — your creatures are artifacts everywhere; casting an artifact spell: lose 1 life, a Necron Warrior', (mk, t) => {
+    t.auto('Biotransference');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Biotransference');
+    const mine = T.bf('A', 'Hill Giant'), theirs = T.bf('B', 'Hill Giant');
+    t.ok(g._cardFitsWords(mine, 'artifact'), 'your creature');
+    t.no(g._cardFitsWords(theirs, 'artifact'), "not an opponent's");
+    const inHand = T.hand('A', 'Grizzly Bears'), land = T.hand('A', 'Forest'), gy = T.grave('A', 'Serra Angel'), bHand = T.hand('B', 'Grizzly Bears');
+    t.ok(inHand.analysis().isArtifact && gy.analysis().isArtifact, 'creature cards you own, in hand and graveyard');
+    t.no(land.analysis().isArtifact, 'not a land card');
+    t.no(bHand.analysis().isArtifact, "not an opponent's card");
+    T.mana('A', 'G1');
+    T.cast('A', inHand);
+    t.eq(T.life('A'), 19, 'a creature spell is an artifact spell: lose 1');
+    t.ok(T.bfOf('A').some(o => o.isToken && /Necron Warrior/.test(o.name)), 'a Necron Warrior');
+    t.ok(g._cardFitsWords(inHand, 'artifact'), 'and it stays an artifact');
+  });
+
+  test('Cards: Conspiracy Theorist — discard a nonland card: you may exile it and cast it this turn', (mk, t) => {
+    t.auto('Conspiracy Theorist');
+    const T = mk({ library: Array(20).fill('Island') });
+    const ct = T.bf('A', 'Conspiracy Theorist');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.bf('A', 'Island');
+    T.answer('declareAttackers', () => [{ attackerId: ct.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.zone(bolt, 'exile', 'discarded, then exiled');
+    t.eq(T.life('B'), 18);
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 15, 'cast from exile');
+  });
+  test('Cards: Conspiracy Theorist — of two cards discarded, one exiled; lands are not nonland cards', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Conspiracy Theorist');
+    const bolt = T.hand('A', 'Lightning Bolt'), shock = T.hand('A', 'Shock');
+    T.answer('discard', { cardIds: [bolt.id, shock.id] });
+    T.answer('choose', (ch) => ({ picks: [shock.id] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    t.zone(shock, 'exile'); t.zone(bolt, 'graveyard');
+    t.eq(shock.impulseBy, 'A', 'may be cast this turn');
+    const land = T.hand('A', 'Mountain');
+    const n0 = T.zone('A', 'exile').length;
+    T.answer('discard', (ch) => ({ cardIds: [land.id, T.zone('A', 'hand').find(o => o !== land).id] }));
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    t.zone(land, 'graveyard', 'lands only: no trigger');
+    t.eq(T.zone('A', 'exile').length, n0);
+  });
+
+  test('Cards: Siphon Insight — two looked at, one exiled face down, the other to the bottom; played with any mana', (mk, t) => {
+    t.auto('Siphon Insight');
+    const T = mk({ library: Array(20).fill('Island') });
+    const bears = T.top('B', 'Grizzly Bears'), bolt = T.top('B', 'Lightning Bolt');
+    T.answer('pickCard', (ch) => { t.eq(ch.cards.length, 2); return { cardIds: [bolt.id] }; });
+    T.mana('A', 'UB');
+    T.cast('A', T.hand('A', 'Siphon Insight'), { targets: ['B'] });
+    t.zone(bolt, 'exile'); t.ok(bolt.faceDownExile, 'face down');
+    const lib = T.zone('B', 'library');
+    t.eq(lib[lib.length - 1], bears, 'the other on the bottom');
+    T.mana('A', 'U');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'cast with blue mana');
+  });
 };

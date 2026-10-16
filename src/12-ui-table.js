@@ -2500,7 +2500,7 @@
         let target = false, cand = false, chosen = false;
         if (this.targeting) {
           const o = this.objIn(id);
-          target = !!(o && o.zone === 'battlefield' && this.isTargetable(o));
+          target = !!(o && (o.zone === 'battlefield' || (o.zone === 'exile' && o.suspended)) && this.isTargetable(o));
           if (!o) { const loc = this.locate(id); if (loc && loc.zone === 'stack' && loc.item) target = this.isTargetableStack(loc.item); }
           if (this.targeting.chosen.some(t => t.id === id)) chosen = true;
         } else if (conv) {
@@ -2739,7 +2739,8 @@
       const live = this.live || this.view;
       if (this.targeting) {
         if (loc.zone === 'stack' && loc.item) return this.aimAtStack(loc.item.id);
-        if (loc.zone !== 'battlefield') return;
+        // (Clockspinning: a suspended card in exile may be aimed at — isTargetable says when)
+        if (loc.zone !== 'battlefield' && !(loc.zone === 'exile' && loc.o && loc.o.suspended)) return;
         if (!this.isTargetable(loc.o)) return UI.error('Not a legal target for that.');
         this.targeting.chosen.push({ kind: 'object', id });
         MTG.sfx('click');
@@ -3249,11 +3250,19 @@
         const src = t.source ? this.objIn(t.source) : null;
         if (src && src.card && o.card && src.card.name !== o.card.name) return false;
       }
+      // Clockspinning: "target permanent or suspended card" — a suspended card in exile too (orSuspended; Jhoira's Timebug: one you own)
+      if (o.zone === 'exile' && spec.zone !== 'exile') return !!(spec.orSuspended && o.suspended && (spec.orSuspended !== 'you' || o.owner === this.meId));
       /* Shroud, an opponent's hexproof, protection from what is aiming:
          not lit, since the engine would refuse it (CR 702.11, 702.16, 702.18) */
       if (o.zone === 'battlefield' && !this._canAimAt(o)) return false;
       const a = this.analysis(o);
       return MTG.oracle.matchesSpec(this._notedSpec(spec), o, a, this.meId, VIEW_SPEC_CTX);
+    }
+
+    /** Suspended cards in exile, which "target permanent or suspended card" (Clockspinning) may point at. */
+    _suspendedInView() {
+      const v = this.live || this.view;
+      return [].concat(...v.players.map(p => /** @type {any[]} */ (p.exile || []).filter(x => x && !x.hidden && x.suspended)));
     }
 
     /** Whether what is choosing targets may point at this permanent at all. */
@@ -3706,7 +3715,7 @@
       // a spell with exactly one legal target in the whole game takes it
       const live = this.view;
       if (!t.legal && t.need === 1 && !(t.specs[0] || {}).upTo && MTG.settings.autoTarget !== false) {
-        const objs = live.battlefield.filter(o => this.isTargetable(o)).concat((live.stack || []).filter(s => this.isTargetableStack(s)));
+        const objs = live.battlefield.concat(this._suspendedInView()).filter(o => this.isTargetable(o)).concat((live.stack || []).filter(s => this.isTargetableStack(s)));
         const players = live.players.filter(p => this.isTargetablePlayer(p));
         if (objs.length + players.length === 0) {
           UI.error('There is nothing it could target.');

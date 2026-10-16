@@ -115,6 +115,8 @@ const ObjectView = obj({
   attacking: maybe(id), blocking: opt(arr(id)), blockedBy: opt(arr(id)), blockOrder: opt(arr(id)),
   effects: opt(arr(S.plainObj)), isCommander: bool, isSignature: opt(bool), note: opt(maybe(str)), entered: opt(maybe(num)),
   prepared: opt(bool), agenda: opt(bool), chosen: opt(maybe(S.plainObj)), pairedWith: opt(maybe(id)),
+  // Clockspinning: a suspended card in exile
+  suspended: opt(lit(true)),
   // meld: the two cards a melded permanent is
   melded: opt(arr(str)), power: maybe(num), toughness: maybe(num), keywords: arr(str),
   // Zilortha, Strength Incarnate: lethal damage to it is by its power

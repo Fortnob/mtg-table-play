@@ -87,6 +87,8 @@ declare namespace MTG {
     isSignature?: boolean;
     /** a companion, revealed outside the game beside the command zone ({3} into hand, once a game) */
     companion?: boolean;
+    /** a suspended card in exile (Clockspinning may target it) */
+    suspended?: true;
     /** prepared: it can cast a copy of its card's spell */
     prepared?: boolean;
     /** a hidden agenda of the viewer's that has not been turned face up */

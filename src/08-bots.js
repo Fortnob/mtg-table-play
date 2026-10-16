@@ -2450,6 +2450,30 @@
       const best = labels.slice().sort((a, b) => rank(a) - rank(b))[0];
       return { picks: [Math.max(0, labels.indexOf(best))] };
     },
+    /* Clockspinning, Jhoira's Timebug: one counter off or one more — a counter that helps, more on ours and fewer on
+       theirs; one that hurts the other way; a time counter off our suspended card (it comes sooner), on theirs, and on
+       a vanishing permanent of ours (it stays longer) */
+    tickCounter(s) {
+      const g = this.game;
+      const o = g.obj(s.objId);
+      const opts = s.options || [];
+      if (!o) return { picks: [opts.length - 1] };
+      const mine = (o.zone === 'exile' ? o.owner : o.controller) === this.pid;
+      const vanish = o.zone === 'battlefield' && ((o.analysis() || {}).keywordSet || new Set()).has('vanishing');
+      const good = ['loyalty', '+1/+1', 'shield', 'lore', 'oil', 'charge', 'quest', 'level', 'storage', 'divinity'];
+      const want = (k) => (k === 'time' ? (vanish ? 1 : -1) : good.includes(k) ? 1 : ['-1/-1', 'stun', 'doom', 'age', 'fade', 'depletion', 'bounty'].includes(k) ? -1 : 0) * (mine ? 1 : -1);
+      const score = (x) => (x.delta ? (want(x.counterKind) * x.delta) * (good.indexOf(x.counterKind) < 0 ? 1 : 2 - good.indexOf(x.counterKind) / 10) : 0.01);
+      const best = opts.slice().sort((a, b) => score(b) - score(a))[0];
+      return { picks: [best ? best.i : 0] };
+    },
+    /* Conspiracy Theorist: the discarded card to exile and cast this turn — the best of them that is not a land */
+    exileFromBatch(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean)
+        .sort((a, b) => rateCard(b.card, { prior: 0 }) - rateCard(a.card, { prior: 0 }));
+      const best = pool.find(o => !(o.analysis() || {}).isLand) || pool[0];
+      return best ? { picks: [best.id] } : null;
+    },
     /* The Seventh Doctor: a hand's cards cost three or so; against few artifacts, guess greater */
     guessMvGreater(s) { const n = Number(s.than) || 0; return { picks: [this.rand() < (n < 3 ? 0.7 : 0.3) ? 0 : 1] }; },
     /* …and the guess, by the odds of a deck about two-fifths land */
