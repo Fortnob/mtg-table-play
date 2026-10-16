@@ -5094,6 +5094,10 @@
     // Banner of Kinship: "This artifact enters with a fellowship counter on it for each creature you control of the chosen type."
     { re: /^(?:This artifact|This creature|CARDNAME) enters with an? ([a-z]+) counter on it for each (creature you control of the chosen type)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, scope: 'self' } : null; } },
+    /* Flood of Tears: "If you return four or more nontoken permanents you control this way, you may put a permanent card from
+       your hand onto the battlefield." — those the sweep before it returned (sweptYours) */
+    { re: /^If you return (two|three|four|five|\d+) or more nontoken permanents you control this way, you may put a permanent card from your hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'sweptYours', n: num(m[1]), nontoken: true }, then: [{ op: 'permanentFromHand', filter: 'any', who: 'you', n: 1 }] }) },
     // Arid Archway: "If another Desert was returned this way, surveil 1."
     { re: /^If another ([A-Z][a-z]+) was returned this way, (.+)$/,
       make: (m) => { const inner = parseEffectSentence(U.titleCase(m[2].charAt(0)) + m[2].slice(1), 1);
@@ -7584,6 +7588,10 @@
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you', from: ['hand', 'graveyard'] },
         m[3] ? { tapped: true } : {}, m[4] ? { counter: m[4] } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
+    /* Everything Comes to Dust: "Exile all creatures except those that share a creature type with a creature that convoked
+       this spell, all artifacts, and all enchantments." (exceptConvokerTypes) */
+    { re: /^Exile all creatures except those that share a creature type with a creature that convoked this spell, all artifacts, and all enchantments\.?$/i,
+      make: () => ({ op: 'exileAll', what: 'creature and artifact and enchantment', exceptConvokerTypes: true }) },
     // Calamity of the Titans: "Exile each creature and planeswalker with mana value less than the revealed card's mana value." (maxMv revealedLess)
     { re: /^(Exile|Destroy) each creature and planeswalker with mana value less than the revealed card'?s mana value\.?$/i,
       make: (m) => ({ op: /^exile/i.test(m[1]) ? 'exileAll' : 'destroyAll', what: 'creature and planeswalker', maxMv: 'revealedLess' }) },
@@ -12502,6 +12510,10 @@
        end of turn." — one of the two, asked as it resolves (keywordChoice) */
     { re: /^Choose (hexproof|indestructible|flying|vigilance|lifelink|trample|first strike|deathtouch|haste) or (hexproof|indestructible|flying|vigilance|lifelink|trample|first strike|deathtouch|haste)\. Creatures you control gain that ability until end of turn\.?$/i,
       make: (m) => [{ op: 'grantKeyword', keywords: [], keywordChoice: [m[1], m[2]].map(k => k.replace(/\b\w/g, c => c.toUpperCase())), duration: 'eot', scope: 'yourCreatures' }] },
+    // Angelic Skirmisher: "choose first strike, vigilance, or lifelink. Creatures you control gain that ability until end of turn." — one of three
+    { re: /^Choose ((?:(?:hexproof|indestructible|flying|vigilance|lifelink|trample|first strike|deathtouch|haste), )+)or (hexproof|indestructible|flying|vigilance|lifelink|trample|first strike|deathtouch|haste)\. Creatures you control gain that ability until end of turn\.?$/i,
+      make: (m) => [{ op: 'grantKeyword', keywords: [], keywordChoice: m[1].split(/,\s*/).filter(Boolean).concat(m[2]).map(k => k.replace(/\b\w/g, c => c.toUpperCase())),
+        duration: 'eot', scope: 'yourCreatures' }] },
     /* Linvala, Shield of Sea Gate: "choose target nonland permanent an opponent controls. Until your next turn, it
        can't attack or block, and its activated abilities can't be activated." */
     { re: /^choose (target [a-z ]+?)\. Until your next turn, it can'?t attack or block, and its activated abilities can'?t be activated\.?$/i,
@@ -24762,6 +24774,11 @@
       // Pariah, Empyrial Archangel, Pariah's Shield: "All damage that would be dealt to you is dealt to this creature instead."
       { re: /^All damage that would be dealt to you is dealt to (this creature|CARDNAME|enchanted creature|equipped creature) instead\.?$/i,
         make: (m) => ({ op: 'redirectYourDamage', to: /enchanted|equipped/i.test(m[1]) ? 'attached' : 'self' }), auto: true },
+      // Ancient Adamantoise: "All damage that would be dealt to you and other permanents you control is dealt to this creature instead." (permanents)
+      { re: /^All damage that would be dealt to you and other permanents you control is dealt to (?:this creature|CARDNAME) instead\.?$/i,
+        eff: { op: 'redirectYourDamage', to: 'self', permanents: true }, auto: true },
+      // Ancient Adamantoise: "Damage isn't removed from this creature during cleanup steps." (keepDamage)
+      { re: /^Damage isn'?t removed from (?:this creature|CARDNAME) during cleanup steps\.?$/i, eff: { op: 'keepDamage' }, auto: true },
       // Extraplanar Lens: "Whenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced." (sameNameExiled)
       { re: /^Whenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced\.?$/i,
         eff: { op: 'extraManaOnTap', filter: 'land', sameType: true, sameNameExiled: true }, auto: true },
@@ -25623,6 +25640,10 @@
       // Shifting Sliver: "Slivers can't be blocked except by Slivers." — every Sliver, whoever controls it
       { re: /^([A-Z][a-z]+)s can'?t be blocked except by \1s\.?$/,
         make: (m) => ({ op: 'subtypeEvasion', subtype: m[1] }), auto: true },
+      /* Serpent of Yawning Depths: "Krakens, Leviathans, Octopuses, and Serpents you control can't be blocked except by
+         Krakens, Leviathans, Octopuses, and Serpents." — any of them, yours (subtypes, yours) */
+      { re: /^((?:[A-Z][a-z]+, )+(?:and )?[A-Z][a-z]+) you control can'?t be blocked except by \1\.?$/,
+        make: (m) => ({ op: 'subtypeEvasion', yours: true, subtypes: m[1].split(/,\s*(?:and )?/).map(w => U.titleCase(singularType(w))) }), auto: true },
       // Alpha Authority: "Enchanted creature can't be blocked by more than one creature."
       { re: /^(Enchanted|Equipped) creature can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'oneBlocker' }, auto: true },

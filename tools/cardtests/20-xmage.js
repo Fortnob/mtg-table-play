@@ -79552,4 +79552,140 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', 'Calamity of the Titans'));
     t.zone(g2, 'exile', 'Myr Battlesphere (7) shown rather than the stronger Juggernaut (4)');
   });
+
+  test('Cards: Serpent of Yawning Depths — your Krakens, Leviathans, Octopuses and Serpents blocked only by those', (mk, t) => {
+    t.auto('Serpent of Yawning Depths');
+    const T = mk();
+    const g = T.g;
+    const syd = T.bf('A', 'Serpent of Yawning Depths');
+    const oct = T.bf('A', 'Octoprophet');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const wall = T.bf('B', 'Wall of Omens'), serp = T.bf('B', 'Sea Serpent');
+    t.no(g.couldBlock(wall, syd, 'B'), 'the Wall cannot block the Serpent');
+    t.no(g.couldBlock(wall, oct, 'B'), 'nor an Octopus of yours');
+    t.ok(g.couldBlock(serp, oct, 'B'), 'a Serpent can');
+    t.ok(g.couldBlock(wall, bears, 'B'), 'the Bears are not covered');
+    const theirs = T.bf('B', 'Sea Serpent');
+    const myWall = T.bf('A', 'Wall of Omens');
+    t.ok(g.couldBlock(myWall, theirs, 'A'), "an opponent's Serpent is not covered");
+  });
+
+  test('Cards: Angelic Skirmisher — each combat: first strike, vigilance or lifelink for your creatures until end of turn', (mk, t) => {
+    t.auto('Angelic Skirmisher');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.bf('A', 'Angelic Skirmisher');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Hill Giant');
+    let asked = null;
+    T.answer('mode', (ch) => { asked = ch.options.map(o => o.label); return { modes: [2] }; });
+    T.toMain('A');
+    T.toMain('A', 'endCombat');
+    t.eq(asked && asked.join(','), 'First Strike,Vigilance,Lifelink', 'the three offered');
+    t.ok(g.hasKw(bears, 'lifelink'), 'the Bears gain lifelink');
+    t.no(g.hasKw(bears, 'first strike'), 'not first strike');
+    t.no(g.hasKw(theirs, 'lifelink'), "not the opponent's");
+    T.toMain('A', 'end');
+    T.answer('mode', { modes: [0] });
+    T.nextTurn('B');
+    t.no(g.hasKw(bears, 'lifelink'), 'until end of turn');
+    T.toMain('B', 'endCombat');
+    t.ok(g.hasKw(bears, 'first strike'), "at the beginning of B's combat too: first strike");
+  });
+
+  test('Cards: Ancient Adamantoise — damage to you and your other permanents is dealt to it, and stays on it', (mk, t) => {
+    t.auto('Ancient Adamantoise');
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    T.toMain('A');
+    const ad = T.bf('A', 'Ancient Adamantoise');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.mana('B', 'RR');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 20, 'not to A');
+    t.eq(ad.damage, 3, 'to the Adamantoise');
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [bears] });
+    t.zone(bears, 'battlefield', 'the Bears are spared');
+    t.eq(ad.damage, 6, 'six on the Adamantoise');
+    T.nextTurn('B');
+    t.eq(ad.damage, 6, 'damage stays through the cleanup step');
+    t.eq(bears.damage, 0);
+  });
+  test('Cards: Ancient Adamantoise — dies: exiled, ten tapped Treasures; an opponent\'s permanents are not covered', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Mountain') });
+    T.toMain('A');
+    const ad = T.bf('A', 'Ancient Adamantoise');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [theirs] });
+    t.zone(theirs, 'graveyard', "B's Bears take it");
+    ad.damage = T.g.toughnessOf(ad) - 1;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [ad] });
+    T.resolve();
+    t.zone(ad, 'exile', 'exiled as it dies');
+    const tr = T.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name));
+    t.eq(tr.length, 10, 'ten Treasures');
+    t.ok(tr.every(o => o.tapped), 'tapped');
+  });
+
+  test('Cards: Flood of Tears — every nonland permanent bounced; four nontoken ones of yours: a permanent card from your hand', (mk, t) => {
+    t.auto('Flood of Tears');
+    const T = mk();
+    T.toMain('A');
+    const mine = ['Grizzly Bears', 'Hill Giant', 'Sol Ring', 'Wall of Omens'].map(n => T.bf('A', n));
+    const theirs = T.bf('B', 'Craw Wurm');
+    const land = T.bf('A', 'Island');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [mine[1].id] }; });
+    T.mana('A', '4UU');
+    T.cast('A', T.hand('A', 'Flood of Tears'));
+    t.zone(theirs, 'hand', "B's Wurm returned");
+    t.zone(land, 'battlefield', 'lands stay');
+    t.ok(offered && offered.includes('Grizzly Bears'), 'asked which permanent card');
+    t.zone(mine[1], 'battlefield', 'the Giant put back');
+    t.zone(mine[0], 'hand');
+  });
+  test('Cards: Flood of Tears — three nontoken permanents and a token are not four', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const mine = ['Grizzly Bears', 'Hill Giant', 'Sol Ring'].map(n => T.bf('A', n));
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    let asked = false;
+    T.answer('pickCard', () => { asked = true; return { cardIds: [mine[0].id] }; });
+    T.mana('A', '4UU');
+    T.cast('A', T.hand('A', 'Flood of Tears'));
+    t.no(asked, 'nothing offered');
+    for (const x of mine) t.zone(x, 'hand');
+  });
+
+  test('Cards: Everything Comes to Dust — creatures sharing a type with a convoker stay; artifacts, enchantments and the rest go', (mk, t) => {
+    t.auto('Everything Comes to Dust');
+    const T = mk();
+    T.toMain('A');
+    const e1 = T.bf('A', 'Llanowar Elves'), e2 = T.bf('A', 'Elvish Mystic');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const theirElf = T.bf('B', 'Elvish Visionary'), wurm = T.bf('B', 'Craw Wurm');
+    const ring = T.bf('B', 'Sol Ring'), arena = T.bf('B', 'Phyrexian Arena');
+    const elfArt = T.bf('B', 'Elvish Warmaster');
+    T.mana('A', '6WWW');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Everything Comes to Dust').id, { convokeIds: [e1.id] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.ok(e1.tapped, 'the Elves convoked');
+    for (const x of [e1, e2, theirElf, elfArt]) t.zone(x, 'battlefield', x.name + ' shares Elf');
+    for (const x of [bears, wurm, ring, arena]) t.zone(x, 'exile', x.name + ' exiled');
+  });
+  test('Cards: Everything Comes to Dust — an artifact creature sharing the type is still exiled as an artifact', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const myr = T.bf('A', 'Myr Enforcer'), myr2 = T.bf('B', 'Iron Myr');
+    T.mana('A', '6WWW');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Everything Comes to Dust').id, { convokeIds: [myr.id] }), T.g.lastError);
+    T.settle(); T.resolve();
+    t.zone(myr, 'exile', 'the convoker itself, an artifact');
+    t.zone(myr2, 'exile');
+  });
 };

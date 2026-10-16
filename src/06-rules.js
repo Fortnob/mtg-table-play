@@ -1687,9 +1687,12 @@
         }
       }
       for (const o of this.battlefield) {
-        o.damage = 0;
-        // damage from a deathtouch source is removed with the rest of the damage (CR 514.2)
-        o.dealtDeathtouch = false;
+        // Ancient Adamantoise: "Damage isn't removed from this creature during cleanup steps." (keepDamage)
+        if (!(o.damage > 0 && !o.phasedOut && this._staticOp(o, 'keepDamage'))) {
+          o.damage = 0;
+          // damage from a deathtouch source is removed with the rest of the damage (CR 514.2)
+          o.dealtDeathtouch = false;
+        }
         o.damagedThisTurn = false;
         o.shields = 0;
         o.preventShield = 0;
@@ -14636,7 +14639,10 @@
       // Shifting Sliver: a Sliver may be blocked only by Slivers
       for (const s of this.battlefield) {
         const se = !s.phasedOut && this._staticOp(s, 'subtypeEvasion');
-        if (se && this._hasCreatureType(attacker, se.subtype) && !this._hasCreatureType(blocker, se.subtype)) return false;
+        if (se && se.subtype && this._hasCreatureType(attacker, se.subtype) && !this._hasCreatureType(blocker, se.subtype)) return false;
+        // (Serpent of Yawning Depths: any of a list, the attacker yours — subtypes, yours)
+        if (se && se.subtypes && (!se.yours || attacker.controller === s.controller) && se.subtypes.some(t => this._hasCreatureType(attacker, t)) &&
+          !se.subtypes.some(t => this._hasCreatureType(blocker, t))) return false;
       }
       // Gornog, the Red Reaper: "Cowards can't block Warriors." (typeCantBlockType)
       for (const s of this.battlefield) {
@@ -17448,6 +17454,8 @@
         case 'exiledThisWay': return (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
+        // Flood of Tears: "If you return four or more nontoken permanents you control this way" (sweptYours)
+        case 'sweptYours': return !!me && (this._lastSweptMoved || []).filter(w => w.controller === me.id && (!cond.nontoken || !w.token)).length >= (cond.n || 1);
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
         // Liliana, Heretical Healer: "If you do" — it came back transformed
@@ -18635,6 +18643,15 @@
       if (amount <= 0) return 0;
       const rdTo = this._srcRedirect(source, o);
       if (rdTo) { this.logEvent('damage', `Damage ${source.name} would deal to ${o.name} is dealt to ${rdTo.name} instead.`); return this.dealDamageToObject(rdTo, amount, source, isCombat); }
+      /* Ancient Adamantoise: "All damage that would be dealt to you and other permanents you control is dealt to this creature
+         instead." — each such effect once to an event (CR 614.5: _repRedirect) */
+      if (o.zone === 'battlefield') {
+        const rd = this._yourDamageRedirect(o.controller, o), to = rd && rd.to;
+        if (to) {
+          this.logEvent('damage', `Damage to ${o.name} is dealt to ${to.name} instead.`);
+          return this._redirectedDamage(rd.r, () => this.dealDamageToObject(to, amount, source, isCombat));
+        }
+      }
       /* the en-Kor: "the next 1 damage that would be dealt to this creature
          this turn is dealt to target creature you control instead" */
       const shields = (o.redirectNext || []).filter(x => x.turn === this.turn && x.n > 0);
@@ -18869,19 +18886,39 @@
       for (const c of ['white', 'blue', 'black', 'red', 'green']) if (this._cardFitsWords(source, c)) by[c] = (by[c] || 0) + amount;
     }
 
+    /* Pariah, Ancient Adamantoise: "All damage that would be dealt to you [and other permanents you control] is dealt to
+       this creature instead" — the first such effect of that player's not yet applied to this damage (permanents: for a
+       permanent other than its own), and the creature it sends the damage to */
+    _yourDamageRedirect(pid, victim) {
+      const seen = this._repRedirect || [];
+      for (const r of this.battlefield) {
+        if (r.controller !== pid || r.phasedOut || seen.includes(r.id)) continue;
+        const e = this._staticOp(r, 'redirectYourDamage');
+        if (!e || (victim && (!e.permanents || victim === r))) continue;
+        const to = e.to === 'attached' ? (r.attachedTo && this.obj(r.attachedTo)) : r;
+        if (!to || to === victim || to.zone !== 'battlefield' || !(this.characteristics(to) || {}).isCreature) continue;
+        return { r, to };
+      }
+      return null;
+    }
+    /** Damage sent on by a redirect: that effect is not applied to it again (CR 614.5). */
+    _redirectedDamage(r, deal) {
+      const before = this._repRedirect;
+      this._repRedirect = (before || []).concat(r.id);
+      try { return deal(); } finally { this._repRedirect = before; }
+    }
+
     dealDamageToPlayer(p, amount, source, combat) {
       if (!p || amount <= 0) return 0;
       const rdTo = this._srcRedirect(source, null);
       if (rdTo) { this.logEvent('damage', `Damage ${source.name} would deal to ${p.name} is dealt to ${rdTo.name} instead.`); return this.dealDamageToObject(rdTo, amount, source, combat); }
       // Pariah, Empyrial Archangel: "all damage that would be dealt to you is dealt to this creature instead"
-      for (const r of this.battlefield) {
-        if (r.controller !== p.id || r.phasedOut) continue;
-        const e = this._staticOp(r, 'redirectYourDamage');
-        if (!e) continue;
-        const to = e.to === 'attached' ? (r.attachedTo && this.obj(r.attachedTo)) : r;
-        if (!to || to.zone !== 'battlefield' || !(this.characteristics(to) || {}).isCreature) continue;
-        this.logEvent('damage', `Damage to ${p.name} is dealt to ${to.name} instead.`);
-        return this.dealDamageToObject(to, amount, source, combat);
+      {
+        const rd = this._yourDamageRedirect(p.id, null), to = rd && rd.to;
+        if (to) {
+          this.logEvent('damage', `Damage to ${p.name} is dealt to ${to.name} instead.`);
+          return this._redirectedDamage(rd.r, () => this.dealDamageToObject(to, amount, source, combat));
+        }
       }
       amount = this._damageAmount(amount, source, p.id, combat, true);
       // all of it replaced or prevented (Nine Lives, Force Bubble): no damage is dealt
@@ -25455,6 +25492,14 @@
             if (e.withoutCounter && (x.counters[e.withoutCounter] || 0) > 0) return false;
             // Thanos, the Mad Titan: "each other creature with mana value of the chosen quality" (other, mvParity)
             if (e.other && src && x.id === src.id) return false;
+            /* Everything Comes to Dust: "all creatures except those that share a creature type with a creature that convoked
+               this spell, all artifacts, and all enchantments" — spared only as a creature, not as an artifact or
+               enchantment (exceptConvokerTypes) */
+            if (e.exceptConvokerTypes) {
+              const xc = x.analysis() || {};
+              const conv = ((src && src._convokers) || []).map(id => this.obj(id)).filter(Boolean);
+              if (xc.isCreature && !xc.isArtifact && !xc.isEnchantment && conv.some(c => this._shareCreatureType(x, c))) return false;
+            }
             if (e.mvParity && (((x.card && x.card.cmc) || 0) % 2 === 0) !== ((e.mvParity === 'chosen' ? ctx.chosenParity : e.mvParity) === 'even')) return false;
             if (e.maxMv != null && ((x.card && x.card.cmc) || 0) > cap(e.maxMv)) return false;
             if (e.minMv != null && ((x.card && x.card.cmc) || 0) < cap(e.minMv)) return false;
@@ -25483,13 +25528,18 @@
           this._lastSwept = victims.map(x => x.id);
           // Rampage of the Clans: whose each one was, for "its controller creates …"
           this._lastAffectedAll = victims.map(x => ({ id: x.id, controller: x.controller }));
+          // (Flood of Tears: "If you return four or more nontoken permanents you control this way" — whose each was: _lastSweptMoved)
+          const movedNow = [];
           for (const x of victims) {
             if (x.zone !== 'battlefield') continue;
             if (e.op === 'destroyAll' && this._totemArmor(x)) continue;
             if (e.op === 'destroyAll' && this._regenerated(x, e.noRegen)) continue;
+            const was = { controller: x.controller, token: !!x.isToken };
             this.moveObject(x, zone);
+            if (x.zone !== 'battlefield') movedNow.push(was);
             n++;
           }
+          this._lastSweptMoved = movedNow;
           this._leavingTogether = null;
           this._lastSweep = n;
           // "Destroys 2 artifacts", never "artifactss"; several kinds at once are permanents
