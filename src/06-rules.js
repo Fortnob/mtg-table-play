@@ -8245,9 +8245,12 @@
           const ef = this._staticOp(s0, 'targetCostMod');
           if (!ef) continue;
           if (ef.who === 'you' ? s0.controller !== playerId : !this.opponentsOf(s0.controller).some(q => q.id === playerId)) continue;
+          // (Strong Back: "Aura spells you cast that target enchanted creature" — spellWords, hostOfSrc)
+          if (ef.spellWords && !this._cardFitsWords(o, ef.spellWords)) continue;
           const hit = (opts.targets || []).some(t => {
             const x = this.obj((t && t.id) || t);
             if (!x || x.zone !== 'battlefield') return false;
+            if (ef.hostOfSrc) return !!s0.attachedTo && x.id === s0.attachedTo;
             // (Kopala, Warden of Waves: "that target a Merfolk you control" — yoursOnly)
             if (ef.yoursOnly && x.controller !== s0.controller) return false;
             return ef.commanderYours ? !!x.isCommander && x.controller === s0.controller : this._matchesCategory(x, ef.filter);
@@ -11824,6 +11827,8 @@
                 });
                 if (!hit) continue;
               }
+              // Strong Back: "Equip abilities you activate that target enchanted creature" — the one it enchants (targetsHost)
+              if (e.targetsHost && !(src.attachedTo && (targets || []).some(t => t && (typeof t === 'string' ? t : t.id) === src.attachedTo))) continue;
               /* Professor Hojo: "The first activated ability you activate during your turn that targets a creature
                  you control" (targetsOwn) — none such yet this turn (ownTargetActs) */
               if (e.targetsOwn) {
@@ -17101,6 +17106,9 @@
       for (const x of this.battlefield) sig += ',' + x.controller + (x.phasedOut ? 'p' : '') + this._localEpoch(x);
       // (Thranduil, the Elvenking: the cards in its controller's graveyard, as they are now)
       if (spec.graveyard) sig += '|' + ((this.zones[o.controller] || {}).graveyard || []).map(x => x.id).join(',');
+      // (Conspicuous Snoop: the top card of its controller's library, as it is now — libraryTop)
+      const libTop = spec.libraryTop ? (((this.zones[o.controller] || {}).library || [])[0] || null) : null;
+      if (spec.libraryTop) sig += '|t' + (libTop ? libTop.id : '');
       // (Rex, Cyber-Hound: which cards in exile have the counter — exiledCounter)
       // (Mairsil, the Pretender: "all cards you own in exile with cage counters on them" — owned)
       const exiledWith = () => spec.exiledCounter ? this.players.flatMap(p => (this.zones[p.id] || {}).exile || [])
@@ -17146,6 +17154,12 @@
             for (const ab of (xa.manaAbilities || [])) take(mana, ab);
           }
         }
+        // Conspicuous Snoop: "As long as the top card of your library is a Goblin card, … all activated abilities of that card"
+        if (libTop && (!spec.words || this._cardFitsWords(libTop, spec.words))) {
+          const ta = libTop.analysis();
+          for (const ab of ((ta && ta.abilities) || [])) if (ab.kind === 'activated' || ab.kind === 'loyalty') take(acts, ab);
+          for (const ab of ((ta && ta.manaAbilities) || [])) take(mana, ab);
+        }
         /* Rex, Cyber-Hound: "all activated abilities of all cards in exile with brain counters on them" — anybody's
            cards, activated abilities only (exiledCounter) */
         // (Agatha's Soul Cauldron: the creature cards exiled with it — mana abilities too)
@@ -17154,7 +17168,7 @@
           for (const ab of ((ca && ca.abilities) || [])) if (ab.kind === 'activated') take(acts, ab);
           for (const ab of ((ca && ca.manaAbilities) || [])) take(mana, ab);
         }
-        for (const x of (spec.chosenCard || spec.graveyard || spec.exiledCounter || spec.exiledOnly ? [] : this.battlefield)) {
+        for (const x of (spec.chosenCard || spec.graveyard || spec.exiledCounter || spec.exiledOnly || spec.libraryTop ? [] : this.battlefield)) {
           if (x === o || x.phasedOut || x.faceDown) continue;
           if (spec.who === 'opponents' ? !opp.has(x.controller) : spec.who !== 'all' && x.controller !== o.controller) continue;
           // Experiment Kraj: "each other creature with a +1/+1 counter on it" — anyone's (withCounter)
@@ -29537,9 +29551,11 @@
         case 'copyTokensEnteredThisTurn': {
           // (Renewed Solidarity: "of the chosen type" — its source's chosen creature type: chosenType)
           const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn &&
-            (!e.chosenType || (src && src.chosenType && this._hasCreatureType(x, src.chosenType))));
+            (!e.chosenType || (src && src.chosenType && this._hasCreatureType(x, src.chosenType))) &&
+            // (Redoubled Stormsinger: "each creature token …", copies "tapped and attacking")
+            (!e.words || this._cardFitsWords(x, e.words)));
           if (e.chosenType && !(src && src.chosenType)) break;
-          for (const tk of toks) this._runEffect({ op: 'copyPermanent', n: 1, _forced: tk }, ctx);
+          for (const tk of toks) this._runEffect(Object.assign({ op: 'copyPermanent', n: 1, _forced: tk }, e.tapped ? { tapped: true } : {}, e.attacking ? { attacking: true } : {}), ctx);
           break;
         }
         // Anzrag's Rampage: "Return it to your hand at the beginning of the next end step."
@@ -32871,7 +32887,7 @@
               : e.fromMaxPower != null ? ` from creatures with power ${e.fromMaxPower} or less`
               : e.fromColors ? ` from ${e.fromColors.map(c => ({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[c]).join(' and/or ')} sources` : '';
             const to = e.to === 'you' ? ` to ${me.name}` : e.to === 'creatures' ? ' to creatures'
-              : e.to === 'youAndWalkers' ? ` to ${me.name} and planeswalkers they control${e.fromNotYours ? ' by sources they don\'t control' : ''}`
+              : e.to === 'youAndWalkers' || e.to === 'youAndPlaneswalkers' ? ` to ${me.name} and planeswalkers they control${e.fromNotYours ? ' by sources they don\'t control' : ''}`
               : e.to === 'yourCreatures' ? ` to ${e.toSubtype ? e.toSubtype.charAt(0).toUpperCase() + e.toSubtype.slice(1) + 's' : 'creatures'} ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
             this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'}${by}${to} is prevented this turn.`);
           }
@@ -34011,6 +34027,15 @@
             // Soundwave, Sonic Spy: "If you do, convert Soundwave." (then)
             if (e.then && e.then.length) this._spliceNext(e.then);
           } else { this._removeFromZone(dup); dup.zone = null; }
+          break;
+        }
+        /* Tezzeret, Master of the Bridge: "Exile the top ten cards of your library. Put all artifact cards from among them onto
+           the battlefield." — every one this resolution exiled, under your control (exiledNowToBattlefield) */
+        case 'exiledNowToBattlefield': {
+          const idsX = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
+          const putX = idsX.map(id => this.obj(id)).filter(o => o && o.zone === 'exile' && this._cardFitsWords(o, e.words || 'permanent') && (o.analysis() || {}).isPermanent);
+          for (const o of putX) this.moveObject(o, 'battlefield', { controller: ctx.controller });
+          if (putX.length) this.logEvent('zone', `${me.name} puts ${putX.map(o => o.name).join(', ')} onto the battlefield.`);
           break;
         }
         /* Uldaros Theorix: "Copy those cards. You may cast any number of spells with total mana value 6 or less from among
@@ -39024,7 +39049,8 @@
         if (pv.toSubtype && !(tCreature && this._hasCreatureType(target, pv.toSubtype))) continue;
         if (pv.to === 'youAndYours' && !(target && (target.id === pv.who || (tCreature && target.controller === pv.who)))) continue;
         // Comeuppance: "to you and planeswalkers you control … by sources you don't control" (youAndWalkers, fromNotYours)
-        if (pv.to === 'youAndWalkers' && !(target && (target.id === pv.who || (target.zone === 'battlefield' && target.controller === pv.who &&
+        // (Take the Bait: the same scope, as youAndPlaneswalkers)
+        if ((pv.to === 'youAndWalkers' || pv.to === 'youAndPlaneswalkers') && !(target && (target.id === pv.who || (target.zone === 'battlefield' && target.controller === pv.who &&
           (target.analysis() || {}).isPlaneswalker)))) continue;
         if (pv.fromNotYours && !(source && source.controller != null && source.controller !== pv.who)) continue;
         if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;

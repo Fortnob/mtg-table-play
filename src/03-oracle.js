@@ -3306,6 +3306,9 @@
     // Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your control" (exiledWithToBattlefield)
     { re: /^Put all (creature) cards exiled with CARDNAME onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase() }) },
+    // Tezzeret, Master of the Bridge: "Exile the top ten cards of your library. Put all artifact cards from among them onto the battlefield." (exiledNowToBattlefield)
+    { re: /^Put all ([a-z]+) cards from among them onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'exiledNowToBattlefield', words: m[1].toLowerCase() }) },
     /* Shelob, Dread Weaver: "Put target creature card with mana value X exiled with Shelob onto the battlefield tapped
        under your control." — the one card picked as it resolves, among those with that mana value (mvX) */
     { re: /^Put target ([a-z]+) card with mana value X exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
@@ -8799,6 +8802,12 @@
     // "Prevent all combat damage that would be dealt to you and creatures you control this turn."
     { re: /^Prevent all (combat )?damage that would be dealt to you and creatures you control this turn\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'youAndYours' }) },
+    // Take the Bait: "Prevent all combat damage that would be dealt to you and planeswalkers you control this turn." (youAndPlaneswalkers)
+    { re: /^Prevent all (combat )?damage that would be dealt to you and planeswalkers you control this turn\.?$/i,
+      make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'youAndPlaneswalkers' }) },
+    // Take the Bait: "Untap all attacking creatures and goad them."
+    { re: /^Untap all attacking creatures and goad them\.?$/i,
+      make: () => [{ op: 'untapAll', scope: { who: 'all', what: 'creature', attacking: true } }, { op: 'goad', scope: { who: 'all', what: 'creature', attacking: true } }] },
     // "Prevent all damage that would be dealt to you this turn by attacking creatures."
     { re: /^Prevent all (combat )?damage that would be dealt to you this turn by attacking creatures\.?$/i,
       make: (m) => ({ op: 'preventDamage', combatOnly: !!m[1], to: 'you', fromAttacking: true }) },
@@ -9234,6 +9243,10 @@
     // Renewed Solidarity: "for each token you control of the chosen type that entered this turn, create a token that's a copy of it" (chosenType)
     { re: /^For each token you control of the chosen type that entered this turn, create a token that'?s a copy of it\.?$/i,
       make: () => ({ op: 'copyTokensEnteredThisTurn', chosenType: true }) },
+    /* Redoubled Stormsinger: "for each creature token you control that entered this turn, create a tapped and attacking
+       token that's a copy of that token" — attacking whom it attacks */
+    { re: /^For each creature token you control that entered this turn, create a tapped and attacking token that'?s a copy of (?:that token|it)\.?$/i,
+      make: () => ({ op: 'copyTokensEnteredThisTurn', words: 'creature', tapped: true, attacking: true }) },
     // Callidus Assassin: "destroy up to one other target creature with the same name as this creature"
     { re: /^Destroy up to one other target creature with the same name as (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, another: true, sameNameAsSource: true }] }) },
@@ -23565,6 +23578,9 @@
       // Experiment Kraj: "Experiment Kraj has all activated abilities of each other creature with a +1/+1 counter on it." (withCounter)
       { re: /^(?:CARDNAME|This creature) has all activated abilities of each other creature with an? (\+1\/\+1|[a-z]+) counter on it\.?$/i,
         make: (m) => ({ op: 'borrowActivated', who: 'all', withCounter: m[1].toLowerCase() }), auto: true },
+      // Conspicuous Snoop: "As long as the top card of your library is a Goblin card, this creature has all activated abilities of that card." (libraryTop)
+      { re: /^As long as the top card of your library is an? ([A-Z][a-z]+|creature|artifact|land) card, (?:CARDNAME|this creature) has all activated abilities of that card\.?$/,
+        make: (m) => ({ op: 'borrowActivated', who: 'you', libraryTop: true, words: m[1].toLowerCase() }), auto: true },
       // Thranduil, the Elvenking: "Thranduil has all activated abilities of all Elf cards in your graveyard." (borrowActivated graveyard)
       // (Trazyn the Infinite: "As long as Trazyn is on the battlefield, it has all activated abilities of all artifact cards in your graveyard.")
       { re: /^(?:CARDNAME|This creature|As long as CARDNAME is on the battlefield, it) has all activated abilities of all ([A-Z][a-z]+|creature|artifact) cards in your graveyard\.?$/,
@@ -23735,6 +23751,12 @@
          Familiar: "Spells your opponents cast that target one or more commanders you control cost {3} more" (targetCostMod) */
       { re: /^Spells you cast that target an? (creature|permanent|artifact|enchantment|planeswalker|land) cost \{(\d+)\} less to cast\.?$/i,
         make: (m) => ({ op: 'targetCostMod', who: 'you', filter: m[1].toLowerCase(), amount: -m[2] }), auto: true },
+      /* Strong Back: "Aura spells you cast that target enchanted creature cost {3} less to cast." (hostOfSrc); "Equip abilities
+         you activate that target enchanted creature cost {3} less to activate." (abilityCostMod targetsHost) */
+      { re: /^(Aura|Equipment|creature|instant|sorcery) spells you cast that target (?:enchanted|equipped) creature cost \{(\d+)\} less to cast\.?$/i,
+        make: (m) => ({ op: 'targetCostMod', who: 'you', spellWords: m[1].toLowerCase(), hostOfSrc: true, amount: -m[2] }), auto: true },
+      { re: /^Equip abilities you activate that target (?:enchanted|equipped) creature cost \{(\d+)\} less to activate\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', who: 'you', equip: true, targetsHost: true, amount: -m[1] }), auto: true },
       // Hinata, Dawn-Crowned: "Spells you cast cost {1} less to cast for each target." / "Spells your opponents cast cost {1} more …" (perTargetCostMod)
       { re: /^Spells (you|your opponents) cast cost \{(\d+)\} (less|more) to cast for each target\.?$/i,
         make: (m) => ({ op: 'perTargetCostMod', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', amount: /less/i.test(m[3]) ? -m[2] : +m[2] }), auto: true },

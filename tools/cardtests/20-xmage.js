@@ -71772,4 +71772,108 @@ module.exports = (test) => {
     t.eq(T.life('A'), 20, 'A untouched');
     t.zone(bTop, 'hand'); t.zone(cTop, 'hand');
   });
+  test('Cards: Redoubled Stormsinger — attacking, a tapped and attacking copy of each creature token that entered this turn; sacrificed at end step', (mk, t) => {
+    t.auto('Redoubled Stormsinger');
+    const T = mk();
+    const rs = T.bf('A', 'Redoubled Stormsinger');
+    T.bf('A', 'Grizzly Bears');
+    const old = T.put('A', 'Grizzly Bears', 'battlefield'); old.isToken = true;
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const soldiers = T.bfOf('A').filter(o => o.isToken && o.name === 'Soldier');
+    t.eq(soldiers.length, 2, 'two Soldiers this turn');
+    T.answer('declareAttackers', () => [{ attackerId: rs.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    const copies = T.bfOf('A').filter(o => o.isToken && o.name === 'Soldier' && !soldiers.includes(o));
+    t.eq(copies.length, 2, 'a copy of each Soldier');
+    t.ok(copies.every(o => o.tapped), 'tapped');
+    t.eq(T.life('B'), 20 - 3 - 2, 'the Stormsinger 3 and the copies 1 each');
+    t.no(T.bfOf('A').some(o => o.isToken && o.name === 'Grizzly Bears' && o !== old), 'not the token from an earlier turn');
+    T.nextTurn('B');
+    t.ok(copies.every(o => o.zone !== 'battlefield'), 'the copies sacrificed at the end step');
+    t.ok(soldiers.every(o => o.zone === 'battlefield'), 'the Soldiers stay');
+  });
+  test('Cards: Tezzeret, Master of the Bridge — −8: exile the top ten, every artifact card among them onto the battlefield', (mk, t) => {
+    t.auto('Tezzeret, Master of the Bridge');
+    const T = mk({ library: Array(5).fill('Island') });
+    const tz = T.bf('A', 'Tezzeret, Master of the Bridge', { counters: { loyalty: 8 } });
+    tz.counters.loyalty = 8;
+    const sol = T.top('A', 'Sol Ring');
+    const orn = T.top('A', 'Ornithopter');
+    const bear = T.top('A', 'Grizzly Bears');
+    const a = tz.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    t.ok(T.g.activateAbility('A', tz.id, acts.findIndex(x => (x.cost || {}).loyalty === -8), {}), T.g.lastError);
+    T.resolve();
+    t.zone(sol, 'battlefield'); t.zone(orn, 'battlefield');
+    t.eq(sol.controller, 'A');
+    t.zone(bear, 'exile', 'not an artifact: stays exiled');
+    t.eq(T.zone('A', 'exile').length, 8, 'the other eight exiled');
+  });
+  test('Cards: Strong Back — equip and Auras targeting the enchanted creature cost {3} less; +2/+2 for each Aura and Equipment on it', (mk, t) => {
+    t.auto('Strong Back');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const other = T.bf('A', 'Savannah Lions');
+    const sb = T.bf('A', 'Strong Back');
+    sb.attachedTo = bear.id; bear.attachments = [sb.id]; T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 4, 'one Aura: +2/+2');
+    const bs = T.bf('A', 'Bonesplitter');
+    const eq = bs.analysis().abilities.filter(x => x.kind === 'activated');
+    t.ok(T.g.activateAbility('A', bs.id, eq.findIndex(x => /^Equip/.test(x.text)), { targets: [{ kind: 'object', id: bear.id }] }), 'equip {1} on it: free ' + T.g.lastError);
+    T.resolve();
+    t.eq(bs.attachedTo, bear.id);
+    t.eq(T.g.powerOf(bear), 2 + 2 + 2 + 2, 'an Aura and an Equipment: +4/+4, and the Bonesplitter +2/+0');
+    // equipping another creature costs as usual
+    t.no(T.g.activateAbility('A', bs.id, eq.findIndex(x => /^Equip/.test(x.text)), { targets: [{ kind: 'object', id: other.id }] }), 'another creature: {1} to pay');
+    // an Aura on it: {3} less
+    T.mana('A', 'W');
+    const sm = T.hand('A', 'Spirit Mantle');
+    t.no(T.g.castSpell('A', sm.id, { auto: true, targets: [{ kind: 'object', id: other.id }] }), 'on another creature: {1}{W}');
+    t.ok(T.g.castSpell('A', sm.id, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'on the enchanted creature: {W} ' + T.g.lastError);
+    T.resolve();
+    t.eq(sm.attachedTo, bear.id);
+  });
+  test('Cards: Conspicuous Snoop — the top card a Goblin: it has that card\'s activated abilities', (mk, t) => {
+    t.auto('Conspicuous Snoop');
+    const T = mk();
+    const cs = T.bf('A', 'Conspicuous Snoop');
+    const acts = () => cs.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts().length, 0, 'an Island on top: nothing');
+    T.top('A', 'Mogg Fanatic');
+    T.g.bumpBoard();
+    t.eq(acts().length, 1, 'Mogg Fanatic on top: its ability');
+    T.activate('A', cs, 0, { targets: ['B'] });
+    t.zone(cs, 'graveyard', 'sacrificed itself');
+    t.eq(T.life('B'), 19, '1 damage');
+    // a non-Goblin on top: nothing
+    const U = mk();
+    const cs2 = U.bf('A', 'Conspicuous Snoop');
+    U.top('A', 'Prodigal Sorcerer');
+    U.g.bumpBoard();
+    t.eq(cs2.analysis().abilities.filter(x => x.kind === 'activated').length, 0, 'a Wizard on top: nothing');
+  });
+  test('Cards: Take the Bait — on an opponent\'s turn in combat: combat damage to you prevented, attackers untapped and goaded, another combat', (mk, t) => {
+    t.auto('Take the Bait');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.nextTurn('B');
+    const att = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: att.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    const tb = T.hand('A', 'Take the Bait');
+    T.mana('A', '2RW');
+    while (T.g.priorityPlayer.id !== 'A') T.g.passPriority(T.g.priorityPlayer.id, true);
+    T.cast('A', tb);
+    t.no(att.tapped, 'untapped');
+    t.eq(att.goadedBy, 'A', 'goaded');
+    T.answer('declareAttackers', (ch) => [{ attackerId: att.id, defenderId: 'C' }]);
+    T.toMain('B', 'end');
+    t.eq(T.life('A'), 20, 'combat damage to A prevented');
+    t.eq(T.life('C'), 18, 'the additional combat: it attacks C');
+    // not on your own turn
+    const U = mk();
+    U.mana('A', '2RW');
+    t.no(U.g.castSpell('A', U.hand('A', 'Take the Bait').id, { auto: true, targets: [] }), 'only during combat on an opponent\'s turn');
+  });
 };
