@@ -77445,4 +77445,134 @@ module.exports = (test) => {
     T.nextTurn('A');
     t.eq(T.zone('A', 'hand').length, h0 + 2, 'B has one card, C four: one extra card');
   });
+
+  test('Cards: Realmbreaker, the Invasion Tree — mill three, a land of theirs tapped under your control that leaves for exile; any number of Praetors', (mk, t) => {
+    t.auto('Realmbreaker, the Invasion Tree');
+    const T = mk();
+    const g = T.g;
+    const rb = T.bf('A', 'Realmbreaker, the Invasion Tree');
+    T.top('B', 'Grizzly Bears'); const mtn = T.top('B', 'Mountain'); const fo = T.top('B', 'Forest');
+    let asked = null;
+    T.answer('pickCard', (ch) => { asked = ch; return { cardIds: [mtn.id] }; });
+    T.mana('A', '2');
+    T.activate('A', rb, 0, { targets: ['B'] });
+    t.ok(asked && /from B's graveyard onto the battlefield tapped under your control/.test(asked.prompt), 'asked which land: ' + (asked && asked.prompt));
+    t.eq(asked.cards.length, 2, 'the two milled lands offered, not the Bears');
+    t.zone(mtn, 'battlefield', 'the Mountain put onto the battlefield');
+    t.eq(mtn.controller, 'A', 'under your control');
+    t.ok(mtn.tapped, 'tapped');
+    g.moveObject(mtn, 'graveyard');
+    t.zone(mtn, 'exile', 'leaving, it goes to exile instead');
+    // no land in their graveyard: nothing
+    rb.tapped = false;
+    g.moveObject(fo, 'exile');
+    T.top('B', 'Grizzly Bears'); T.top('B', 'Hill Giant'); T.top('B', 'Craw Wurm');
+    const bfA = T.bfOf('A').length;
+    T.mana('A', '2');
+    T.activate('A', rb, 0, { targets: ['B'] });
+    t.eq(T.bfOf('A').length, bfA, 'no land in their graveyard: nothing put onto the battlefield');
+    // {10}: any number of Praetor cards
+    rb.tapped = false;
+    const p1 = T.top('A', 'Elesh Norn, Grand Cenobite'), p2 = T.top('A', 'Sheoldred, Whispering One');
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.filter(c => c.id === p1.id || c.id === p2.id).map(c => c.id) }));
+    T.mana('A', '10');
+    T.activate('A', rb, 1);
+    t.zone(p1, 'battlefield', 'Elesh Norn found'); t.zone(p2, 'battlefield', 'Sheoldred found');
+    t.zone(rb, 'graveyard', 'Realmbreaker sacrificed');
+  });
+
+  test('Cards: Vizier of the Menagerie — mana of any type spent on creature spells, from the top of the library too; not on others', (mk, t) => {
+    t.auto('Vizier of the Menagerie');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Vizier of the Menagerie');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.ok(T.bfOf('A').some(o => o.name === 'Grizzly Bears'), '{1}{G} paid with red mana');
+    // colorless symbols too ("any type"): Matter Reshaper {2}{C} with red
+    const top = T.top('A', 'Matter Reshaper');
+    T.mana('A', 'RRR');
+    T.cast('A', top);
+    t.zone(top, 'battlefield', 'cast from the top of the library, {C} paid with red');
+    // not a noncreature spell
+    T.mana('A', 'RR');
+    const ok = g.castSpell('A', T.hand('A', 'Rampant Growth').id, { auto: true, targets: [] });
+    t.no(ok, "a sorcery's {G} can't be paid with red");
+  });
+
+  test('Cards: Braid of Fire — cumulative upkeep adds {R} for each age counter; declined, it is sacrificed', (mk, t) => {
+    t.auto('Braid of Fire');
+    const T = mk();
+    const g = T.g;
+    const braid = T.bf('A', 'Braid of Fire');
+    let asked = null, pool = null;
+    T.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(asked && asked.purpose === 'cumulativeUpkeepAdd' && /Add \{R\} for Braid of Fire/.test(asked.prompt), 'asked: ' + (asked && asked.prompt));
+    t.eq(braid.counters.age, 1, 'an age counter');
+    t.zone(braid, 'battlefield', 'kept');
+    // second upkeep: two counters, {R}{R}, spent in the upkeep on an instant
+    T.nextTurn('B');
+    T.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    // stop in A's upkeep to see the pool
+    for (let i = 0; i < 300 && !(g.activePlayer.id === 'A' && g.step === 'upkeep' && !g.pendingChoice && asked && asked.add === '{R}{R}'); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    pool = g.player('A').pool.R || 0;
+    t.eq(pool, 2, 'two age counters: {R}{R} in the pool');
+    T.answer('confirm', { yes: false });
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(braid, 'graveyard', 'not paid: sacrificed');
+  });
+
+  test("Cards: Gossip's Talent — level 2: an attacker with power 3 or less unblockable; level 3: a creature that hit a player flickers", (mk, t) => {
+    t.auto("Gossip's Talent");
+    const T = mk();
+    const g = T.g;
+    const tal = T.bf('A', "Gossip's Talent");
+    const a = tal.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const lv = (n) => acts.findIndex(x => (x.effects || []).some(e => e.op === 'classLevel' && e.to === n));
+    const bear = T.bf('A', 'Grizzly Bears'), wurm = T.bf('A', 'Craw Wurm'), bear2 = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'U1');
+    T.activate('A', tal, lv(2));
+    let asked = null;
+    T.answer('pickTarget', (ch) => { asked = ch; return { targets: [ch.options[0].find(x => x.id === bear.id)] }; });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: wurm.id, defenderId: 'B' }, { attackerId: bear2.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    const ids = asked ? asked.options[0].map(x => x.id) : [];
+    t.ok(ids.includes(bear.id) && ids.includes(bear2.id) && !ids.includes(wurm.id), 'the two Bears offered, the 6/4 Wurm not');
+    t.no(g.canBlock(giant, bear), 'the chosen Bears: unblockable');
+    t.ok(g.canBlock(giant, bear2), 'the other Bears: blockable');
+    // level 3: a creature that dealt combat damage to a player flickers (you may)
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'U3');
+    T.activate('A', tal, lv(3));
+    const sick = T.bf('A', 'Llanowar Elves');
+    bear.counters['+1/+1'] = 1;
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === bear.id)] }));
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    const back = g.battlefield.find(o => o.name === 'Grizzly Bears' && o.controller === 'A' && o !== bear2);
+    t.ok(back && !back.tapped && !(back.counters['+1/+1']), 'the Bears flickered: untapped, no counter');
+    t.no(sick.tapped, 'the Elves untouched');
+  });
+
+  test('Cards: Reach the Horizon — up to two basic lands and/or Towns with different names, onto the battlefield tapped', (mk, t) => {
+    t.auto('Reach the Horizon');
+    const T = mk();
+    const g = T.g;
+    const f1 = T.top('A', 'Forest'), f2 = T.top('A', 'Forest'), town = T.top('A', 'Midgar, City of Mako'), bear = T.top('A', 'Grizzly Bears');
+    let asked = null;
+    T.answer('pickCard', (ch) => { asked = ch; return { cardIds: [ch.cards.find(c => c.name === 'Forest').id, town.id] }; });
+    T.mana('A', 'G3');
+    T.cast('A', T.hand('A', 'Reach the Horizon'));
+    const forest = [f1, f2].find(f => f.zone === 'battlefield'), other = [f1, f2].find(f => f !== forest);
+    t.ok(asked && /up to two basic land cards and\/or Town cards with different names/.test(asked.prompt), 'asked: ' + (asked && asked.prompt));
+    t.ok(asked.cards.some(c => c.id === town.id) && !asked.cards.some(c => c.id === bear.id), 'the Town offered, the Bears not');
+    t.ok(forest, 'a Forest'); t.zone(town, 'battlefield', 'and the Town');
+    t.ok(forest && forest.tapped && town.tapped, 'both tapped');
+    t.zone(other, 'library', 'the other Forest stays');
+  });
 };

@@ -240,7 +240,7 @@ const CHOICES = {
   mode: choice({ count: int, options: arr(obj({ i: int, label: str, card: opt(maybe(Card)) })), repeatable: opt(bool), nameAny: opt(maybe(NameWanted)) }),
   /* sacMana: what paying would sacrifice for mana (Treasures), named in the question; redo: what a yes to
      "Sacrifice 3 Treasures to cast Lightning Bolt?" does again (purpose sacMana) */
-  confirm: choice({ yesLabel: opt(str), noLabel: opt(str), payMana: opt(str), sacMana: opt(SacManaNote),
+  confirm: choice({ yesLabel: opt(str), noLabel: opt(str), payMana: opt(str), add: opt(str), sacMana: opt(SacManaNote),
     redo: opt(obj({ kind: str, objId: opt(id), index: opt(nat), declarations: opt(arr(S.plainObj)), opts: S.plainObj })) }),
   /* The table shows a mana cost (a string) or { life }. */
   payOrDont: choice({ cost: either('a mana cost, { life } or { energy }', str, obj({ life: num }), obj({ energy: num })), sacMana: opt(SacManaNote) }),

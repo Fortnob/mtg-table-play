@@ -1302,7 +1302,8 @@
     m = s.match(/^(up to )?(a|an|one|two|three|four|five|X|\d+|any number of) /i);
     if (!m) return null;
     e.n = /any number/i.test(m[2]) ? 99 : num(m[2]);
-    if (m[1]) e.upTo = true;
+    // (Realmbreaker: "any number of Praetor cards" — none at all, too)
+    if (m[1] || e.n === 99) e.upTo = true;
     s = s.slice(m[0].length);
     m = s.match(/^([-a-zA-Z', ]*?)\s*cards?\b/);
     if (!m) return null;
@@ -1313,6 +1314,9 @@
     let orAlso = '';
     // (nothing said of the second kind alone — Starfield Shepherd's "or a creature card with mana value 1 or less" is not this)
     if ((q = s.match(/^ or an? ([A-Za-z][-a-zA-Z']*(?: [a-z]+)?) card(?=,|$)/))) { orAlso = q[1].toLowerCase(); s = s.slice(q[0].length); }
+    // (Reach the Horizon: "up to two basic land cards and/or Town cards with different names" — either kind, any mix: andOr)
+    let andOr = false;
+    if (!orAlso && (q = s.match(/^ and\/or ([A-Z][-a-zA-Z']*) cards(?=,| with|$)/))) { orAlso = q[1].toLowerCase(); andOr = true; s = s.slice(q[0].length); }
     // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
@@ -1384,10 +1388,10 @@
     const asPrinted = (w) => { const hit = String(sentence).match(new RegExp('\\b' + w.replace(/[^a-z'-]/gi, '') + '\\b', 'i')); return hit && /^[A-Z]/.test(hit[0]) ? hit[0] : w; };
     const said = (f) => f.split(' ').map(w => w.replace(/^[a-z'-]+/, (x) => asPrinted(x))).join(' ');
     // (Spinewoods Armadillo: "a basic land card or a Desert card", as printed)
-    const what = e.filter === 'any' ? 'card' : orAlso && e.n === 1 ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' card or ' + (/^[aeiou]/i.test(orAlso) ? 'an ' : 'a ') + said(orAlso) + ' card'
+    const what = e.filter === 'any' ? 'card' : andOr ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' cards and/or ' + said(orAlso) + ' card' : orAlso && e.n === 1 ? said(e.filter.slice(0, -(' or ' + orAlso).length)) + ' card or ' + (/^[aeiou]/i.test(orAlso) ? 'an ' : 'a ') + said(orAlso) + ' card'
       : said(e.filter) + ' card';
     const NW = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-    e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
+    e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : e.n === 99 ? 'any number of ' : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
       what + (e.n === 1 ? '' : 's') +
       // (Tiamat: "not named Tiamat that each have different names" — the whole of what it asks for)
       (e.notNamedSelf ? ' not named CARDNAME' : '') + (e.differentNames ? (/that each have different names/i.test(sentence) ? ' that each have different names' : ' with different names') : '') +
@@ -6462,6 +6466,8 @@
     // Aethergeode Miner: "Exile this creature, then return it to the battlefield under its owner's control."
     { re: /^Exile (?:this creature|this permanent|this artifact|CARDNAME), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
       make: () => ({ op: 'blink', self: true }) },
+    // Gossip's Talent: "you may exile it, then return it to the battlefield under its owner's control" — the creature the trigger is about (it)
+    { re: /^Exile it, then return it to the battlefield under its owner'?s control\.?$/i, make: () => ({ op: 'blink', it: true }) },
     // Zuko, Conflicted: "Exile Zuko, then return him to the battlefield under an opponent's control." (toOpponent)
     { re: /^Exile (?:this creature|CARDNAME), then return (?:it|him|her|them) to the battlefield under an opponent'?s control\.?$/i,
       make: () => ({ op: 'blink', self: true, toOpponent: true }) },
@@ -7825,8 +7831,9 @@
     { re: /^Target creature can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature' }] }) },
     // Alora, Merry Thief: "up to one target attacking creature can't be blocked this turn"
-    { re: /^(Up to one )?Target attacking creature can'?t be blocked this turn\.?$/i,
-      make: (m) => ({ op: 'restrict', flag: 'unblockable', targets: [Object.assign(targetSpec('target attacking creature'), m[1] ? { upTo: true } : {})] }) },
+    // (Gossip's Talent: "target attacking creature with power 3 or less can't be blocked this turn" — maxPower)
+    { re: /^(Up to one )?Target attacking creature( with power (\d+) or less)? can'?t be blocked this turn\.?$/i,
+      make: (m) => ({ op: 'restrict', flag: 'unblockable', targets: [Object.assign(targetSpec('target attacking creature'), m[1] ? { upTo: true } : {}, m[2] ? { maxPower: +m[3] } : {})] }) },
     // Evie Frye: "target creature you control can't be blocked this turn"
     { re: /^Target creature you control can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [targetSpec('target creature you control')] }) },
@@ -10566,6 +10573,9 @@
     { re: /^(?:Then )?[Yy]ou may return (a|an|one) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: 1, upTo: true,
         filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield', tapped: !!m[5] }, m[3] ? { maxMv: +m[3] } : {})) },
+    // Realmbreaker, the Invasion Tree: "Put a land card from their graveyard onto the battlefield tapped under your control." — the target player's (yours)
+    { re: /^Put (?:a|an) ([a-z ]+?) card from their graveyard onto the battlefield( tapped)? under your control\.?$/i,
+      make: (m) => (/\btarget\b/i.test(m[1]) ? null : { op: 'graveyardPick', n: 1, who: 'target', yours: true, filter: m[1].trim().toLowerCase(), to: 'battlefield', tapped: !!m[2] }) },
     // Soul of Windgrace: "put a land card from a graveyard onto the battlefield tapped under your control"; Wreck and Rebuild: "… from your graveyard …" (putFromGraveyard)
     { re: /^(?:Then )?([Yy]ou may )?[Pp]ut (a|an|one) ([a-zA-Z ,-]+?) card from (your|a|any) graveyard onto the battlefield( tapped)?( under your control)?\.?$/,
       make: (m) => (/\btarget\b|^or /i.test(m[3]) || (m[4] !== 'your' && !m[6]) ? null : Object.assign({ op: 'graveyardPick', n: 1, upTo: !!m[1],
@@ -24525,6 +24535,9 @@
           const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
           return then.auto && then.effects.length ? { op: 'manaSpentRider', words: m[1].toLowerCase() + ' spell', effects: then.effects, text: m[0] } : null;
         }, auto: true },
+      // Vizier of the Menagerie: "You can spend mana of any type to cast creature spells." (spendAnyFor: anyType)
+      { re: /^You (?:can|may) spend mana (of any type|as though it were mana of any colou?r) to cast (?!those )([a-z]+) spells\.?$/i,
+        make: (m) => ({ op: 'spendAnyFor', words: m[2].toLowerCase(), anyType: /type/i.test(m[1]) }), auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },
@@ -26528,6 +26541,9 @@
           const canon = ['W/U', 'U/B', 'B/R', 'R/G', 'G/W', 'W/B', 'U/R', 'B/G', 'R/W', 'G/U'].find(h => h === pair.join('/') || h === pair.slice().reverse().join('/'));
           return canon ? { op: 'cumulativeUpkeep', cost: '{' + canon + '}' } : null;
         }, auto: true },
+      // Braid of Fire: "Cumulative upkeep—Add {R}." — a cost that gives you mana (add)
+      { re: /^Cumulative upkeep\s*[-\u2014]?\s*Add ((?:\{[WUBRGC]\})+)\.?$/i,
+        make: (m) => ({ op: 'cumulativeUpkeep', add: m[1].toUpperCase() }), auto: true },
       { re: /^Cumulative upkeep\s*[-\u2014]?\s*Pay (\d+) life\.?$/i,
         make: (m) => ({ op: 'cumulativeUpkeep', life: +m[1] }), auto: true },
       { re: /^CARDNAME can't attack or block unless you pay/i, eff: { op: 'manual' }, auto: false },

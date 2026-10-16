@@ -3440,6 +3440,8 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      // Braid of Fire: its cumulative upkeep only gives mana — kept (cumulativeUpkeepAdd)
+      if (ch.purpose === 'cumulativeUpkeepAdd') return true;
       /* Library of Leng: a discarded card back on top — unless the graveyard is where it does its work, or it is a land
          and lands are plenty (discardToTop) */
       if (ch.purpose === 'discardToTop') {

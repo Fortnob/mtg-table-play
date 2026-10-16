@@ -681,6 +681,12 @@
       if (o && o.zone === 'exile' && o.owner === pid && o.exiledByPlayer === pid && (this._playFromRule(pid, o, 'spell') || {}).exiledByYou) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Alchemy: "perpetually gains 'You may spend mana as though it were mana of any color to cast this spell'"
       if (o && (o.effects || []).some(e => e && e.perpetual && e.spendAny)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // Vizier of the Menagerie: "You can spend mana of any type to cast creature spells." — colorless symbols too (spendAnyFor)
+      if (o) for (const x of this._withEmblems(this.battlefield)) {
+        if (x.controller !== pid || x.phasedOut) continue;
+        const e = this._staticOp(x, 'spendAnyFor');
+        if (e && this._cardFitsWords(o, e.words)) return String(cost).replace(e.anyType ? /\{(?:2\/)?[WUBRGC](?:\/[WUBRG])?\}/g : /\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      }
       const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
         if (e.chosenName && !this._chosenNameOf(src, o)) return false;
         if (e.chosenMv && !(src.conspiracy.mv != null && ((o.card && o.card.cmc) || 0) === src.conspiracy.mv)) return false;
@@ -1496,6 +1502,14 @@
             purpose: 'cumulativeUpkeep',
             prompt: `Pay ${owed} energy for ${o.name}? If you don't, it is sacrificed.`,
           });
+          continue;
+        }
+        /* Braid of Fire: "Cumulative upkeep—Add {R}." — paid by adding the mana, which is always possible; a confirm,
+           since "Pay" would mislead (add) */
+        if (e.add) {
+          const adds = String(e.add).repeat(n);
+          this.queueChoice({ type: 'confirm', playerId: ap.id, objId: o.id, purpose: 'cumulativeUpkeepAdd', add: adds, yesLabel: 'Add ' + adds, noLabel: 'Sacrifice it',
+            prompt: `Add ${adds} for ${o.name}'s cumulative upkeep? If you don't, it is sacrificed.` });
           continue;
         }
         const cost = String(e.cost || '').repeat(n);
@@ -24216,6 +24230,8 @@
               cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
               // ("a card", not "a card card"; "an artifact card")
               prompt: chooserP !== gyOwner ? `Choose ${this._aCard(e.filter, 'card')} in ${gyOwner.name}'s graveyard. ${gyOwner.name} puts it onto the battlefield under their control.`
+                // (Realmbreaker: "from their graveyard … under your control" — yours)
+                : e.yours && gyOwner !== me ? `Put ${this._aCard(e.filter, 'card')} from ${gyOwner.name}'s graveyard onto the battlefield${e.tapped ? ' tapped' : ''} under your control.`
                 : `${e.anyGraveyard ? 'Put' : 'Return'} ${want === 1 ? this._aCard(e.filter, 'card') : want + ' ' + this._aCard(e.filter, 'card', true)} from ${e.anyGraveyard ? 'a' : 'your'} graveyard${e.anyGraveyard ? ' onto the battlefield' : ''}.` }, 'gy');
             if (picked === SUSPEND) return SUSPEND;
             ids = (picked || []).filter(id => pool.some(c => c.id === id)).slice(0, want);
@@ -24223,9 +24239,11 @@
           for (const id of ids) {
             const c = this.obj(id);
             if (!c) continue;
-            this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: gyOwner.id });
+            this.moveObject(c, e.to === 'battlefield' ? 'battlefield' : 'hand', { controller: e.yours ? me.id : gyOwner.id });
             // Teval: "to the battlefield tapped"
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
+            // (Realmbreaker: "It gains …" — the land put there: yours)
+            if (e.yours && c.zone === 'battlefield') this._noteLastAffected([{ kind: 'object', id: c.id }]);
             // Scavenger's Talent: "with a finality counter on it"
             if (e.counter && c.zone === 'battlefield') this.addCounters(c, e.counter, 1);
           }
@@ -27399,6 +27417,8 @@
         }
         case 'blink': {
           const list = e.self ? [src].filter(Boolean)
+            // (Gossip's Talent: "exile it" — the creature that dealt the damage; else the one before: it)
+            : e.it ? [((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || firstObj() || (this._lastAffected && this.obj(this._lastAffected.id))].filter(Boolean)
             : targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           // Zuko, Conflicted: "return him to the battlefield under an opponent's control" — the opponent chosen first (toOpponent)
           let to = null;
@@ -43146,6 +43166,20 @@
             this.zones[playerId].exile.push(dup);
             if (this._castFree(playerId, dup, { how: `(a copy of ${o.name}) without paying its mana cost` })) this.stack[this.stack.length - 1].isCopy = true;
             else { this._removeFromZone(dup); dup.zone = null; }
+            break;
+          }
+          // Braid of Fire: the mana added, or the permanent sacrificed (cumulativeUpkeepAdd)
+          if (ch.purpose === 'cumulativeUpkeepAdd') {
+            const o = this.obj(ch.objId), p = this.player(playerId);
+            if (!o || o.zone !== 'battlefield' || !p) break;
+            if (data && data.yes) {
+              for (const c of String(ch.add || '').match(/[WUBRGC]/g) || []) p.pool.add(c, 1);
+              this.logEvent('upkeep', `${p.name} adds ${ch.add} for ${o.name}.`);
+            } else {
+              this.logEvent('sacrifice', `${p.name} does not pay; ${o.name} is sacrificed.`);
+              this.moveObject(o, 'graveyard');
+              this._fire('youSacrifice', playerId, { count: 1, object: o, objController: playerId });
+            }
             break;
           }
           // Miracle: pay the miracle cost and cast it; its targets are chosen as it resolves

@@ -524,6 +524,8 @@ declare namespace MTG {
     type: 'confirm'; life?: number; yesLabel?: string; noLabel?: string;
     /** the mana a "pay it?" question offers to pay */
     payMana?: string;
+    /** purpose 'cumulativeUpkeepAdd' (Braid of Fire): the mana a yes adds */
+    add?: string;
     /** purpose 'sacMana' ("Sacrifice 3 Treasures to cast Lightning Bolt?"): what a yes does again */
     redo?: SacManaRedo;
   }
