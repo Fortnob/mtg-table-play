@@ -17569,6 +17569,16 @@
         this._giveToAnOpponent(o);
         if (prevent) return 0;
       }
+      /* Phyrexian Vindicator: "If damage would be dealt to this creature, prevent that damage. When damage is prevented
+         this way, this creature deals that much damage to any other target." — a reflexive trigger, aimed as it goes on (preventReflect) */
+      if (o.zone === 'battlefield' && this._staticOp(o, 'preventReflect') && !this._noPrevention(isCombat)) {
+        this.logEvent('damage', `${amount} damage to ${o.name} is prevented.`);
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: o.controller,
+          name: `${o.name} \u2014 damage prevented`, auto: true, abilityText: 'When damage is prevented this way, this creature deals that much damage to any other target.',
+          effects: [{ op: 'damage', n: amount, targets: [{ type: 'any', filter: 'any other target', zone: 'battlefield', another: true }] }],
+          triggerData: { event: 'damagePrevented', objectId: o.id, amount } });
+        return 0;
+      }
       // the Phantoms: "prevent that damage. Remove a +1/+1 counter from this creature."
       if (o.zone === 'battlefield' && this._hasFlag(o, 'phantom') && !this._noPrevention(isCombat)) {
         if (Number(o.counters['+1/+1']) > 0) {
@@ -22744,6 +22754,14 @@
           break;
         }
         case 'counters': {
+          /* Elspeth Conquers Death: "a +1/+1 counter or a loyalty counter" — the one that does something; asked only of
+             a creature planeswalker (kindByType) */
+          if (e.kindByType && e.kindChoice) {
+            const kx = e.scope === 'lastTarget' ? firstObj() : src;
+            const kxt = kx && kx.zone === 'battlefield' ? this._cardTypesOf(kx) : [];
+            const kxCre = kxt.includes('Creature'), kxPw = kxt.includes('Planeswalker');
+            if (kxCre !== kxPw) e = Object.assign({}, e, { kind: kxPw ? 'loyalty' : '+1/+1', kindChoice: null });
+          }
           // Aragorn, Company Leader: "your choice of a counter from among first strike, vigilance, …" (kindChoice)
           if (e.kindChoice && e.kindChoice.length > 1) {
             const kc = this._choose({ playerId: ctx.controller, purpose: 'counterKindPick', kind: 'options', min: 1, max: 1,
@@ -31474,6 +31492,20 @@
         }
 
         /* ===== ops the hand-written scripts lean on ===== */
+        /* Keen Duelist: "you and target opponent each reveal the top card of your library. You each lose life equal to the
+           mana value of the card revealed by the other player. You each put the card you revealed into your hand." (duelReveal) */
+        case 'duelReveal': {
+          const duo = (e.targets || []).length === 1 ? [me, firstPlayer()] : targets.filter(t => t.kind === 'player').map(t => this.player(t.id));
+          if (duo.length !== 2 || duo.some(q => !q || q.hasLost)) break;
+          const shown = duo.map(q => {
+            const c = this.zones[q.id].library[0] || null;
+            if (c) { this._know(c, '*'); this.logEvent('reveal', `${q.name} reveals ${c.name}.`); }
+            return c;
+          });
+          duo.forEach((q, i) => { const c = shown[1 - i]; const mv = c ? ((c.card && c.card.cmc) || 0) : 0; if (mv) this.changeLife(q, -mv, 'card'); });
+          shown.forEach((c, i) => { if (c && c.zone === 'library') this.moveObject(c, 'hand'); });
+          break;
+        }
         case 'revealToHand': {
           const cnt = n(e.n) || 1;
           for (let i = 0; i < cnt; i++) {
@@ -34244,6 +34276,12 @@
         // Ral, Leyline Prodigy: "Until your next turn, instant and sorcery spells you cast cost {1} less to cast."
         // (Will Kenrith: "… spells that player casts cost {2} less" — the player targeted, until your next turn)
         case 'costModUntil': {
+          // Elspeth Conquers Death: "Noncreature spells your opponents cast cost {2} more … until your next turn" — each opponent's
+          if (e.who === 'opponents') {
+            for (const q of this.opponentsOf(me.id)) q.costModsUntil = (q.costModsUntil || []).filter(c => this._costModUntilLive(q, c))
+              .concat([{ words: e.words || 'spell', amount: Number(e.amount) || 0, turn: this.turn, until: e.until || 'eot', taken: me.turnsTaken || 0, untilOf: me.id }]);
+            break;
+          }
           const pl = e.who === 'target' ? firstPlayer() : me;
           if (!pl) break;
           pl.costModsUntil = (pl.costModsUntil || []).filter(c => this._costModUntilLive(pl, c))

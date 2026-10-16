@@ -6730,6 +6730,9 @@
     { re: /^(Until your next turn|Until end of turn|This turn), (instant and sorcery |creature |noncreature |artifact |enchantment )?spells you cast cost \{(\d+)\} (less|more) to cast\.?$/i,
       make: (m) => ({ op: 'costModUntil', words: m[2] ? m[2].trim().toLowerCase().replace(' and ', ' or ') : 'spell',
         amount: /less/i.test(m[4]) ? -m[3] : +m[3], until: /next turn/i.test(m[1]) ? 'yourNextTurn' : 'eot' }) },
+    // Elspeth Conquers Death: "Noncreature spells your opponents cast cost {2} more to cast until your next turn." (who 'opponents')
+    { re: /^(creature |noncreature |instant and sorcery )?spells your opponents cast cost \{(\d+)\} more to cast until your next turn\.?$/i,
+      make: (m) => ({ op: 'costModUntil', who: 'opponents', words: m[1] ? m[1].trim().toLowerCase().replace(' and ', ' or ') : 'spell', amount: +m[2], until: 'yourNextTurn' }) },
     /* Will Kenrith: "Until your next turn, instant, sorcery, and planeswalker spells that player casts cost {2} less to
        cast." — the player the sentence before targeted, until your next turn (who 'target') */
     { re: /^Until your next turn, instant, sorcery, and planeswalker spells that player casts cost \{(\d+)\} less to cast\.?$/i,
@@ -7884,6 +7887,10 @@
     { re: /^(?:You )?[Dd]raw a card at the beginning of the next turn'?s upkeep\.?$/,
       make: () => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, name: 'Draw a card',
         effects: [{ op: 'draw', n: 1, who: 'you' }] }) },
+    /* Elspeth Conquers Death: "Put a +1/+1 counter or a loyalty counter on it." — the kind is the controller's choice
+       (ruling), asked only when it is both a creature and a planeswalker (kindByType) */
+    { re: /^Put a \+1\/\+1 counter or a loyalty counter on it\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', kindChoice: ['+1/+1', 'loyalty'], kindByType: true, n: 1, targets: null, scope: 'self' }) },
     { re: /^Adapt (\d+)\.?$/i, make: (m) => ({ op: 'adapt', n: +m[1] }) },
     // Biomancer's Familiar: "The next time target creature adapts this turn, it adapts as though it had no +1/+1 counters on it." (adaptFresh)
     { re: /^The next time (target creature) adapts this turn, it adapts as though it had no \+1\/\+1 counters on it\.?$/i,
@@ -8490,6 +8497,9 @@
     // (Hellcat, Undying Vigilante: "return her … under her owner's control with a +1/+1 counter on her")
     { re: /^Return (?:it|him|her|that card|(one of them)) to the battlefield( tapped)? under ((?:its|his|her) owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on (?:it|him|her|CARDNAME))?\.?$/i,
       make: (m) => Object.assign({ op: 'returnTriggerCard', yours: /your/i.test(m[3]) }, m[1] ? { oneOfBatch: true } : {}, m[2] ? { tapped: true } : {}, m[4] ? { counter: m[5].toLowerCase() } : {}) },
+    // Meathook Massacre II: "return that card under your control with a finality counter on it" — to the battlefield (ruling)
+    { re: /^Return that card under your control with an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => ({ op: 'returnTriggerCard', yours: true, counter: m[1].toLowerCase() }) },
     // Colossal Grave-Reaver: "put one of them onto the battlefield" — one card of the lot milled, under your control (oneOfBatch, put)
     { re: /^Put one of them onto the battlefield\.?$/i, make: () => ({ op: 'returnTriggerCard', yours: true, oneOfBatch: true, put: true }) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
@@ -8679,6 +8689,13 @@
     { re: /^It becomes saddled until end of turn\.?$/i, make: () => ({ op: 'saddled', scope: 'triggerObject' }) },
     // Bridge from Below: "exile this card" — from the graveyard it works in
     { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
+    /* Keen Duelist: "you and target opponent each reveal the top card of your library. You each lose life equal to the mana
+       value of the card revealed by the other player. You each put the card you revealed into your hand."; Parker Luck:
+       "two target players each reveal …" — the three sentences one effect (duelReveal; the last two are its parts) */
+    { re: /^(you and target opponent|two target players) each reveal the top card of (?:your|their) library\.?$/i,
+      make: (m) => ({ op: 'duelReveal', targets: /^you/i.test(m[1]) ? [{ type: 'player', opponent: true }] : [{ type: 'player' }, { type: 'player' }] }) },
+    { re: /^(?:You|They) each lose life equal to the mana value of the card revealed by the other player\.?$/i, make: () => ({ op: 'noop', duelPart: true }) },
+    { re: /^(?:Then )?(?:you|they) each put the card (?:you|they) revealed into (?:your|their) hand\.?$/i, make: () => ({ op: 'noop', duelPart: true }) },
     // Stuffy Doll: "it deals that much damage to the chosen player", "deals 1 damage to itself"
     { re: /^(?:CARDNAME|This creature|It) deals (that much|\d+) damage to the chosen player\.?$/i,
       make: (m) => ({ op: 'damage', n: /that much/i.test(m[1]) ? 'triggerAmount' : +m[1], toChosenPlayer: true }) },
@@ -8696,6 +8713,9 @@
         const a = parseEffectSentence(m[1] + ' gets ' + m[2] + ' until end of turn.'), b = parseEffectSentence('CARDNAME gets ' + m[3] + ' until end of turn.');
         return a && b && a.op === 'pump' && b.op === 'pump' ? [a, b] : null;
       } },
+    // Nuclear Fallout: "Each creature gets twice -X/-X until end of turn." — -2X/-2X (xTimes)
+    { re: /^Each creature gets twice -X\/-X until end of turn\.?$/i,
+      make: () => ({ op: 'pump', p: { xTimes: -2 }, t: { xTimes: -2 }, duration: 'eot', scope: { who: 'all', what: 'creature' } }) },
     // Shared Animosity: "it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it"
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn for each other attacking creature that shares a creature type with it\.?$/i,
       make: (m) => ({ op: 'pumpPerKinAttacker', p: +m[1], t: +m[2] }) },
@@ -24566,6 +24586,10 @@
         }, auto: true },
       // K'rrik, Son of Yawgmoth
       { re: /^For each \{B\} in a cost, you may pay 2 life rather than pay that mana\.?$/i, eff: { op: 'blackAsLife' }, auto: true },
+      /* Phyrexian Vindicator: "If damage would be dealt to this creature, prevent that damage. When damage is prevented
+         this way, this creature deals that much damage to any other target." (preventReflect) */
+      { re: /^If damage would be dealt to (?:this creature|CARDNAME), prevent that damage\. When damage is prevented this way, (?:this creature|CARDNAME) deals that much damage to any other target\.?$/i,
+        eff: { op: 'preventReflect' }, auto: true },
       // Vigor
       { re: /^If damage would be dealt to another creature you control, prevent that damage\. Put a \+1\/\+1 counter on that creature for each 1 damage prevented this way\.?$/i,
         eff: { op: 'vigorShield' }, auto: true },
