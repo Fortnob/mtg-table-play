@@ -5292,6 +5292,9 @@
       make: () => ({ op: 'damage', n: { spellMvDiffHit: true }, each: 'opponent' }) },
     { re: /^Exile cards from the top of your library until you exile cards with total mana value (\d+) or greater\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'you', totalMv: +m[1] }) },
+    // Tasha's Hideous Laughter: "Each opponent exiles cards from the top of their library until that player has exiled cards with total mana value 20 or greater."
+    { re: /^Each opponent exiles cards from the top of their library until that player has exiled cards with total mana value (\d+) or greater\.?$/i,
+      make: (m) => ({ op: 'exileTop', who: 'opponents', totalMv: +m[1] }) },
     /* Gríma, Saruman's Footman, Dazzling Sphinx, Chaos Wand: "that player (target opponent) exiles cards from the
        top of their library until they exile an instant or sorcery card"; Jodah, the Unifier: "Exile cards from the
        top of your library until you exile a legendary nonland card with lesser mana value." — lesser than the
@@ -8330,7 +8333,8 @@
       make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', notFromHand: true }] }) },
     { re: /^Counter target activated ability, triggered ability, or (legendary|noncreature|creature|artifact|instant or sorcery) spell\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase(), abilities: true }] }) },
-    { re: /^Counter target spell, activated ability, or triggered ability\.?$/i,
+    // (Mirrorshell Crab: "Counter target spell or ability unless its controller pays {3}." — the part before "unless")
+    { re: /^Counter target spell(?:, activated ability, or triggered ability| or ability)\.?$/i,
       make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true }] }) },
     // Edric, Fecundity: "its controller (that creature's controller) may draw a card" — theirs to decide
     { re: /^(?:Its|That creature'?s) controller may draw (a|one|two) cards?\.?$/i,
@@ -12871,6 +12875,12 @@
         const per = Object.assign({}, tok.effects[0]); delete per.op; delete per.text;
         return [{ op: 'preventDamage', combatOnly: true, to: 'you', tokenPer: per }];
       } },
+    /* Comeuppance: "Prevent all damage that would be dealt to you and planeswalkers you control this turn by sources you
+       don't control. If damage from a creature source is prevented this way, Comeuppance deals that much damage to that
+       creature. If damage from a noncreature source is prevented this way, Comeuppance deals that much damage to the
+       source's controller." (youAndWalkers, fromNotYours, reflectBySource) */
+    { re: /^Prevent all damage that would be dealt to you and planeswalkers you control this turn by sources you don'?t control\. If damage from a creature source is prevented this way, (?:CARDNAME|this spell) deals that much damage to that creature\. If damage from a noncreature source is prevented this way, (?:CARDNAME|this spell) deals that much damage to the source'?s controller\.?$/i,
+      make: () => [{ op: 'preventDamage', to: 'youAndWalkers', fromNotYours: true, reflectBySource: true }] },
     /* Ria Ivor, Bane of Bladehold: "the next time target creature would deal combat damage to one or more players
        this combat, prevent that damage. If damage is prevented this way, create that many 1/1 colorless Phyrexian
        Mite artifact creature tokens with …" (preventCombatOnce, tokenPer) */
@@ -18937,8 +18947,9 @@
          creature, an ability from the hand like channel */
       // (Swell of Courage: "Reinforce X—{X}{W}{W}" — X chosen and paid as it is used, as channel's {X} is)
       const reinf = line.match(/^Reinforce (one|two|three|four|five|X|\d+)\s*(?:\u2014|--|-)\s*((?:\{[^}]+\})+)/i);
+      // (Wren's Run Hydra: "Reinforce X—{X}{G}{G}" — X chosen as it is discarded, as channel's X is)
       if (reinf && (!/X/i.test(reinf[1]) || /\{X\}/.test(reinf[2]))) {
-        out.channel = { cost: reinf[2], effects: [{ op: 'counters', kind: '+1/+1', n: /X/i.test(reinf[1]) ? 'X' : num(reinf[1]), targets: [targetSpec('target creature')] }] };
+        out.channel = { cost: reinf[2], effects: [{ op: 'counters', kind: '+1/+1', n: /^X$/i.test(reinf[1]) ? 'X' : num(reinf[1]), targets: [targetSpec('target creature')] }] };
         out.abilities.push({ kind: 'castModifier', keyword: 'Channel', arg: reinf[2], text: line, auto: true, effects: [] });
         autoLines++;
         continue;
@@ -21973,6 +21984,9 @@
     { re: /^Each (other )?land is an? (Plains|Island|Swamp|Mountain|Forest) in addition to its other (?:land )?types\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 4, scope: { who: 'all', what: 'land', other: !!m[1] },
         addSubtypes: [U.titleCase(m[2])] }) },
+    // Stormtide Leviathan: "All lands are Islands in addition to their other types."
+    { re: /^All lands are (Plains|Islands|Swamps|Mountains|Forests) in addition to their other (?:land )?types\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 4, scope: { who: 'all', what: 'land' }, addSubtypes: [U.titleCase(m[1].replace(/s$/i, '').replace(/^plain$/i, 'Plains'))] }) },
     { re: /^(.+?) (?:is|are) every basic land type in addition to (?:its|their) other types\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);
@@ -21986,6 +22000,12 @@
         if (!scope) return null;
         return { op: 'continuous', layer: 4, scope, addSubtypes: BASIC_TYPES.concat(['Cave', 'Desert', 'Gate', 'Lair', 'Locus', 'Mine', 'Power-Plant', 'Sphere', 'Tower', 'Town', 'Planet', "Urza's"]) };
       } },
+    /* Duplicant: "As long as a card exiled with this creature is a creature card, this creature has the power, toughness,
+       and creature types of the last creature card exiled with it. It's still a Shapeshifter." (fromExiledWith) */
+    { re: /^As long as a card exiled with (?:this creature|CARDNAME) is a creature card, (?:this creature|CARDNAME) has the power, toughness, and creature types of the last creature card exiled with it\. It'?s still an? ([A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'sequence', list: [
+        { op: 'continuous', layer: 4, scope: { self: true }, creatureTypesFromExiledWith: { keep: [m[1]] } },
+        { op: 'continuous', layer: 7, scope: { self: true }, setPtFromExiledWith: true }] }) },
     // Omo, Queen of Vesuva: "Each nonland creature with an everything counter on it is every creature type." — as changeling (Maskwood Nexus)
     { re: /^(Each [^.]+? with an? [a-z+\-\/0-9]+ counters? on it) is every creature type\.?$/i,
       make: (m) => {

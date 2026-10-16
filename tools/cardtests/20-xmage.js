@@ -71031,4 +71031,154 @@ module.exports = (test) => {
     t.eq(copies('Hill Giant'), 1, "the next turn, again (it's yours now)");
     t.zone(div, 'battlefield');
   });
+
+  test('Cards: Stormtide Leviathan — all lands are Islands too; creatures without flying or islandwalk can\'t attack', (mk, t) => {
+    t.auto('Stormtide Leviathan');
+    const T = mk();
+    const g = T.g;
+    const lev = T.bf('A', 'Stormtide Leviathan');
+    const mtn = T.bf('B', 'Mountain');
+    t.ok(g._hasSubtype(mtn, 'Island'), "B's Mountain is an Island");
+    t.ok(g._hasSubtype(mtn, 'Mountain'), 'and still a Mountain');
+    T.toMain('B');
+    // B's Mountain pays for blue
+    T.cast('B', T.hand('B', 'Opt'));
+    t.ok(mtn.tapped, 'tapped for {U}');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const bird = T.bf('B', 'Suntail Hawk');
+    t.no(g.canAttack(bear), "the Bears can't attack");
+    t.ok(g.canAttack(bird), 'a flier can');
+    // the Leviathan's islandwalk: B controls an Island now
+    const wall = T.bf('B', 'Wall of Stone');
+    t.no(g.canBlock(wall, lev), 'islandwalk: unblockable');
+  });
+
+  test('Cards: Duplicant — exiles a nontoken creature and takes its power, toughness and creature types, still a Shapeshifter', (mk, t) => {
+    t.auto('Duplicant');
+    const T = mk();
+    const g = T.g;
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.bf('B', 'Grizzly Bears');
+    const dup = T.hand('A', 'Duplicant');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: wurm.id }] }));
+    T.mana('A', '6');
+    T.cast('A', dup);
+    t.zone(wurm, 'exile', 'exiled');
+    t.eq(g.powerOf(dup), 6); t.eq(g.toughnessOf(dup), 4, "the Wurm's 6/4");
+    t.ok(g._hasSubtype(dup, 'Wurm') && g._hasSubtype(dup, 'Shapeshifter'), 'a Wurm, still a Shapeshifter');
+    // a +1/+1 counter still counts on top
+    dup.counters['+1/+1'] = 1; dup._chr = null; g.bumpBoard();
+    t.eq(g.powerOf(dup), 7, 'counters on top');
+    // the card leaves exile: a 2/4 Shapeshifter again
+    delete dup.counters['+1/+1'];
+    g.moveObject(wurm, 'graveyard');
+    t.eq(g.powerOf(dup), 2); t.eq(g.toughnessOf(dup), 4, 'printed 2/4 again');
+    t.no(g._hasSubtype(dup, 'Wurm'), 'not a Wurm any more');
+  });
+
+  test("Cards: Tasha's Hideous Laughter — each opponent exiles from the top until the exiled cards total mana value 20 or more", (mk, t) => {
+    t.auto("Tasha's Hideous Laughter");
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(10).fill('Island') });
+    // B: Craw Wurm (6) ×3, then Hill Giant (4): 6+6+6 = 18, then 4 → 22, stop
+    for (const nm of ['Island', 'Hill Giant', 'Craw Wurm', 'Island', 'Craw Wurm', 'Craw Wurm']) T.top('B', nm);
+    const bLib = T.zone('B', 'library').length;
+    const cLib = T.zone('C', 'library').length;
+    const aLib = T.zone('A', 'library').length;
+    T.mana('A', '1UU');
+    T.cast('A', T.hand('A', "Tasha's Hideous Laughter"));
+    t.eq(T.zone('B', 'exile').length, 5, 'B: three Wurms, an Island, a Giant (22)');
+    t.eq(T.zone('B', 'library').length, bLib - 5);
+    t.eq(T.zone('B', 'library')[0].name, 'Island', 'stopped there');
+    t.eq(T.zone('C', 'library').length, 0, "C's lands never add up: the whole library");
+    t.eq(T.zone('C', 'exile').length, cLib);
+    t.eq(T.zone('A', 'library').length, aLib, 'not you');
+  });
+
+  test("Cards: Comeuppance — damage to you and your planeswalkers from others' sources prevented and turned back", (mk, t) => {
+    t.auto('Comeuppance');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const jace = T.bf('A', 'Jace Beleren');
+    const loy = jace.counters.loyalty;
+    const wurm = T.bf('B', 'Craw Wurm');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.toMain('B');
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'A' }, { attackerId: bear.id, defenderId: jace.id }]);
+    T.toMain('B', 'declareBlockers');
+    // A casts Comeuppance after blockers (B passes first)
+    if (g.priorityPlayer.id === 'B') g.passPriority('B', true);
+    T.mana('A', '3W');
+    T.cast('A', T.hand('A', 'Comeuppance'));
+    toMain2(T);
+    t.eq(T.life('A'), 20, 'no damage to A');
+    t.eq(jace.counters.loyalty, loy, 'none to Jace');
+    t.zone(wurm, 'graveyard', 'the Wurm took its 6 back');
+    t.zone(bear, 'graveyard', 'the Bears took 2 back');
+    // a noncreature source: its controller takes it
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 20, 'Bolt prevented');
+    t.eq(T.life('B'), 17, 'B takes 3');
+    // your own sources aren't stopped
+    if (g.priorityPlayer.id === 'B') g.passPriority('B', true);
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 17, 'your own Bolt hurts');
+    // next turn: over
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 14, 'this turn only');
+    t.eq(T.life('B'), 17);
+    t.ok(g);
+  });
+
+  test("Cards: Wren's Run Hydra — enters with X counters; reinforce X—{X}{G}{G} from the hand", (mk, t) => {
+    t.auto("Wren's Run Hydra");
+    const T = mk();
+    const g = T.g;
+    const h1 = T.hand('A', "Wren's Run Hydra");
+    T.mana('A', '3G');
+    T.cast('A', h1, { x: 3 });
+    t.eq(h1.counters['+1/+1'], 3, 'X = 3');
+    t.ok(g.hasKw(h1, 'reach'));
+    const bear = T.bf('A', 'Grizzly Bears');
+    const h2 = T.hand('A', "Wren's Run Hydra");
+    const use = g.altUsesFor('A', h2.id).find(u => u.channel);
+    t.ok(use && use.cost === '{X}{G}{G}', 'reinforce offered');
+    T.mana('A', '2GG');
+    t.ok(g.cycleCard('A', h2.id, { channel: true, x: 2, targets: [{ kind: 'object', id: bear.id }] }), 'reinforced for X = 2');
+    T.resolve();
+    t.zone(h2, 'graveyard', 'discarded');
+    t.eq(bear.counters['+1/+1'], 2, 'two counters on the Bears');
+  });
+
+  test('Cards: Mirrorshell Crab — channel {2}{U}: counter target spell or ability unless its controller pays {3}', (mk, t) => {
+    t.auto('Mirrorshell Crab');
+    const T = mk();
+    const g = T.g;
+    T.toMain('B');
+    // an activated ability on the stack
+    const pyro = T.bf('B', 'Prodigal Pyromancer');
+    T.activate('B', pyro, 0, { targets: ['A'], resolve: false });
+    t.eq(g.stack.length, 1, 'the ability waits');
+    g.passPriority('B', true);
+    const crab = T.hand('A', 'Mirrorshell Crab');
+    T.mana('A', '2U');
+    t.ok(g.cycleCard('A', crab.id, { channel: true, targets: [{ kind: 'stack', id: g.stack[0].id }] }), 'channeled at the ability');
+    T.resolve();
+    t.zone(crab, 'graveyard');
+    t.eq(T.life('A'), 20, "B couldn't pay {3}: the ability was countered");
+    // a spell, and the controller pays
+    T.nextTurn('B');
+    T.mana('B', 'R3');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'], resolve: false });
+    g.passPriority('B', true);
+    const crab2 = T.hand('A', 'Mirrorshell Crab');
+    T.mana('A', '2U');
+    t.ok(g.cycleCard('A', crab2.id, { channel: true, targets: [{ kind: 'stack', id: g.stack[g.stack.length - 1].id }] }));
+    T.answer('payOrDont', () => ({ pay: true }));
+    T.resolve();
+    t.eq(T.life('A'), 17, 'B paid {3}: the Bolt resolved');
+  });
 };

@@ -15191,7 +15191,17 @@
        and the whole battlefield is worked out layer by layer. */
     _changesWhatItIs(e) {
       return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes || e.addSupertypes ||
-        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll));
+        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith));
+    }
+    /** Duplicant: the last creature card exiled with this permanent, still in exile — or null. */
+    _lastExiledCreatureWith(src) {
+      if (!src) return null;
+      let best = null;
+      for (const p of this.players) for (const c of ((this.zones[p.id] || {}).exile || [])) {
+        if (c.exiledWithId !== src.id || !(c.analysis() || {}).isCreature) continue;
+        if (!best || (c.exileStamp || 0) >= (best.exileStamp || 0)) best = c;
+      }
+      return best;
     }
 
     /* ---------- layer 3: text (CR 612, 613.1c) ----------
@@ -15555,7 +15565,8 @@
          that permanent. */
       const parts = [];
       const split = (ef, base) => {
-        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType || ef.addSupertypes) parts.push(Object.assign({ layer: 4 }, base));
+        if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType || ef.addSupertypes ||
+          ef.creatureTypesFromExiledWith) parts.push(Object.assign({ layer: 4 }, base));
         if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
         if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
       };
@@ -15620,6 +15631,16 @@
           // On Serra's Wings: "is legendary"
           if (e.addSupertypes) for (const t of e.addSupertypes) if (!s.supertypes.includes(t)) s.supertypes.push(t);
           if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
+          /* Duplicant: "the creature types of the last creature card exiled with it. It's still a Shapeshifter." — while
+             there is one (creatureTypesFromExiledWith) */
+          if (e.creatureTypesFromExiledWith && p.src) {
+            const xc = this._lastExiledCreatureWith(p.src);
+            if (xc) {
+              const theirs = ((xc.analysis() || {}).subtypes || []).filter(t => this._isCreatureType(t));
+              s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(theirs);
+              for (const k of (e.creatureTypesFromExiledWith.keep || [])) if (!s.subtypes.includes(k)) s.subtypes.push(k);
+            }
+          }
           if (e.addSubtypes) for (const t of e.addSubtypes) if (!s.subtypes.includes(t)) s.subtypes.push(t);
           if (e.addChosenType && p.src && p.src.chosenType && !s.subtypes.includes(p.src.chosenType)) s.subtypes.push(p.src.chosenType);
           /* Thran Portal: the chosen basic land type, as well; Convincing
@@ -17229,7 +17250,7 @@
       for (let i = 0; i < statics.length; i++) {
         const entry = statics[i];
         const ef = entry.ef;
-        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
+        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt || ef.setPtFromExiledWith)) continue;
         if (!this._contReaches(entry, o, a, lb)) continue;
         // Greymond, Avacyn's Stalwart: "have each of the chosen abilities" — the ones chosen as it entered (grantChosen)
         const grant = ef.grantChosen ? ((entry.src && entry.src.chosenKeywords) || [])
@@ -17237,6 +17258,12 @@
         if (grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
+        // Duplicant: "the power, toughness … of the last creature card exiled with it" — its printed numbers (setPtFromExiledWith)
+        if (ef.setPtFromExiledWith) {
+          const xc = this._lastExiledCreatureWith(entry.src);
+          const xa = xc && xc.analysis();
+          if (xa) setting.push({ ts: entry.ts, set: { p: parseInt(xa.power, 10) || 0, t: parseInt(xa.toughness, 10) || 0 } });
+        }
         if (ef.pt) modifying.push(Object.assign({ src: entry.src }, ef.pt));
         if (ef.switchPt) switches++;
       }
@@ -17463,7 +17490,7 @@
       if (shields.length) o.redirectNext = (o.redirectNext || []).filter(x => x.turn === this.turn && x.n > 0);
       if (amount <= 0) return 0;
       amount = this._damageAmount(amount, source, o.controller, isCombat, false, o.id);
-      if (this._damagePrevented(o, isCombat, source)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
+      if (this._damagePrevented(o, isCombat, source, amount)) { this.logEvent('damage', `Damage to ${o.name} is prevented.`); return; }
       // Mount Keralia (a plane): "prevent all damage that planes named Mount Keralia would deal this game to permanents you control"
       if (this.config.planechase && source && this._planarShielded(source, o) && !this._noPrevention(isCombat)) { this.logEvent('damage', `Damage ${source.name} would deal to ${o.name} is prevented.`); return 0; }
       // Vigor: damage to another creature of its controller's becomes +1/+1 counters
@@ -32751,12 +32778,15 @@
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
             tokenPer: e.tokenPer || null, fromCreatures: !!e.fromCreatures, fromAttacking: !!e.fromAttacking, toSubtype: e.toSubtype || null,
-            fromMaxPower: e.fromMaxPower != null ? e.fromMaxPower : null });
+            fromMaxPower: e.fromMaxPower != null ? e.fromMaxPower : null,
+            // Comeuppance: "by sources you don't control", and the damage turned back (fromNotYours, reflectBySource)
+            fromNotYours: !!e.fromNotYours, reflectBySource: e.reflectBySource ? ((src && src.id) || true) : null });
           {
             // "Damage from attacking creatures to Alice is prevented this turn." — said the way the card says it
             const by = e.fromCreatures ? ' that creatures would deal' : e.fromAttacking ? ' from attacking creatures'
               : e.fromMaxPower != null ? ` from creatures with power ${e.fromMaxPower} or less` : '';
             const to = e.to === 'you' ? ` to ${me.name}` : e.to === 'creatures' ? ' to creatures'
+              : e.to === 'youAndWalkers' ? ` to ${me.name} and planeswalkers they control${e.fromNotYours ? ' by sources they don\'t control' : ''}`
               : e.to === 'yourCreatures' ? ` to ${e.toSubtype ? e.toSubtype.charAt(0).toUpperCase() + e.toSubtype.slice(1) + 's' : 'creatures'} ${me.name} controls` : e.to === 'youAndYours' ? ` to ${me.name} and creatures they control` : '';
             this.logEvent('rules', `${e.combatOnly ? 'Combat damage' : 'Damage'}${by}${to} is prevented this turn.`);
           }
@@ -38846,6 +38876,10 @@
         // Pack Leader: only Dogs
         if (pv.toSubtype && !(tCreature && this._hasCreatureType(target, pv.toSubtype))) continue;
         if (pv.to === 'youAndYours' && !(target && (target.id === pv.who || (tCreature && target.controller === pv.who)))) continue;
+        // Comeuppance: "to you and planeswalkers you control … by sources you don't control" (youAndWalkers, fromNotYours)
+        if (pv.to === 'youAndWalkers' && !(target && (target.id === pv.who || (target.zone === 'battlefield' && target.controller === pv.who &&
+          (target.analysis() || {}).isPlaneswalker)))) continue;
+        if (pv.fromNotYours && !(source && source.controller != null && source.controller !== pv.who)) continue;
         if (pv.fromCreatures && !(source && (this.characteristics(source) || {}).isCreature)) continue;
         // Avacyn, Guardian Angel: "by sources of the color of your choice" (fromColor)
         if (pv.fromColor && !(source && source.analysis && ((source.analysis() || {}).colors || []).includes(pv.fromColor))) continue;
@@ -38863,6 +38897,16 @@
         if (pv.sourceId && !(source && source.id === pv.sourceId)) continue;
         // Inkshield: a token for each 1 damage prevented this way
         if (pv.tokenPer && (Number(amount) || 0) > 0) this._createToken(pv.who, Object.assign({}, pv.tokenPer, { n: Number(amount) || 0 }));
+        /* Comeuppance: "If damage from a creature source is prevented this way, Comeuppance deals that much damage to
+           that creature. If damage from a noncreature source is prevented this way, Comeuppance deals that much damage
+           to the source's controller." (reflectBySource) */
+        if (pv.reflectBySource && (Number(amount) || 0) > 0 && source) {
+          const from = (pv.reflectBySource !== true && this.obj(pv.reflectBySource)) || source;
+          const k = Number(amount) || 0;
+          const isCr = source.zone === 'battlefield' ? !!(this.characteristics(source) || {}).isCreature : !!(source.analysis && (source.analysis() || {}).isCreature);
+          if (isCr) { if (source.zone === 'battlefield') this.dealDamageToObject(source, k, from, false); }
+          else { const foe = this.player(source.controller); if (foe) this.dealDamageToPlayer(foe, k, from, false); }
+        }
         if (pv.once) {
           this.prevention.splice(this.prevention.indexOf(pv), 1);
           const k = Number(amount) || 0;
