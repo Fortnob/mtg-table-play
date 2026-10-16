@@ -550,6 +550,10 @@
       if ((m = p.match(/^Remove all (\S+) counters from (?:CARDNAME|this (?:creature|artifact|permanent))$/i))) {
         cost.removeCounters = { n: 'all', kind: m[1] }; continue;
       }
+      // Trenzalore Clocktower: "Remove twelve time counters from Trenzalore Clocktower and exile it" — and itself exiled, both paid at once
+      if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+) (\S+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|enchantment|land)) and exile it$/i))) {
+        cost.removeCounters = { n: /^(?:a|an)$/i.test(m[1]) ? 1 : num(m[1]), kind: m[2] }; cost.exile = { what: 'self' }; continue;
+      }
       if ((m = p.match(/^Remove (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X|any number of) (.+?) counters? from/i))) {
         // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
         cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
@@ -5905,9 +5909,10 @@
       make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'sacrificedWas', what: m[1].toLowerCase() },
         effects: [{ op: 'createNamedToken', token: m[2], n: { ofSacrificed: m[3] } }] } }) },
     // Rise of the Witch-king: "If you sacrificed a creature this way, you may return another permanent card from your graveyard to the battlefield." (sacrificedThisWay)
-    { re: /^If you sacrificed a (creature|permanent) this way, you may return another (creature|permanent) card from your graveyard to the battlefield\.?$/i,
+    // (Deadly Brew: "… you may return another permanent card from your graveyard to your hand.")
+    { re: /^If you sacrificed a (creature|permanent) this way, you may return another (creature|permanent) card from your graveyard to (the battlefield|your hand)\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: Object.assign({ kind: 'youSacrificedThisWay' }, /creature/i.test(m[1]) ? { what: 'Creature' } : {}),
-        then: [{ op: 'may', then: [{ op: 'graveyardPick', n: 1, upTo: false, filter: m[2].toLowerCase(), to: 'battlefield', notSacrificed: true }] }] }) },
+        then: [{ op: 'may', then: [{ op: 'graveyardPick', n: 1, upTo: false, filter: m[2].toLowerCase(), to: /hand/i.test(m[3]) ? 'hand' : 'battlefield', notSacrificed: true }] }] }) },
     // Lynde, Cheerful Tormentor: "return it to the battlefield attached to you at the beginning of the next end step." — the Curse (curseToYouLater)
     { re: /^Return it to the battlefield attached to you at the beginning of the next end step\.?$/i, make: () => ({ op: 'curseToYouLater' }) },
     // Gift of Immortality: "Return this card to the battlefield attached to that creature at the beginning of the next end step." (returnAuraLater)
@@ -9004,7 +9009,8 @@
       make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.'); return tok && tok.op === 'createToken' ? { op: 'may', who: 'targetController', then: [Object.assign(tok, { who: 'targetController' })] } : null; } },
     { re: /^Its controller (mills|draws) (a|one|two|three|four|five|\d+) cards?\.?$/i,
       make: (m) => ({ op: /mills/i.test(m[1]) ? 'mill' : 'draw', n: num(m[2]), who: 'targetController' }) },
-    { re: /^(Each player|Shuffle your) (?:shuffles their )?hand and graveyard into (?:their|your) library, then (?:draws?) (seven|five|four|three|\d+) cards\.?$/i,
+    // (Trenzalore Clocktower: "Shuffle your graveyard and hand into your library, then draw seven cards.")
+    { re: /^(Each player|Shuffle your) (?:shuffles their )?(?:hand and graveyard|graveyard and hand) into (?:their|your) library, then (?:draws?) (seven|five|four|three|\d+) cards\.?$/i,
       make: (m) => ({ op: 'twister', who: /^each/i.test(m[1]) ? 'each' : 'you', n: num(m[2]) }) },
     { re: /^Discard all the cards in your hand, then draw that many cards\.?$/i, make: () => ({ op: 'wheel', who: 'you', n: 'sameDiscarded' }) },
     // Heartwarming Redemption: "…then draw that many cards plus one"
@@ -9368,6 +9374,16 @@
     // Nuclear Fallout: "Each creature gets twice -X/-X until end of turn." — -2X/-2X (xTimes)
     { re: /^Each creature gets twice -X\/-X until end of turn\.?$/i,
       make: () => ({ op: 'pump', p: { xTimes: -2 }, t: { xTimes: -2 }, duration: 'eot', scope: { who: 'all', what: 'creature' } }) },
+    /* Paladin Class: "until end of turn, target attacking creature gets +1/+1 for each other attacking creature and gains double
+       strike" — every attacker but it, counted as it resolves */
+    { re: /^until end of turn, target attacking creature gets \+(\d+)\/\+(\d+) for each other attacking creature and gains ([a-z ]+?)\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[3]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        const per = (k) => (k ? { scope: { who: 'all', what: 'creature', attacking: true }, mult: k, plus: -k, floorZero: true } : 0);
+        return [{ op: 'pump', p: per(+m[1]), t: per(+m[2]), duration: 'eot', targets: [{ type: 'creature', filter: 'attacking creature', zone: 'battlefield', attacking: true }] },
+          { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }];
+      } },
     // Shared Animosity: "it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it"
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn for each other attacking creature that shares a creature type with it\.?$/i,
       make: (m) => ({ op: 'pumpPerKinAttacker', p: +m[1], t: +m[2] }) },
@@ -13795,9 +13811,16 @@
        whose end step it is; the condition as it resolves */
     { re: /^That player may draw a card if (.+?)\.?$/i,
       make: (m) => { const cond = condOf(m[1]); return cond ? [{ op: 'ifCond', cond, then: [{ op: 'eachMay', draw: 1, who: 'triggerPlayer' }] }] : null; } },
+    // Vexing Radgull: "that player gets two rad counters if they don't have any rad counters. Otherwise, proliferate." (triggerPlayerNoRad)
+    { re: /^that player gets (a|an|one|two|three|four|\d+) rad counters? if they don'?t have any rad counters\. Otherwise, proliferate\.?$/i,
+      make: (m) => [{ op: 'ifCond', cond: { kind: 'triggerPlayerNoRad' }, then: [{ op: 'rad', n: num(m[1]), who: 'triggerPlayer' }], otherwise: [{ op: 'proliferate' }] }] },
     // Will of the Jeskai, Wheel of Fortune kin: "Each player may discard their hand and draw five cards."
     { re: /^Each player may discard their hand and draw (\w+) cards\.$/i,
       make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]) }] },
+    /* Snort: "Each player may discard their hand and draw five cards. Then Snort deals 5 damage to each opponent who discarded
+       their hand this way." — an empty hand discarded too (Scryfall ruling): each opponent who said yes (damageIfDid) */
+    { re: /^Each player may discard their hand and draw (\w+) cards\. Then CARDNAME deals (\d+) damage to each opponent who discarded their hand this way\.$/,
+      make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]), damageIfDid: +m[2] }] },
     /* Scourge of Fleets: "return each creature your opponents control with
        toughness X or less to its owner's hand, where X is the number of
        Islands you control" */
@@ -15828,11 +15851,14 @@
     const advq = s.match(/(?<=you cast) that have an Adventure(?= costs?)/i);
     if (advq) s = s.replace(advq[0], '');
     // The Ur-Dragon: "Other Dragon spells you cast" — not this card itself
+    // Paladin Class: "Spells your opponents cast during your turn" — only on this permanent's controller's turn (srcTurn)
+    const srcTurnQ = s.match(/(?<=your opponents cast) during your turn(?= costs?)/i);
+    if (srcTurnQ) s = s.replace(srcTurnQ[0], '');
     const otherQ = /^Other /.test(s);
     if (otherQ) s = s.replace(/^Other (.)/, (x, c) => c.toUpperCase());
     const extra = Object.assign({}, mvq ? { minMv: +mvq[1] } : {}, flq ? { withKeyword: 'flying' } : {},
       fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {}, otherQ ? { other: true } : {},
-      tgp ? { toughGtPower: true } : {}, nownq ? { notOwned: true } : {}, advq ? { hasAdventure: true } : {});
+      tgp ? { toughGtPower: true } : {}, nownq ? { notOwned: true } : {}, advq ? { hasAdventure: true } : {}, srcTurnQ ? { srcTurn: true } : {});
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
     // (Beluna Grandsquall: "Permanent spells")
@@ -15869,7 +15895,8 @@
     }
     const amount = (+m[5]) * (/less/i.test(m[6]) ? -1 : 1);
     // (Reidane, God of the Worthy: "Noncreature spells your opponents cast with mana value 4 or greater" — minMv for anyone's)
-    if (Object.keys(extra).some(k => k !== 'minMv') && who !== 'you') return null;
+    // (Paladin Class: "Spells your opponents cast during your turn" — srcTurn too)
+    if (Object.keys(extra).some(k => k !== 'minMv' && k !== 'srcTurn') && who !== 'you') return null;
     if (creatureTypes.length) extra.creatureTypes = creatureTypes;
     return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {},
       pw ? { minPower: +pw[1] } : {}, extra);
@@ -17838,6 +17865,8 @@
     // Defense of the Heart: "an opponent controls three or more creatures" — one of them on their own
     [/^an opponent controls (\w+) or more ([a-z]+?)s$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'control', what: m[2], n: num(m[1]), who: 'anOpponent' } : null)],
     [/^you control (?:an?|one or more) ([a-z]+?)s?$/i, (m) => ({ kind: 'control', what: m[1], n: 1 })],
+    // Trenzalore Clocktower: "you control a Time Lord" — the creature type of two words
+    [/^you control (?:an?|one or more) (Time Lord)s?$/i, (m) => ({ kind: 'control', what: m[1], n: 1 })],
     [/^you control (\w+) or fewer ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]), cmp: 'atMost' })],
     [/^you control no ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[1], n: 0, cmp: 'atMost' })],
     /* Grixis Grimblade, the Runemarks: "you control another multicolored

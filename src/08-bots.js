@@ -3591,6 +3591,16 @@
         const wanted = seen.filter((c, i) => this.wantToDraw(c, i)).length;
         return this.me.life > 10 && (Number(ch.count) || 1) <= 4 && wanted < 2;
       }
+      /* Wheel of Fortune kin: "each player may discard their hand and draw five cards" — a hand smaller than what comes;
+         Snort: not when its damage costs life we cannot spare (damageIfDid) */
+      if (ch.purpose === 'eachMay') {
+        const e0 = this._resolvingEffect();
+        if (e0 && e0.op === 'eachMay' && e0.discardHand) {
+          const rc = g.resolving && g.resolving.ctx;
+          const hurt = e0.damageIfDid && !(rc && rc.controller === this.pid) ? e0.damageIfDid : 0;
+          return (g.zones[this.pid].hand || []).length < (e0.draw || 1) && this.me.life > hurt + 6;
+        }
+      }
       if (ch.purpose === 'payToUntap') {
         // a shock land: pay when we would use the mana this turn and can spare the life
         return this.me.life > 10 && (this.d <= 3 || this._wouldUseUntapped());

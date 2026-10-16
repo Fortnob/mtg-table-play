@@ -4756,6 +4756,8 @@
             if (e.offTurn && this.activePlayer && this.activePlayer.id === pid) continue;
             // Temur Battlecrier: during your turn, and so much for each of something
             if (e.yourTurn && !(this.activePlayer && this.activePlayer.id === pid)) continue;
+            // Paladin Class: "during your turn" — the turn of this permanent's controller (srcTurn)
+            if (e.srcTurn && !(this.activePlayer && this.activePlayer.id === src.controller)) continue;
             // Doc Aurlock, Aven Interrupter: only spells cast from those zones
             if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
             if (e.lessSymbols && less) less.push(...e.lessSymbols);
@@ -12953,7 +12955,8 @@
          the graveyard. */
       if (cost.exile && cost.exile.what) {
         const ex = cost.exile;
-        if (ex.what === 'self') this.moveObject(o, 'exile');
+        // (Trenzalore Clocktower: "Remove twelve time counters from it and exile it" — the counters first, it after: below)
+        if (ex.what === 'self') { if (!cost.removeCounters) this.moveObject(o, 'exile'); }
         else if (ex.what === 'libraryTop') {
           const top = ((this.zones[playerId] || {}).library || [])[0];
           if (!top) return this.fail('Your library is empty.');
@@ -13011,6 +13014,7 @@
         this._lastRemovedCounters = want;
         o._chr = null; this.bumpBoard();
         this.logEvent('rules', `${taken.join(' and ')} removed from ${o.name}.`);
+        if (cost.exile && cost.exile.what === 'self') this.moveObject(o, 'exile');
         return true;
       }
       if (cost.removeCounters) {
@@ -13026,6 +13030,7 @@
         this._lastRemovedCounters = want;
         o._chr = null; this.bumpBoard();
         this.logEvent('rules', `${want} ${kind} counter${want === 1 ? '' : 's'} removed from ${o.name}.`);
+        if (cost.exile && cost.exile.what === 'self') this.moveObject(o, 'exile');
       }
       return true;
     }
@@ -17591,6 +17596,12 @@
           const who = tdA.player || tdA.playerId;
           if (!me || !who || who === me.id || me.hasLost) return false;
           return (((this.turnHistory || {}).playerAttacks) || []).some(x => x.def === who && x.by === me.id && (x.all || x.subtypes.includes(cond.subtype)));
+        }
+        // Vexing Radgull: "if they don't have any rad counters" — the player the trigger is about (triggerPlayerNoRad)
+        case 'triggerPlayerNoRad': {
+          const tdR = (ctx && ctx.triggerData) || {};
+          const pR = this.player(tdR.player || tdR.playerId);
+          return !!pR && !(pR.rad > 0);
         }
         case 'triggerPlayerMonarch': {
           const tdM = (ctx && ctx.triggerData) || {};
@@ -30371,6 +30382,11 @@
             /* The Second Doctor: "Each opponent who does can't attack you or permanents you control during their
                next turn." — set now, live from that player's next turn beginning to its end (noAttackOn) */
             if (e.noAttackNext && q.id !== ctx.controller) (q.noAttackOn = q.noAttackOn || []).push({ who: ctx.controller, on: null });
+          }
+          // Snort: "Then Snort deals 5 damage to each opponent who discarded their hand this way." (damageIfDid)
+          if (e.damageIfDid) {
+            for (const q of yes) if (q.id !== ctx.controller && !q.hasLost) this.dealDamageToPlayer(q, e.damageIfDid, src);
+            this.emit('sfx', 'damage');
           }
           break;
         }
