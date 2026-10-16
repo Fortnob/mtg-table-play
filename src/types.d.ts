@@ -217,6 +217,8 @@ declare namespace MTG {
     hand: AnyObjectView[];
     /** Sen Triplets: this player can't cast spells or activate abilities (mana abilities too) this turn */
     lockedOut?: true;
+    /** Screaming Nemesis: this player can't gain life for the rest of the game */
+    noLifeGain?: true;
     graveyard: ObjectView[];
     exile: ObjectView[];
     command: ObjectView[];

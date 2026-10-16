@@ -74441,4 +74441,145 @@ module.exports = (test) => {
     t.eq(T3.zone('C', 'graveyard').length, 4, 'that opponent, twice');
     t.eq(T3.zone('B', 'graveyard').length, 0);
   });
+  test('Cards: Rose Room Treasurer — alliance: a Treasure the first two times a turn; after that, pay {X} for X damage to any target', (mk, t) => {
+    t.auto('Rose Room Treasurer');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    T.bf('A', 'Rose Room Treasurer');
+    const giant = T.bf('B', 'Hill Giant');
+    const treasures = () => g.battlefield.filter(o => o.controller === 'A' && o.isToken && /Treasure/.test(o.name)).length;
+    T.toMain('A');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(treasures(), 1, 'first time: a Treasure');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(treasures(), 2, 'second time: a Treasure');
+    t.no((T.asked || []).some(c => c.type === 'pickTarget' || c.purpose === 'mayPayX'), 'nothing asked for a Treasure');
+    // third: no Treasure; pay {X} = 3 for 3 damage to the Hill Giant
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { number: 3 }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    T.mana('A', '3');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(treasures(), 2, 'third time: no Treasure');
+    t.ok(asked && asked.purpose === 'mayPayX', 'asked for X');
+    t.zone(giant, 'graveyard', 'X = 3 damage');
+    // a new turn counts afresh
+    T.nextTurn('A');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(treasures(), 3, 'next turn: a Treasure again');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Vexing Puzzlebox — each roll puts charge counters equal to the result on it; remove 100 for an artifact', (mk, t) => {
+    t.auto('Vexing Puzzlebox');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const box = T.bf('A', 'Vexing Puzzlebox');
+    t.ok(g.tapForMana('A', box.id, 0, 'R'), g.lastError);
+    const r1 = g._lastRoll;
+    T.resolve();
+    t.ok(r1 >= 1 && r1 <= 20, 'rolled a d20');
+    t.eq(box.counters.charge, r1, 'that many charge counters');
+    // a roll with something added: the total
+    g._lastRoll = 0;
+    g._runEffect({ op: 'rollDie', sides: 6, plus: 3 }, { controller: 'A', obj: box, name: 'Test' });
+    const r2 = g._lastRoll;
+    T.resolve();
+    t.eq(box.counters.charge, r1 + r2 + 3, 'the result after adding');
+    // an opponent's roll: nothing
+    g._runEffect({ op: 'rollDie', sides: 6 }, { controller: 'B', obj: null, name: 'Test' });
+    T.resolve();
+    t.eq(box.counters.charge, r1 + r2 + 3, 'only your rolls');
+    // 100 charge counters: an artifact from the library onto the battlefield
+    box.counters.charge = 100; box.tapped = false;
+    const ring = T.top('A', 'Sol Ring');
+    T.answer('pickCard', () => ({ cardIds: [ring.id] }));
+    const ai = box.analysis().abilities.filter(x => x.kind === 'activated').findIndex(x => /Remove 100/.test(x.text));
+    t.ok(ai >= 0);
+    T.activate('A', box, (box.analysis().manaAbilities || []).length + ai);
+    T.resolve();
+    t.zone(ring, 'battlefield'); t.eq(box.counters.charge || 0, 0, 'the counters removed');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Lux Artillery — artifact creature spells gain sunburst; thirty counters among artifacts and creatures: 10 damage to each opponent', (mk, t) => {
+    t.auto('Lux Artillery');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    const g = T.g;
+    T.bf('A', 'Lux Artillery');
+    T.toMain('A');
+    T.mana('A', 'RG');
+    const ov = T.hand('A', 'Steel Overseer');
+    T.cast('A', ov);
+    T.resolve();
+    t.eq(ov.counters['+1/+1'], 2, 'sunburst: two colors spent');
+    const ring = T.bf('A', 'Sol Ring'), bear = T.bf('A', 'Grizzly Bears'), web = T.bf('A', 'Phyrexian Arena');
+    ring.counters.charge = 17; bear.counters['+1/+1'] = 10; web.counters.doom = 50;
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 20, '29 counters (the enchantment\'s do not count): nothing');
+    T.nextTurn('A');
+    bear.counters['+1/+1'] = 11;
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.life('B'), 10, '30: 10 damage');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Deceptive Frostkite — may enter as a copy of a creature you control with power 4 or greater, a Dragon with flying too', (mk, t) => {
+    t.auto('Deceptive Frostkite');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const wurm = T.bf('A', 'Craw Wurm'), bear = T.bf('A', 'Grizzly Bears'), giant = T.bf('A', 'Hill Giant');
+    T.bf('B', 'Serra Angel'); T.bf('B', 'Shivan Dragon');
+    giant.counters['+1/+1'] = 1;   // 4/4 now
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: [wurm.id] }; });
+    T.mana('A', 'UU');
+    const fk = T.hand('A', 'Deceptive Frostkite');
+    T.cast('A', fk);
+    T.resolve();
+    t.ok(q && q.purpose === 'cloneChoice', 'asked what to copy');
+    const offered = (q.candidates || []).slice().sort();
+    t.eq(offered.join(','), [wurm.id, giant.id].sort().join(','), 'only yours with power 4 or greater');
+    t.eq(fk.name, 'Craw Wurm', 'a copy of the Wurm');
+    t.eq(g.powerOf(fk), 6);
+    t.ok(g._hasCreatureType(fk, 'Dragon') && g._hasCreatureType(fk, 'Wurm'), 'a Dragon as well as a Wurm');
+    t.ok(g.hasKw(fk, 'flying'), 'flying');
+    // nothing big enough: it enters as itself, nothing asked
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.toMain('A');
+    T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', 'UU');
+    const fk2 = T2.hand('A', 'Deceptive Frostkite');
+    T2.cast('A', fk2);
+    T2.resolve();
+    t.no(T2.asked.some(c => c.purpose === 'cloneChoice'), 'not asked');
+    t.eq(fk2.name, 'Deceptive Frostkite');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Screaming Nemesis — dealt damage, it deals that much to any other target; a player dealt damage this way can\'t gain life for the rest of the game', (mk, t) => {
+    t.auto('Screaming Nemesis');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const nem = T.bf('A', 'Screaming Nemesis');
+    const giant = T.bf('B', 'Hill Giant'), pyro = T.bf('B', 'Prodigal Pyromancer');
+    // first at a creature: nobody is stopped from gaining life
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    g.dealDamageToObject(nem, 1, pyro, false);
+    T.resolve();
+    t.eq(giant.damage, 1, '1 damage to the Giant');
+    t.no(T.player('B').noLifeGainForever, 'a creature hit: no rule for anyone');
+    // then at a player
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    g.dealDamageToObject(nem, 2, pyro, false);
+    T.resolve();
+    t.eq(T.life('B'), 18, '2 damage to B');
+    g.changeLife(T.player('B'), 5);
+    t.eq(T.life('B'), 18, "B can't gain life");
+    T.nextTurn('B');
+    g.changeLife(T.player('B'), 5);
+    t.eq(T.life('B'), 18, 'for the rest of the game');
+    g.changeLife(T.player('A'), 1);
+    t.eq(T.life('A'), 21, 'A still can');
+    t.ok(g.viewFor('A').players.find(p => p.id === 'B').noLifeGain, 'the table says so');
+    t.eq(T.manualLines().length, 0);
+  });
 };

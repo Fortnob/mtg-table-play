@@ -3011,6 +3011,8 @@
         (!e.yours || o.controller === controller) &&
         // (Imposter Mech: "a creature an opponent controls" — opponents)
         (!e.opponents || this.opponentsOf(controller).some(q => q.id === o.controller)) &&
+        // (Deceptive Frostkite: "with power 4 or greater" — minPower)
+        (!e.minPower || this.powerOf(o) >= e.minPower) &&
         // Mockingbird: no more mana value than the mana spent to cast it
         (!e.upToSpent || ((o.card && o.card.cmc) || 0) <= (src.manaSpent || 0)));
     }
@@ -8981,6 +8983,7 @@
       o._enterTappedCast = null;
       o._leaveExileCast = null;
       o._gainsTextCast = null;
+      o._kwCast = null;
       o._enterPlusCounters = 0;
       o._enterAttachCast = null;
       o._enterHasteTurn = null;
@@ -10307,6 +10310,8 @@
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
       if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
       if (o._gainsTextCast) { const gt = o._gainsTextCast; o._gainsTextCast = null; if (o.enteredFrom === 'stack') { o.effects.push({ grantText: gt, until: null }); this.bumpBoard(); } }
+      // (Lux Artillery: keywords the spell gained, the permanent's too — sunburst among them, read below)
+      if (o._kwCast) { const kc = o._kwCast; o._kwCast = null; if (o.enteredFrom === 'stack') { for (const k of kc) o.effects.push({ keywords: k.keywords.slice(), until: k.until }); o._chr = null; this.bumpBoard(); } }
       /* Galea, Kindler of Hope: the Equipment cast from the top of the library: "When this Equipment enters, attach it to
          target creature you control." — its target chosen as it goes on the stack */
       if (o._enterAttachCast) {
@@ -10326,7 +10331,9 @@
       let enterCounters = null;
       /* (a clone is what it copies as it enters, the counters that card enters with included (CR 707.9, 614.12):
          Flesh Duplicate's "it has vanishing 3" — so its words now, not the printed ones) */
-      const ewc = (o.analysis() || a).entersWithCounters;
+      let ewc = (o.analysis() || a).entersWithCounters;
+      // (sunburst gained, not printed: Lux Artillery — +1/+1 counters on a creature, charge counters on anything else, CR 702.44a)
+      if (!ewc && this.hasKw(o, 'sunburst')) ewc = { kind: this.characteristics(o).isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
       if (ewc && !(ewc.ifKicked && !o.wasKicked) &&
           !(ewc.cond && !this._condMet(ewc.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
@@ -16939,7 +16946,8 @@
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
           const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[this._resolvedKey(ctx)];
-          return !!rec && rec.turn === this.turn && rec.n === cond.n;
+          // (Rose Room Treasurer: "the first or second time" — up to that many: max)
+          return !!rec && rec.turn === this.turn && (cond.max ? rec.n <= cond.max : rec.n === cond.n);
         }
         case 'echoDue': return !!src && !!src.echoDue;
         case 'notRenowned': return !!src && !src.renowned;
@@ -18611,6 +18619,8 @@
       // Skullcrack: "Players can't gain life this turn"; "your opponents can't …"
       const t = this.noLifeGainTurn;
       if (t && t.turn === this.turn && (t.who === 'all' || (t.who === 'opponents' && p.id !== t.by))) return true;
+      // Screaming Nemesis: "they can't gain life for the rest of the game"
+      if (p.noLifeGainForever) return true;
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'noLifeGain');
         if (!e) continue;
@@ -19961,6 +19971,8 @@
         modesChosen: data.modesChosen,
         // Farideh, Devil's Chosen: every die rolled together ("any of those results")
         amounts: data.amounts,
+        // Vexing Puzzlebox: "the result" of the dice rolled together (rollTotal)
+        rollTotal: data.rollTotal,
         // Eriette, the Beguiler: the Aura that became attached ("that Aura")
         auraId: event === 'auraAttached' && data.source ? data.source.id : undefined,
         // who controlled the permanent it is about (Bereavement: "its controller discards")
@@ -22332,7 +22344,8 @@
         }
         if (e2.scope === 'triggerObject') {
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
-          if (x && x.zone === 'battlefield') fn(x);
+          // (Lux Artillery: "Whenever you cast an artifact creature spell, it gains sunburst" — the spell: a keyword it keeps as it enters)
+          if (x && (x.zone === 'battlefield' || (x.zone === 'stack' && e2.op === 'grantKeyword'))) fn(x);
           return;
         }
         if (e2.scope === 'lastTarget') { const x = firstObj(); if (x) fn(x); return; }
@@ -22850,6 +22863,8 @@
         // "the excess damage dealt this way"
         if (v === 'lastExcess') return this._lastExcess || 0;
         // "loses that much life": the amount the trigger was about
+        // Vexing Puzzlebox: "equal to the result" — of the roll that set the trigger off (triggerRollTotal)
+        if (v === 'triggerRollTotal') { const tdR = ctx.triggerData || {}; return Math.max(0, Number(tdR.rollTotal != null ? tdR.rollTotal : tdR.amount) || 0); }
         if (v === 'triggerAmount') {
           const tdA = ctx.triggerData || {};
           // The Ur-Dragon, Poetic Ingenuity: "one or more Dragons attack, draw that many" — how many were in the lot (batchCount)
@@ -24502,10 +24517,16 @@
             this.bumpBoard();
             break;
           }
-          applyToScope(e, (o) => o.effects.push(e.duration === 'nextTurn'
-            ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
-            : e.duration === 'whileControl' ? { keywords: kws, until: null, whileFrom: src.id, whileControl: ctx.controller }
-            : { keywords: kws, until: e.duration === 'permanent' ? null : 'eot' }));
+          applyToScope(e, (o) => {
+            o.effects.push(e.duration === 'nextTurn'
+              ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
+              : e.duration === 'whileControl' ? { keywords: kws, until: null, whileFrom: src.id, whileControl: ctx.controller }
+              : { keywords: kws, until: e.duration === 'permanent' ? null : 'eot' });
+            /* Lux Artillery: "Whenever you cast an artifact creature spell, it gains sunburst" — the spell's, and the
+               permanent's it becomes (_kwCast, carried over as it enters) */
+            // (Tyvar Kell's emblem: "it gains haste until end of turn" — so for the turn)
+            if (o.zone === 'stack' && (!e.duration || e.duration === 'permanent' || e.duration === 'eot')) (o._kwCast = o._kwCast || []).push({ keywords: kws, until: e.duration === 'permanent' ? null : 'eot' });
+          });
           break;
         }
         /* "…gains 'When this creature dies, …' until end of turn": the
@@ -26315,6 +26336,15 @@
         case 'noLifeGainTurn':
           this.noLifeGainTurn = { turn: this.turn, who: e.who || 'all', by: ctx.controller };
           this.logEvent('rules', (e.who === 'opponents' ? me.name + "'s opponents" : 'Players') + " can't gain life this turn.");
+          break;
+        // Screaming Nemesis: "If a player is dealt damage this way, they can't gain life for the rest of the game." (dealtThisWay)
+        case 'noLifeGainForever':
+          for (const pid of (((this.resolving || {})._dmgPlayers) || [])) {
+            const q = this.player(pid);
+            if (!q || q.hasLost || q.noLifeGainForever) continue;
+            q.noLifeGainForever = true;
+            this.logEvent('rules', `${q.name} can't gain life for the rest of the game.`);
+          }
           break;
         case 'noPreventionTurn':
           this.noPreventTurn = this.turn;
@@ -38204,7 +38234,8 @@
           const total = this._lastRoll + (e.plus ? Math.max(0, n(e.plus)) : 0);
           if (e.plus) this.logEvent('rules', `${me.name} rolls ${this._lastRoll}, plus ${total - this._lastRoll}: ${total}.`);
           // one event a die (Mr. House: "Whenever you roll a 4 or higher"); "one or more dice" sees the first, and all of them (amounts)
-          rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller }));
+          // (Vexing Puzzlebox: "equal to the result" — the dice rolled together, and what was added: rollTotal)
+          rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller, rollTotal: rolled.reduce((s, x) => s + x, 0) + (total - this._lastRoll) }));
           // the results printed under the roll
           const row = (e.table || []).find(r => total >= r.min && total <= r.max);
           /* Delina, Wild Mage: "You may roll again." — the same die and the same results, read afresh (rollAgain) */
@@ -38224,7 +38255,7 @@
             const dice = { group: this._newRollGroup(), of: 2 };
             rolls = [this._rollDie(me, sides, dice), this._rollDie(me, sides, dice)];
             marks[key] = rolls;
-            rolls.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolls, dieIndex: k, playerId: ctx.controller }));
+            rolls.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolls, dieIndex: k, playerId: ctx.controller, rollTotal: rolls[0] + rolls[1] }));
           }
           const nm = src ? U.frontName(src.name) : 'it';
           const say = (t, v) => String(t || '').replace(/\b99\b/g, String(v)).replace(/CARDNAME/g, nm);
@@ -44699,6 +44730,8 @@
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,
           // what a player has for good or ill, for the table to show beside them
           rad: p.rad || 0, cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
+          // Screaming Nemesis: can't gain life for the rest of the game (said only of such a player)
+          noLifeGain: p.noLifeGainForever ? true : undefined,
           ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null, speed: p.speed || 0,
           // what you noted while drafting, for your own eyes: the table needs it to tell which targets a noted colour allows
           draftNotes: p.id === playerId && p.draftNotes ? JSON.parse(JSON.stringify(p.draftNotes)) : null,

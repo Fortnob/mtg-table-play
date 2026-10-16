@@ -619,6 +619,8 @@
       if (e.op === 'noUntap') return e.scope === 'self';
       // Yuna, Grand Summoner: "When you next cast a creature spell this turn, that creature enters with two additional +1/+1 counters on it."
       if (e.op === 'nextCreatureCounter') return true;
+      // Vexing Puzzlebox: "{T}: Add one mana of any color. Roll a d20." — a roll with nothing printed under it (its ruling: a mana ability)
+      if (e.op === 'rollDie') return !(e.table || []).length && !e.perTreasureSpent;
       /* Magus Lucea Kane: "When you next cast a spell with {X} in its mana cost or activate an ability with {X} in its
          activation cost this turn, copy that spell or ability." — a trigger for later, set up with the mana */
       if (e.op === 'getEmblem') return !!(e.thisTurn && e.once);
@@ -5299,6 +5301,10 @@
     { re: /^(?:You )?[Cc]reate a number of (Treasure|Food|Clue|Blood|Gold) tokens equal to the result\.?$/,
       make: (m) => ({ op: 'createNamedToken', token: m[1], n: 'lastRoll' }) },
     { re: /^Draw cards equal to the result\.?$/i, make: () => ({ op: 'draw', who: 'you', n: 'lastRoll' }) },
+    /* Vexing Puzzlebox: "Whenever you roll one or more dice, put a number of charge counters on this artifact equal to
+       the result." — the roll that set it off, not whatever was rolled last (triggerRollTotal) */
+    { re: /^Put (?:a number of ([a-z+\-0-9/]+) counters on (?:this artifact|this creature|CARDNAME) equal to the result|X ([a-z+\-0-9/]+) counters on (?:this artifact|this creature|CARDNAME), where X is the result)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: (m[1] || m[2]).toLowerCase(), n: 'triggerRollTotal', scope: 'self' }) },
     // Tamiyo, Seasoned Scholar: "Draw cards equal to half the number of cards in your library, rounded up."
     { re: /^Draw cards equal to half the number of cards in your library, rounded up\.?$/i,
       make: () => ({ op: 'draw', who: 'you', n: { halfLibrary: 'you', up: true } }) },
@@ -8241,16 +8247,19 @@
     /* Clones: "You may have CARDNAME enter the battlefield as a copy of
        any creature on the battlefield." */
     // (Imposter Mech: "this Vehicle … a creature an opponent controls" — opponents)
-    { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
+    { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: with power \d+ or greater)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
       make: (m0) => {
         /* Mockingbird: "…with mana value less than or equal to the amount
            of mana spent to cast this creature" */
         const spentRe = / with mana value less than or equal to the amount of mana spent to cast (?:this creature|CARDNAME)/i;
         const upToSpent = spentRe.test(m0[0]);
-        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
+        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: with power \d+ or greater)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
         if (!m) return null;
         const e = { op: 'etbAsCopy', what: m[2].trim().toLowerCase() };
         if (upToSpent) e.upToSpent = true;
+        // Deceptive Frostkite: "a creature you control with power 4 or greater" (minPower)
+        const minPow = m0[0].match(/ with power (\d+) or greater/);
+        if (minPow) e.minPower = +minPow[1];
         if (!/^(?:(?:nonland |nonlegendary )?(?:creature|artifact|enchantment|land|equipment|permanent|planeswalker)(?: or (?:creature|artifact|enchantment|planeswalker))?)$/.test(e.what)) return null;
         if (m[1]) e.tapped = true;
         if (m[3] && /opponent/i.test(m[3])) e.opponents = true;
@@ -8964,6 +8973,8 @@
         const then = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1));
         return then && then.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'dealtThisWayFits', words: m[1] }, then: [then] } : null;
       } },
+    // Screaming Nemesis: "If a player is dealt damage this way, they can't gain life for the rest of the game." (noLifeGainForever)
+    { re: /^If a player is dealt damage this way, (?:they|that player) can'?t gain life for the rest of the game\.?$/i, make: () => ({ op: 'noLifeGainForever' }) },
     // Storm, Queen of Wakanda: "Storm deals damage equal to her power to that creature." — the one the trigger is about
     { re: /^(?:CARDNAME|This creature) deals damage equal to (?:its|his|her|CARDNAME'?s) power to that creature\.?$/i,
       make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerObject: true }) },
@@ -12916,6 +12927,17 @@
     { re: /^(?:if it'?s your main phase, )?there is an additional combat phase after this phase,? followed by an additional main phase\. When you next attack this turn, untap each creature you control\.$/i,
       make: () => [{ op: 'ifCond', cond: { kind: 'yourMainPhase' }, then: [{ op: 'extraCombat', count: 1, withMain: true, inMain: true },
         { op: 'delayed', event: 'youAttack', eventYours: true, thisTurn: true, name: 'Untap each creature you control', effects: [{ op: 'untapAll', what: 'creatures' }] }] }] },
+    /* Rose Room Treasurer: "create a Treasure token if this is the first or second time this ability has resolved this
+       turn. Otherwise, you may pay {X}. When you do, this creature deals X damage to any target." — the "you may pay …
+       When you do" read whole as the other branch */
+    { re: /^(.+?) if (this is the (?:first|first or second|first, second, or third) time this ability has resolved this turn)\. Otherwise, (you may pay .+)$/i,
+      make: (m) => {
+        const cond = condOf(m[2]);
+        const a = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.'));
+        const b = parseSentenceList(splitSentences(m[3]));
+        if (!cond || !a.auto || !b.auto || !a.effects.length || !b.effects.length || a.effects.concat(b.effects).some(x => !x || x.op === 'manual')) return null;
+        return [{ op: 'ifCond', cond, then: a.effects, otherwise: b.effects }];
+      } },
     /* Moraug, Fury of Akoum: "if it's your main phase, there's an additional
        combat phase after this phase. At the beginning of that combat, untap
        all creatures you control." */
@@ -17031,6 +17053,8 @@
       (m) => ({ kind: 'spellsCastOfKind', n: 1, words: m[1].toLowerCase() })],
     // Omnath, Belladonna Took: "this is the first time this ability has resolved this turn", "it's the second (third) time"
     [/^this is the (first|second|third) time this ability has resolved this turn$/i, (m) => ({ kind: 'nthResolution', n: { first: 1, second: 2, third: 3 }[m[1].toLowerCase()] })],
+    // Rose Room Treasurer: "this is the first or second time this ability has resolved this turn" (nthResolution max)
+    [/^this is the (first or second|first, second, or third) time this ability has resolved this turn$/i, (m) => ({ kind: 'nthResolution', max: /third/i.test(m[1]) ? 3 : 2 })],
     [/^it'?s the (second|third) time$/i, (m) => ({ kind: 'nthResolution', n: { second: 2, third: 3 }[m[1].toLowerCase()] })],
     // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
     [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
@@ -17218,9 +17242,10 @@
     // Baird, Argivian Recruiter: "if you control a creature with power greater than its base power" (controlPumped)
     [/^you control a creature with power greater than its base power$/i, () => ({ kind: 'controlPumped' })],
     // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
-    [/^there are (\w+) or more (\+1\/\+1|[a-z]+) counters among ([A-Za-z]+?s) you control$/i, (m) => {
+    // (Lux Artillery: "there are thirty or more counters among artifacts and creatures you control" — any kind, either type)
+    [/^there are (\w+) or more (?:(\+1\/\+1|[a-z]+) )?counters among ([A-Za-z]+?s(?: and [a-z]+s)?) you control$/i, (m) => {
       const sc = scopeOf(m[3] + ' you control'), n = num(m[1]);
-      return sc && typeof n === 'number' ? { kind: 'countersAmongAtLeast', n, counter: m[2].toLowerCase(), scope: sc } : null;
+      return sc && typeof n === 'number' ? { kind: 'countersAmongAtLeast', n, counter: m[2] ? m[2].toLowerCase() : null, scope: sc } : null;
     }],
     // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
     [/^that creature has an? (\+1\/\+1|[a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjCounter', counter: m[1].toLowerCase() })],

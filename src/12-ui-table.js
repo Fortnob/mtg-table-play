@@ -1510,6 +1510,8 @@
         p.rad ? ['bad', `☢ ${p.rad} rad`, 'Rad counters: at the start of their precombat main phase they mill that many, and lose 1 life and 1 rad for each nonland card milled'] : null,
         p.cityBlessing ? ['crown', '✶ City’s blessing', 'Has the city’s blessing for the rest of the game'] : null,
         p.enduringStory ? ['crown', '❧ Enduring story', 'Has an enduring story for the rest of the game'] : null,
+        // Screaming Nemesis: no life gained, for good
+        p.noLifeGain ? ['bad', '⊘ No life gain', "Can't gain life for the rest of the game"] : null,
         p.ringLevel ? ['crown', `◎ Ring ${p.ringLevel}`, this.ringTip(p)] : null,
         p.speed ? ['', p.speed >= 4 ? '» Max speed' : `» Speed ${p.speed}`,
           p.speed >= 4 ? 'Speed 4, as fast as it goes' : 'Goes up by one, once each of their turns, when an opponent loses life; it stops at 4'] : null,
