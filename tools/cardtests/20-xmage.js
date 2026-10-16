@@ -80829,4 +80829,181 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers'); T.resolve();
     t.zone(land, 'library', 'a land stays on top');
   });
+
+  test('Cards: Possibility Storm — a spell from the hand: exiled, dig to a card sharing a type, that player may cast it free, all to the bottom', (mk, t) => {
+    t.auto('Possibility Storm');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Possibility Storm');
+    T.nextTurn('B');
+    const shock = T.top('B', 'Shock');
+    const forest = T.top('B', 'Forest');
+    const giant = T.top('B', 'Hill Giant');
+    let conf = null, tq = null;
+    T.answer('confirm', (ch) => { conf = ch; return { yes: true }; });
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [(ch.options[0] || []).find(x => x.kind === 'player' && x.id === 'A')] }; });
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('B', 'R');
+    T.cast('B', bolt, { targets: ['A'] });
+    t.ok(conf && conf.playerId === 'B', 'the caster is asked whether to cast it');
+    t.ok(tq && tq.playerId === 'B', 'and picks its targets');
+    t.eq(T.life('A'), 18, 'the Bolt never resolves; the Shock, cast free from exile, does (and does not trigger again)');
+    t.zone(shock, 'graveyard', 'the Shock resolved');
+    const lib = g.zones.B.library;
+    t.eq(lib.slice(-3).map(c => c.name).sort().join(), 'Forest,Hill Giant,Lightning Bolt', 'the spell and the other cards exiled: on the bottom of their library');
+    t.zone(giant, 'library', 'the Giant (not an instant) passed over');
+    t.zone(forest, 'library', 'the Forest too');
+  });
+
+  test('Cards: Possibility Storm — declined: the card found goes to the bottom too; a creature spell digs to a creature', (mk, t) => {
+    t.auto('Possibility Storm');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Possibility Storm');
+    const giant = T.top('A', 'Hill Giant');
+    const bolt = T.top('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: false });
+    const bears = T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    T.cast('A', bears);
+    t.zone(bears, 'library', 'the Bears exiled, then to the bottom');
+    t.zone(giant, 'library', 'the Giant found, not cast: to the bottom');
+    t.zone(bolt, 'library', 'the Bolt passed over: to the bottom');
+    t.eq(g.zones.A.library.slice(-3).map(c => c.name).sort().join(), 'Grizzly Bears,Hill Giant,Lightning Bolt', 'all three at the bottom');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Hill Giant').length, 0, 'nothing cast');
+  });
+
+  test('Cards: Amoeboid Changeling — loses all creature types until end of turn (its changeling too), gains them back after', (mk, t) => {
+    t.auto('Amoeboid Changeling');
+    const T = mk();
+    const g = T.g;
+    const am = T.bf('A', 'Amoeboid Changeling');
+    const am2 = T.bf('A', 'Amoeboid Changeling');
+    T.bf('B', 'Elvish Archdruid');
+    const elf = T.bf('B', 'Llanowar Elves');
+    t.eq(g.characteristics(elf).power, 2, 'an Elf: the Archdruid pumps it');
+    T.activate('A', am, 1, { targets: [elf] });
+    t.no(g._hasCreatureType(elf, 'Elf'), 'the Elves are no Elf now');
+    t.eq((elf.analysis().subtypes || []).length, 0, 'no creature types at all');
+    t.eq(g.characteristics(elf).power, 1, 'so the Archdruid no longer pumps it');
+    t.ok(g._hasCreatureType(am2, 'Elf'), 'a changeling is every type');
+    am.tapped = false;
+    T.activate('A', am, 1, { targets: [am2] });
+    t.no(g._hasCreatureType(am2, 'Elf'), 'a changeling that lost all creature types: none (changeling applies first)');
+    t.no(g.hasKw(am2, 'changeling'), 'its every-type is gone');
+    T.activate('A', am2, 0, { targets: [elf] });
+    t.ok(g._hasCreatureType(elf, 'Elf') && g._hasCreatureType(elf, 'Goblin'), 'all creature types given after: every type again');
+    T.nextTurn('B');
+    t.ok(g._hasCreatureType(elf, 'Elf') && !g._hasCreatureType(elf, 'Goblin'), 'next turn: an Elf again, only');
+    t.ok(g._hasCreatureType(am2, 'Elf'), 'and the changeling every type again');
+  });
+
+  test('Cards: Amoeboid Changeling — all creature types given first, then lost: none', (mk, t) => {
+    t.auto('Amoeboid Changeling');
+    const T = mk();
+    const g = T.g;
+    const am = T.bf('A', 'Amoeboid Changeling');
+    const am2 = T.bf('A', 'Amoeboid Changeling');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.activate('A', am, 0, { targets: [bear] });
+    t.ok(g._hasCreatureType(bear, 'Elf'), 'every type');
+    T.activate('A', am2, 1, { targets: [bear] });
+    t.no(g._hasCreatureType(bear, 'Elf') || g._hasCreatureType(bear, 'Bear'), 'then losing them all: none');
+  });
+
+  test('Cards: Nameless Inversion — +3/-3 and loses all creature types until end of turn', (mk, t) => {
+    t.auto('Nameless Inversion');
+    const T = mk();
+    const g = T.g;
+    const angel = T.bf('B', 'Serra Angel');
+    T.mana('A', 'B1');
+    T.cast('A', T.hand('A', 'Nameless Inversion'), { targets: [angel] });
+    t.eq(g.characteristics(angel).power, 7, '+3 power');
+    t.eq(g.characteristics(angel).toughness, 1, '-3 toughness');
+    t.no(g._hasCreatureType(angel, 'Angel'), 'no Angel now');
+  });
+
+  test('Cards: Star Athlete — attacks: the target permanent\'s controller sacrifices it, or takes 5 damage', (mk, t) => {
+    t.auto('Star Athlete');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const sa = T.bf('A', 'Star Athlete');
+    const angel = T.bf('B', 'Serra Angel');
+    const giant = T.bf('B', 'Hill Giant');
+    let tq = null, cq = null;
+    T.answer('declareAttackers', () => [{ attackerId: sa.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: angel.id }] }; });
+    T.answer('confirm', (ch) => { cq = ch; return { yes: true }; });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(tq && tq.playerId === 'A', 'you choose the target as it triggers');
+    t.ok(cq && cq.playerId === 'B' && /Sacrifice Serra Angel\?/.test(cq.prompt) && /5 damage/.test(cq.prompt), "its controller is asked: " + (cq && cq.prompt));
+    t.zone(angel, 'graveyard', 'sacrificed');
+    t.eq(T.life('B'), 20, 'no damage then');
+    T.nextTurn('B'); T.nextTurn('A');
+    const before = T.life('B');
+    T.answer('declareAttackers', () => [{ attackerId: sa.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    T.answer('confirm', { yes: false });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.zone(giant, 'battlefield', 'kept');
+    t.eq(T.life('B'), before - 5, '5 damage to its controller instead');
+  });
+
+  test('Cards: Star Athlete — your own permanent, or none: nothing asked of an opponent', (mk, t) => {
+    t.auto('Star Athlete');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const sa = T.bf('A', 'Star Athlete');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: sa.id, defenderId: 'B' }]);
+    T.answer('pickTarget', () => ({ targets: [] }));
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.no(T.asked.some(ch => ch.purpose === 'unlessSacTarget'), 'no target: nothing happens');
+    t.eq(T.life('A'), 20, 'no damage');
+    t.eq(T.life('B'), 20, 'none to B');
+    t.zone(bear, 'battlefield', 'nothing sacrificed');
+  });
+
+  test('Cards: Brought Back — up to two permanent cards put into your graveyard from the battlefield this turn, back tapped', (mk, t) => {
+    t.auto('Brought Back');
+    const T = mk();
+    const g = T.g;
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), forest = T.bf('A', 'Forest'), ring = T.bf('A', 'Sol Ring');
+    const old = T.grave('A', 'Hill Giant');
+    const theirs = T.bf('B', 'Llanowar Elves');
+    for (const o of [bear, forest, ring, theirs]) g.moveObject(o, 'graveyard');
+    T.mana('A', 'WW');
+    const bb = T.hand('A', 'Brought Back');
+    t.no(g.castSpell('A', bb.id, { auto: true, targets: [{ kind: 'object', id: old.id }] }), 'not the Giant: it was there already');
+    t.no(g.castSpell('A', bb.id, { auto: true, targets: [{ kind: 'object', id: theirs.id }] }), "not B's Elves: not your graveyard");
+    T.cast('A', bb, { targets: [bear, forest] });
+    t.zone(bear, 'battlefield', 'the Bears back');
+    t.zone(forest, 'battlefield', 'the Forest back');
+    t.ok(bear.tapped && forest.tapped, 'tapped');
+    t.zone(ring, 'graveyard', 'only two');
+    t.zone(old, 'graveyard', 'the Giant stays');
+  });
+
+  test('Cards: Brought Back — next turn, the same cards are no longer targets', (mk, t) => {
+    t.auto('Brought Back');
+    const T = mk();
+    const g = T.g;
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    g.moveObject(bear, 'graveyard');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'WW');
+    const bear2 = T.bf('A', 'Grizzly Bears');
+    g.moveObject(bear2, 'graveyard');
+    const bb = T.hand('A', 'Brought Back');
+    t.no(g.castSpell('A', bb.id, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'the Bears from last turn: no');
+    T.cast('A', bb, { targets: [bear2] });
+    t.zone(bear2, 'battlefield', 'one target is fine');
+    t.zone(bear, 'graveyard');
+  });
 };

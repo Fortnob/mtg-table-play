@@ -3587,6 +3587,12 @@
        changeling is (CR 702.73a), for the turn */
     { re: /^(Target creature(?: you control)?) gains all creature types until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'grantKeyword', keywords: ['Changeling'], duration: 'eot', targets: [t] } : null; } },
+    /* Amoeboid Changeling: "Target creature loses all creature types until end of turn." — layer 4, its changeling too
+       (loseCreatureTypes); Nameless Inversion: "gets +3/-3 and loses all creature types until end of turn" */
+    { re: /^(Target creature(?: you control| an opponent controls)?) (?:gets ([+-]\d+)\/([+-]\d+) and )?loses all creature types until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); if (!t) return null;
+        const lose = { op: 'becomes', duration: 'eot', eff: { loseCreatureTypes: true }, targets: [t] };
+        return m[2] ? [{ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', targets: [t] }, Object.assign(lose, { targets: null, scope: 'lastTarget' })] : lose; } },
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|The creature that attacked|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
@@ -5667,6 +5673,13 @@
        — "it" the spell the cast trigger is about (exileTriggerSpell) */
     { re: /^Exile it, then exile cards from the top of your library until you exile a nonland card\.?$/i,
       make: () => [{ op: 'exileTriggerSpell' }, { op: 'exileTop', who: 'you', untilNonland: true }] },
+    /* Possibility Storm: "that player exiles it, then exiles cards from the top of their library until they exile a card
+       that shares a card type with it" — the spell's types as it was on the stack (untilSharesSpellType) */
+    { re: /^that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with it\.?$/i,
+      make: () => [{ op: 'exileTriggerSpell' }, { op: 'exileTop', who: 'triggerPlayer', untilSharesSpellType: true }] },
+    // Possibility Storm: "Then they put all cards exiled with this enchantment on the bottom of their library in a random order." — the spell too
+    { re: /^Then they put all cards exiled with (?:this enchantment|CARDNAME) on the bottom of their library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true }) },
     // Lady Loki: "deals damage to each opponent equal to the difference between that spell's mana value and that nonland card's mana value"
     { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to the difference between that spell'?s mana value and that nonland card'?s mana value\.?$/i,
       make: () => ({ op: 'damage', n: { spellMvDiffHit: true }, each: 'opponent' }) },
@@ -7594,6 +7607,8 @@
     /* Wanda's Vision, Gríma, Saruman's Footman: "You may cast that card without paying its mana cost." — the
        card just exiled, cast as this resolves or not at all (CR 608.2g), not later in the turn (thatCard) */
     { re: /^(?:You may )?[Cc]ast that card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
+    // Possibility Storm: "That player may cast that card without paying its mana cost." — the player the trigger is about (by triggerPlayer)
+    { re: /^That player may cast that card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1, by: 'triggerPlayer' }) },
     // The Infamous Cruelclaw: "You may cast that card by discarding a card rather than paying its mana cost." (discardCost)
     { re: /^You may cast that card by discarding a card rather than paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1, discardCost: true }) },
     { re: /^Until the end of your next turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse' }) },
@@ -13143,6 +13158,11 @@
         if (/hand/i.test(m[4] || '')) return [{ op: 'regrowth', targets: [spec] }].concat(ring);
         return [Object.assign({ op: 'reanimate', targets: [spec] }, m[5] ? { tapped: true } : {}, /your graveyard/i.test(m[3]) ? {} : { mine: true })].concat(ring);
       } },
+    /* Brought Back: "Choose up to two target permanent cards in your graveyard that were put there from the battlefield
+       this turn. Return them to the battlefield tapped." */
+    { re: /^Choose up to (two|three) target (creature|permanent) cards in your graveyard that were put there from the battlefield this turn\. Return them to the battlefield( tapped)?\.?$/i,
+      make: (m) => [Object.assign({ op: 'reanimate', targets: Array.from({ length: num(m[1]) }, () => ({ type: m[2].toLowerCase(), filter: m[2].toLowerCase(),
+        zone: 'graveyard', fromBfThisTurn: true, controller: 'you', upTo: true, distinct: true })) }, m[3] ? { tapped: true } : {})] },
     /* Captain N'ghathrod: "choose target artifact or creature card in an opponent's graveyard that was
        put there from their library this turn. Put it onto the battlefield under your control." (fromLibThisTurn) */
     { re: /^Choose target ([a-z ]+?) card in an opponent'?s graveyard that was put there from their library this turn\. Put it onto the battlefield under your control\.?$/i,
@@ -15277,6 +15297,11 @@
        beginning of that player's next declare attackers step." — the attacker (warpReturn, without Noctis's "can't be blocked") */
     { re: /^Exile it\. Return it to the battlefield under its owner'?s control tapped and attacking at the beginning of that player'?s next declare attackers step\.?$/i,
       make: () => [{ op: 'exile', scope: 'triggerObject' }, { op: 'warpReturn', plain: true }] },
+    /* Star Athlete: "choose up to one target nonland permanent. Its controller may sacrifice it. If they don't, this
+       creature deals 5 damage to that player." — the permanent's controller picks (unlessPays sacTarget) */
+    { re: /^[Cc]hoose (up to one )?target ([a-z ]+?)\. Its controller may sacrifice it\. If they don'?t, (?:CARDNAME|this creature) deals (\d+) damage to that player\.?$/,
+      make: (m) => { const t = targetSpec(m[2]); return t && !t.unknown ? [{ op: 'unlessPays', who: 'targetController', cost: { sacTarget: true },
+        targets: [Object.assign(t, m[1] ? { upTo: true } : {})], then: [{ op: 'damage', n: +m[3], toAffectedController: true, text: 'CARDNAME deals ' + m[3] + ' damage to you.' }] }] : null; } },
     /* The Doctor's Childhood Barn: "for each opponent, choose up to one target nonland permanent that opponent controls. Untap
        those permanents. They phase out. They can't phase in for as long as CARDNAME remains face up. When a player
        planeswalks, those permanents phase in." */
@@ -19143,6 +19168,8 @@
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
     // River Kelpie: "Whenever a player casts a spell from a graveyard" — anyone's, from any graveyard
     { re: /^Whenever a player casts a spell from a graveyard,? /i, event: 'anyCastSpell', extra: { fromGraveyardOnly: true } },
+    // Possibility Storm: "Whenever a player casts a spell from their hand" (fromHandOnly)
+    { re: /^Whenever a player casts a spell from their hand,? /i, event: 'anyCastSpell', extra: { fromHandOnly: true } },
     // Melek, Izzet Paragon: "Whenever you cast an instant or sorcery spell from your library" (castFromLibraryOnly)
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your library,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ castFromLibraryOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },

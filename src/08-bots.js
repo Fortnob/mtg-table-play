@@ -1547,6 +1547,8 @@
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
+    // Combustion Man, Star Athlete: "… unless its controller …" — as harmful as what happens if they don't
+    if (e.op === 'unlessPays' && (e.targets || []).length) return (e.then || []).some(isHarmful);
     if (e.op === 'counters' || e.op === 'countersDivided') return /-1\/-1|stun|shield/.test(e.kind || '') && !/shield/.test(e.kind || '');
     return HARMFUL.has(e.op);
   }
@@ -3567,6 +3569,11 @@
       if (ch.purpose === 'unlessDamage') {
         const t = ch.objId ? g.obj(ch.objId) : null;
         return this.me.life - (ch.amount || 0) > 10 && (!t || this.permanentValue(t) >= (ch.amount || 0) * 0.5);
+      }
+      // Star Athlete: give up the permanent only when it is worth little next to the damage, or the damage would be too much
+      if (ch.purpose === 'unlessSacTarget') {
+        const t = ch.objId ? g.obj(ch.objId) : null;
+        return this.me.life - (ch.amount || 0) <= 5 || (!!t && this.permanentValue(t) < (ch.amount || 0) * 0.5);
       }
       // Livio, Oathsworn Sentinel: into exile with an aegis counter only for our own Livio (it brings it back)
       if (ch.purpose === 'mayExileCounter') { const s0 = ch.sourceId ? g.obj(ch.sourceId) : null; return !!s0 && s0.controller === this.pid; }

@@ -2756,7 +2756,7 @@
       this._lastPut = null; this._lastSearched = null; this._putThisWay = null; this._revealedHand = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null; this._drawnThisWay = 0;
       this._exchangeGot = null;
-      this._exileUntil = null; this._exiledChosen = null;
+      this._exileUntil = null; this._exiledChosen = null; this._exiledSpell = null;
       this._chosenCard = null; this._attachedAnyTo = null;
       this.passedInSuccession.clear();
       this.emit('sfx', 'resolve');
@@ -16287,7 +16287,7 @@
        and the whole battlefield is worked out layer by layer. */
     _changesWhatItIs(e) {
       return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes || e.addSupertypes ||
-        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith || e.removeTypes));
+        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith || e.removeTypes || e.loseCreatureTypes));
     }
     /** Duplicant: the last creature card exiled with this permanent, still in exile — or null. */
     _lastExiledCreatureWith(src) {
@@ -16685,7 +16685,7 @@
       const parts = [];
       const split = (ef, base) => {
         if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType || ef.addSupertypes ||
-          ef.creatureTypesFromExiledWith || ef.removeTypes) parts.push(Object.assign({ layer: 4 }, base));
+          ef.creatureTypesFromExiledWith || ef.removeTypes || ef.loseCreatureTypes) parts.push(Object.assign({ layer: 4 }, base));
         if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
         if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
       };
@@ -16756,6 +16756,10 @@
           // On Serra's Wings: "is legendary"
           if (e.addSupertypes) for (const t of e.addSupertypes) if (!s.supertypes.includes(t)) s.supertypes.push(t);
           if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
+          /* Amoeboid Changeling: "Target creature loses all creature types" — changeling's every type with them, it being
+             a characteristic-defining ability applied first in this layer (CR 613.3); "all creature types" given after
+             counts again (noCtTs, read by characteristics) */
+          if (e.loseCreatureTypes) { s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)); s.noCtTs = Math.max(s.noCtTs == null ? -Infinity : s.noCtTs, p.ts); }
           /* Duplicant: "the creature types of the last creature card exiled with it. It's still a Shapeshifter." — while
              there is one (creatureTypesFromExiledWith) */
           if (e.creatureTypesFromExiledWith && p.src) {
@@ -16865,6 +16869,11 @@
       out.isVehicle = out.subtypes.includes('Vehicle');
       out.isSaga = out.subtypes.includes('Saga');
       out.typeLine = out.supertypes.concat(out.types).join(' ') + (out.subtypes.length ? ' — ' + out.subtypes.join(' ') : '');
+      // (Amoeboid Changeling: no creature types — its changeling no longer makes it every type: noCreatureTypesTs)
+      if (s.noCtTs != null) {
+        out.noCreatureTypesTs = s.noCtTs;
+        if (out.keywordSet && out.keywordSet.has('changeling')) { out.keywordSet = new Set(out.keywordSet); out.keywordSet.delete('changeling'); out.has = (kw) => out.keywordSet.has(String(kw).toLowerCase()); }
+      }
       if (s.lost || s.rulesLost) {
         /* Everything it printed is gone. What was handed to it after the
            effect that took its abilities is still there (CR 613.7). */
@@ -18472,7 +18481,8 @@
            block") is not an ability of its own, and survives Humility. */
         if (x.flag) flags.add(x.flag);
         if (x.ts < loseTs) continue;
-        if (x.grant) for (const k of x.grant) kw.add(String(k).toLowerCase());
+        // (Velis Vel's "all creature types" given before Amoeboid Changeling took them all: gone — noCreatureTypesTs)
+        if (x.grant) for (const k of x.grant) if (!(a.noCreatureTypesTs != null && x.ts < a.noCreatureTypesTs && String(k).toLowerCase() === 'changeling')) kw.add(String(k).toLowerCase());
         if (x.lose) for (const k of x.lose) kw.delete(String(k).toLowerCase());
         if (x.grantMana) grantMana.push(...x.grantMana);
       }
@@ -29040,10 +29050,26 @@
           const payer = e.who === 'you' ? me
             : tdObj ? this.player(tdObj.controller)
             : e.who === 'triggerPlayer' ? (triggerPlayer() || this.opponentsOf(ctx.controller)[0])
+            // Star Athlete: "Its controller may sacrifice it" — the target's controller; none chosen, nothing happens (targetController)
+            : e.who === 'targetController' ? (firstObj() && firstObj().zone === 'battlefield' ? this.player(firstObj().controller) : null)
             // Erratic Portal: "unless its controller pays" — the targeted creature's controller, yours included
             : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || (firstObj() && this.player(firstObj().controller)) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
             : (firstPlayer() || onStack() || triggerPlayer() || this.opponentsOf(ctx.controller)[0]);
-          if (!payer) { this._spliceNext(e.then); break; }
+          if (!payer) { if (e.who !== 'targetController') this._spliceNext(e.then); break; }
+          /* Star Athlete: "Its controller may sacrifice it. If they don't, this creature deals 5 damage to that player." —
+             that permanent, or the damage to whoever controls it (sacTarget) */
+          if (e.cost && e.cost.sacTarget) {
+            const t0 = firstObj();
+            this._noteLastAffected(targets);
+            const dmg = ((e.then || [])[0] || {}).op === 'damage' ? n(e.then[0].n) : 0;
+            const yes = this._canSacrifice(t0) ? this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessSacTarget', objId: t0.id, amount: dmg,
+              yesLabel: `Sacrifice ${t0.name}`, noLabel: "Don't",
+              prompt: `Sacrifice ${t0.name}? If you don't: ${whole((e.then || []).map(x => x && x.text).filter(Boolean).join(' ').replace(/CARDNAME/g, src ? src.name : 'it') || 'it happens', 80)}` }, 'usact') : false;
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes && t0.zone === 'battlefield' && t0.controller === payer.id) this._sacrificeNow(payer.id, [t0], null);
+            else this._spliceNext(e.then);
+            break;
+          }
           /* Mogis: "…unless they sacrifice a creature of their choice" (Torment
              of Scarabs: "…or discards a card") — a permanent (or a card)
              picked is the price paid; none picked, and it happens */
@@ -36001,11 +36027,14 @@
           const td0 = ctx.triggerData || {};
           const below = e.lesserMv ? (td0.objectId && this.obj(td0.objectId) ? n({ triggerSpellMv: true }) : null) : null;
           if (e.lesserMv && below == null) break;
+          // Possibility Storm: "until they exile a card that shares a card type with it" — the spell just exiled (untilSharesSpellType)
+          const spellTypes = e.untilSharesSpellType ? ((this._exiledSpell || {}).types || []) : null;
+          if (spellTypes && !spellTypes.length) break;
           for (const pl of who) {
             const lib = this.zones[pl.id].library;
             let total = 0;
             // (Ulamog, the Defiler: "the top half of their library" — counted once, before any card goes: exileHalfLibrary)
-            const want = e.untilNonland || e.untilWords || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
+            const want = e.untilNonland || e.untilWords || e.untilSharesSpellType || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
             for (let i = 0; i < most && lib.length; i++) {
               if (i >= want) break;
               const c = lib[0];
@@ -36025,10 +36054,13 @@
               // Gríma, Saruman's Footman: "until they exile an instant or sorcery card"
               if (e.untilWords && this._cardFitsWords(c, e.untilWords) && (below == null || ((c.card && c.card.cmc) || 0) < below)) { hits.push(c.id); break; }
               if (e.totalMv != null && total >= e.totalMv) break;
+              if (spellTypes && (ca.types || []).some(x => spellTypes.includes(String(x).toLowerCase()))) { hits.push(c.id); break; }
             }
           }
           // what "that card" is, and what "the rest" are, for the sentences after (exileUntil)
           if (e.untilNonland || e.untilWords) this._exileUntil = { ids: out.slice(), hits };
+          // (Possibility Storm: "all cards exiled with this enchantment" — the spell it exiled first among them)
+          if (spellTypes) this._exileUntil = { ids: [(this._exiledSpell || {}).id].filter(id => id && (this.obj(id) || {}).zone === 'exile').concat(out), hits };
           this._lastExiledList = out;
           if (out.length) this._lastExiled = out[out.length - 1];
           this.logEvent('exile', `${out.length} card${out.length === 1 ? ' is' : 's are'} exiled from the top of ${who.length > 1 ? 'each library' : 'the library'}.`);
@@ -36150,6 +36182,8 @@
         case 'castFree': {
           // Planetarium of Wan Shi Tong: "Do this only once each turn." — used up by a cast (oncePerTurn)
           if (e.oncePerTurn && src && src._castFreeTurn === this.turn) break;
+          // Possibility Storm: "That player may cast that card" — the player the trigger is about casts it (by triggerPlayer)
+          const casterId = (e.by === 'triggerPlayer' && (triggerPlayer() || {}).id) || ctx.controller;
           const r = this.resolving;
           const slot = r ? r.index + ':freePool' : null;
           r && (r.marks = r.marks || {});
@@ -36270,7 +36304,7 @@
             if ((e.from === 'triggerObj' || e.from === 'selfFromGrave' || (e.from === 'targets' && !e.anyMana)) && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
-            const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: casterId,
               prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : e.discardCost ? `Cast ${c.name} by discarding a card rather than paying its mana cost?`
                 : e.altMana ? `Cast ${c.name} by paying ${e.altMana} rather than paying its mana cost?`
                 : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
@@ -36278,7 +36312,7 @@
             const want = yes === null ? true : !!yes;
             if (!want) { if (r) r.marks[slot + 'done' + k] = true; continue; }
             // a spell cast as this resolves still chooses its targets (Goblin Dark-Dwellers' Shock)
-            const tg = this._askSpellTargets(ctx.controller, c, 'fct' + k);
+            const tg = this._askSpellTargets(casterId, c, 'fct' + k);
             if (tg === SUSPEND) return SUSPEND;
             if (tg === null) { if (r) r.marks[slot + 'done' + k] = true; continue; }
             // The Infamous Cruelclaw: the card discarded is the cost, paid as it is cast
@@ -36297,7 +36331,7 @@
             const otherHand = c.zone === 'hand' && c.owner !== ctx.controller;
             if (otherHand) c.handCastBy = ctx.controller;
             let ok;
-            try { ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true })); }
+            try { ok = this.castSpell(casterId, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true })); }
             finally { if (otherHand) delete c.handCastBy; }
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
@@ -36937,6 +36971,11 @@
         case 'exileTriggerSpell': {
           const d = ctx.triggerData || {};
           const item = d.stackId && this.stack.find(s => s.id === d.stackId);
+          /* Possibility Storm: "a card that shares a card type with it" — its types as it was on the stack, or as it last
+             was had it already left (_exiledSpell) */
+          const was = (item && item.obj) || (d.objectId && this.obj(d.objectId));
+          this._exiledSpell = was ? { id: item && item.obj && !item.isCopy ? item.obj.id : null,
+            types: ((was.analysis() || {}).types || []).map(x => String(x).toLowerCase()) } : null;
           if (!item || item.kind !== 'spell' || !item.obj) break;
           this.stack = this.stack.filter(x => x !== item);
           if (item.isCopy) { item.obj.zone = null; break; }
