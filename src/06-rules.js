@@ -6839,7 +6839,10 @@
       }
       // Six: on your turn, a nonland permanent card in your graveyard has retrace
       if (o.zone === 'graveyard' && o.owner === playerId && a.isPermanent && !a.isLand && this.activePlayer && this.activePlayer.id === playerId &&
-          this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
+          this._withEmblems(this.battlefield).some(x => !x.phasedOut && x.controller === playerId &&
+            (this._staticOp(x, 'grantRetraceNonlandPermanents') || {}).op === 'grantRetraceNonlandPermanents' &&
+            (!this._staticOp(x, 'grantRetraceNonlandPermanents').filter || this._cardFitsWords(o, this._staticOp(x, 'grantRetraceNonlandPermanents').filter))) &&
+          !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
       /* A standing grant (flashback, encore), from a permanent (or emblem) of this player's; Iroh, Grand Lotus: "During your
@@ -18595,6 +18598,10 @@
         if (grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
+        if (ef.setPtFromMv && (o.analysis() || {}).isArtifact && !(o.analysis() || {}).isCreature) {
+          const mv = Number((o.card || {}).cmc) || 0;
+          (ef.cda ? defining : setting).push({ ts: entry.ts, set: { p: mv, t: mv } });
+        }
         // Duplicant: "the power, toughness … of the last creature card exiled with it" — its printed numbers (setPtFromExiledWith)
         if (ef.setPtFromExiledWith) {
           const xc = this._lastExiledCreatureWith(entry.src);
@@ -19771,6 +19778,7 @@
         if (!(wasA && wasA.isLand)) h.nonlandLeft = (h.nonlandLeft || 0) + 1;
         // The Lady of Otaria: "a land you controlled was put into a graveyard from the battlefield this turn" (landToGyBy)
         if (wasA && wasA.isLand && toZone === 'graveyard') { h.landToGyBy = h.landToGyBy || {}; h.landToGyBy[o.controller] = true; }
+        if (wasA && wasA.isArtifact && toZone === 'graveyard') h.artifactsDiedFromBattlefield = (h.artifactsDiedFromBattlefield || 0) + 1;
         if (wasA && wasA.isCreature && toZone === 'graveyard') {
           h.creaturesDied++;
           // Gadrak, the Crown-Scourge: "each nontoken creature that died this turn"
@@ -20097,7 +20105,7 @@
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
         if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
         this._lastLeft = o.id;
-        this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
+        this._fire('permLeaves', null, { object: o, objController: lastCtrl, fromZone: from, toZone });
         // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed"
         // (Karmic Justice: "a spell or ability an opponent controls destroys" — whose it was: playerId, destroyerIsOpponent)
         if (destroyed) this._fire('permDestroyed', null, Object.assign({ object: o, objController: lastCtrl }, destroyedBy ? { playerId: destroyedBy } : {}));
@@ -23191,6 +23199,8 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // Anzrag's Rampage and Structural Assault count artifacts put into graveyards from the battlefield this turn.
+        if (v && typeof v === 'object' && v.artifactsDiedThisTurn) return (this.turnHistory || {}).artifactsDiedFromBattlefield || 0;
         // "+1/+0 for each …": nothing times anything is nothing (not the "|| 1" the counts below fall back on)
         if (v && typeof v === 'object' && v.mult === 0 && !v.plus) return 0;
         // Call the Coppercoats: the creatures the targeted players control
@@ -25740,6 +25750,7 @@
             ? this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)
             : this.battlefield.slice().filter(x => !x.phasedOut && match(x));
           const victims = pool.filter(x => {
+            if (e.notYou && x.controller === ctx.controller) return false;
             if (e.withoutCounter && (x.counters[e.withoutCounter] || 0) > 0) return false;
             // Thanos, the Mad Titan: "each other creature with mana value of the chosen quality" (other, mvParity)
             if (e.other && src && x.id === src.id) return false;
@@ -29655,6 +29666,13 @@
         case 'skipDraw': me.skipNextDraw = true; break;
 
         case 'ifLastWas': {
+          if (e.ofTrigger) {
+            const td = ctx.triggerData || {};
+            if (e.fromZone && td.fromZone !== e.fromZone) break;
+            if (e.toZone && td.toZone !== e.toZone) break;
+            if (e.controller === 'opponent' && td.objController === ctx.controller) break;
+            if (e.controller === 'you' && td.objController !== ctx.controller) break;
+          }
           // "untap target artifact or creature. If it's an artifact creature, …": the target
           // (Aunt May: "If it's a Spider" — the creature the trigger is about)
           let x = e.ofTrigger ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) : e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
@@ -33270,6 +33288,29 @@
           break;
         }
 
+        case 'takeFromExiled': {
+          const group = (this._lastExiledList || []).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
+          const legal = group.filter(o => !e.filter || this._matchesFilter(o, e.filter));
+          const want = Math.min(Math.max(0, n(e.n)), legal.length);
+          let taken = [];
+          if (legal.length && want) {
+            const picked = this._choose({ playerId: ctx.controller, purpose: 'takeFromExiled', kind: 'objects', zone: 'exile',
+              panel: true, reveal: true, items: this._chooseItems(legal),
+              min: 0, max: want, optional: !!e.optional, prompt: e.prompt || `Choose up to ${want} card(s) to put onto the battlefield.` }, 'takeExiled');
+            if (picked === SUSPEND) return SUSPEND;
+            taken = ((picked && picked.picks) || []).map(id => this.obj(id)).filter(o => o && legal.includes(o));
+          }
+          this._takenOntoBf = [];
+          for (const o of taken) {
+            this.moveObject(o, e.to || 'battlefield');
+            if (o.zone === 'battlefield') this._takenOntoBf.push(o.id);
+          }
+          this._lastAffected = taken.length ? { kind: 'object', id: taken[taken.length - 1].id } : null;
+          if (taken.length) this._noteLastAffected(taken.map(o => ({ kind: 'object', id: o.id })));
+          this._lastExiledList = group.filter(o => !taken.includes(o)).map(o => o.id);
+          break;
+        }
+
         case 'takeFromLooked': {
           if (e.rest === 'graveyard') this._lookedToGraveyard = 0;
           if (e.to === 'battlefield') this._takenOntoBf = [];
@@ -36234,6 +36275,19 @@
           break;
         }
         case 'exileTop': {
+          if (e.who == null && e.reveal && e.n != null) {
+            const z = this.zones[ctx.controller];
+            const count = Math.min(z.library.length, Math.max(0, n(e.n)));
+            const ids = z.library.slice(0, count).map(o => o.id);
+            this._lastExiledList = ids.slice();
+            this._lastExiled = ids[0] || null;
+            for (const id of ids) {
+              const o = this.obj(id);
+              if (o) { this._know(o, '*'); this.moveObject(o, 'exile'); }
+            }
+            this.logEvent('reveal', `${me.name} exiles the top ${count} card${count === 1 ? '' : 's'} of their library.`);
+            break;
+          }
           const who = e.who === 'each' ? this.players.filter(x => !x.hasLost)
             : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             // Ulamog: "defending player exiles the top twenty cards"
