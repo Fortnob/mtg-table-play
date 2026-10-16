@@ -1858,10 +1858,11 @@ module.exports = (test) => {
     }
   });
 
-  test('Audit: counts of cards nothing reads are left to a person (Unlicensed Hearse, Primalcrux)', (mk, t) => {
+  test('Audit: counts of cards nothing reads are left to a person (Primalcrux)', (mk, t) => {
     const { card } = require('../harness');
     const T = mk();
-    for (const n of ['Unlicensed Hearse', 'Primalcrux', 'Soulless One'])
+    // (Unlicensed Hearse's "the number of cards exiled with it" is read now: exiledWithSelf)
+    for (const n of ['Primalcrux', 'Soulless One'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
 

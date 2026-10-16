@@ -4848,6 +4848,11 @@
       }
       // Coram, the Undertaker: "the greatest power among creature cards in all graveyards"
       if (v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * mult;
+      // Unlicensed Hearse: "the number of cards exiled with it" (exiledWithSelf)
+      if (v.exiledWithSelf) {
+        const k = src ? this.players.reduce((t, q) => t + ((this.zones[q.id] || {}).exile || []).filter(x => x.exiledWithId === src.id).length, 0) : 0;
+        return (k + (v.plus || 0)) * mult;
+      }
       if (v.cardsInAllGraveyards) {
         let k = 0;
         for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInAllGraveyards)) k++;
@@ -17631,6 +17636,8 @@
       }
       // Coram, the Undertaker: the greatest power among creature cards in all graveyards
       if (typeof v === 'object' && v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * (v.mult || 1);
+      // Unlicensed Hearse: "the number of cards exiled with it" (exiledWithSelf)
+      if (typeof v === 'object' && v.exiledWithSelf) return this._countValue(v, (src || o).controller, src || o);
       // Necrogoyf: creature cards in all graveyards
       if (typeof v === 'object' && v.cardsInAllGraveyards) {
         let k = 0;
@@ -20801,6 +20808,11 @@
         const att = t.kind === 'ability' && !t.delayed && t.obj && t.obj.zone === 'battlefield' && t.obj.attacking &&
           (atd.event === 'attacks' || (atd.event === 'permAttacks' && atd.objectId === t.obj.id)) ? t.obj : null;
         if (att && (this.characteristics(att) || {}).isCreature) this._fire('yourAttackerTriggers', att.controller, { object: att, objController: att.controller, stackId: t.id });
+        /* Aboleth Spawn: "a creature entering under an opponent's control causes a triggered ability of that creature to
+           trigger" — told to everybody but its controller (oppEntererTriggers) */
+        const ent = t.kind === 'ability' && !t.delayed && !t.isCopy && t.obj && t.obj.zone === 'battlefield' &&
+          (atd.event === 'etb' || (atd.event === 'permEnters' && atd.objectId === t.obj.id)) ? t.obj : null;
+        if (ent && (this.characteristics(ent) || {}).isCreature) this._fire('oppEntererTriggers', null, { object: ent, objController: ent.controller, stackId: t.id, except: ent.controller });
       }
       this._batchTriggers(order);
       /* Several of your own triggers at once is a decision the rules give
@@ -32055,6 +32067,8 @@
             // Dihada, Binder of Wills: "for each card put into your graveyard this way"
             this._lookedToGraveyard = rest.filter(o => o.zone === 'graveyard').length;
           }
+          // Genesis Ultimatum: "and the rest into your hand"
+          else if (e.rest === 'hand') { for (const o of rest) this.moveObject(o, 'hand'); }
           else if (rest.length) {
             const order = e.rest === 'bottomRandom' ? this.rng.shuffle(rest.slice()) : rest;
             // (Lonis, Cryptozoologist: "That player puts the rest on the bottom of their library" — each its owner's)
@@ -32398,7 +32412,8 @@
            Extractor, Gonti, Night Minister: the top card, face down. The looker picks (exileFaceDown) when
            there is more than one to pick from; the leave after it is about the cards exiled here. */
         case 'lookExileFaceDown': {
-          const whose = e.whose === 'target' ? firstPlayer() : triggerPlayer();
+          // (Vivien, Champion of the Wilds: "the top three cards of your library" — whose you)
+          const whose = e.whose === 'target' ? firstPlayer() : e.whose === 'you' ? me : triggerPlayer();
           const by = e.by === 'objController' ? this.player((ctx.triggerData || {}).objController) : me;
           this._lastExiledList = [];
           if (!whose || !by) break;
@@ -32425,10 +32440,11 @@
           if (this._lastExiledList.length) this._lastExiled = this._lastExiledList[this._lastExiledList.length - 1];
           // Thief of Sanity: "the rest into their graveyard"; Gonti: "on the bottom of that library in a random order"
           if (e.rest === 'graveyard') for (const c of rest) this.moveObject(c, 'graveyard');
-          else if (e.rest === 'bottomRandom' && rest.length) {
+          else if ((e.rest === 'bottomRandom' || e.rest === 'bottom') && rest.length) {
             for (const c of rest) { const i = lib.indexOf(c); if (i >= 0) lib.splice(i, 1); }
             const under = rest.slice();
-            this.rng.shuffle(under);
+            // (Vivien, Champion of the Wilds: "in any order" — as they were: bottom)
+            if (e.rest === 'bottomRandom') this.rng.shuffle(under);
             lib.push(...under);
           }
           this.logEvent('exile', `${by.name} looks at the top ${looked.length === 1 ? 'card' : looked.length + ' cards'} of ${whose.id === by.id ? 'their' : whose.name + "'s"} library and exiles ${keep.length === 1 ? 'one' : keep.length} face down.`);
@@ -43204,7 +43220,9 @@
       const a = o.analysis();
       if (!a) return false;
       const want = String(filter).toLowerCase().trim().replace(/^an? /, '').replace(/(?<!plain)s$/, '');
-      if (want === 'permanent' || want === 'card') return true;
+      if (want === 'card') return true;
+      // (Genesis Ultimatum: "permanent cards from among them" — off the battlefield, only a permanent card is one)
+      if (want === 'permanent') return o.zone === 'battlefield' || !!a.isPermanent;
       // (Dihada, Binder of Wills: "legendary cards" — a supertype)
       return (a.types || []).some(x => x.toLowerCase() === want) ||
         (a.subtypes || []).some(x => x.toLowerCase() === want) || (a.supertypes || []).some(x => x.toLowerCase() === want);

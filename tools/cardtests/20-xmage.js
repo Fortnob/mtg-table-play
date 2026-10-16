@@ -75265,4 +75265,103 @@ module.exports = (test) => {
     V.cast('A', giant);
     t.zone(giant, 'battlefield', 'the Hill Giant paid with Metalworker');
   });
+
+  test('Cards: Genesis Ultimatum — any number of permanent cards from the top five onto the battlefield, the rest into the hand; then exiled', (mk, t) => {
+    t.auto('Genesis Ultimatum');
+    const T = mk({ library: Array(20).fill('Island') });
+    const top = ['Swamp', 'Lightning Bolt', 'Sol Ring', 'Forest', 'Grizzly Bears'].map(n => T.top('A', n));
+    const [swamp, bolt, ring, forest, bear] = top;
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort().join(); return { cardIds: [bear.id, forest.id] }; });
+    const gu = T.hand('A', 'Genesis Ultimatum');
+    T.mana('A', 'GGUUURR');
+    T.cast('A', gu);
+    t.eq(offered, 'Forest,Grizzly Bears,Sol Ring,Swamp', 'the permanent cards offered, not the Bolt');
+    t.zone(bear, 'battlefield', 'the Bears onto the battlefield');
+    t.zone(forest, 'battlefield', 'the Forest onto the battlefield');
+    t.zone(ring, 'hand', 'Sol Ring (not chosen) into the hand');
+    t.zone(bolt, 'hand', 'the Bolt into the hand');
+    t.zone(swamp, 'hand', 'the Swamp into the hand');
+    t.zone(gu, 'exile', 'Genesis Ultimatum exiled');
+  });
+
+  test('Cards: Unlicensed Hearse — exile up to two cards from a single graveyard; its power and toughness the number exiled with it', (mk, t) => {
+    t.auto('Unlicensed Hearse');
+    const T = mk();
+    const g = T.g;
+    const h = T.bf('A', 'Unlicensed Hearse');
+    t.eq(g.powerOf(h), 0, 'nothing exiled: 0');
+    const c1 = T.grave('B', 'Grizzly Bears'), c2 = T.grave('B', 'Lightning Bolt');
+    T.activate('A', h, 0, { targets: [c1, c2] });
+    t.zone(c1, 'exile'); t.zone(c2, 'exile');
+    T.g.bumpBoard();
+    t.eq(g.powerOf(h), 2, 'two exiled: 2 power');
+    t.eq(g.toughnessOf ? g.toughnessOf(h) : (g.characteristics(h) || {}).toughness, 2, 'and 2 toughness');
+    // an exile by something else does not count
+    const c3 = T.grave('B', 'Hill Giant');
+    g.moveObject(c3, 'exile'); g.bumpBoard();
+    t.eq(g.powerOf(h), 2, 'a card exiled otherwise: not with it');
+  });
+
+  test("Cards: Orochi Soul-Reaver — combat damage to a player: a Treasure, and the top card of that player's library manifested", (mk, t) => {
+    t.auto('Orochi Soul-Reaver');
+    const T = mk({ library: Array(20).fill('Island') });
+    const or = T.bf('A', 'Orochi Soul-Reaver');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const btop = T.top('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: or.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 13, 'both got through');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Treasure').length, 1, 'one Treasure (one or more creatures: once)');
+    t.ok(btop.zone === 'battlefield' && btop.faceDown && btop.controller === 'A' && btop.owner === 'B', "B's top card manifested under A's control");
+  });
+
+  test("Cards: Aboleth Spawn — an opponent's creature entering sets off its own ability: you may copy it; not your own creature's", (mk, t) => {
+    t.auto('Aboleth Spawn');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Aboleth Spawn');
+    const ha = T.zone('A', 'hand').length, hb = T.zone('B', 'hand').length;
+    T.bf('B', 'Elvish Visionary', { etb: true });
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length - hb, 1, 'B draws from the Visionary');
+    t.eq(T.zone('A', 'hand').length - ha, 1, 'A draws from the copy');
+    // declined
+    T.answer('confirm', { yes: false });
+    T.bf('B', 'Elvish Visionary', { etb: true });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length - ha, 1, 'declined: no copy');
+    // A's own creature: nothing
+    const asked0 = T.asked.length;
+    T.bf('A', 'Elvish Visionary', { etb: true });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length - ha, 2, "A's own Visionary: one card");
+    t.no(T.asked.slice(asked0).some(c => c.type === 'confirm'), 'no copy offered');
+  });
+
+  test('Cards: Vivien, Champion of the Wilds — −2: one of the top three exiled face down, castable if a creature spell; the rest to the bottom', (mk, t) => {
+    t.auto('Vivien, Champion of the Wilds');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const viv = T.bf('A', 'Vivien, Champion of the Wilds');
+    const forest = T.top('A', 'Forest'), bolt = T.top('A', 'Lightning Bolt'), bear = T.top('A', 'Grizzly Bears');
+    T.answer('pickCard', (ch) => { t.eq(ch.cards.length, 3, 'three to choose from'); return { cardIds: [bear.id] }; });
+    T.activate('A', viv, 1);
+    t.ok(bear.zone === 'exile' && bear.faceDownExile, 'the Bears exiled face down');
+    const lib = T.zone('A', 'library');
+    t.ok(lib.indexOf(bolt) >= lib.length - 2 && lib.indexOf(forest) >= lib.length - 2, 'the rest on the bottom');
+    t.eq(bear.lookableBy, 'A', 'A may look at it');
+    T.mana('A', '1G');
+    T.cast('A', bear);
+    t.zone(bear, 'battlefield', 'cast from exile');
+    // a noncreature card exiled: not castable
+    const U = mk({ library: Array(20).fill('Island') });
+    const v2 = U.bf('A', 'Vivien, Champion of the Wilds');
+    U.top('A', 'Forest'); U.top('A', 'Island');
+    const b2 = U.top('A', 'Lightning Bolt');
+    U.answer('pickCard', { cardIds: [b2.id] });
+    U.activate('A', v2, 1);
+    U.mana('A', 'R');
+    t.no(U.g.castSpell('A', b2.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'an instant: not castable');
+  });
 };

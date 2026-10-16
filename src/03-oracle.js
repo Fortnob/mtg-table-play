@@ -6267,6 +6267,10 @@
       make: (m) => Object.assign({ op: 'takeFromLooked', n: /^any number/i.test(m[1]) ? 99 : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' },
         /^any number/i.test(m[1]) ? { prompt: `Put any number of ${(m[2] || '').trim() || 'these'} cards onto the battlefield.` } : {}) },
+    // Genesis Ultimatum: "Put any number of permanent cards from among them onto the battlefield and the rest into your hand." (rest hand)
+    { re: /^Put any number of ([a-z]+) cards from among them onto the battlefield and the rest into your hand\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), to: 'battlefield', optional: true, rest: 'hand',
+        prompt: `Put any number of ${m[1].toLowerCase()} cards from among them onto the battlefield. The rest go into your hand.` }) },
     /* Gilgamesh, Master-at-Arms: "When you put one or more Equipment onto the battlefield this way, you may attach one
        of them to a Samurai you control." — what the look before it put there (attachOneOfTaken) */
     { re:/^When you put one or more ([A-Za-z]+) onto the battlefield this way, you may attach one of them to an? ([A-Za-z]+) you control\.?$/,
@@ -7933,6 +7937,8 @@
     { re: /^Cloak a card from your hand\.?$/i, make: () => ({ op: 'cloak', from: 'hand' }) },
     // Etrata, Deadly Fugitive: "cloak the top card of that player's library" — the player hit's card, under your control (libOf)
     { re: /^Cloak the top card of that player'?s library\.?$/i, make: () => ({ op: 'manifest', cloak: true, libOf: 'triggerPlayer' }) },
+    // Orochi Soul-Reaver: "manifest the top card of that player's library" — theirs, under your control (libOf)
+    { re: /^Manifest the top card of that player'?s library\.?$/i, make: () => ({ op: 'manifest', libOf: 'triggerPlayer' }) },
     /* Etrata, Deadly Fugitive: "Turn this creature face up. If you can't, exile it, then you may cast the exiled card
        without paying its mana cost." — an instant or sorcery card can't be (turnSelfFaceUp, faceUpFailedCast) */
     { re: /^Turn (?:this creature|CARDNAME) face up\.?$/i, make: () => ({ op: 'turnSelfFaceUp' }) },
@@ -14696,6 +14702,12 @@
         return [{ op: 'revealAnyFromHand', filter: m[1].toLowerCase(), forMana: k, symbol: MANA.parse(m[3])[0] },
           { op: 'addManaPer', symbol: MANA.parse(m[3])[0], per: { revealedCount: true, mult: k } }];
       } },
+    /* Vivien, Champion of the Wilds: "Look at the top three cards of your library. Exile one face down and put the rest
+       on the bottom of your library in any order. For as long as it remains exiled, you may cast it if it's a creature
+       spell." — your own library (lookExileFaceDown whose you), a creature spell only (mayPlayExiled filter) */
+    { re: /^Look at the top (two|three|four|five) cards of your library\. Exile one face down and put the rest on the bottom of your library in (?:any|a random) order\. For as long as it remains exiled, you may cast it if it'?s an? ([a-z]+) spell\.?$/i,
+      make: (m) => [{ op: 'lookExileFaceDown', n: num(m[1]), keep: 1, whose: 'you', rest: /random/i.test(m[0]) ? 'bottomRandom' : 'bottom' },
+        { op: 'mayPlayExiled', castOnly: true, duration: 'exiled', filter: m[2].toLowerCase() }] },
     /* Breaching Dragonstorm: "exile cards from the top of your library until you exile a nonland card. You may cast it
        without paying its mana cost if that spell's mana value is 8 or less. If you don't, put that card into your hand." */
     { re: /^exile cards from the top of your library until you exile a nonland card\. You may cast it without paying its mana cost if that spell'?s mana value is (\d+) or less\. If you don'?t, put that card into your hand\.?$/i,
@@ -15355,6 +15367,8 @@
     // (Goldbug, Scrappy Scout: "draw a card and convert Goldbug")
     /\s+and\s+(?=(?:transform|convert) (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent))\b)/,
     /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add|blight)s?\b)/i,
+    // Orochi Soul-Reaver: "create a Treasure token and manifest the top card of that player's library"
+    /\s+and\s+(?=(?:manifest|cloak)s? the top card\b)/i,
   ];
   // (Tomik, Wielder of Law: "that opponent loses 3 life and you draw a card")
   const SUBJECTS = /^(Target player|Target opponent|Target creature'?s? controller|Each opponent|Each player|That player|That opponent|You)\b/i;
@@ -18596,6 +18610,10 @@
     /* Firebender Ascension: "Whenever a creature you control attacking causes a triggered ability of that creature to
        trigger" — that ability on the stack (stackId), or a keyword's done at once (kwCopy) (yourAttackerTriggers) */
     { re: /^Whenever a creature you control attacking causes a triggered ability of that creature to trigger,? /i, event: 'yourAttackerTriggers' },
+    /* Aboleth Spawn: "Whenever a creature entering under an opponent's control causes a triggered ability of that creature
+       to trigger" — its own "when this creature enters", or a "whenever a creature enters" of its set off by itself; that
+       ability on the stack (stackId) (oppEntererTriggers) */
+    { re: /^Whenever a creature entering under an opponent'?s control causes a triggered ability of that creature to trigger,? /i, event: 'oppEntererTriggers' },
     // Thousand-Faced Shadow: "When this creature enters from your hand, if it's attacking," (fromHandEnter; selfAttacking, checked again as it resolves)
     { re: /^When(?:ever)? (?:this creature|CARDNAME) enters from your hand, if it'?s attacking,? /i, event: 'etb', self: true,
       extra: { fromHandEnter: true, condition: { kind: 'selfAttacking' }, intervening: true } },
@@ -22993,6 +23011,9 @@
     { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of (?:([a-z]+) )?cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() }, t: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() } } }) },
+    // Unlicensed Hearse: "Unlicensed Hearse's power and toughness are each equal to the number of cards exiled with it." (exiledWithSelf)
+    { re: /^(?:CARDNAME|This (?:creature|Vehicle))'?s? power and toughness are each equal to the number of cards exiled with (?:it|CARDNAME)\.?$/i,
+      make: () => { const k = { exiledWithSelf: true, mult: 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
     // Duggan, Masumaro, Mordenkainen's Dog Illusion: "(twice) the number of cards in your hand"
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to (twice )?the number of cards in your hand\.?$/i,
       make: (m) => { const k = { cardsInHand: 'you', mult: m[1] ? 2 : 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
