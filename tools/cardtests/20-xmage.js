@@ -73131,4 +73131,116 @@ module.exports = (test) => {
     t.ok(back, 'persisted back');
     t.eq(h(), h0 + 1, 'itself from the graveyard: a card');
   });
+  test('Cards: Nissa\'s Pilgrimage — two basic Forests, one tapped onto the battlefield and the rest to hand; spell mastery: three', (mk, t) => {
+    t.auto('Nissa\'s Pilgrimage');
+    for (const mastery of [false, true]) {
+      const T = mk({ library: Array(6).fill('Forest') });
+      if (mastery) { T.grave('A', 'Lightning Bolt'); T.grave('A', 'Divination'); }
+      const hand0 = T.zone('A', 'hand').length;
+      T.answer('pickCard', (ch) => {
+        t.eq(ch.count, mastery ? 3 : 2, 'up to ' + (mastery ? 3 : 2));
+        t.ok(new RegExp('up to ' + (mastery ? 'three' : 'two') + ' basic Forest').test(ch.prompt), ch.prompt);
+        return { cardIds: ch.cards.slice(0, ch.count).map(c => c.id) };
+      });
+      T.mana('A', '2G');
+      T.cast('A', T.hand('A', 'Nissa\'s Pilgrimage'));
+      const fs = T.bfOf('A').filter(o => o.name === 'Forest');
+      t.eq(fs.length, 1, 'one onto the battlefield'); t.ok(fs[0] && fs[0].tapped, 'tapped');
+      t.eq(T.zone('A', 'hand').length - hand0, mastery ? 2 : 1, 'the rest into the hand');
+    }
+  });
+  test('Cards: Ignite the Future — the top three playable till the end of your next turn; flashed back, free', (mk, t) => {
+    t.auto('Ignite the Future');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.top('A', 'Craw Wurm'); T.top('A', 'Forest'); T.top('A', 'Lightning Bolt');
+    T.mana('A', '3R');
+    const itf = T.hand('A', 'Ignite the Future');
+    T.cast('A', itf);
+    const ex = T.zone('A', 'exile');
+    t.eq(ex.length, 3, 'three exiled');
+    t.ok(ex.every(o => o.impulseBy === 'A'), 'playable');
+    t.ok(ex.every(o => !o.freeCastBy), 'cast from the hand: not free');
+    t.zone(itf, 'graveyard');
+    // flashback: free this time
+    T.nextTurn('B'); T.nextTurn('A');
+    T.top('A', 'Grizzly Bears'); T.top('A', 'Swamp'); T.top('A', 'Shock');
+    T.mana('A', '7R');
+    t.ok(T.g.castSpell('A', itf.id, { auto: true, via: 'flashback' }), T.g.lastError);
+    T.resolve();
+    const bears = T.zone('A', 'exile').find(o => o.name === 'Grizzly Bears');
+    t.eq(bears && bears.freeCastBy, 'A', 'the Bears may be cast free');
+    t.ok(T.g.castSpell('A', bears.id, { auto: true, via: 'free' }), T.g.lastError);
+    T.resolve();
+    t.zone(bears, 'battlefield', 'cast for nothing');
+    T.nextTurn('B');
+    const shock = T.zone('A', 'exile').find(o => o.name === 'Shock');
+    t.ok(shock && shock.freeCastBy === 'A' && shock.freeCastUntil > T.g.turn, 'still free till the end of A\'s next turn');
+  });
+  test('Cards: Parapet Thrasher — Dragons hitting an opponent: a mode not yet chosen this turn, for each opponent hit', (mk, t) => {
+    t.auto('Parapet Thrasher');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const pt = T.bf('A', 'Parapet Thrasher'), sd = T.bf('A', 'Shivan Dragon');
+    const ring = T.bf('B', 'Sol Ring'), stone = T.bf('C', 'Mind Stone');
+    const seen = [];
+    const pick = (ch) => { const is = ch.options.map(o => o.i); seen.push({ who: (T.g.stack[T.g.stack.length - 1] || {}).id, is }); return { modes: [is.includes(0) ? 0 : 1] }; };
+    T.answer('mode', pick); T.answer('mode', pick);
+    T.answer('declareAttackers', () => [{ attackerId: pt.id, defenderId: 'B' }, { attackerId: sd.id, defenderId: 'C' }]);
+    const lb = T.life('B'), lc = T.life('C');
+    T.toMain('A', 'endCombat');
+    t.eq(seen.length, 2, 'one trigger for each opponent hit');
+    t.eq(seen[0].is.join(','), '0,1,2', 'all three first');
+    t.eq(seen[1].is.join(','), '1,2', 'then not the one chosen');
+    const gone = [ring, stone].filter(x => x.zone === 'graveyard');
+    t.eq(gone.length, 1, 'one artifact of the opponent it hit destroyed');
+    const firstHit = gone[0] === ring ? 'B' : 'C', other = firstHit === 'B' ? 'C' : 'B';
+    const combat = { B: T.g.powerOf(pt), C: T.g.powerOf(sd) };
+    t.eq((firstHit === 'B' ? lb : lc) - T.life(firstHit), combat[firstHit] + 4, 'the other trigger: 4 damage to each other opponent');
+    t.eq((other === 'B' ? lb : lc) - T.life(other), combat[other], 'not to the one that trigger was about');
+  });
+  test('Cards: Master of Cruelties — attacks only alone; unblocked at a player, their life becomes 1 and it deals no combat damage', (mk, t) => {
+    t.auto('Master of Cruelties');
+    const T = mk();
+    const mc = T.bf('A', 'Master of Cruelties'), bear = T.bf('A', 'Grizzly Bears');
+    // with another attacker: it stays home
+    T.answer('declareAttackers', () => [{ attackerId: mc.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.no(mc.attacking, 'not attacking with another');
+    t.eq(T.life('B'), 18, 'the Bears went');
+    // alone: life becomes 1, no combat damage
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: mc.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 1, 'life total becomes 1, and no combat damage after');
+    // blocked: nothing
+    const T2 = mk();
+    const m2 = T2.bf('A', 'Master of Cruelties'), wall = T2.bf('B', 'Wall of Stone');
+    T2.answer('declareAttackers', () => [{ attackerId: m2.id, defenderId: 'B' }]);
+    T2.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [m2.id] }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.life('B'), 20, 'blocked: nothing');
+  });
+  test('Cards: Jeweled Amulet — stores the type of mana spent on it, and gives that type back later', (mk, t) => {
+    t.auto('Jeweled Amulet');
+    const T = mk({ library: Array(20).fill('Island') });
+    const am = T.bf('A', 'Jeweled Amulet');
+    T.mana('A', 'U');
+    T.activate('A', am, 1);
+    t.eq(am.counters.charge, 1, 'a charge counter');
+    t.eq(am.notedMana, 'U', 'blue noted');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.no(T.g.activateAbility('A', am.id, 1, { auto: true }), 'not while it has a charge counter');
+    // tapped by hand (removing a counter is the player's call, as for Gemstone Mine): the stored blue, for a blue spell
+    t.ok(T.g.activateAbility('A', am.id, 0, { auto: true }), T.g.lastError);
+    t.eq(T.player('A').pool.U, 1, 'one blue');
+    const opt = T.hand('A', 'Opt');
+    T.cast('A', opt);
+    t.zone(opt, 'graveyard', 'Opt cast with it');
+    t.eq(am.counters.charge || 0, 0, 'the counter spent');
+    t.ok(am.tapped, 'tapped for the blue');
+    // red this time
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'R');
+    T.activate('A', am, 1);
+    t.eq(am.notedMana, 'R', 'red noted now');
+  });
 };

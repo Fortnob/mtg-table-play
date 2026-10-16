@@ -1328,7 +1328,8 @@
     } else if ((m = s.match(/^,? (?:and |then )?put (?:it|them|that card|those cards|the card|the cards|one of them|that land|those lands) (onto the battlefield|into your hand|into their hand|into your graveyard|into their graveyard)( tapped)?(?: under (?:your|their|its owner'?s) control)?/i))) {
       e.to = /battlefield/i.test(m[1]) ? 'battlefield' : /graveyard/i.test(m[1]) ? 'graveyard' : 'hand';
       if (m[2]) e.tapped = true;
-    } else if ((m = s.match(/^,? (?:and )?put one onto the battlefield( tapped)? and the other into your hand/i))) {
+    // (Nissa's Pilgrimage: "put one onto the battlefield tapped and the rest into your hand")
+    } else if ((m = s.match(/^,? (?:and )?put one onto the battlefield( tapped)? and the (?:other|rest) into your hand/i))) {
       e.to = 'split';
       e.split = { battlefield: 1, tapped: !!m[1] };
     } else if ((m = s.match(/^[,.]? (?:[Tt]hen )?(?:[Ss]huffle)(?: your library)?,? (?:and )?(?:then )?put (?:it|that card|the card|them|those cards) on top(?: of (?:it|your library))?(?: in any order)?/))) {
@@ -2550,6 +2551,8 @@
       make: (m) => ({ op: 'forEachPlayer', then: [{ op: 'loseLife', who: 'you', n: { halfLife: 'you', up: /up/i.test(m[2]), div: /third/i.test(m[1]) ? 3 : 2 } }] }) },
     // Blessed Wind: "Target player's life total becomes 20."
     // (Sorin Markov: "Target opponent's life total becomes 10.")
+    // Master of Cruelties: "that player's life total becomes 1" — the player the trigger is about
+    { re: /^That player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'triggerPlayer' }) },
     { re: /^Target (player|opponent)'?s life total becomes (\d+)\.?$/i,
       make: (m) => ({ op: 'setLife', n: +m[2], who: 'target', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
     /* Wrathful Raptors: "it deals that much damage to any target that isn't a
@@ -2643,6 +2646,13 @@
       make: (m) => ({ op: 'damage', n: Object.assign({ triggerPlayerSpells: true, mult: 1 }, m[1] ? { words: m[1].trim().toLowerCase() } : {}), toTriggerPlayer: true }) },
     { re: /^They lose (one|two|\d+) life for each spell they'?ve cast this turn\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: { triggerPlayerSpells: true, mult: num(m[1]) } }) },
+    // Parapet Thrasher: "This creature deals 4 damage to each other opponent." — other than the one the trigger is about
+    { re: /^(?:It|CARDNAME|This creature) deals (\d+) damage to each other opponent\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], eachOtherOpponent: true }) },
+    // Parapet Thrasher: "Destroy target artifact that opponent controls." — the opponent the trigger is about
+    { re: /^Destroy target (artifact|creature|enchantment|planeswalker|nonland permanent|permanent) that (?:opponent|player) controls\.?$/i,
+      make: (m) => ({ op: 'destroy', targets: [{ type: /nonland|permanent/i.test(m[1]) ? 'permanent' : m[1].toLowerCase(), filter: m[1].toLowerCase() + ' that player controls',
+        zone: 'battlefield', controller: 'triggerPlayer' }, ].map(x => Object.assign(x, /nonland/i.test(m[1]) ? { nonland: true } : {})) }) },
     // Hydra Omnivore: "it deals that much damage to each other opponent"
     // (Super State: "it" is the enchanted creature the trigger is about, the one that deals it — fromTrigger)
     { re: /^(?:It|CARDNAME|This creature) deals that much damage to each other opponent\.?$/i,
@@ -5070,6 +5080,9 @@
     // Farrel's Zealot, Laccolith Titan: "This creature assigns no combat damage this turn."
     { re: /^(?:CARDNAME|This creature|It) assigns no combat damage this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamage'] }) },
+    // Master of Cruelties: "This creature assigns no combat damage this combat." — till the combat ends (untilEndOfCombat)
+    { re: /^(?:CARDNAME|This creature|It) assigns no combat damage this combat\.?$/i,
+      make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamage'], untilEndOfCombat: true }) },
     // Shielded Passage: all damage, combat or not
     /* Azorius Ploy, Falling Timber, Resistance Fighter: "Prevent all combat
        damage target creature would deal this turn"; Shieldmage Elder: "all
@@ -6088,6 +6101,10 @@
     { re: /^You may look at that card for as long as it remains exiled\.?$/i, make: () => ({ op: 'lookLastExiled' }) },
     // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
     { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
+    /* Ignite the Future: "If this spell was cast from a graveyard, you may play cards this way without paying their mana
+       costs." — the cards just exiled, till the end of your next turn as before, now free */
+    { re: /^If (this spell was cast from (?:a|your) graveyard), you may play cards this way without paying their mana costs\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'ifCond', cond, then: [{ op: 'mayPlayExiled', castOnly: false, free: true, duration: 'next' }] } : null; } },
     // Expensive Taste: "You may look at and play those cards for as long as they remain exiled."
     { re: /^You may look at and play (?:those cards|them) for as long as they remain exiled\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled' }) },
     // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
@@ -7442,6 +7459,10 @@
       make: () => [{ op: 'chooseColor' }, { op: 'revealHand', who: 'triggerPlayer' },
         { op: 'damage', n: { cardsInHand: 'triggerPlayer', chosenColor: true }, toTriggerPlayer: true }] },
     { re: /^Add one mana of the chosen color\.?$/i, make: () => ({ op: 'addManaChosen', n: 1 }) },
+    // Jeweled Amulet: "Add one mana of this artifact's last noted type." (addManaChosen noted)
+    { re: /^Add one mana of (?:this artifact|CARDNAME)'s last noted type\.?$/i, make: () => ({ op: 'addManaChosen', n: 1, noted: true }) },
+    // Jeweled Amulet: "Note the type of mana spent to pay this activation cost." (noteManaSpent)
+    { re: /^Note the type of mana spent to pay this activation cost\.?$/i, make: () => ({ op: 'noteManaSpent' }) },
     // the Thriving lands: their own colour, or the one chosen as they entered
     { re: /^Add \{([WUBRG])\} or one mana of the chosen colou?r\.?$/i, make: (m) => ({ op: 'addManaChosen', n: 1, orSymbol: m[1].toUpperCase() }) },
     // (Throne of Eldraine: "Add four mana of the chosen color.")
@@ -7574,6 +7595,10 @@
         const cond = condOf(m[1]);
         return cond ? { op: 'noop', insteadRider: { op: 'mill', cond, n: num(m[2]) } } : null;
       } },
+    /* Nissa's Pilgrimage, spell mastery: "If there are two or more instant and/or sorcery cards in your graveyard, search
+       your library for up to three basic Forest cards instead of two." — the search above, its number (insteadRider) */
+    { re: /^If (.+?), search your library for up to (two|three|four|five|\d+) [a-zA-Z ]+? cards instead of (?:one|two|three|four|\d+)\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadRider: { op: 'tutor', cond, n: num(m[2]) } } : null; } },
     { re: /^If (.+?), (?:you )?(?:instead )?(?:draw|gain) .*instead\.?$/i, make: () => null },
     { re: /^Untap that (?:land|permanent|creature|artifact)\.?$/i, make: () => ({ op: 'untap', scope: 'lastAffected' }) },
     /* Scute Swarm: "If you control six or more lands, create a token that's
@@ -17440,6 +17465,9 @@
   }
 
   const TRIGGER_PATTERNS = [
+    /* Master of Cruelties: "Whenever this creature attacks a player and isn't blocked" — a player, not a planeswalker or
+       battle (attacksPlayer; before the general "attacks a player") */
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) attacks a player and isn'?t blocked,? /i, event: 'attacksUnblocked', self: true, extra: { attacksPlayer: true } },
     /* River Kelpie: "Whenever this creature or another permanent enters from a graveyard" — anyone's, from any graveyard
        (before the general "this creature or another … enters") */
     { re: /^Whenever (?:this creature|CARDNAME) or another permanent enters from a graveyard,? /i, event: 'permEnters',
@@ -18115,8 +18143,9 @@
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     // Edric, Spymaster of Trest; Gix: "Whenever a creature deals combat damage to one of your opponents," — anyone's creature
     // Etrata, Deadly Fugitive: "Whenever an Assassin you control deals combat damage to an opponent," (hitYourOpponent)
+    // (Parapet Thrasher: "Whenever one or more Dragons you control deal combat damage to an opponent" — once for each opponent hit)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to an opponent(?:,| )', 'i'),
-      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
+      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extraOf: (m) => (/^one or more /i.test(m[1]) ? { hitYourOpponent: true, batchPerPlayer: true } : { hitYourOpponent: true }) },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
     // The Master, Mesmerist: "Whenever a creature with skulk deals combat damage to one of your opponents," — anyone's
@@ -23177,7 +23206,7 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'blockTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours',
+    'cantAttackAlone', 'onlyAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'blockTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours',
     'unsacrificable', 'cantAttackOwner', 'entersUnderOpponent']);
 
   function parseStatic(line, ctx) {
@@ -24276,6 +24305,8 @@
       { re: /^(?:CARDNAME|This creature) can'?t (attack|block|attack or block) alone\.?$/i,
         make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }
           : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
+      // Master of Cruelties: "This creature can only attack alone." (onlyAttackAlone)
+      { re: /^(?:CARDNAME|This creature) can only attack alone\.?$/i, eff: { op: 'onlyAttackAlone' }, auto: true },
       // Pipsqueak, Rebel Strongarm: "can't attack alone unless he has a +1/+1 counter on him" (unlessCounter)
       { re: /^CARDNAME can'?t attack alone unless (?:it|he|she|they) ha(?:s|ve) an? \+1\/\+1 counter on (?:it|him|her|them)\.?$/i,
         eff: { op: 'cantAttackAlone', unlessCounter: '+1/+1' }, auto: true },

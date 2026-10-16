@@ -1954,7 +1954,8 @@
           for (const c of MANA.COLORS) best = Math.max(best, this.devotionOf(pid, c));
           if (best > 0) { any = true; amount += best; }
         } else if (e.op === 'addManaChosen') {
-          const col = o && o.chosenColor;
+          // (Jeweled Amulet: "this artifact's last noted type" — noted)
+          const col = o && (e.noted ? o.notedMana : o.chosenColor);
           if (col) produces.add(col);
           if (e.orSymbol) produces.add(e.orSymbol);
           if (col || e.orSymbol) amount += Number(e.n) || 1;
@@ -10937,6 +10938,8 @@
       const fromTreasure = this._spentAcc.treasure || 0;
       // (Dynaheir, Invoker Adept: "by spending four or more mana to activate it" — the mana spent: manaSpent)
       const manaSpentAct = ['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (Number(this._spentAcc[c]) || 0), 0);
+      // (Jeweled Amulet: "Note the type of mana spent to pay this activation cost." — the types: manaSpentBy)
+      const spentBy = ['W', 'U', 'B', 'R', 'G', 'C'].filter(c => Number(this._spentAcc[c]) > 0);
       this._spentAcc = accWas;
       if (!payOk) return false;
       const used = ab.cost && ab.cost.label;
@@ -11008,6 +11011,7 @@
         x: opts.x || 0,
       };
       if (fromTreasure) item.manaFromTreasure = fromTreasure;
+      if (spentBy.length) item.manaSpentBy = spentBy;
       if (costExiled && costExiled.length) item.costExiled = costExiled;
       // Toralf's Hammer: the Equipment that handed this ability out (unattachGranter, bounceGranter)
       if (ab.grantedBy) item.grantedBy = ab.grantedBy;
@@ -13704,6 +13708,16 @@
         if (alone && !(alone.unlessCounter && (lone.counters[alone.unlessCounter] || 0) > 0)) {
           this.logEvent('rules', `${lone.name} can't attack alone.`);
           declarations = [];
+        }
+      }
+      /* Master of Cruelties: "This creature can only attack alone." — with others declared, it stays home and they go
+         (onlyAttackAlone) */
+      if (declarations.length > 1) {
+        const lone = declarations.filter(d => { const x = this.obj(d.attackerId); return x && this._staticOp(x, 'onlyAttackAlone'); });
+        if (lone.length) {
+          for (const d of lone) this.logEvent('rules', `${this.obj(d.attackerId).name} can only attack alone.`);
+          declarations = declarations.filter(d => !lone.includes(d));
+          if (!declarations.length) declarations = lone.slice(0, 1);
         }
       }
       /* Silent Arbiter, Crawlspace: "No more than one creature can attack
@@ -18765,6 +18779,8 @@
       }
       if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
       if (from !== toZone && o.freeCastGroup) o.freeCastGroup = null;
+      // (Jeweled Amulet: what it noted is the old object's — notedMana)
+      if (from !== toZone && o.notedMana) o.notedMana = null;
       // (Aminatou's Augury: out of exile, out of its lot — freeTypeGroup)
       if (from !== toZone && o.freeTypeGroup) { o.freeTypeGroup = null; o.freeTypesCast = null; }
       // (foretold: a card that leaves exile is foretold no more)
@@ -20120,6 +20136,8 @@
           if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
+          // Master of Cruelties: "attacks a player and isn't blocked" — what it attacks is a player (attacksPlayer)
+          if (ab.attacksPlayer && !(data.attacker && this.player(data.attacker.attacking))) continue;
           // Misleading Signpost: "enters during the declare attackers step" (duringStep)
           if (ab.duringStep && this.step !== ab.duringStep) continue;
           // Phyrexian Dragon Engine: only when it came straight from the graveyard
@@ -24090,12 +24108,22 @@
           break;
         }
         case 'addManaChosen': {
-          let col = (src && src.chosenColor) || ctx.chosenColor;
+          // (Jeweled Amulet: "one mana of this artifact's last noted type" — noted)
+          let col = e.noted ? src && src.notedMana : (src && src.chosenColor) || ctx.chosenColor;
           // "Add {U} or one mana of the chosen color": whichever was asked for
           if (e.orSymbol && (!col || ctx.manaChoice === e.orSymbol)) col = e.orSymbol;
           if (!col) break;
           for (let i = 0; i < Math.max(1, n(e.n) || 1); i++) me.pool.add(col);
           this.logEvent('mana', `${me.name} adds ${MANA.times(col, n(e.n) || 1)}.`);
+          break;
+        }
+        /* Jeweled Amulet: "Note the type of mana spent to pay this activation cost." — on the artifact, till it leaves
+           (one mana, one type; colorless {C} a type too) */
+        case 'noteManaSpent': {
+          const t0 = (ctx.manaSpentBy || [])[0];
+          if (!src || src.zone !== 'battlefield' || !t0) break;
+          src.notedMana = t0;
+          this.logEvent('rules', `${src.name}: ${MANA.times(t0, 1)} noted.`);
           break;
         }
         /* A coin flip, with what happens either way (CR 705). */
@@ -26581,10 +26609,16 @@
               }
             }
           } else if (want_n > 0) {
+            /* Nissa's Pilgrimage: "search your library for up to three basic Forest cards instead of two" — the number
+               the words said, as it came out (insteadRider) */
+            const NWT = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+            const was = e.n && typeof e.n === 'object' && e.n.ifCond && typeof e.n.otherwise === 'number' ? NWT[e.n.otherwise] : null;
+            const now = was ? NWT[n(e.n)] : null;
+            const tPrompt = (e.prompt || `Search your library${want === 'any' ? '' : ' for ' + want}.`);
             const picked = this._ask({ type: 'pickCard', playerId: ctlAgent ? ctlAgent.controller : seeker.id, count: want_n,
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               optional: true, fromLibrary: true,
-              prompt: (e.prompt || `Search your library${want === 'any' ? '' : ' for ' + want}.`).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it') }, 'tutor');
+              prompt: (was && now ? tPrompt.replace(new RegExp('\\b' + was + '\\b'), now) : tPrompt).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it') }, 'tutor');
             if (picked === SUSPEND) return SUSPEND;
             const ok = new Set(legal.map(o => o.id));
             taken = (picked || []).filter(id => ok.has(id)).slice(0, want_n).map(id => this.obj(id)).filter(Boolean);
@@ -27239,7 +27273,9 @@
         }
         case 'setLife': {
           // Blessed Wind: "Target player's life total becomes 20."
+          // (Master of Cruelties: "that player's life total becomes 1" — triggerPlayer)
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
           /* a life total that "becomes" a number gains or loses the difference
              (CR 119.5); The Endstone: half the starting life total */

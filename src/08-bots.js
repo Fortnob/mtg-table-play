@@ -3103,6 +3103,15 @@
           if (!plan) {
             try { plan = this.chooseAttacks(ch); } catch (e) { console.warn('[bot] attack plan', e); plan = []; }
           }
+          /* Master of Cruelties: "can only attack alone" — alone, at a player with life worth taking to 1, or not at all
+             (onlyAttackAlone) */
+          if (plan.length > 1) {
+            const alone = plan.filter(d => { const x = g.obj(d.attackerId); return x && g._staticOp(x, 'onlyAttackAlone'); });
+            if (alone.length) {
+              const at = alone.find(d => { const q = g.player(d.defenderId); return q && q.life > 6; });
+              plan = at ? [at] : plan.filter(d => !alone.includes(d));
+            }
+          }
           if (plan.length) this._did('attack', null, `attacks with ${plan.length}`);
           plan = this._withEnlist(plan);
           if (g.declareAttackers(this.pid, plan)) return true;
