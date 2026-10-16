@@ -4135,7 +4135,9 @@
       const ctx = this._handCtx();
       const cands = [];
       const zones = g.zones[this.pid];
-      for (const o of zones.hand.concat(zones.command.filter(x => x.isCommander))) {
+      // (Ninja Teen: creature cards in the graveyard sneak in too — graveSneakCast)
+      const graveSneak = window === 'blockers' ? zones.graveyard.filter(x => (x.analysis() || {}).isCreature) : [];
+      for (const o of zones.hand.concat(zones.command.filter(x => x.isCommander), graveSneak)) {
         const a = o.analysis();
         if (!a) continue;
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {

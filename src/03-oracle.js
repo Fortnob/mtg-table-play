@@ -8432,6 +8432,10 @@
       make: (m) => ({ op: 'delayed', event: 'yourMain1', forPlayer: 'you', nextTurn: false,
         name: 'Add mana for the countered spell',
         effects: [{ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { counteredMv: true } }] }) },
+    // Plasm Capture: "At the beginning of your next first main phase, add X mana in any combination of colors, where X is that spell's mana value." (counteredMv)
+    { re: /^At the beginning of your next (?:first|precombat) main phase, add X mana in any combination of colors, where X is that spell'?s mana value\.?$/i,
+      make: () => ({ op: 'delayed', event: 'yourMain1', forPlayer: 'you', nextTurn: false,
+        name: 'Add mana for the countered spell', effects: [{ op: 'addManaAny', amount: { counteredMv: true } }] }) },
     /* Mana Sculpt: "If you control a Wizard, add an amount of {C} equal to the amount of mana spent to cast that spell at the
        beginning of your next main phase." — the Wizard as it resolves; the mana counted now (counteredSpent) */
     { re: /^If (you control an? [A-Z][a-z]+), add an amount of (\{[^}]+\}) equal to the amount of mana spent to cast that spell at the beginning of your next main phase\.?$/,
@@ -8559,6 +8563,12 @@
     /* "Whenever a creature you control enters, you may attach this
        Equipment to it." */
     { re: /^Attach (?:this Equipment|this Aura|CARDNAME) to (?:it|that creature)\.?$/i, make: () => ({ op: 'attachSelf', scope: 'triggerObject' }) },
+    /* Field-Tested Frying Pan: "create a Food token, then create a 1/1 white Halfling creature token and attach this
+       Equipment to it" — the token just made (madeToken) */
+    { re: /^([Cc]reate an? [^."]+? token(?:, then create an? [^."]+? creature token)?) and attach (?:this Equipment|CARDNAME) to it\.?$/,
+      make: (m) => { const parts = m[1].split(/, then /).map(s => parseEffectSentence(s.charAt(0).toUpperCase() + s.slice(1) + '.'));
+        if (!parts.every(t => t && !Array.isArray(t) && (t.op === 'createToken' || t.op === 'createNamedToken'))) return null;
+        return parts.concat([{ op: 'attachSelf', scope: 'madeToken' }]); } },
     /* Nim Deathmantle: "Whenever a nontoken creature is put into your graveyard from the battlefield, you may pay {4}. If
        you do, return that card to the battlefield and attach this Equipment to it." — the card that died */
     { re: /^Return that card to the battlefield and attach (?:this Equipment|CARDNAME) to it\.?$/i,
@@ -19447,6 +19457,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks alone,? /i, event: 'attacksAlone', self: true },
     // Bilbo's Ring: "Whenever equipped creature attacks alone" — the creature it is attached to
     { re: /^Whenever (?:equipped|enchanted) creature attacks alone,? /i, event: 'attacksAlone', filt: () => ({ words: 'creature', equipped: true }) },
+    // Ironsoul Enforcer: "Whenever this creature or a commander you control attacks alone" — itself, or a commander (selfOk)
+    { re: /^Whenever (?:this creature|CARDNAME) or a commander you control attacks alone,? /i, event: 'attacksAlone', filt: () => ({ commander: 'control', selfOk: true }) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     /* Yuriko, Blade of the Mighty: "Whenever a creature you control attacks a player alone" — no other creature
@@ -26712,6 +26724,10 @@
       // The Eternal Wanderer: "No more than one creature can attack The Eternal Wanderer each combat." (selfOnly)
       { re: /^No more than (one|two|three) creatures? can attack CARDNAME each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), selfOnly: true }), auto: true },
+      /* Ninja Teen: "Creature cards in your graveyard have sneak {3}{B}." and "You may cast creature spells from your
+         graveyard using their sneak abilities." (grantGraveSneak, graveSneakCast) */
+      { re: /^Creature cards in your graveyard have sneak ((?:\{[^}]+\})+)\.?$/i, make: (m) => ({ op: 'grantGraveSneak', filter: 'creature', cost: m[1] }), auto: true },
+      { re: /^You may cast creature spells from your graveyard using their sneak abilities\.?$/i, eff: { op: 'graveSneakCast', filter: 'creature' }, auto: true },
       // The Necrobloom: "Land cards in your graveyard have dredge 2." (grantDredge)
       { re: /^Land cards in your graveyard have dredge (\d+)\.?$/i, make: (m) => ({ op: 'grantDredge', filter: 'land', n: +m[1] }), auto: true },
       // Lavinia, Azorius Renegade: "Each opponent can't cast noncreature spells with mana value greater than the number of lands that player controls." (mvLandCap)
@@ -26954,6 +26970,10 @@
       { re: /^As an? ([a-z]+) permanent you control enters, it becomes an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
         make: (m) => ({ op: 'entersBecome', words: m[1].toLowerCase(), eff: { addTypes: ['Creature'], setPt: { p: +m[2], t: +m[3] }, addSubtypes: [m[4]] },
           label: `a ${m[2]}/${m[3]} ${m[4]} creature` }), auto: true },
+      /* Thunderous Velocipede: "Each other Vehicle and creature you control enters with an additional +1/+1 counter on it
+         if its mana value is 4 or less. Otherwise, it enters with three additional +1/+1 counters on it." (mvSplit) */
+      { re: /^Each other Vehicle and creature you control enters with an additional \+1\/\+1 counter on it if its mana value is (\d+) or less\. Otherwise, it enters with (two|three|four|\d+) additional \+1\/\+1 counters on it\.?$/,
+        make: (m) => ({ op: 'entersExtra', what: 'vehicle or creature', other: true, counter: '+1/+1', mvSplit: { max: +m[1], low: 1, high: num(m[2]) } }), auto: true },
       // Coin of Mastery: "Each creature you control enters with an additional +1/+1 counter on it for each mana from an artifact source spent to cast it." (perArtifactMana)
       { re: /^Each creature you control enters with an additional \+1\/\+1 counter on it for each mana from an artifact source spent to cast it\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', perArtifactMana: true }, auto: true },

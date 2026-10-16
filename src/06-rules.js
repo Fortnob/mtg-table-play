@@ -6509,6 +6509,18 @@
           }
         }
       }
+      /* Ninja Teen: "Creature cards in your graveyard have sneak {3}{B}. You may cast creature spells from your graveyard
+         using their sneak abilities." — the card's own sneak or the one given, in the declare blockers step with an
+         unblocked attacker of yours (grantGraveSneak, graveSneakCast) */
+      if (o.zone === 'graveyard' && o.owner === playerId && a.isCreature && this.step === 'declareBlockers' && this._unblockedAttackers(playerId).length) {
+        const live = (op) => this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => ({ x, e: this._staticOp(x, op) }))
+          .filter(r => r.e && (!r.e.filter || this._cardFitsWords(o, r.e.filter)) && (!r.e.cond || this._condMet(r.e.cond, { controller: playerId, obj: r.x })));
+        if (live('graveSneakCast').length) {
+          const costs = (a.abilities || []).filter(ab => ab.kind === 'castModifier' && /^sneak$/i.test(ab.keyword || '') && ab.arg).map(ab => ab.arg)
+            .concat(live('grantGraveSneak').map(r => r.e.cost));
+          for (const c of costs) if (!out.some(u => u.via === 'sneak' && u.cost === c)) out.push({ kind: 'cast', via: 'sneak', cost: c, label: 'Sneak ' + c });
+        }
+      }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, unearth: 'exile' };
       for (const ab of (a.abilities || [])) {
@@ -10735,6 +10747,8 @@
         else if (ex.perTreasureMana) k = o.enteredFrom === 'stack' ? (o.manaFromTreasure || 0) : 0;
         // Coin of Mastery: "for each mana from an artifact source spent to cast it" (perArtifactMana)
         else if (ex.perArtifactMana) k = o.enteredFrom === 'stack' ? (o.manaFromArtifact || 0) : 0;
+        // Thunderous Velocipede: one if its mana value is 4 or less, otherwise three (mvSplit)
+        else if (ex.mvSplit) k = this._faceMv(o) <= ex.mvSplit.max ? ex.mvSplit.low : ex.mvSplit.high;
         else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
@@ -33202,6 +33216,8 @@
                 const k = (this._lastCountered && this._lastCountered[x.per.counteredSpent ? 'spent' : 'mv']) || 0;
                 return { op: 'addMana', symbols: Array.from({ length: k }, () => x.symbol || 'C') };
               }
+              // (Plasm Capture: "add X mana in any combination of colors, where X is that spell's mana value" — counted now)
+              if (x.op === 'addManaAny' && x.amount && x.amount.counteredMv) return Object.assign({}, x, { amount: (this._lastCountered && this._lastCountered.mv) || 0 });
               /* "Its controller may draw…at the next upkeep": who that is
                  is settled now, not when the note is read. */
               if (x.who === 'targetController') {
