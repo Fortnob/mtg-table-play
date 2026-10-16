@@ -1583,6 +1583,15 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* O-Kagachi Made Manifest: a card of the attacker's graveyard to hand back, which pumps it by its mana value — for
+       an opponent the one worth least, mana value first; for ourselves the best */
+    returnFor(s) {
+      const g = this.game;
+      const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean)
+        .map(o => ({ o, v: ((o.card && o.card.cmc) || 0) * 2 + rateCard(o.card, { prior: 0 }) * 0.25 })).sort((a, b) => a.v - b.v);
+      if (!cards.length) return null;
+      return { picks: [(s.forPlayer === this.pid ? cards[cards.length - 1] : cards[0]).o.id] };
+    },
     /* A card being discarded with more than one way to go instead of the graveyard (Obstinate Baloth with Library of
        Leng): onto the battlefield first, then the top of the library as a Library of Leng question would be answered */
     discardInstead(s) {
@@ -5191,6 +5200,7 @@
         if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
         if (c.discardIds) opts.discardIds = c.discardIds;
         if (c.exileIds) opts.exileIds = c.exileIds;
+        if (c.counterFromId) opts.counterFromId = c.counterFromId;
         if (c.x != null) opts.x = c.x;
         if (g.activateAbility(this.pid, c.o.id, c.index, opts)) { this._did('activate', c.o, c.label); return true; }
       }
@@ -5303,6 +5313,17 @@
         x = k;
         v += Math.min(k, 4) * 0.5;
       }
+      /* Moxite Refinery: "Remove X counters from an artifact or creature you control" — all of them off the one of ours
+         that is not a creature with the most (a creature's own are worth keeping where they are) */
+      let counterFromId = null;
+      if (cost.removeCounterFrom && cost.removeCounterFrom.n === 'X' && x == null) {
+        const tot = (c) => Object.values(c.counters || {}).reduce((k, v) => k + Math.max(0, Number(v) || 0), 0);
+        const donor = g._counterCostPool(this.pid, cost.removeCounterFrom, o).filter(c => !(g.characteristics(c) || {}).isCreature)
+          .sort((p, q) => tot(q) - tot(p))[0];
+        if (!donor || tot(donor) < 2) return null;
+        x = tot(donor); counterFromId = donor.id;
+        v += Math.min(x, 6) * 0.5;
+      }
       // Gogo, Master of Mimicry: "X can't be 0" — the least X allowed, when it can be paid
       const xMin = flat.reduce((m, e) => (e.xMin ? Math.max(m, e.xMin) : m), 0);
       if (xMin && x == null) {
@@ -5368,7 +5389,7 @@
       const targets = this.chooseTargetsForEffects(effects.concat((ab.targets || []).map(spec => ({ op: flat[0].op, targets: [spec] }))), o);
       if (targets === null) return null;
       if (v <= 0) return null;
-      return { o, index, targets, v, label, sacrificeIds, discardIds, x, exileIds };
+      return Object.assign({ o, index, targets, v, label, sacrificeIds, discardIds, x, exileIds }, counterFromId ? { counterFromId } : {});
     }
 
     /** A permanent we could give up to a cost: the least valuable that fits. */
@@ -6684,6 +6705,8 @@
       if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
       if (c.discardIds) opts.discardIds = c.discardIds;
       if (c.exileIds) opts.exileIds = c.exileIds;
+      // (Moxite Refinery: the one the X counters come off)
+      if (c.counterFromId) opts.counterFromId = c.counterFromId;
       if (c.x != null) opts.x = c.x;
       return opts;
     }

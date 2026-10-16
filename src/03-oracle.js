@@ -508,6 +508,11 @@
         cost.removeCounterFrom = Object.assign({ filter: m[3].toLowerCase(), kind: m[1] ? '+1/+1' : null }, /^another$/i.test(m[2]) ? { other: true } : {});
         continue;
       }
+      // Moxite Refinery: "Remove X counters from an artifact or creature you control" — X of any kinds, all off that one (n 'X')
+      if ((m = p.match(/^Remove X counters from an? (artifact or creature|creature|artifact|permanent) you control$/i))) {
+        cost.removeCounterFrom = { filter: m[1].toLowerCase(), kind: null, n: 'X' };
+        continue;
+      }
       // Tekuthal: "Remove three counters from among other artifacts, creatures, and planeswalkers you control"
       if ((m = p.match(/^Remove (two|three|four|five|\d+) counters from among (other )?([a-z, ]+?) you control$/i))) {
         const kinds = m[3].replace(/,? and /g, ', ').split(/,\s*/).map(w => w.trim().replace(/s$/, '')).filter(Boolean);
@@ -11039,6 +11044,8 @@
     let m;
     // (Li'l Giri Saves the Day, a plane: "the number of times you've rolled the planar die this turn")
     if (/^(?:the number of )?times you'?ve rolled the planar die this turn$/i.test(p)) return { planarRolls: true, mult: k };
+    // Iridescent Hornbeetle: "for each +1/+1 counter you've put on creatures under your control this turn"
+    if (/^\+1\/\+1 counter you'?ve put on creatures under your control this turn$/i.test(p)) return { plusOnYoursThisTurn: true, mult: k };
     // Wasp, Shrinking Savior: "for each creature with power less than 0 on the battlefield" — everybody's
     if ((m = p.match(/^(.+?) on the battlefield$/i))) {
       const c = countOf(m[1], mult);
@@ -12771,6 +12778,10 @@
        other types." — not targeted; the player attacked picks (chooser 'defending') */
     { re: /^[Dd]efending player chooses an? ([a-z ]+?) card in your graveyard\. You return that card to the battlefield with an additional \+1\/\+1 counter on it\. The creature is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => [{ op: 'reanimateChosen', chooser: 'defending', byWords: true, n: 1, what: m[1], counter: '+1/+1', enterEff: { addSubtypes: [m[2]] } }] },
+    /* O-Kagachi Made Manifest: "defending player chooses a nonland card in your graveyard. Return that card to your hand.
+       This creature gets +X/+0 until end of turn, where X is the mana value of that card." (chooser 'defending', to hand) */
+    { re: /^[Dd]efending player chooses an? ([a-z ]+?) card in your graveyard\. Return that card to your hand\. (?:This creature|CARDNAME) gets \+X\/\+0 until end of turn, where X is the mana value of that card\.?$/,
+      make: (m) => [{ op: 'reanimateChosen', chooser: 'defending', byWords: true, n: 1, what: m[1], to: 'hand', pumpSelfMv: true }] },
     /* Mog, Moogle Warrior: "each player may discard a card. Each player who discarded a card this way draws a card." —
        chosen in turn order, discarded together; "discarded this way" after it is every card discarded (eachMayRummage) */
     { re: /^each player may discard a card\. Each player who discarded a card this way draws a card\.(?:\s+([\s\S]+))?$/i,
@@ -26332,6 +26343,10 @@
           { op: 'continuous', layer: 6, scope: { who: 'all', what: 'creature', stream: 'waterfall' }, grant: [m[3].charAt(0).toUpperCase() + m[3].slice(1).toLowerCase()] }] }), auto: true },
       // Prahv: "If you cast a spell this turn, you can't attack with creatures." / "If you attacked with creatures this turn, you can't cast spells."
       { re: /^If you cast a spell this turn, you can'?t attack with creatures\.?$/i, eff: { op: 'planarRule', rule: 'noAttackAfterCast' }, auto: true },
+      // Angelic Arbiter: "Each opponent who cast a spell this turn can't attack with creatures." (castersCantAttack)
+      { re: /^Each opponent who cast a spell this turn can'?t attack with creatures\.?$/i, eff: { op: 'castersCantAttack' }, auto: true },
+      // Angelic Arbiter: "Each opponent who attacked with a creature this turn can't cast spells." (attackersCantCast)
+      { re: /^Each opponent who attacked with a creature this turn can'?t cast spells\.?$/i, eff: { op: 'attackersCantCast' }, auto: true },
       { re: /^If you attacked with creatures this turn, you can'?t cast spells\.?$/i, eff: { op: 'planarRule', rule: 'noCastAfterAttack' }, auto: true },
       // Skybreen: "Spells that share a card type with the top card of a library can't be cast."
       { re: /^Spells that share a card type with the top card of a library can'?t be cast\.?$/i, eff: { op: 'planarRule', rule: 'topTypeLock' }, auto: true },
@@ -26696,6 +26711,18 @@
         make: (m) => {
           const kws = keywordList(m[1]);
           return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', commander: 'control' }, grant: kws, cond: { kind: 'yourTurn' } } : null;
+        }, auto: true },
+      /* Idol of False Gods: "As long as this artifact has eight or more +1/+1 counters on it, it's a 0/0 creature in
+         addition to its other types and it has annihilator 2." — a creature, that size and those keywords, while it has them */
+      { re: /^As long as (?:CARDNAME|this (?:artifact|enchantment|permanent)) has (one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more ([a-z+\-0-9/]+) counters on it, it'?s an? (\d+)\/(\d+) creature in addition to its other types(?: and (?:it )?has ([a-z0-9 ,]+?))?\.?$/i,
+        make: (m) => {
+          const kws = m[5] ? keywordList(m[5]) : [];
+          if (m[5] && !(kws.length && kws.every(kwKnown))) return null;
+          const scope = { self: true }, cond = { kind: 'selfCounters', counter: m[2].toLowerCase(), n: num(m[1].toLowerCase()) };
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 4, scope, cond, addTypes: ['Creature'] },
+            { op: 'continuous', layer: 7, scope, cond, setPt: { p: +m[3], t: +m[4] } }]
+            .concat(kws.length ? [{ op: 'continuous', layer: 6, scope, cond, grant: kws }] : []) };
         }, auto: true },
       /* Bello, Bard of the Brambles: "During your turn, each non-Equipment artifact and non-Aura enchantment you control
          with mana value 4 or greater is a 4/4 Elemental creature in addition to its other types and has indestructible,

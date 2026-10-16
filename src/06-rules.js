@@ -5745,6 +5745,13 @@
       // Eloren Wilds, Prahv, Skybreen (planes): what the planes say can't be cast (src/06f-planechase.js)
       const pcWhy = this.config.planechase ? this._planarCastBlock(playerId, o, a) : null;
       if (pcWhy) return { ok: false, reason: pcWhy };
+      /* Angelic Arbiter: "Each opponent who attacked with a creature this turn can't cast spells." — the turn's player,
+         once creatures of theirs have attacked (attackersCantCast) */
+      if (this.activePlayer && this.activePlayer.id === playerId && ((this.turnHistory || {}).attackers || 0) > 0) {
+        const arb = this.battlefield.find(b => !b.phasedOut && b.controller !== playerId && this._staticOp(b, 'attackersCantCast') &&
+          this.opponentsOf(b.controller).some(q => q.id === playerId));
+        if (arb) return { ok: false, reason: `${arb.name}: you attacked with a creature this turn, so you can't cast spells.` };
+      }
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
@@ -11776,7 +11783,8 @@
         // Captain America, First Avenger: which Equipment comes off him, when there is more than one
         if (c.unattachEquipment && self && this._equipmentOn(self).length > 1) out.push({ kind: 'unattach', label: `Unattach an Equipment from ${self.name}`, key: 'exileIds', need: 1,
           candidates: this._equipmentOn(self).map(x => x.id) });
-        if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
+        // (Moxite Refinery: "Remove X counters from an artifact or creature you control" — the one they all come off)
+        if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: c.removeCounterFrom.n === 'X' ? 'Remove X counters from one' : 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
           candidates: this._counterCostPool(pid, c.removeCounterFrom, self).map(x => x.id) });
         /* Jetfire, Ingenious Scientist: which of yours the counters come off, as many off each as you like
            (removeCounterSpread; need: the number, or 'X' — the amount chosen first) */
@@ -12256,7 +12264,15 @@
       // Shelob, Dread Weaver: "Put a creature card exiled with Shelob into its owner's graveyard" (processWith)
       if (cost.processWith && !(self && self.zone === 'battlefield' && this._exiledWithPool(self, cost.processWith.filter).length)) return `No ${cost.processWith.filter} card exiled with ${self ? self.name : 'it'}.`;
       if (cost.mill && this.zones[pid].library.length < cost.mill) return 'Not enough cards in your library to mill.';
-      if (cost.removeCounterFrom && this._counterCostPool(pid, cost.removeCounterFrom, self)
+      // (Moxite Refinery: "Remove X counters from an artifact or creature you control" — X of them on one)
+      if (cost.removeCounterFrom && cost.removeCounterFrom.n === 'X') {
+        const need = this._costCount('X', opts);
+        const tot = (x) => Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0);
+        const pool = this._counterCostPool(pid, cost.removeCounterFrom, self);
+        const named = opts.counterFromId ? pool.find(x => x.id === opts.counterFromId) : null;
+        if (need > 0 && !(named ? tot(named) >= need : pool.some(x => tot(x) >= need)))
+          return named ? `${named.name} has fewer than ${need} counters.` : `No ${cost.removeCounterFrom.filter} of yours has ${need} counters.`;
+      } else if (cost.removeCounterFrom && this._counterCostPool(pid, cost.removeCounterFrom, self)
         .reduce((k, x) => k + Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0), 0) < (cost.removeCounterFrom.n || 1)) return 'No counter to remove.';
       // Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" (removeCounterSpread)
       if (cost.removeCounterSpread) {
@@ -12550,8 +12566,23 @@
         const c = (opts.exileIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)[0] || this._cheapestFirst(pool)[0];
         if (c) { this.moveObject(c, 'graveyard'); this.logEvent('rules', `${this.player(pid).name} puts ${c.name} from exile into its owner's graveyard.`); }
       }
+      /* Moxite Refinery: "Remove X counters from an artifact or creature you control" — all X off the one chosen: the kind
+         named first, then the kinds it has most of */
+      if (cost.removeCounterFrom && cost.removeCounterFrom.n === 'X') {
+        const need = this._costCount('X', opts);
+        const tot = (x) => Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0);
+        const pool = this._counterCostPool(pid, cost.removeCounterFrom, self).filter(x => tot(x) >= need);
+        const x = need > 0 ? ((opts.counterFromId && pool.find(o => o.id === opts.counterFromId)) || pool[0]) : null;
+        for (let rc = 0; x && rc < need; rc++) {
+          const ks = Object.keys(x.counters).filter(q => Number(x.counters[q]) > 0).sort((p, q) => x.counters[q] - x.counters[p]);
+          const k = opts.counterKind && Number(x.counters[opts.counterKind]) > 0 ? opts.counterKind : ks[0];
+          if (!k) break;
+          x.counters[k] -= 1; if (x.counters[k] <= 0) delete x.counters[k];
+        }
+        if (x) { x._chr = null; this.bumpBoard(); this.logEvent('counters', `${need} counter${need === 1 ? ' is' : 's are'} removed from ${x.name}.`); }
+      }
       // Fain: a counter off a creature of yours
-      for (let rc = 0; cost.removeCounterFrom && rc < (cost.removeCounterFrom.n || 1); rc++) {
+      for (let rc = 0; cost.removeCounterFrom && cost.removeCounterFrom.n !== 'X' && rc < (cost.removeCounterFrom.n || 1); rc++) {
         const pool = this._counterCostPool(pid, cost.removeCounterFrom, self);
         const x = (opts.counterFromId && pool.find(o => o.id === opts.counterFromId)) || pool[0];
         if (x) {
@@ -14060,6 +14091,10 @@
       if (this._hasFlag(o, 'cantAttack')) return false;
       // Prahv (a plane): "If you cast a spell this turn, you can't attack with creatures."
       if (this.config.planechase && this._planarAttackBlock(o)) return false;
+      // Angelic Arbiter: "Each opponent who cast a spell this turn can't attack with creatures." (castersCantAttack)
+      if (((this.player(o.controller) || {}).spellsCastThisTurn || 0) > 0 &&
+        this.battlefield.some(b => !b.phasedOut && b.controller !== o.controller && this._staticOp(b, 'castersCantAttack') &&
+          this.opponentsOf(b.controller).some(q => q.id === o.controller))) return false;
       // Ensnaring Bridge: not with power greater than the number of cards in the Bridge's controller's hand
       if (this.battlefield.some(b => !b.phasedOut && this._staticOp(b, 'bridgeAttack') &&
         this.powerOf(o) > ((this.zones[b.controller] || {}).hand || []).length)) return false;
@@ -19295,6 +19330,9 @@
         if (putter && (this.characteristics(o) || {}).isCreature) (h.counterPutters = h.counterPutters || {})[putter] = true;
         // Kid Loki: who put +1/+1 counters on this permanent this turn, as this object (plusPutByYouTurn)
         if (putter && kind === '+1/+1') (h.plusPutBy = h.plusPutBy || {})[o.id + '|' + putter] = o.ts == null ? 0 : o.ts;
+        // Iridescent Hornbeetle: "each +1/+1 counter you've put on creatures under your control this turn" (plusOnOwnBy)
+        if (putter && kind === '+1/+1' && putter === o.controller && (this.characteristics(o) || {}).isCreature)
+          (h.plusOnOwnBy = h.plusOnOwnBy || {})[putter] = (h.plusOnOwnBy[putter] || 0) + n;
       }
       if (n > 0 && o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n, putter });
       this.emit('sfx', n > 0 ? 'counter_add' : 'counter_remove', { player: o.controller, size: Math.abs(n) });
@@ -23097,6 +23135,8 @@
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
         // Captain Howler, Sea Scourge: "+2/+0 … for each card discarded this way" — the cards in the lot, times two
         if (v && typeof v === 'object' && v.triggerAmount) return n('triggerAmount') * (v.mult || 1);
+        // Iridescent Hornbeetle: "for each +1/+1 counter you've put on creatures under your control this turn" (plusOnOwnBy)
+        if (v && typeof v === 'object' && v.plusOnYoursThisTurn) return ((((this.turnHistory || {}).plusOnOwnBy) || {})[ctx.controller] || 0) * (v.mult || 1);
         // Verrak, Warped Sengir: "pay that much life again" — the life paid to activate the ability (lifePaid)
         if (v && typeof v === 'object' && v.lifePaid) return Number((ctx.triggerData || {}).lifePaid) || 0;
         // Pitiless Carnage: "that many" — how many were just sacrificed
@@ -28045,14 +28085,27 @@
           if (e.chooser === 'defending') {
             const dp = this._defenderOf(src) || triggerPlayer() || this.opponentsOf(ctx.controller)[0];
             if (!dp) break;
-            const pick = this._choose({ playerId: dp.id, purpose: 'reanimateFor', kind: 'objects', zone: 'graveyard', forPlayer: ctx.controller,
+            // (O-Kagachi Made Manifest: "Return that card to your hand" — to: 'hand'; "+X/+0 … the mana value of that card": pumpSelfMv)
+            const toHand = e.to === 'hand';
+            const pick = this._choose({ playerId: dp.id, purpose: toHand ? 'returnFor' : 'reanimateFor', kind: 'objects', zone: 'graveyard', forPlayer: ctx.controller,
               items: this._chooseItems(pool), min: 1, max: 1,
-              prompt: `Choose a ${e.what} card in ${me.name}'s graveyard. ${me.name} returns it to the battlefield` +
-                (e.counter ? ` with an additional ${e.counter} counter on it` : '') + '.' }, 'rcDef');
+              prompt: `Choose a ${e.what} card in ${me.name}'s graveyard. ${me.name} returns it to ${toHand ? 'their hand' : 'the battlefield'}` +
+                (e.counter ? ` with an additional ${e.counter} counter on it` : '') +
+                (e.pumpSelfMv && src ? `, and ${src.name} gets +X/+0 until end of turn, X its mana value` : '') + '.' }, 'rcDef');
             if (pick === SUSPEND) return SUSPEND;
             const x = this.obj(pick && pick.picks && pick.picks[0]);
             const c = x && pool.includes(x) && x.zone === 'graveyard' ? x : pool[0];
             this.logEvent('rules', `${dp.name} chooses ${c.name}.`);
+            if (toHand) {
+              const mv = (c.card && c.card.cmc) || 0;
+              this.moveObject(c, 'hand');
+              this.logEvent('rules', `${me.name} returns ${c.name} to their hand.`);
+              if (e.pumpSelfMv && src && src.zone === 'battlefield' && mv) {
+                src.effects.push({ p: mv, t: 0, until: 'eot' }); this.bumpBoard();
+                this.logEvent('rules', `${src.name} gets +${mv}/+0 until end of turn.`);
+              }
+              break;
+            }
             if (e.counter) c._enterExtraCounter = { kind: e.counter, n: 1 };
             this.moveObject(c, 'battlefield', Object.assign({ controller: ctx.controller }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
             if (c.zone !== 'battlefield') c._enterExtraCounter = null;

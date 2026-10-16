@@ -3485,6 +3485,15 @@
         if (have <= min) return null;
         return { label: `remove how many ${rs.kind} counters?`, sub: `From among ${MTG.oracle.nounPlural(rs.filter)} you control: there are ${have}.`, max: have, min };
       }
+      /* Moxite Refinery: "Remove X counters from an artifact or creature you control" — how many, up to the most on one of
+         them (the costPicks row says which they are) */
+      const rf = c.removeCounterFrom;
+      if (rf && rf.n === 'X') {
+        const row = (((this.live || this.view).costPicks || {})[o.id] || []).find(r => r.kind === 'counterFrom' && (index == null || r.index === index));
+        const most = ((row && row.candidates) || []).reduce((k, id) => Math.max(k, Object.values(((this.objIn(id) || {}).counters) || {})
+          .reduce((a, v) => a + Math.max(0, Number(v) || 0), 0)), 0);
+        return { label: 'remove how many counters?', sub: `X counters come off one ${rf.filter} you control: the most on one is ${most}.`, max: most, start: most };
+      }
       // a planeswalker's "-X": as many loyalty counters as you like, up to all of them
       if (ab && ab.kind === 'loyalty' && c.loyaltyX < 0) {
         const have = Number((o.counters || {}).loyalty) || 0;

@@ -81291,4 +81291,115 @@ module.exports = (test) => {
     const it2 = T.g.stack[T.g.stack.length - 1];
     t.no(T.g._legalTargetsFor(spec, 'A', vc.id).some(x => x.id === it2.id), "Mother of Runes's ability: not a loyalty ability");
   });
+
+  test('Cards: Moxite Refinery — remove X counters from one artifact or creature: X charge counters or X +1/+1 counters', (mk, t) => {
+    t.auto('Moxite Refinery');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const mr = T.bf('A', 'Moxite Refinery');
+    const stone = T.bf('A', 'Mind Stone', { counters: { charge: 2, '+1/+1': 1 } });
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const vb = T.g.viewFor('A');
+    const row = ((vb.costPicks || {})[mr.id] || []).find(r => r.kind === 'counterFrom');
+    t.ok(row && row.candidates.includes(stone.id) && row.candidates.includes(bear.id), 'either one may give the counters');
+    T.mana('A', '2');
+    t.no(T.g.activateAbility('A', mr.id, 0, { auto: true, x: 2, modes: [1], targets: [{ kind: 'object', id: bear.id }], counterFromId: bear.id }),
+      'not two off the Bears, which has one');
+    T.answer('mode', { modes: [1] });
+    T.activate('A', mr, 0, { x: 3, modes: [1], targets: [bear], counterFromId: stone.id });
+    t.eq(Object.keys(stone.counters).length, 0, 'all three off the Mind Stone, of both kinds');
+    t.eq(bear.counters['+1/+1'], 4, 'three +1/+1 counters on the Bears');
+    T.nextTurn('A');
+    T.mana('A', '2');
+    T.answer('mode', { modes: [0] });
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(x => x.id === stone.id)] }));
+    T.activate('A', mr, 0, { x: 2, modes: [0], targets: [stone], counterFromId: bear.id, counterKind: '+1/+1' });
+    t.eq(stone.counters.charge, 2, 'mode one: two charge counters on the artifact');
+    t.eq(bear.counters['+1/+1'], 2, 'two off the Bears');
+  });
+
+  test('Cards: Idol of False Gods — a 0/0 creature with annihilator 2 while it has eight +1/+1 counters', (mk, t) => {
+    t.auto('Idol of False Gods');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const idol = T.bf('A', 'Idol of False Gods', { counters: { '+1/+1': 7 } });
+    t.no((T.g.characteristics(idol) || {}).isCreature, 'seven counters: not a creature');
+    T.g.addCounters(idol, '+1/+1', 1);
+    t.ok((T.g.characteristics(idol) || {}).isCreature, 'eight: a creature');
+    t.eq(T.g.powerOf(idol), 8, '0/0 with eight counters: 8/8');
+    t.ok(T.g.hasKw(idol, 'Annihilator 2') || T.g.hasKw(idol, 'Annihilator'), 'with annihilator 2');
+    t.ok(T.g._cardFitsWords(idol, 'artifact creature'), 'an artifact creature');
+    T.g.addCounters(idol, '+1/+1', -1);
+    t.no((T.g.characteristics(idol) || {}).isCreature, 'back to seven: not a creature');
+  });
+
+  test('Cards: Angelic Arbiter — opponents who cast a spell this turn can\'t attack; who attacked can\'t cast spells', (mk, t) => {
+    t.auto('Angelic Arbiter');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Angelic Arbiter');
+    const giant = T.bf('B', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+    T.nextTurn('B');
+    t.ok(T.g.canAttack(giant), 'nothing cast yet: B may attack');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    t.no(T.g.canAttack(giant), 'B cast a spell: B can\'t attack');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    T.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'endCombat');
+    T.mana('B', 'R');
+    t.no(T.g.canCast('B', T.hand('B', 'Lightning Bolt').id).ok, 'B attacked: B can\'t cast spells');
+    // its controller is not held to either
+    T.nextTurn('A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [elf] });
+    t.ok(T.g.canAttack(T.bf('A', 'Grizzly Bears')), 'A casts and still attacks');
+  });
+
+  test('Cards: Iridescent Hornbeetle — your end step: an Insect for each +1/+1 counter you put on your creatures this turn', (mk, t) => {
+    t.auto('Iridescent Hornbeetle');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Iridescent Hornbeetle');
+    const bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Hill Giant');
+    T.g._putBy = 'A';
+    try { T.g.addCounters(bear, '+1/+1', 2); T.g.addCounters(theirs, '+1/+1', 3); } finally { T.g._putBy = null; }
+    T.g.addCounters(bear, '+1/+1', 1, { by: 'B' });
+    const insects = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Insect').length;
+    T.nextTurn('B');
+    t.eq(insects(), 2, "two on your creature by you: two Insects (not B's creature, not B's counter)");
+    T.nextTurn('A');
+    T.nextTurn('B');
+    t.eq(insects(), 2, 'none put this turn: no more');
+  });
+
+  test('Cards: The Kami War // O-Kagachi Made Manifest — attacks: the defending player picks a nonland card of your graveyard for your hand; +X/+0', (mk, t) => {
+    t.auto('The Kami War // O-Kagachi Made Manifest');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const kw = T.bf('A', 'The Kami War // O-Kagachi Made Manifest');
+    kw.face = 1; kw._chr = null; kw.summoningSick = false; T.g.bumpBoard();
+    t.ok((T.g.characteristics(kw) || {}).isCreature, 'O-Kagachi, a creature');
+    const bolt = T.grave('A', 'Lightning Bolt'), giant = T.grave('A', 'Hill Giant'); T.grave('A', 'Island');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [giant.id] }; });
+    T.answer('declareAttackers', () => [{ attackerId: kw.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(asked && asked.playerId === 'B', 'the defending player chooses');
+    t.ok(asked && !asked.items.some(x => /Island/.test(x.name || '')), 'a nonland card');
+    t.zone(giant, 'hand', 'that card to your hand');
+    t.zone(bolt, 'graveyard', 'the other stays');
+    t.eq(T.g.powerOf(kw), 6 + 4, '+4/+0, the Giant\'s mana value');
+    // a bot defending gives back the least
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.toMain('A');
+    const k2 = T2.bf('A', 'The Kami War // O-Kagachi Made Manifest');
+    k2.face = 1; k2._chr = null; T2.g.bumpBoard();
+    const cheap = T2.grave('A', 'Lightning Bolt'); T2.grave('A', 'Serra Angel');
+    const ai = new T2.MTG.bots.BotPlayer(T2.g, 'B', 8);
+    const s = { purpose: 'returnFor', forPlayer: 'A', items: T2.zone('A', 'graveyard').map(c => ({ id: c.id, name: c.name })) };
+    const got = ai.chooseGeneric(Object.assign({ type: 'choose', playerId: 'B', kind: 'objects', min: 1, max: 1, prompt: '' }, s));
+    t.eq(got && got.picks && got.picks[0], cheap.id, 'the bot picks the cheap card for its opponent');
+  });
 };
