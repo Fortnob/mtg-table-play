@@ -3633,6 +3633,9 @@
        copy of it, then you draw a card if an opponent created a token this way" (tokenCopyForPlayer) */
     { re: /^Have target player other than its controller create a token that'?s a copy of it, then you draw a card if an opponent created a token this way\.?$/i,
       make: () => ({ op: 'tokenCopyForPlayer', drawIfOpponent: true, targets: [{ type: 'player', notTriggerObjController: true }] }) },
+    // Echocasting Symposium: "Target player creates a token that's a copy of target creature you control." (ofTarget)
+    { re: /^Target player creates a token that'?s a copy of target creature you control\.?$/i,
+      make: () => ({ op: 'tokenCopyForPlayer', ofTarget: true, targets: [{ type: 'player' }, targetSpec('target creature you control')] }) },
     // Wedding Ring: "target opponent creates a token that's a copy of it" — the permanent that entered, made as theirs
     { re: /^Target opponent creates a token that'?s a copy of it\.?$/i,
       make: () => ({ op: 'tokenCopyForPlayer', targets: [{ type: 'player', opponent: true }] }) },
@@ -10818,7 +10821,8 @@
       return { enteredYours: m[1].toLowerCase().replace(/s$/, ''), mult: k };
     }
     // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — by the lot the trigger is about (batchPlayers)
-    if ((m = p.match(/^(opponents?|players?) dealt damage$/i))) return { batchPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
+    // (Hordewing Skaab: "the number of opponents dealt damage this way")
+    if ((m = p.match(/^(opponents?|players?) dealt damage(?: this way)?$/i))) return { batchPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
     // Apothecary White: "for each player being attacked" (playersBeingAttacked)
     if (/^(?:players?|opponents?) being attacked$/i.test(p)) return { playersBeingAttacked: true, mult: k };
     // Geralf, the Fleshwright: "for each other Zombie that entered the battlefield under your control this turn" — not the one the trigger is about, itself one of them
@@ -15212,7 +15216,8 @@
     // (Kinzu of the Bleak Coven: "you may pay 2 life and exile it. If you do, …")
     { re: /^pay (\d+) life and exile it$/i, make: (m) => ({ life: +m[1], exileTriggerCard: true }) },
     // Bullseye, Death Dealer: "you may sacrifice an artifact or discard a nonland card. When you do, …" — either one (oneOf)
-    { re: /^(sacrifice an? [-a-z ]+?) or (discard an? [a-z ]*?card)$/i,
+    // (Highway Robbery: "you may discard a card or sacrifice a land. If you do, …" — the other order)
+    { re: /^(sacrifice an? [-a-z ]+?|discard an? [a-z ]*?card) or (discard an? [a-z ]*?card|sacrifice an? [-a-z ]+?)$/i,
       make: (m) => {
         const both = [m[1], m[2]].map(w => { const c = asCost(w); return c && Object.assign(c, { label: w.charAt(0).toUpperCase() + w.slice(1) }); });
         return both.every(Boolean) ? { oneOf: both } : null;
@@ -17101,6 +17106,21 @@
         if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
       }
     }
+    /* Hordewing Skaab: "you may draw cards equal to the number of opponents dealt damage this way. If you do, discard
+       that many cards." — the same number */
+    if (res && res.effects) {
+      const fix = (list) => (list || []).forEach((e, k) => {
+        if (!e) return;
+        const pv = list[k - 1];
+        if (e.op === 'manual' && /^Discard that many cards\.?$/i.test(String(e.text || '').trim()) && pv && pv.op === 'draw' && pv.who === 'you' && pv.n && typeof pv.n === 'object') {
+          list[k] = { op: 'discard', n: JSON.parse(JSON.stringify(pv.n)), who: 'you', text: e.text }; fixed = true;
+        }
+        fix(e.then);
+      });
+      let fixed = false;
+      fix(res.effects);
+      if (fixed && !hasManualStep({ op: 'sequence', list: res.effects })) res.auto = true;
+    }
     /* Depthshaker Titan: "any number of target noncreature artifacts you control become 3/3 artifact creatures. Sacrifice
        them at the beginning of the next end step." — "them" the ones aimed at, nothing having been made (subject aimed) */
     if (res && res.effects) {
@@ -18846,6 +18866,10 @@
     // (Parapet Thrasher: "Whenever one or more Dragons you control deal combat damage to an opponent" — once for each opponent hit)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to an opponent(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extraOf: (m) => (/^one or more /i.test(m[1]) ? { hitYourOpponent: true, batchPerPlayer: true } : { hitYourOpponent: true }) },
+    /* Hordewing Skaab: "Whenever one or more Zombies you control deal combat damage to one or more of your opponents," —
+       once for the lot, the opponents hit kept (batchPlayers in the trigger) */
+    { re: /^Whenever (one or more [A-Za-z ]+? you control) deal combat damage to one or more of your opponents,? /i,
+      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
     // Lolth, Spider Queen's emblem: "Whenever an opponent is dealt combat damage by one or more creatures you control," — once for each opponent hit
     { re: /^Whenever an opponent is dealt combat damage by one or more creatures you control,? /i,
       event: 'permCombatDamage', filt: () => ({ batch: true, who: 'you', words: 'creatures' }), extra: { hitYourOpponent: true, batchPerPlayer: true } },
@@ -23696,7 +23720,7 @@
     /* Fiery Emancipation, Twinflame Tyrant, Torbran, Gratuitous Violence */
     // (Tor Wauki the Younger: "If another source you control would deal noncombat damage …" — otherSource)
     // (Trance Kuja, Fate Defied: "If a Wizard you control would deal damage to a permanent or player" — a creature type)
-    { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)|[A-Z][a-z]+) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
+    { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)|[A-Z][a-z]+) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls|an opponent), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
       make: (mm) => {
         const other = !!mm[1];
         const m0 = [mm[0], mm[2], mm[3], mm[4], mm[5]];
@@ -23708,6 +23732,8 @@
         const plus = m[3].match(/plus (\w+)/i);
         return Object.assign({ op: 'replace', id: 'dmg' + m[3].slice(0, 6), event: 'damage', who: 'you',
           toOpponent: /opponent/i.test(m[2]), sourceWords: words || null }, noncombat ? { noncombat: true } : {},
+          // (Torture Pit: "to an opponent" — the player, not their permanents: toPlayerOnly)
+          /^an opponent$/i.test(m[2]) ? { toPlayerOnly: true } : {},
           plus ? { how: 'add', n: num(plus[1]) } : { how: m[3].toLowerCase() });
         })(m0);
         return other ? Object.assign(r, { otherSource: true }) : r;
@@ -26169,6 +26195,12 @@
       // Master Biomancer: "… equal to this creature's power and as a Mutant in addition to its other types." (bySourcePower, addSubtypes)
       { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s power(?: and as an? ([A-Z][a-z]+) in addition to its other types)?\.?$/,
         make: (m) => Object.assign({ op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourcePower: true }, m[1] ? { addSubtypes: [m[1]] } : {}), auto: true },
+      /* Master Chef: "Commander creatures you own have "This creature enters with an additional +1/+1 counter on it" and
+         "Other creatures you control enter with an additional +1/+1 counter on them."" — the first read as Master Chef's own
+         (a commander of yours entering: commanderOwned), the second handed to them */
+      { re: /^Commander creatures you own have "This creature enters with an additional \+1\/\+1 counter on it" and "(Other creatures you control enter with an additional \+1\/\+1 counter on them\.?)"\.?$/i,
+        make: (m) => [{ op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', commanderOwned: true },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', commander: true }, grantText: m[1] }], auto: true },
       // Kalain, Reclusive Painter: "Other creatures you control enter with an additional +1/+1 counter on them for each mana from a Treasure spent to cast them." (perTreasureMana)
       { re: /^Other creatures you control enter with an additional \+1\/\+1 counter on them for each mana from a Treasure spent to cast them\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', perTreasureMana: true }, auto: true },

@@ -10564,6 +10564,8 @@
         if (!ex || (ex.other && s0 === o)) continue;
         if (!this._cardFitsWords(o, ex.what || 'creature')) continue;
         if (ex.nontoken && o.isToken) continue;
+        // Master Chef: "Commander creatures you own have 'This creature enters with an additional +1/+1 counter on it'" (commanderOwned)
+        if (ex.commanderOwned && !(o.isCommander && o.owner === s0.controller)) continue;
         if (ex.chosenType && !(s0.chosenType && this._hasCreatureType(o, s0.chosenType))) continue;
         if (ex.chosenName && !this._chosenNameOf(s0, o)) continue;
         // Blue, Loyal Raptor: "For each kind of counter on Blue, … enters with a counter of that kind on it" — one of each kind (sourceCounterKinds)
@@ -33485,6 +33487,14 @@
         case 'tokenCopyForPlayer': {
           const who = firstPlayer();
           const td = ctx.triggerData || {};
+          // Echocasting Symposium: "a copy of target creature you control" — the creature aimed at (ofTarget)
+          if (e.ofTarget) {
+            const x = firstObj();
+            if (!who || who.hasLost || !x || x.zone !== 'battlefield') break;
+            const r0 = this._runEffect({ op: 'copyPermanent', n: 1, grant: [], _forcedId: x.id }, Object.assign({}, ctx, { controller: who.id }));
+            if (r0 === SUSPEND) return SUSPEND;
+            break;
+          }
           if (!who || who.hasLost || !td.objectId || !this.obj(td.objectId)) break;
           const before = (this._madeThisResolution || []).length;
           const r = this._runEffect({ op: 'copyPermanent', n: 1, scope: 'triggerObject', grant: [] }, Object.assign({}, ctx, { controller: who.id }));

@@ -77899,4 +77899,128 @@ module.exports = (test) => {
     t.eq(g.battlefield.filter(o => o.name === 'Faerie Rogue').length, 1, 'one: the one combat damage');
     t.eq((g.extraTurnsQueue || []).length, 1, 'an extra turn');
   });
+
+  test('Cards: Highway Robbery — discard a card or sacrifice a land, or neither; if you do, draw two', (mk, t) => {
+    t.auto('Highway Robbery');
+    const T = mk({ library: Array(20).fill('Island') });
+    const mtn = T.bf('A', 'Mountain'), bolt = T.hand('A', 'Lightning Bolt');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [1] }; });
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Highway Robbery'));
+    t.ok(q && q.purpose === 'mayPayOneOf' && q.options.length === 3, 'discard, sacrifice, or neither');
+    t.zone(mtn, 'graveyard', 'the land sacrificed'); t.zone(bolt, 'hand');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'two cards drawn');
+    const U = mk({ library: Array(20).fill('Island') });
+    U.bf('A', 'Mountain'); U.hand('A', 'Lightning Bolt');
+    U.answer('choose', (ch) => ({ picks: [ch.options.length - 1] }));
+    const u0 = U.zone('A', 'hand').length;
+    U.mana('A', 'R1');
+    U.cast('A', U.hand('A', 'Highway Robbery'));
+    t.eq(U.zone('A', 'hand').length, u0, 'neither: nothing drawn');
+  });
+
+  test('Cards: Hordewing Skaab — Zombies hitting two opponents: once, draw two then discard two', (mk, t) => {
+    t.auto('Hordewing Skaab');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    T.bf('A', 'Hordewing Skaab');
+    const z1 = T.bf('A', 'Walking Corpse'), z2 = T.bf('A', 'Walking Corpse');
+    t.ok(g.hasKw(z1, 'flying'), 'other Zombies fly');
+    T.hand('A', 'Mountain'); T.hand('A', 'Forest');
+    let asked = 0, disc = null;
+    T.answer('confirm', () => { asked++; return { yes: true }; });
+    T.answer('discard', (ch) => { disc = ch; return { cardIds: [] }; });
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: z1.id, defenderId: 'B' }, { attackerId: z2.id, defenderId: 'C' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.eq(asked, 1, 'one trigger for the lot');
+    t.eq(disc && disc.count, 2, 'discard two');
+    t.eq(T.zone('A', 'hand').length, h0, 'two drawn, two discarded');
+    t.eq(T.zone('A', 'graveyard').length, 2);
+  });
+  test('Cards: Hordewing Skaab — a non-Zombie hitting: no trigger', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Hordewing Skaab');
+    const bear = T.bf('A', 'Grizzly Bears');
+    let asked = 0;
+    T.answer('confirm', () => { asked++; return { yes: true }; });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(asked, 0);
+  });
+
+  test('Cards: Spiked Corridor // Torture Pit — noncombat damage to an opponent +2; three Devils on unlocking Spiked Corridor', (mk, t) => {
+    t.auto('Spiked Corridor // Torture Pit');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const r = T.hand('A', 'Spiked Corridor // Torture Pit');
+    T.mana('A', '3R');
+    T.cast('A', r, { face: 1 });
+    T.resolve();
+    t.eq(r.name, 'Torture Pit');
+    t.no(g.battlefield.some(o => o.name === 'Devil'), 'Spiked Corridor locked: no Devils');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 15, '3 + 2');
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [wurm.id] });
+    t.eq(wurm.damage || 0, 3, 'not to their creature');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 17, 'not to you');
+    const a = r.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.mana('A', '3R');
+    T.activate('A', r, acts.findIndex(x => x.special === 'unlock'));
+    T.resolve();
+    const devils = g.battlefield.filter(o => o.name === 'Devil');
+    t.eq(devils.length, 3, 'three Devils');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    g.moveObject(devils[0], 'graveyard');
+    T.resolve();
+    t.eq(T.life('B'), 12, 'the Devil deals 1, plus 2');
+  });
+
+  test('Cards: Master Chef — your commander enters with a +1/+1 counter, and other creatures with one while it is out', (mk, t) => {
+    t.auto('Master Chef');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.bf('A', 'Master Chef');
+    const early = T.hand('A', 'Runeclaw Bear');
+    T.mana('A', 'G1');
+    T.cast('A', early);
+    t.eq((early.counters || {})['+1/+1'] || 0, 0, 'no commander out: no counter');
+    const cmd = T.put('A', 'Grizzly Bears', 'command');
+    cmd.isCommander = true;
+    T.mana('A', 'G1');
+    T.cast('A', cmd);
+    t.zone(cmd, 'battlefield');
+    t.eq((cmd.counters || {})['+1/+1'] || 0, 1, 'the commander: one counter');
+    const late = T.hand('A', 'Runeclaw Bear');
+    T.mana('A', 'G1');
+    T.cast('A', late);
+    t.eq((late.counters || {})['+1/+1'] || 0, 1, 'another creature: one counter');
+    const theirs = T.bf('B', 'Grizzly Bears', { etb: true });
+    t.eq((theirs.counters || {})['+1/+1'] || 0, 0, "not the opponent's");
+  });
+
+  test('Cards: Echocasting Symposium — target player creates a token copy of target creature you control', (mk, t) => {
+    t.auto('Echocasting Symposium');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const wurm = T.bf('A', 'Craw Wurm');
+    T.mana('A', 'UU4');
+    const sp = T.hand('A', 'Echocasting Symposium');
+    T.cast('A', sp, { targets: ['B', wurm.id] });
+    const copy = g.battlefield.find(o => o.name === 'Craw Wurm' && o.isToken);
+    t.ok(copy, 'a token copy');
+    t.eq(copy && copy.controller, 'B', "B's");
+    t.zone(sp, 'exile', 'paradigm: exiled');
+    t.no(g.castSpell('A', T.hand('A', 'Echocasting Symposium').id, { auto: true, targets: [{ kind: 'player', id: 'A' }, { kind: 'object', id: copy.id }] }), "not a creature you don't control");
+  });
 };
