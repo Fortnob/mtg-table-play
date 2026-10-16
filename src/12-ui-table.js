@@ -3567,7 +3567,8 @@
       const opts = (((o.manaChoices || []).find(m => m.i === i)) || {}).options || [];
       const go = (key) => this.send(Object.assign({ kind: 'mana', objId: o.id, index: i }, key ? { choice: key } : {}));
       if (opts.length < 2) return go(null);
-      if (this.paying) return go(this._manaChoiceForPay(o, opts));
+      // (Victory Chimes: while paying, the mana is yours — the options that hand it to another player are left out)
+      if (this.paying) { const mine = opts.filter(x => !x.to); return go(mine.length < 2 ? ((mine[0] || {}).key || null) : this._manaChoiceForPay(o, mine)); }
       this._askManaChoice(o, opts, go);
     }
 
@@ -3631,11 +3632,13 @@
       const name = (o.card && o.card.name) || 'Mana';
       const key = 'manapick:' + o.id + ':' + opts.map(x => x.key).join(',');
       const done = (k) => { this.asking = null; this.render(); MTG.sfx('click'); go(k); };
-      this.asking = { base: key, key, escape: true, build: () => this.panel(`${escapeHtml(name)}: add which mana?`,
-        opts.length === 5 ? 'Any colour.' : 'Choose what it adds.',
-        el('div', { class: 'mana-picks', role: 'group', 'aria-label': 'Mana to add' }, opts.map((x, k) => el('button', {
-          type: 'button', class: 'mana-pick' + (x.key.length > 1 || x.mana.length > 3 ? ' wide' : ''),
-          html: MTG.mana.html(x.mana), title: 'Add ' + x.mana, 'aria-label': 'Add ' + x.mana, 'data-mana': x.key,
+      // (Victory Chimes: "A player of your choice adds {C}." — who adds it, each option labelled)
+      const who = opts.some(x => x.to);
+      this.asking = { base: key, key, escape: true, build: () => this.panel(`${escapeHtml(name)}: ${who ? 'who adds the mana?' : 'add which mana?'}`,
+        who ? 'Choose the player who adds it.' : opts.length === 5 ? 'Any colour.' : 'Choose what it adds.',
+        el('div', { class: 'mana-picks', role: 'group', 'aria-label': who ? 'Player who adds the mana' : 'Mana to add' }, opts.map((x, k) => el('button', {
+          type: 'button', class: 'mana-pick' + (x.label || x.key.length > 1 || x.mana.length > 3 ? ' wide' : ''),
+          html: MTG.mana.html(x.mana) + (x.label ? ' ' + escapeHtml(x.label) : ''), title: x.label ? (x.to ? x.label + ' adds ' : 'You add ') + x.mana : 'Add ' + x.mana, 'aria-label': x.label ? (x.to ? x.label + ' adds ' : 'You add ') + x.mana : 'Add ' + x.mana, 'data-mana': x.key,
           autofocus: k === 0 ? true : null, onclick: () => done(x.key),
         }))),
         [{ label: 'Cancel', fn: () => { this.asking = null; this.render(); } }], { card: o.card, cls: 'mana-ask' }) };

@@ -74213,4 +74213,92 @@ module.exports = (test) => {
     t.ok(T.zone('B', 'hand').includes(bear) && T.zone('B', 'hand').includes(giant), 'B\'s back to B\'s hand');
     t.ok(T.zone('A', 'hand').includes(elves), 'A\'s to A\'s hand');
   });
+  test('Cards: Phyresis Outbreak — each opponent gets a poison counter, then their creatures shrink by their controller\'s poison', (mk, t) => {
+    t.auto('Phyresis Outbreak');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.player('B').poison = 1;
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('C', 'Grizzly Bears'), mine = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Phyresis Outbreak'));
+    t.eq(T.player('B').poison, 2, 'B: a poison counter'); t.eq(T.player('C').poison, 1, 'C: a poison counter');
+    t.eq(T.player('A').poison || 0, 0, 'not A');
+    t.eq(T.g.powerOf(giant), 1, 'B\'s Hill Giant: -2/-2');
+    t.eq(T.g.toughnessOf(bear), 1, 'C\'s Bears: -1/-1');
+    t.eq(T.g.powerOf(mine), 2, 'A\'s own: untouched');
+  });
+  test('Cards: Victory Chimes — tapped by hand, the player chosen adds {C}; untaps in each other player\'s untap step', (mk, t) => {
+    t.auto('Victory Chimes');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const vc = T.bf('A', 'Victory Chimes');
+    const opts = (T.g.viewFor('A').battlefield.find(o => o.id === vc.id).manaChoices || [])[0];
+    t.eq(opts && opts.options.map(x => x.key).join(','), 'C,C>B,C>C', 'you or another player');
+    t.no(T.g.viewFor('B').battlefield.find(o => o.id === vc.id).manaChoices, 'said to its controller only');
+    t.ok(T.g.tapForMana('A', vc.id, 0, 'C>B'), T.g.lastError);
+    t.eq(T.player('B').pool.C || 0, 1, 'B adds {C}');
+    t.eq(T.player('A').pool.C || 0, 0, 'not A');
+    T.nextTurn('B');
+    t.no(vc.tapped, 'untapped in B\'s untap step');
+    t.ok(T.g.tapForMana('A', vc.id, 0), T.g.lastError);
+    t.eq(T.player('A').pool.C || 0, 1, 'no choice sent: you add it');
+    // a bogus player in the choice: you
+    vc.tapped = false; T.player('A').pool.C = 0;
+    t.ok(T.g.tapForMana('A', vc.id, 0, 'C>Z'), T.g.lastError);
+    t.eq(T.player('A').pool.C || 0, 1, 'an unknown player: you');
+  });
+  test('Cards: Another Round — exile any number of creatures you control and return them, X more times', (mk, t) => {
+    t.auto('Another Round');
+    const T = mk({ library: Array(10).fill('Island') });
+    const ev = T.bf('A', 'Elvish Visionary'), bear = T.bf('A', 'Grizzly Bears');
+    bear.tapped = true;
+    const asked = [];
+    for (let k = 0; k < 2; k++) T.answer('choose', (ch) => { asked.push(ch); return { picks: [ev.id] }; });
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '4W');
+    T.cast('A', T.hand('A', 'Another Round'), { x: 1 });
+    t.eq(asked.length, 2, 'once, then once more');
+    t.ok(asked.every(ch => ch.purpose === 'blinkAny'), 'chosen afresh each time');
+    t.eq(T.zone('A', 'hand').length, h0 + 2, 'Elvish Visionary entered twice: two cards');
+    t.zone(ev, 'battlefield'); t.ok(bear.tapped, 'the Bears not chosen: still tapped');
+    // the bot: what is worth flickering
+    const T2 = mk({ library: Array(10).fill('Island') });
+    const ev2 = T2.bf('A', 'Elvish Visionary'), b2 = T2.bf('A', 'Grizzly Bears'), b3 = T2.bf('A', 'Grizzly Bears');
+    b3.tapped = true;
+    const bot = new T2.MTG.bots.BotPlayer(T2.g, 'A', 8);
+    let got = null;
+    T2.answer('choose', (ch) => (got = bot.chooseGeneric(ch)));
+    T2.mana('A', '2W');
+    T2.cast('A', T2.hand('A', 'Another Round'), { x: 0 });
+    t.eq(((got && got.picks) || []).slice().sort().join(','), [ev2.id, b3.id].sort().join(','), 'bot: the enters ability and the tapped one, not the plain untapped Bears');
+    t.no(b3.tapped, 'back untapped');
+    t.ok(b2.zone === 'battlefield');
+  });
+  test('Cards: Deadly Tempest — destroy all creatures; each player loses life for each of theirs destroyed', (mk, t) => {
+    t.auto('Deadly Tempest');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant'); T.bf('B', 'Darksteel Myr');
+    T.mana('A', '4BB');
+    T.cast('A', T.hand('A', 'Deadly Tempest'));
+    t.eq(T.life('A'), 19, 'A: one');
+    t.eq(T.life('B'), 18, 'B: two (the indestructible Myr not destroyed)');
+    t.eq(T.life('C'), 20, 'C: none');
+  });
+  test('Cards: Reckoner Bankbuster — draws for its charge counters; the last one also makes a Treasure and a Pilot', (mk, t) => {
+    t.auto('Reckoner Bankbuster');
+    const T = mk({ library: Array(10).fill('Island') });
+    const rb = T.put('A', 'Reckoner Bankbuster', 'battlefield', { etb: true });
+    t.eq(rb.counters.charge, 3, 'three charge counters');
+    const h0 = T.zone('A', 'hand').length;
+    for (let k = 0; k < 3; k++) {
+      rb.tapped = false;
+      T.mana('A', '2');
+      T.activate('A', rb, 0);
+      const toks = T.bfOf('A').filter(o => o.isToken);
+      if (k < 2) t.eq(toks.length, 0, 'counters left: no tokens');
+    }
+    t.eq(T.zone('A', 'hand').length, h0 + 3, 'three cards');
+    t.ok(T.bfOf('A').some(o => o.isToken && o.name === 'Treasure'), 'a Treasure');
+    const pilot = T.bfOf('A').find(o => o.isToken && /Pilot/.test(o.name));
+    t.ok(pilot && T.g.powerOf(pilot) === 1, 'a 1/1 Pilot');
+    t.eq(pilot && (T.g._staticOp(pilot, 'crewBonus') || {}).n, 2, 'that crews as though its power were 2 greater');
+  });
 };

@@ -2016,6 +2016,16 @@
         }
       };
       walk(ab.effects);
+      /* Victory Chimes: "A player of your choice adds {C}." — you, or another player still in the game: the mana, then
+         '>' and that player's id (to, label) */
+      const chosenTo = effects.find(e => e.op === 'addMana' && e.who === 'chosen');
+      if (chosenTo) {
+        const keyOf = (chosenTo.symbols || []).map(letter).join('') || 'C';
+        const mana = (chosenTo.symbols || []).map(s => '{' + s + '}').join('');
+        out.push({ key: keyOf, mana, label: 'You' });
+        for (const p of this._turnOrderFrom(pid)) if (p.id !== pid && !p.hasLost) out.push({ key: keyOf + '>' + p.id, mana, to: p.id, label: p.name });
+        return out.length > 1 ? out : [];
+      }
       // "Add two mana in any combination of {U}, {B}, and/or {R}" (Relic of Sauron): one effect a mana — each
       // combination a bundle, the k-th effect taking the k-th letter
       const singles = effects.filter(e => e.op === 'addManaChoice' && e.n == null && (e.choices || []).every(ch => ch.length === 1));
@@ -2082,7 +2092,8 @@
         colour one of them has; anything else is ignored (the engine chooses as it would have). */
     _legalManaChoice(pid, o, ab, want) {
       if (want == null || want === '') return undefined;
-      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}$/.test(want)) return undefined;
+      // (Victory Chimes: 'C>B' — the mana, then the player who adds it)
+      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}(?:>[^>\s]{1,80})?$/.test(want)) return undefined;
       const opts = this.manaChoicesFor(pid, o, ab);
       if (!opts.length) return want;
       if (opts.some(x => x.key === want)) return want;
@@ -2099,7 +2110,7 @@
       const CHOOSY = /^(addManaAny|addManaAmong|addManaChoice|addManaX|addManaDevotion|addManaChosen|chooseColor|ifCond|sequence)$/;
       const out = [];
       list.forEach((ab, i) => {
-        if (!(ab.effects || []).some(e => e && CHOOSY.test(e.op))) return;
+        if (!(ab.effects || []).some(e => e && (CHOOSY.test(e.op) || (e.op === 'addMana' && e.who === 'chosen')))) return;
         const options = this.manaChoicesAt(playerId, o, i);
         if (options.length > 1) out.push({ i, options });
       });
@@ -22954,7 +22965,10 @@
             this.logEvent('mana', `Each player adds ${e.symbols.map(x => '{' + x + '}').join('')}.`);
             break;
           }
-          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : e.who === 'active' ? (this.activePlayer || me) : me;
+          // (Victory Chimes: "A player of your choice adds {C}." — the player sent with the tap, after the mana: 'C>B'; else you — who 'chosen')
+          const chosenTo = e.who === 'chosen' && typeof ctx.manaChoice === 'string' && ctx.manaChoice.includes('>') ? this.player(ctx.manaChoice.split('>')[1]) : null;
+          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : e.who === 'active' ? (this.activePlayer || me)
+            : chosenTo && !chosenTo.hasLost ? chosenTo : me;
           const times = e.times ? Math.max(0, n(e.times) || 0) : 1;
           if (!times) break;
           for (let k = 0; k < times; k++) for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
@@ -24406,8 +24420,10 @@
           break;
         case 'pump': {
           // "until your next turn": gone as that player's next turn begins
-          const apply = (o) => o.effects.push(e.duration === 'nextTurn' ? { p: n(e.p), t: n(e.t), until: null, untilTurnOf: ctx.controller }
-            : { p: n(e.p), t: n(e.t), until: e.duration === 'eot' ? 'eot' : null });
+          // (Phyresis Outbreak: "for each poison counter its controller has" — each creature its own number: perCtlPoison)
+          const per = (o) => (e.perCtlPoison ? (Number((this.player(o.controller) || {}).poison) || 0) : 1);
+          const apply = (o) => { const k = per(o); if (!k) return; o.effects.push(e.duration === 'nextTurn' ? { p: n(e.p) * k, t: n(e.t) * k, until: null, untilTurnOf: ctx.controller }
+            : { p: n(e.p) * k, t: n(e.t) * k, until: e.duration === 'eot' ? 'eot' : null }); };
           if (e.scope === 'allCreatures') {
             for (const o of this.battlefield) { const oa = o.analysis(); if (oa && oa.isCreature) apply(o); }
           } else applyToScope(e, apply);
@@ -26244,6 +26260,16 @@
           this.logEvent('rules', `${me.name} chooses ${x.name}: the next damage it would deal${e.anyTarget ? '' : ' ' + me.name} this turn is prevented.`);
           break;
         }
+        // Deadly Tempest: each player loses life for their own creatures the sweep just destroyed (eachLoseSwept)
+        case 'eachLoseSwept': {
+          const gone = (this._lastAffectedAll || []).filter(g => (this.obj(g.id) || {}).zone !== 'battlefield');
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            if (p.hasLost) continue;
+            const k = gone.filter(g => g.controller === p.id).length;
+            if (k > 0) this.changeLife(p, -k);
+          }
+          break;
+        }
         // Starfall Invocation: one of the cards that sweep put into your graveyard
         case 'returnSwept': {
           const pool = (this._lastSwept || []).map(id => this.obj(id))
@@ -26919,6 +26945,28 @@
             this.logEvent('blink', to ? `${x.name} flickers out and returns under ${to.name}'s control.` : `${x.name} flickers out and returns${e.tapped ? ' tapped' : ''}.`);
           }
           this.emit('sfx', 'blink');
+          break;
+        }
+        /* Another Round: "Exile any number of creatures you control, then return them to the battlefield under their owner's
+           control. Then repeat this process X more times." — each time its own pick, out together and back together (blinkAnyRepeat) */
+        case 'blinkAnyRepeat': {
+          const times = 1 + Math.max(0, Number(n(e.more)) || 0);
+          for (let k = 0; k < times; k++) {
+            const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'creature'));
+            if (!pool.length) break;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'blinkAny', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+              min: 0, max: pool.length, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}exile any number of creatures you control, then return them to the battlefield${times > 1 ? ` (${k + 1} of ${times})` : ''}.` }, 'bar' + k);
+            if (got === SUSPEND) return SUSPEND;
+            if (this._doneHere('bar' + k)) continue;
+            const list = pool.filter(x => ((got && got.picks) || []).includes(x.id) && x.zone === 'battlefield');
+            for (const x of list) this.moveObject(x, 'exile');
+            for (const x of list) {
+              const back = this.obj(x.id) || x;
+              if (back.zone === 'exile') this.moveObject(back, 'battlefield', { controller: back.owner || back.controller });
+            }
+            if (list.length) { this.logEvent('blink', `${list.map(x => x.name).join(', ')} ${list.length > 1 ? 'flicker' : 'flickers'} out and return.`); this.emit('sfx', 'blink'); }
+          }
           break;
         }
         /* Fortune, Loyal Steed: "exile it and up to one creature that saddled it this turn, then return those cards to

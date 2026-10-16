@@ -134,7 +134,7 @@ const ObjectView = obj({
   /* Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
   manaExtra: opt(maybe(arr(obj({ i: nat, label: str })))),
   /* Kibo's Banana, Birds of Paradise: what tapping it by hand lets its controller choose, by the mana intent's index */
-  manaChoices: opt(maybe(arr(obj({ i: nat, options: arr(obj({ key: str, mana: str }, { closed: true })) }, { closed: true })))),
+  manaChoices: opt(maybe(arr(obj({ i: nat, options: arr(obj({ key: str, mana: str, to: opt(id), label: opt(str) }, { closed: true })) }, { closed: true })))),
   /* Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, by the index activateAbility takes */
   gained: opt(maybe(obj({ manaBase: nat, list: arr(obj({ i: nat, mana: opt(bool), ability: S.plainObj })) }))),
   /* a card in a hand or on top of a library: who besides its owner knows it — 'all' when it was revealed (or the

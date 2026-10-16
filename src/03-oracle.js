@@ -1637,6 +1637,10 @@
       make: (m) => ({ op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2]), MANA.parse(m[3])] }) },
     { re: /^Add one mana of any color\.?$/i,
       make: () => ({ op: 'addManaAny', amount: 1 }) },
+    /* Victory Chimes: "A player of your choice adds {C}." — still a mana ability (no target); the player chosen goes with
+       the tap, like a colour (who 'chosen') */
+    { re: /^A player of your choice adds ((?:\{[WUBRGC]\})+)\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'chosen' }) },
     /* The Warring Triad: "Target player adds one mana of any color." — not a
        mana ability, as it targets (CR 605.1a); its controller picks the colour */
     { re: /^Target player adds (?:(one) mana of any|(two|three) mana of any one) color\.?$/i,
@@ -2637,6 +2641,14 @@
     // Zo-Zu the Punisher: "deals 2 damage to that land's controller"
     { re: /^(?:CARDNAME|This creature|[A-Z][A-Za-z-]+) deals (one|two|three|\d+) damage to that (?:land|creature|permanent|artifact)'?s controller\.?$/,
       make: (m) => ({ op: 'damage', n: num(m[1]), toTriggerObjController: true }) },
+    /* Phyresis Outbreak: "Then each creature your opponents control gets -1/-1 until end of turn for each poison counter its
+       controller has." — each by its own controller's count (perCtlPoison) */
+    { re: /^(?:Then )?each creature your opponents control gets -(\d+)\/-\1 until end of turn for each poison counter its controller has\.?$/i,
+      make: (m) => ({ op: 'pump', p: -m[1], t: -m[1], duration: 'eot', scope: { who: 'opponents', what: 'creature' }, perCtlPoison: true }) },
+    /* Deadly Tempest: "Each player loses life equal to the number of creatures they controlled that were destroyed this way."
+       — each their own (eachLoseSwept) */
+    { re: /^Each player loses life equal to the number of creatures they controlled that were destroyed this way\.?$/i,
+      make: () => ({ op: 'eachLoseSwept' }) },
     // Kaya's Wrath: "You gain life equal to the number of creatures you controlled that were destroyed this way."
     { re: /^You gain life equal to the number of creatures you controlled that were (?:destroyed|exiled) this way\.?$/i,
       make: () => ({ op: 'gainLife', who: 'you', n: 'lastSweptYours' }) },
@@ -5680,7 +5692,8 @@
     { re: /^That player may gain (\d+) life\.?$/i, make: (m) => ({ op: 'may', who: 'triggerPlayer', then: [{ op: 'gainLife', n: +m[1], who: 'triggerPlayer' }] }) },
     /* Spectrox Mines, New New York: "create a Food token and a 2/2 black Human Rogue creature token" — two tokens of two
        kinds, each read as a sentence of its own */
-    { re: /^Create (an? [A-Z][a-z]+ token) and (an? .+? tokens?(?: with [a-z ,]+)?)\.?$/,
+    // (Reckoner Bankbuster: "and a 1/1 colorless Pilot creature token with "This token crews Vehicles …"")
+    { re: /^Create (an? [A-Z][a-z]+ token) and (an? .+? tokens?(?: with (?:[a-z ,]+|"[^"]+"))?)\.?$/,
       make: (m) => {
         const a = parseEffectSentence('Create ' + m[1] + '.'), b = parseEffectSentence('Create ' + m[2] + '.');
         if (!a || !b || a.op === 'manual' || b.op === 'manual' || hasManualStep(a) || hasManualStep(b)) return null;
@@ -13804,6 +13817,10 @@
         return tok && tok.op === 'createToken' ? [{ op: 'destroy', targets: [targetSpec(m[1])] },
           { op: 'ifDestroyed', died: true, then: [Object.assign(tok, { ptOfLast: true })] }] : null;
       } },
+    /* Another Round: "Exile any number of creatures you control, then return them to the battlefield under their owner's
+       control. Then repeat this process X more times." — chosen afresh each time (blinkAnyRepeat) */
+    { re: /^Exile any number of creatures you control, then return them to the battlefield under their owner'?s control\. Then repeat this process X more times\.?$/i,
+      make: () => [{ op: 'blinkAnyRepeat', filter: 'creature', more: 'X' }] },
     /* Retether: "Return each Aura card from your graveyard to the battlefield. Only creatures can be enchanted this way." —
        an Aura with no creature to enchant stays where it is (auraHost) */
     { re: /^Return each Aura card from your graveyard to the battlefield\. Only creatures can be enchanted this way\.?$/i,
@@ -16857,7 +16874,8 @@
     // Unstoppable Slasher: "When this creature dies, if it had no counters on it, …"
     [/^it had no counters on it$/i, () => ({ kind: 'diedNoCounters' })],
     // the depletion lands: "if there are no depletion counters on this land"
-    [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
+    // (Reckoner Bankbuster: "if there are no charge counters on this Vehicle")
+    [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|this Vehicle|CARDNAME)$/i,
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Risona, Asari Commander: "if it doesn't have an indestructible counter on it"
     [/^(?:it|this creature|CARDNAME) doesn'?t have an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],

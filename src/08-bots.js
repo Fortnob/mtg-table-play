@@ -2351,6 +2351,16 @@
       const theirs = g.battlefield.filter(o => o.controller === s.forPlayer && (g.characteristics(o) || {}).isCreature).length;
       return { picks: [!mine || theirs >= 3 ? 0 : 1] };
     },
+    /* Another Round: every creature of ours with an enters ability, and anything else ours a blink does good to
+       (tapped, shrunk, enchanted by an opponent) */
+    blinkAny(s) {
+      const g = this.game;
+      const picks = (s.items || []).map(it => g.obj(it.id)).filter(o => o && o.controller === this.pid && !o.isToken && (
+        ((o.analysis() || {}).abilities || []).some(ab => ab.kind === 'triggered' && /^etb$|Etb$/.test(ab.event || '') && ab.self !== false) ||
+        o.tapped || (o.attachments || []).some(id => { const x = g.obj(id); return x && x.controller !== this.pid; }) ||
+        Object.keys(o.counters || {}).some(k => /^-/.test(k) && o.counters[k] > 0))).map(o => o.id);
+      return { picks };
+    },
     /* Prisoner's Dilemma: alone against it, silence (4 rather than 8); with other opponents, snitching is never worse */
     silenceOrSnitch(s) {
       const g = this.game;
