@@ -72774,4 +72774,58 @@ module.exports = (test) => {
     t.zone(f2, 'graveyard', 'no: the graveyard');
     t.eq(T2.asked.filter(ch => ch.purpose === 'moxDiamond').length, 0, 'one land: no pick');
   });
+
+  /* "If that creature would die this turn, exile it instead" is a replacement for however it would die, not only of the
+     damage (it was read by the lethal-damage check alone) */
+  test('Cards: Magma Spray — the creature it damaged is exiled however it would die this turn: destroyed by Murder too', (mk, t) => {
+    t.auto('Magma Spray');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Syr Konrad, the Grim');
+    const giant = T.bf('B', 'Hill Giant'), bears = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Magma Spray'), { targets: [giant] });
+    t.zone(giant, 'battlefield', '2 damage: a 3/3 lives');
+    const lb = T.life('B');
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [giant] });
+    t.zone(giant, 'exile', 'destroyed this turn: exiled instead');
+    t.eq(T.life('B'), lb, 'Syr Konrad: it never died');
+    // another creature destroyed goes to the graveyard
+    T.mana('A', '1BB');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bears] });
+    t.zone(bears, 'graveyard', 'not the one it damaged');
+    // the damage alone still exiles
+    const T2 = mk({ library: Array(30).fill('Island') });
+    const b2 = T2.bf('B', 'Grizzly Bears');
+    T2.mana('A', 'R');
+    T2.cast('A', T2.hand('A', 'Magma Spray'), { targets: [b2] });
+    t.zone(b2, 'exile', 'lethal damage: exiled');
+  });
+
+  /* CR 903.9a: a commander put into a graveyard from anywhere — discarded, milled — may go to the command zone (it stayed
+     in the graveyard: only one leaving the battlefield went home) */
+  test('Cards: Mind Rot — a commander discarded, or milled by Thought Scour, goes to the command zone; with the setting off it stays', (mk, t) => {
+    t.auto('Mind Rot');
+    const T = mk({ library: Array(30).fill('Island') });
+    const c = T.hand('A', 'Grizzly Bears'); c.isCommander = true;
+    T.nextTurn('B');
+    T.mana('B', '2B');
+    T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.zone(c, 'command', 'discarded: home');
+    const T2 = mk({ library: Array(30).fill('Island') });
+    const c2 = T2.top('A', 'Grizzly Bears'); c2.isCommander = true;
+    T2.mana('A', 'U');
+    T2.cast('A', T2.hand('A', 'Thought Scour'), { targets: ['A'] });
+    t.zone(c2, 'command', 'milled: home');
+    const S = T2.MTG.settings, was = S.commanderToZone;
+    S.commanderToZone = false;
+    try {
+      const T3 = mk({ library: Array(30).fill('Island') });
+      const c3 = T3.hand('A', 'Grizzly Bears'); c3.isCommander = true;
+      T3.nextTurn('B');
+      T3.mana('B', '2B');
+      T3.cast('B', T3.hand('B', 'Mind Rot'), { targets: ['A'] });
+      t.zone(c3, 'graveyard', 'setting off: it stays');
+    } finally { S.commanderToZone = was; }
+  });
 };

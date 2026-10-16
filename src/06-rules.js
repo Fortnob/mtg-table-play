@@ -18820,10 +18820,16 @@
           /* A finality counter (CR 122.1h): a permanent with one on it that
              would go to the graveyard from the battlefield is exiled. */
           if (from === 'battlefield' && toZone === 'graveyard' && (Number((o.counters || {}).finality) || 0) > 0) toZone = 'exile';
+          /* Magma Spray, Disintegrate: "If that creature would die this turn, exile it instead." — however it would die
+             (destroyed, sacrificed, no toughness left), not only of lethal damage (_exileOnDeath) */
+          if (from === 'battlefield' && toZone === 'graveyard' && this._exileOnDeath && this._exileOnDeath.has(o.id) &&
+              (this.characteristics(o) || {}).isCreature) toZone = 'exile';
         }
         // Whip of Erebos: "if it would leave the battlefield, exile it instead"
         if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && (o.leaveExile || this._staticOp(o, 'leaveExileSelf'))) toZone = 'exile';
       }
+      // (gone from the battlefield, it is a new object: "that creature" is not it any more — _exileOnDeath)
+      if (from === 'battlefield' && toZone !== 'battlefield' && this._exileOnDeath) this._exileOnDeath.delete(o.id);
       // a card taken from a library or put into one: what its owner knew of its top is out of date (_keepsSeenOnTop)
       if (from === 'library' || toZone === 'library') this._libraryTouched(o.owner);
       // (Desdemona, Freedom's Edge: escape it was given is gone once it leaves the graveyard — escapeGrant)
@@ -18961,6 +18967,9 @@
       }
       // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
       if (toZone === 'battlefield') o.enteredFrom = from;
+      /* A commander put into a graveyard from anywhere else — discarded, milled (from the battlefield it went home
+         instead, above): its owner may put it into the command zone, a state-based action (CR 903.9a: _commandersHome) */
+      o._cmdToGrave = toZone === 'graveyard' && from !== 'graveyard' && !!o.isCommander;
 
       // reset per-zone state
       /* Who controlled it as it left matters to anything watching ("a
@@ -40553,6 +40562,22 @@
     }
 
     /* ---------- state-based actions (CR 704) ---------- */
+    /** CR 903.9a: "If a commander is in a graveyard … and that object was put into that zone since the last time
+        state-based actions were checked, its owner may put it into the command zone." — yes, as the setting says
+        (commanderToZone, the same answer as for a commander leaving the battlefield). True when one went. */
+    _commandersHome() {
+      let moved = false;
+      for (const p of this.players) {
+        for (const c of ((this.zones[p.id] || {}).graveyard || []).slice()) {
+          if (!c._cmdToGrave) continue;
+          c._cmdToGrave = false;
+          if (!c.isCommander || MTG.settings.commanderToZone === false) continue;
+          this.moveObject(c, 'command');
+          if (c.zone === 'command') { this.logEvent('rules', `${c.name} goes from ${p.name}'s graveyard to the command zone.`); moved = true; }
+        }
+      }
+      return moved;
+    }
     checkStateBasedActions() {
       this._unattachWatch();
       // a destruction noted but never carried out (a replacement kept it) is forgotten (_destroyPending)
@@ -40586,6 +40611,7 @@
         }
 
         this._sagaCleanup();
+        if (this._commandersHome()) repeat = true;
         // Planechase: a face-up phenomenon with nothing left to do sends the planar controller on (CR 704.6f)
         if (this.config.planechase && this._planarSba()) repeat = true;
 
