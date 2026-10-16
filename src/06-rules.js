@@ -1383,7 +1383,7 @@
 
     _untapStep() {
       const ap = this.activePlayer;
-      let n = 0;
+      let n = 0, mine = 0;
       // Rasputin Dreamweaver: "if Rasputin started the turn untapped" — as the turn began, before anything untaps (selfStartedUntapped)
       for (const o of this.battlefield) if (!o.tapped && !o.phasedOut) o.untappedAtStart = this.turn;
       // Gideon, Battle-Forged: "attacks Gideon during its controller's next turn" — this turn is that one (mustAttackPw)
@@ -1449,10 +1449,12 @@
         } else if (o.tapped && this.config.planechase && o.controller === ap.id && this._planarUntapInstead(o)) {
           // Edge of Malacol (a plane): counters instead of the untap
         } else if (o.tapped) {
-          if (this._markUntapped(o)) n++;
+          if (this._markUntapped(o)) { n++; if (o.controller === ap.id) mine++; }
         }
         if (o.controller === ap.id) o.summoningSick = false;
       }
+      // The Millennium Calendar: "Whenever you untap one or more permanents during your untap step, put that many …" (youUntapStep)
+      if (mine) this._fire('youUntapStep', ap.id, { amount: mine, playerId: ap.id });
       // everything you control loses summoning sickness at your untap
       for (const o of this.battlefield) if (o.controller === ap.id) o.summoningSick = false;
       if (n) this.emit('sfx', 'untap_all');
@@ -22710,6 +22712,8 @@
         if (v && typeof v === 'object' && v.lifePaid) return Number((ctx.triggerData || {}).lifePaid) || 0;
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
+        // Nahiri's Lithoforming: "For each land sacrificed this way" — what this resolution had you sacrifice (sacByYouThisWay)
+        if (v && typeof v === 'object' && v.sacByYouThisWay) return ((this.resolving || {})._sacBy || []).filter(s => s.pid === ctx.controller).length * (v.mult || 1);
         // Kylox, Visionary Inventor: "where X is their total power" — of those just sacrificed, as they last were (lastSacPower)
         if (v && typeof v === 'object' && v.lastSacPower) return (this._lastSacPower || 0) * (v.mult || 1);
         // "… minus four": never less than zero
@@ -29231,7 +29235,7 @@
             }
             /* any other change (a size, a colour, a type): the face up is what is copied (CR 707.8), read as a
                card of its own, that face's words and types, not the two joined (copyFaceUp) */
-            const other = e.setPt || e.setColor || e.setColors || e.setType || e.setCardTypes || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
+            const other = e.setPt || e.setColor || e.setColors || e.setType || e.setKind || e.setCardTypes || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
             if (other) {
               const f = card.card_faces[faceUp] || card.card_faces[0];
               card = Object.assign({}, card, f, { id: card.id + ':face' + faceUp, card_faces: null, layout: 'normal' });
@@ -29244,9 +29248,11 @@
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null, wasLegendary: true });
           }
           // The Scarab God: "except it's a 4/4 black Zombie" — that size, that colour, and that creature type instead of its own
-          if (e.setPt || e.setColor || e.setColors || e.setType) {
+          if (e.setPt || e.setColor || e.setColors || e.setType || e.setKind) {
             let line = String(card.type_line || '');
             if (e.setType) line = line.replace(/\s*\u2014.*$/, '') + ' \u2014 ' + e.setType;
+            // (Benthic Anomaly: "it's a colorless Eldrazi creature" — that instead of its other types, its supertypes kept: setKind)
+            if (e.setKind) line = (line.match(/\b(?:Legendary|Basic|Snow|World)\b/g) || []).concat([e.setKind]).join(' ');
             const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
             // (Grist, the Plague Swarm: "a 1/1 black and green Insect" — setColors)
             let cols = e.setColors ? e.setColors.map(w => COL[w]).filter(Boolean) : e.setColor ? (COL[e.setColor] ? [COL[e.setColor]] : []) : (card.colors || []);
@@ -31429,6 +31435,39 @@
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
           // Gilraen, Dúnedain Protector: "with a vigilance counter and a lifelink counter on it"
           if (x && x.zone === 'battlefield') for (const k of (e.counters || [])) this.addCounters(x, k, 1);
+          break;
+        }
+        /* Benthic Anomaly: "for each opponent, choose a creature that player controls. Create a token that's a copy of one
+           of those creatures, except its power is equal to the total power of those creatures, its toughness is equal to
+           the total toughness of those creatures, and it's a colorless Eldrazi creature." — chosen, not targeted; the
+           sizes as they are once all are chosen; an Eldrazi creature instead of its other types (setKind), its
+           supertypes kept (rulings) */
+        case 'copyOfChosenTotals': {
+          const chosen = [];
+          for (const opp of this._turnOrderFrom(ctx.controller).filter(q => q.id !== ctx.controller)) {
+            const pool = this.battlefield.filter(x => x.controller === opp.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+            if (!pool.length) continue;
+            let pick = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'eachOppCreature', kind: 'objects', zone: 'battlefield', forPlayer: opp.id,
+                items: this._chooseItems(pool), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a creature ${opp.name} controls.` }, 'eoc:' + opp.id);
+              if (got === SUSPEND) return SUSPEND;
+              pick = pool.find(x => x.id === ((got && got.picks) || [])[0]) || pool[0];
+            }
+            chosen.push(pick);
+          }
+          const here = chosen.filter(x => x.zone === 'battlefield');
+          if (!here.length) break;
+          let model = here[0];
+          if (here.length > 1 && !this._alike(here)) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'copyWhich', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(here), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose one of those creatures to copy.` }, 'eocWhich');
+            if (got === SUSPEND) return SUSPEND;
+            model = here.find(x => x.id === ((got && got.picks) || [])[0]) || here[0];
+          }
+          const pw = here.reduce((s, x) => s + this.powerOf(x), 0), tg = here.reduce((s, x) => s + this.toughnessOf(x), 0);
+          this.logEvent('rules', `${me.name} chooses ${here.map(x => x.name).join(', ')}: a copy of ${model.name}, ${pw}/${tg}.`);
+          this._runEffect({ op: 'copyPermanent', n: 1, _forcedId: model.id, setPt: pw + '/' + tg, setColors: [], setKind: e.kind || null, text: e.text }, ctx);
           break;
         }
         // Gilraen, Dúnedain Protector: "You may return that card to the battlefield under its owner's control" — the card just exiled
@@ -40254,7 +40293,8 @@
           this.logEvent('rules', `${others.length} ${what}${others.length === 1 ? '' : 's'} become${others.length === 1 ? 's' : ''} a copy of ${model.name}${e.duration === 'permanent' ? '' : e.duration === 'nextEnd' ? ' until the next end step' : ' until end of turn'}.`);
           break;
         }
-        case 'extraLand': me.maxLands += (e.n || 1); break;
+        // (Nahiri's Lithoforming: "X additional lands" — n 'X')
+        case 'extraLand': me.maxLands += e.n == null ? 1 : Math.max(0, n(e.n) || 0); break;
         case 'extraTurn': {
           // "target player takes an extra turn after this one"
           const who = e.who === 'target' ? firstPlayer() : me;
@@ -40478,6 +40518,8 @@
       if (sc.enchantedByYours && !(o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === pid && this._auraNow(at); })) return false;
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
       if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
+      // (Blast-Furnace Hellkite: "creatures attacking your opponents" — the players, not their planeswalkers: oppPlayersOnly)
+      if (sc.oppPlayersOnly && !(o.attacking && this.player(o.attacking))) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;
       // Brigid, Hero of Kinsbaile: "each attacking or blocking creature" (inCombat)
       if (sc.inCombat && !(o.attacking || (o.blocking || []).length)) return false;

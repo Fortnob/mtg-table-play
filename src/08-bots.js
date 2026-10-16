@@ -1595,6 +1595,20 @@
     },
     /* Word of Command: X for the spell its owner is made to cast — as much as their lands pay for, their mana wasted
        (commandX); and which of their lands pay — those the engine would tap, listed first (commandLands) */
+    /* Benthic Anomaly: a creature of each opponent's whose size is added up — the biggest (eachOppCreature) */
+    eachOppCreature(s) {
+      const g = this.game;
+      const size = (it) => { const o = g.obj(it.id); return o ? g.powerOf(o) + g.toughnessOf(o) : 0; };
+      const best = (s.items || []).slice().sort((x, y) => size(y) - size(x))[0];
+      return best ? { picks: [best.id] } : null;
+    },
+    /* Benthic Anomaly, Orvar, Mimic Vat: which one a token copies — the one worth most as ours (copyWhich) */
+    copyWhich(s) {
+      const g = this.game;
+      const worth = (it) => { const o = g.obj(it.id); return o && o.zone === 'battlefield' ? this.permanentValue(o) : rateCard((o && o.card) || it.card || {}, { prior: 0 }); };
+      const best = (s.items || []).slice().sort((x, y) => worth(y) - worth(x))[0];
+      return best ? { picks: [best.id] } : null;
+    },
     commandX(s) { return { picks: [], number: s.number.max }; },
     commandLands(s) { return { picks: (s.items || []).slice(0, s.min).map(it => it.id) }; },
     /* Susan Foreman: of the top two cards of our planar deck, the one to planeswalk to — the plane worth most to us

@@ -3805,7 +3805,11 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'each', filter: 'creature' }) },
     /* "Sacrifice a creature." on its own — you, choosing, as part of what
        this card does rather than as a cost. */
-    { re: /^Sacrifice (a|an|one|two|\d+) (?:other )?(creature|permanent|artifact|enchantment|land|token)s?\.?$/i,
+    // Nahiri's Lithoforming: "For each land sacrificed this way, draw a card." — those this resolution had you sacrifice (sacByYouThisWay)
+    { re: /^(?:For each (land|creature|artifact|permanent) sacrificed this way, draw a card|Draw a card for each (land|creature|artifact|permanent) sacrificed this way)\.?$/i,
+      make: () => ({ op: 'draw', n: { sacByYouThisWay: true, mult: 1 }, who: 'you' }) },
+    // (Nahiri's Lithoforming: "Sacrifice X lands.")
+    { re: /^Sacrifice (a|an|one|two|X|\d+) (?:other )?(creature|permanent|artifact|enchantment|land|token)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'you', filter: m[2].toLowerCase(),
         other: /other/i.test(m[0]) }) },
     // The Fourth Sphere: "sacrifice a nonblack creature" — of a colour, or not of one
@@ -6812,6 +6816,11 @@
     { re: /^You may play an additional land this turn\.?$/i, make: () => ({ op: 'extraLand', n: 1 }) },
     // Summer Bloom: "You may play up to three additional lands this turn."
     { re: /^You may play up to (two|three|four) additional lands this turn\.?$/i, make: (m) => ({ op: 'extraLand', n: num(m[1]) }) },
+    // Nahiri's Lithoforming: "You may play X additional lands this turn."
+    { re: /^You may play X additional lands this turn\.?$/, make: () => ({ op: 'extraLand', n: 'X' }) },
+    // Nahiri's Lithoforming: "Lands you control enter tapped this turn." — for the turn (floatingReplace)
+    { re: /^(Lands|Creatures|Artifacts|Permanents) you control enter (?:the battlefield )?tapped this turn\.?$/,
+      make: (m) => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'etbTapTurn', event: 'enters', who: 'you', how: 'tapped', whatAny: [m[1].toLowerCase().replace(/s$/, '')] } }) },
     { re: /^Shuffle (?:this (?:artifact|card)|CARDNAME) and your graveyard into (?:their|its) owner'?s library\.?$/i,
       make: () => ({ op: 'graveyardToLibrary', withSelf: true }) },
     { re: /^Shuffle your graveyard into your library\.?$/i, make: () => ({ op: 'graveyardToLibrary' }) },
@@ -12036,6 +12045,11 @@
     { re: /^(up to one )?(target [a-z, ]+?) loses all abilities until your next turn\. If it'?s a creature, it also has base power and toughness (\d+)\/(\d+) until your next turn\.?$/i,
       make: (m) => { const sp = targetSpec(m[2]); if (!sp || sp.unknown) return null;
         return [{ op: 'becomes', duration: 'nextTurn', eff: { loseAll: true, setPt: { p: +m[3], t: +m[4] }, setPtIfCreature: true }, targets: [Object.assign(sp, m[1] ? { upTo: true } : {})] }]; } },
+    /* Benthic Anomaly: "for each opponent, choose a creature that player controls. Create a token that's a copy of one of
+       those creatures, except its power is equal to the total power of those creatures, its toughness is equal to the
+       total toughness of those creatures, and it's a colorless Eldrazi creature." (copyOfChosenTotals) */
+    { re: /^For each opponent, choose a creature that player controls\. Create a token that'?s a copy of one of those creatures, except its power is equal to the total power of those creatures, its toughness is equal to the total toughness of those creatures, and it'?s a colorless ([A-Z][a-z]+) creature\.?$/i,
+      make: (m) => [{ op: 'copyOfChosenTotals', kind: 'Creature \u2014 ' + m[1] }] },
     /* Chaos Dragon: "each player rolls a d20. If one or more opponents had the highest result, this creature can't
        attack those players or planeswalkers they control this combat." (rollOffNoAttack) */
     { re: /^Each player rolls a d(4|6|8|10|12|20)\. If one or more opponents had the highest result, (?:CARDNAME|this creature) can'?t attack those players or planeswalkers they control this combat\.?$/i,
@@ -19098,6 +19112,8 @@
     // Agent Maria Hill: "Whenever Agent Maria Hill becomes tapped to pay a teamwork cost" (forCost)
     { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes tapped to pay a teamwork cost,? /i, event: 'becomesTapped', self: true, extra: { forCost: 'teamwork' } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped(?:,| )/i, event: 'becomesTapped', self: true },
+    // The Millennium Calendar: "Whenever you untap one or more permanents during your untap step" — once, with how many (youUntapStep)
+    { re: /^Whenever you untap one or more permanents during your untap step,? /i, event: 'youUntapStep' },
     // The Ninth Doctor: "Whenever The Ninth Doctor becomes untapped during your untap step" (duringYourUntap)
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes untapped during your untap step,? /i, event: 'becomesUntapped', self: true, extra: { duringYourUntap: true } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes untapped(?:,| )/i, event: 'becomesUntapped', self: true },
@@ -22688,6 +22704,11 @@
   }
 
   const CONTINUOUS_RULES = [
+    /* Blast-Furnace Hellkite: "Creatures attacking your opponents have double strike." — anyone's, attacking a player who
+       is your opponent (attackingYourOpponents, oppPlayersOnly) */
+    { re: /^Creatures attacking your opponents have (double strike|first strike|trample|menace|deathtouch|lifelink)\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true, oppPlayersOnly: true },
+        grant: [U.titleCase(m[1].toLowerCase())] }) },
     /* Skyknight Squire, Ezio: "it has flying and is a Knight in addition to
        its other types" (under the "As long as" the wrapper puts on it) */
     { re: /^CARDNAME has ([a-z ,]+?) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
@@ -23106,6 +23127,19 @@
       } },
     /* "Lands you control have '{T}: Add one mana of any color.'" — a mana
        ability handed out, which the lands then tap for like their own. */
+    /* Dancer's Chakrams: "Equipped creature gets +2/+2, has lifelink and "Other commanders you control get +2/+2 and have
+       lifelink," and is a Performer in addition to its other types." — the bonus, the keyword, the ability, the type */
+    { re: /^(Equipped creature|Enchanted creature) gets ([+-]\d+)\/([+-]\d+), has ([a-z ]+?) and "([^"]+?),?" and is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        const said = scope && granterWords(scope, m[5].replace(/,$/, '') + '.');
+        const kws = keywordList(m[4]);
+        if (!scope || !grantableText(said) || !kws.length || !kws.every(k => kwKnown(k))) return null;
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) } },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grant: kws },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: said },
+          { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[6]] }] };
+      } },
     /* "Equipped creature gets +1/+0 and has 'Whenever this creature
        attacks, …'": a bonus, perhaps a keyword, and an ability in
        quotation marks, all handed over together. */
@@ -25641,20 +25675,28 @@
       /* Mazemind Tome, Darksteel Reactor, Nine Lives, Force Bubble: the same
          kind of state trigger on a pile of counters. Once there are enough it
          goes on the stack, and not again while that one is waiting */
-      { re: /^When (?:there are (\w+) or more ([a-z]+) counters on (?:this (?:artifact|enchantment|creature|permanent|land)|CARDNAME)|(?:this (?:artifact|enchantment|creature|permanent|land)|CARDNAME) has (\w+) or more ([a-z]+) counters on it), (.+)$/i,
+      // (The Millennium Calendar: "When there are 1,000 or more time counters on …, sacrifice it and each opponent loses 1,000 life.")
+      { re: /^When (?:there are ([\d,]+|\w+) or more ([a-z]+) counters on (?:this (?:artifact|enchantment|creature|permanent|land)|CARDNAME)|(?:this (?:artifact|enchantment|creature|permanent|land)|CARDNAME) has (\w+) or more ([a-z]+) counters on it), (.+)$/i,
         make: (m) => {
-          const k = num((m[1] || m[3]).toLowerCase());
+          const k = num((m[1] || m[3]).toLowerCase().replace(/(\d),(?=\d{3}\b)/g, '$1'));
           const kind = (m[2] || m[4]).toLowerCase();
           if (!(typeof k === 'number' && k > 0)) return null;
           const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
           let effects;
-          const self = m[5].match(/^(exile|sacrifice) it\.(?: If you do, (.+))?$/i);
-          if (self) {
+          const rest = m[5].replace(/(\d),(?=\d{3}\b)/g, '$1');
+          // (The Millennium Calendar: "sacrifice it and each opponent loses 1,000 life" — both, whether or not it is still there)
+          const and = rest.match(/^sacrifice it and (.+)$/i);
+          const self = rest.match(/^(exile|sacrifice) it\.(?: If you do, (.+))?$/i);
+          if (and) {
+            const p = parseEffects(cap(and[1]));
+            if (!p.auto) return null;
+            effects = [{ op: 'sacrificeSelf' }].concat(p.effects);
+          } else if (self) {
             let then = [];
             if (self[2]) { const p = parseEffects(cap(self[2])); if (!p.auto) return null; then = p.effects; }
             effects = [{ op: /^exile/i.test(self[1]) ? 'exileSelfThen' : 'sacSelfThen', then }];
           } else {
-            const p = parseEffects(cap(m[5]));
+            const p = parseEffects(cap(rest));
             if (!p.auto) return null;
             effects = p.effects;
           }
