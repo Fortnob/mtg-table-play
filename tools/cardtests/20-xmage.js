@@ -79972,4 +79972,143 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Murder'), { targets: [elf] });
     t.eq(T.zone('A', 'hand').length, h1, 'an unenchanted creature: no card');
   });
+
+  test('Cards: Faerie Artisans — an artifact token copy of each opponent creature that enters; the older ones exiled', (mk, t) => {
+    t.auto('Faerie Artisans');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Faerie Artisans');
+    const own = T.bf('A', 'Llanowar Elves');
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const soldiers = () => g.battlefield.filter(o => o.isToken && o.controller === 'A' && o.name === 'Soldier').length;
+    t.eq(soldiers(), 2, 'two Soldiers, made otherwise');
+    T.bf('B', 'Grizzly Bears', { etb: true });
+    T.resolve();
+    const bearTok = g.battlefield.find(o => o.isToken && o.controller === 'A' && o.name === 'Grizzly Bears');
+    t.ok(bearTok, 'a token copy of the Bears');
+    t.ok(g._matchesCategory(bearTok, 'artifact') && g._matchesCategory(bearTok, 'creature'), 'an artifact too');
+    T.bf('A', 'Hill Giant', { etb: true });
+    T.resolve();
+    t.no(g.battlefield.some(o => o.isToken && o.controller === 'A' && o.name === 'Hill Giant'), 'your own creature: no copy');
+    T.bf('B', 'Hill Giant', { etb: true });
+    T.resolve();
+    t.ok(g.battlefield.some(o => o.isToken && o.controller === 'A' && o.name === 'Hill Giant'), 'a copy of the Giant');
+    t.ok(bearTok.zone !== 'battlefield', 'the Bears token exiled');
+    t.eq(soldiers(), 2, 'the Soldiers stay');
+    t.zone(own, 'battlefield', 'nontoken creatures untouched');
+  });
+
+  test('Cards: Treasure Chest — the d20: 3 life, five Treasures, life and cards, or any card (an artifact may go onto the battlefield)', (mk, t) => {
+    t.auto('Treasure Chest');
+    const faces = (T, list) => { const d = list.slice(); T.g.rng.range = (a) => (d.length ? d.shift() : a); };
+    const run = (roll, setup) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      if (setup) setup(T);
+      const ch = T.bf('A', 'Treasure Chest');
+      faces(T, [roll]);
+      T.mana('A', '4');
+      T.activate('A', ch, 0);
+      t.zone(ch, 'graveyard', 'sacrificed');
+      return T;
+    };
+    let T = run(1);
+    t.eq(T.life('A'), 17, '1: lose 3 life');
+    T = run(5);
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 5, '2-9: five Treasures');
+    T = run(12);
+    t.eq(T.life('A'), 23, '10-19: 3 life');
+    t.eq(T.zone('A', 'hand').length, 3, 'and three cards');
+    let ring = null, asked = null;
+    T = run(20, (T0) => {
+      ring = T0.top('A', 'Sol Ring');
+      T0.answer('pickCard', (ch) => ({ cardIds: [ring.id] }));
+      T0.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    });
+    t.ok(asked && asked.purpose === 'tutorMayField', 'an artifact: asked');
+    t.zone(ring, 'battlefield', 'onto the battlefield');
+    let bolt = null; asked = null;
+    T = run(20, (T0) => {
+      bolt = T0.top('A', 'Lightning Bolt');
+      T0.answer('pickCard', (ch) => ({ cardIds: [bolt.id] }));
+      T0.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    });
+    t.no(asked, 'not an artifact: not asked');
+    t.zone(bolt, 'hand', 'into the hand');
+  });
+
+  test('Cards: Cryptolith Fragment // Aurora of Emrakul — transforms at your upkeep only if each player has 10 or less life', (mk, t) => {
+    t.auto('Cryptolith Fragment // Aurora of Emrakul');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const cf = T.bf('A', 'Cryptolith Fragment // Aurora of Emrakul');
+    T.player('A').life = 9; T.player('B').life = 10; T.player('C').life = 11;
+    T.nextTurn('A');
+    t.eq(cf.face || 0, 0, 'C has 11: no transform');
+    T.player('C').life = 10;
+    T.nextTurn('A');
+    t.eq(cf.face, 1, 'each player at 10 or less: transformed');
+    t.ok(g._matchesCategory(cf, 'creature'), 'Aurora of Emrakul, a creature');
+  });
+
+  test('Cards: Triple Triad — each top card exiled; yours and each with lesser mana value free to play this turn', (mk, t) => {
+    t.auto('Triple Triad');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    T.bf('A', 'Triple Triad');
+    T.nextTurn('C');
+    const giant = T.top('A', 'Hill Giant');
+    const bolt = T.top('B', 'Lightning Bolt');
+    const serra = T.top('C', 'Serra Angel');
+    T.nextTurn('A');
+    t.zone(giant, 'exile', 'your top card exiled'); t.zone(bolt, 'exile', "B's"); t.zone(serra, 'exile', "C's");
+    t.eq(giant.freeCastBy, 'A', 'yours: free to play');
+    t.eq(bolt.freeCastBy, 'A', 'mana value 1, less than 4: free to play');
+    t.ok(serra.freeCastBy !== 'A' && serra.impulseBy !== 'A', 'mana value 5: not');
+    T.cast('A', bolt, { targets: ['C'], via: 'free' });
+    t.eq(T.life('C'), 17, 'the Bolt cast for nothing');
+    T.cast('A', giant, { via: 'free' });
+    t.zone(giant, 'battlefield', 'the Giant cast for nothing');
+    t.no(g.castSpell('A', serra.id, { auto: true, via: 'free' }), 'the Angel: not this way');
+  });
+
+  test('Cards: Sothera, the Supervoid — your creature dies: each opponent exiles one; at your end step, with a player creatureless, one comes back to you', (mk, t) => {
+    t.auto('Sothera, the Supervoid');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const so = T.bf('A', 'Sothera, the Supervoid');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    const serra = T.bf('B', 'Serra Angel');
+    const elf = T.bf('C', 'Llanowar Elves');
+    let sq = null;
+    T.answer('sacrifice', (ch) => { sq = ch; return { cardIds: [serra.id] }; });
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear] });
+    t.ok(sq && sq.exileInstead && sq.playerId === 'B', 'B chooses which to exile');
+    t.zone(serra, 'exile', "B's choice exiled");
+    t.zone(elf, 'exile', "C's only creature exiled");
+    t.zone(giant, 'battlefield', 'the other stays');
+    t.eq(serra.exiledWithId, so.id, 'exiled with Sothera');
+    // A and C control no creatures: at A's end step Sothera goes and a creature card comes back
+    T.answer('choose', (ch) => ({ picks: [serra.id] }));
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(so, 'graveyard', 'Sothera sacrificed');
+    t.zone(serra, 'battlefield', 'the Angel returns');
+    t.eq(serra.controller, 'A', 'under your control');
+    t.eq(serra.counters['+1/+1'] || 0, 2, 'with two +1/+1 counters');
+    t.zone(elf, 'exile', 'only one comes back');
+  });
+
+  test('Cards: Sothera, the Supervoid — every player with a creature at your end step: it stays', (mk, t) => {
+    t.auto('Sothera, the Supervoid');
+    const T = mk();
+    const so = T.bf('A', 'Sothera, the Supervoid');
+    T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Hill Giant');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(so, 'battlefield', 'no player without creatures: it stays');
+  });
 };

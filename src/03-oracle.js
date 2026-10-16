@@ -3496,6 +3496,10 @@
     // Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your control" (exiledWithToBattlefield)
     { re: /^Put all (creature) cards exiled with CARDNAME onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase() }) },
+    /* Sothera, the Supervoid: "then put a creature card exiled with it onto the battlefield under your control with two
+       additional +1/+1 counters on it" — one, picked when there are more (one, enterCounters) */
+    { re: /^(?:Then )?put an? (creature) card exiled with (?:it|CARDNAME) onto the battlefield under your control with (a|an|one|two|three) additional \+1\/\+1 counters? on it\.?$/i,
+      make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), one: true, enterCounters: { kind: '+1/+1', n: num(m[2]) } }) },
     // Ghost Vacuum: "Put each creature card exiled with this artifact onto the battlefield under your control with a flying counter on it." (enterCounters)
     { re: /^Put each (creature) card exiled with (?:CARDNAME|this artifact) onto the battlefield under your control with an? ([a-z]+) counter on it\.?$/i,
       make: (m) => kwKnown(m[2].toLowerCase()) ? { op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), enterCounters: { kind: m[2].toLowerCase(), n: 1 } } : null },
@@ -3700,6 +3704,12 @@
     /* "Create a token that's a copy of that creature": the one the trigger is about */
     { re: /^Create a token that'?s a copy of (?:it|that creature|that artifact|that permanent)\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [] }) },
+    // Faerie Artisans: "create a token that's a copy of that creature except it's an artifact in addition to its other types"
+    { re: /^Create a token that'?s a copy of that creature,? except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], addTypes: [U.titleCase(m[1])] }) },
+    /* Faerie Artisans: "Then exile all other tokens created with this creature." — the tokens this object's abilities
+       made, the one just made marked among them (exileOtherMadeWith) */
+    { re: /^(?:Then )?exile all other tokens created with (?:this creature|CARDNAME)\.?$/i, make: () => ({ op: 'exileOtherMadeWith' }) },
     /* Kinzu of the Bleak Coven: "(you may pay 2 life and exile it. If you do,) create a token that's a copy of that
        creature, except it's 1/1 and has toxic 1." — the card exiled by the price (ifExiled) */
     { re: /^Create a token that'?s a copy of that creature, except (it'?s \d+\/\d+ and has [a-z]+ \d+)\.?$/i,
@@ -6445,6 +6455,10 @@
        costs." — the cards just exiled, till the end of your next turn as before, now free */
     { re: /^If (this spell was cast from (?:a|your) graveyard), you may play cards this way without paying their mana costs\.?$/i,
       make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'ifCond', cond, then: [{ op: 'mayPlayExiled', castOnly: false, free: true, duration: 'next' }] } : null; } },
+    /* Triple Triad: "Until end of turn, you may play the card you own exiled this way and each other card exiled this
+       way with lesser mana value than it without paying their mana costs." (ownAndLesser) */
+    { re: /^Until end of turn, you may play the card you own exiled this way and each other card exiled this way with lesser mana value than it without paying their mana costs\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', castOnly: false, free: true, duration: 'eot', ownAndLesser: true }) },
     // Expensive Taste: "You may look at and play those cards for as long as they remain exiled."
     { re: /^You may look at and play (?:those cards|them) for as long as they remain exiled\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled' }) },
     // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
@@ -10549,6 +10563,10 @@
     /* "Exile that creature." — the one the sentence before pointed at */
     { re: /^(Exile|Destroy|Tap|Untap) (?:that|the) (?:creature|permanent|artifact|land)\.?$/i,
       make: (m) => ({ op: m[1].toLowerCase(), scope: 'lastTarget' }) },
+    /* Sothera, the Supervoid: "each opponent chooses a creature they control and exiles it" — an edict that exiles, the
+       cards "exiled with it" afterwards (exileWith) */
+    { re: /^Each opponent chooses an? (creature|artifact|enchantment|nonland permanent|permanent) they control and exiles it\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: 1, who: 'opponents', filter: m[1].toLowerCase(), exile: true, exileWith: true }) },
     /* the edicts, with whatever kind of permanent they name */
     // (Bane of Bala Ged, Thresher Beast: "Defending player exiles two permanents they control" — who 'defending')
     { re: /^(Each player|Each opponent|Each other player|Target player|Target opponent|Defending player) (sacrifices?|exiles?) (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|\d+) ([a-z ,/-]+?)(?: of their choice)?(?: they control)?\.?$/i,
@@ -12306,6 +12324,10 @@
     { re: /^Search your library for an? ([a-z]+(?: [a-z]+)?) card\. If this spell was kicked, instead search your library for an? \1 card and an? ([A-Za-z]+(?: [a-z]+)?) card\. Reveal those cards, put them into your hand, then shuffle\.?$/i,
       make: (m) => { const one = (f) => ({ op: 'tutor', n: 1, filter: f.toLowerCase(), to: 'hand' });
         return [{ op: 'ifCond', cond: { kind: 'kicked', n: 1 }, then: [one(m[1]), one(m[2])], otherwise: [one(m[1])] }]; } },
+    /* Treasure Chest: "Search your library for a card. If it's an artifact card, you may put it onto the battlefield.
+       Otherwise, put that card into your hand. Then shuffle." — asked only of an artifact (mayField, fieldWords) */
+    { re: /^Search your library for a card\. If it'?s an? ([a-z]+) card, you may put it onto the battlefield\. Otherwise, put (?:that card|it) into your hand\. Then shuffle\.?$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: 'any', to: 'mayField', fieldWords: m[1].toLowerCase(), prompt: 'Search your library for a card.' }] },
     /* The Irencrag: "you may have The Irencrag become a legendary Equipment artifact named Everflame, Heroes' Legacy. If
        you do, it gains equip {3} and "Equipped creature gets +3/+3" and loses all other abilities." — for good (becomes
        permanent, setName, loseAll, grantTexts) */
@@ -17546,6 +17568,8 @@
     // (Anya, Merciless Angel: "an opponent's life total is less than half their starting life total" — oppLifeBelowHalfStart)
     [/^an opponent'?s life total is less than half their starting life total$/i, () => ({ kind: 'oppLifeBelowHalfStart' })],
     [/^your life total is less than or equal to half your starting life total$/i, () => ({ kind: 'lifeAtMostHalfStart' })],
+    // Cryptolith Fragment: "each player has 10 or less life" (eachPlayerLifeAtMost)
+    [/^each player has (\w+) or less life$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'eachPlayerLifeAtMost', n: num(m[1]) } : null)],
     // Nalia de'Arnise, Linvala, Shield of Sea Gate: a Cleric, a Rogue, a Warrior and a Wizard
     [/^you have a full party$/i, () => ({ kind: 'fullParty' })],
     // Demonic Junker: "if a creature you controlled was destroyed this way" (destroyedYoursThisWay)
@@ -18262,6 +18286,8 @@
     [/^an opponent controls an? ([a-z]+)$/i, (m) => ({ kind: 'control', what: m[1].toLowerCase(), n: 1, who: 'opponents' })],
     // Pestilence: "if no creatures are on the battlefield"
     [/^no creatures are on the battlefield$/i, () => ({ kind: 'noCreatures' })],
+    // Sothera, the Supervoid: "if a player controls no creatures" (somePlayerNoCreatures)
+    [/^a player controls no creatures$/i, () => ({ kind: 'somePlayerNoCreatures' })],
     // Y'shtola: "if a player lost 4 or more life this turn"
     [/^a player lost (\w+) or more life this turn$/i, (m) => ({ kind: 'anyLostLife', n: num(m[1]) })],
     // Endless Atlas: "you control three or more lands with the same name"

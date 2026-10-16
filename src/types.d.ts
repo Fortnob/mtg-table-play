@@ -485,7 +485,7 @@ declare namespace MTG {
   interface DeclareBlockersChoice extends ChoiceBase { type: 'declareBlockers'; attackers: Id[]; candidates: Id[]; /** Odric, Master Tactician: whose creatures these are, when someone else chooses how they block */ blockingPlayer?: Id }
   /** differentNames: no two of the cards discarded may share a name (Ormos, Archive Keeper). */
   interface DiscardChoice extends ChoiceBase { type: 'discard' | 'discardToHandSize'; count: number; candidates?: Id[]; optional?: boolean; differentNames?: boolean }
-  interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean; /** Doomfall: the chosen permanent is exiled, not sacrificed */ exileInstead?: boolean;
+  interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean; /** Doomfall: the chosen permanent is exiled, not sacrificed */ exileInstead?: boolean; /** Sothera, the Supervoid: the permanent exiled is then "exiled with" this one */ exileWith?: Id;
     /** differentNames: no two of the permanents sacrificed may share a name (Transmutation Font). */ differentNames?: boolean }
   interface ScryChoice extends ChoiceBase { type: 'scry' | 'surveil'; count: number; cards: ChoiceCard[] }
   interface ArrangeChoice extends ChoiceBase { type: 'arrange'; count?: number; cards: ChoiceCard[]; look?: boolean; /** Portent: whose library, when not the chooser's */ ofPlayer?: Id }

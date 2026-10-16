@@ -17271,6 +17271,8 @@
           return true;
         }
         case 'noCreatures': return !this.battlefield.some(o => !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+        // Sothera, the Supervoid: "if a player controls no creatures" — any player still in the game
+        case 'somePlayerNoCreatures': return this.players.some(q => !q.hasLost && !this.battlefield.some(o => o.controller === q.id && !o.phasedOut && (this.characteristics(o) || {}).isCreature));
         case 'anyLostLife': return this.players.some(p => (p.lifeLostThisTurn || 0) >= (cond.n || 0));
         case 'sameNameLands': {
           if (!me) return false;
@@ -17313,6 +17315,8 @@
         case 'fullParty': return this._partySize(me ? me.id : null) >= 4;
         // Myrkul, Lord of Bones: at or under half the life the game started with
         case 'lifeAtMostHalfStart': return !!me && me.life * 2 <= ((this.config && this.config.startingLife) || 20);
+        // Cryptolith Fragment: "if each player has 10 or less life" — everyone still in the game
+        case 'eachPlayerLifeAtMost': return this.players.filter(q => !q.hasLost).every(q => q.life <= cond.n);
         // Anya, Merciless Angel: "an opponent's life total is less than half their starting life total"
         case 'oppLifeBelowHalfStart': return !!me && this.opponentsOf(me.id).some(q => !q.hasLost && q.life * 2 < ((this.config && this.config.startingLife) || 20));
         // True-Faith Censer: the creature it is on is a Human
@@ -25663,7 +25667,9 @@
               type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
               prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${O.nounCount(howMany, e.filter || 'permanent')}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (${e.fraction === 2 ? 'half' : '1/' + e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
-            }, e.exile ? { exileInstead: true } : {});
+            }, e.exile ? { exileInstead: true } : {},
+            // (Sothera, the Supervoid: "a creature card exiled with it" — the exiled one linked to the source: exileWith)
+            e.exile && e.exileWith && src && src.zone === 'battlefield' ? { exileWith: src.id } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
                Tribute to Hunger's "that creature's toughness" */
@@ -27607,7 +27613,8 @@
           /* Scholar of New Horizons: "If an opponent controls more lands than you, you may put that card onto the battlefield
              tapped. If you don't put the card onto the battlefield, put it into your hand." — asked only while the
              condition holds (mayField, fieldIf) */
-          if (dest === 'mayField' && taken.length && (!e.fieldIf || this._condMet(e.fieldIf, ctx))) {
+          // (Treasure Chest: "If it's an artifact card, you may put it onto the battlefield" — fieldWords)
+          if (dest === 'mayField' && taken.length && (!e.fieldIf || this._condMet(e.fieldIf, ctx)) && (!e.fieldWords || taken.every(c => this._cardFitsWords(c, e.fieldWords)))) {
             const yes = this._ask({ type: 'confirm', playerId: seeker.id, purpose: 'tutorMayField', yesLabel: 'Onto the battlefield', noLabel: 'Into your hand',
               prompt: `Put ${taken.map(c => c.name).join(', ')} onto the battlefield${e.tapped ? ' tapped' : ''}? If you don't, put ${taken.length === 1 ? 'it' : 'them'} into your hand.` }, 'mayf');
             if (yes === SUSPEND) return SUSPEND;
@@ -30111,6 +30118,19 @@
         }
         // "Choose target creature you control.": the target, for the sentences after
         case 'chooseTarget': this._noteLastAffected(targets); break;
+        /* Faerie Artisans: "Then exile all other tokens created with this creature." — the tokens made with this object
+           (this time on the battlefield: _leftSeq, or the one it last left with: _leftPrev), the ones just made marked
+           and kept (madeWith) */
+        case 'exileOtherMadeWith': {
+          if (!src) break;
+          const key = src.id + ':' + ((src.zone === 'battlefield' ? src._leftSeq : src._leftPrev) || '');
+          const made = (this._madeThisResolution || []).map(id => this.obj(id)).filter(x => x && x.isToken);
+          for (const x of made) x.madeWith = key;
+          const gone = this.battlefield.filter(x => x.isToken && x.madeWith === key && !made.includes(x));
+          for (const x of gone) this.moveObject(x, 'exile');
+          if (gone.length) this.logEvent('exile', `${src.name} exiles ${gone.map(x => x.name).join(', ')}.`);
+          break;
+        }
         /* Chain Lightning, Chain of Vapor: the player it hit (or whose permanent
            it hit) may pay to copy it, and choose a new target for the copy */
         case 'chainCopy': {
@@ -33509,6 +33529,14 @@
             : e.thatCard && this._exileUntil ? this._exileUntil.hits.slice(-1)
             : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i);
+          /* Triple Triad: "the card you own exiled this way and each other card exiled this way with lesser mana value
+             than it" — none without a card of yours among them (ownAndLesser) */
+          if (e.ownAndLesser) {
+            const mine = ids.map(id => this.obj(id)).find(c => c && c.zone === 'exile' && c.owner === ctx.controller);
+            if (!mine) break;
+            const mvOf = (c) => (c.card && c.card.cmc) || 0;
+            ids.splice(0, ids.length, ...ids.filter(id => { const c = this.obj(id); return !!c && (c === mine || mvOf(c) < mvOf(mine)); }));
+          }
           // Mission Briefing: "choose an instant or sorcery card in your graveyard. You may cast it this turn."
           const gy = !ids.length && !e.exiledWith && this._lastAffected && this.obj(this._lastAffected.id);
           if (gy && gy.zone === 'graveyard') {
@@ -45350,7 +45378,12 @@
       const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
       // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled
       if (ch.exileInstead) {
-        for (const o of pick) { this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`); }
+        for (const o of pick) {
+          this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`);
+          // Sothera, the Supervoid: exiled with it, while it is still there
+          const wth = ch.exileWith && this.obj(ch.exileWith);
+          if (wth && wth.zone === 'battlefield' && o.zone === 'exile' && !o.isToken) o.exiledWithId = wth.id;
+        }
         return;
       }
       this._sacrificeNow(playerId, pick, item);
