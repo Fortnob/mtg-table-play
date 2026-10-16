@@ -785,7 +785,15 @@ function checkAnswer(ch, data, game) {
       }
       break;
     }
-    case 'sacrifice': if (ch.candidates) within(data.cardIds, ch.candidates, 'answer.cardIds', 'a permanent that can be sacrificed'); break;
+    case 'sacrifice': {
+      if (ch.candidates) within(data.cardIds, ch.candidates, 'answer.cardIds', 'a permanent that can be sacrificed');
+      // (Transmutation Font: "with different names")
+      if (game && ch.differentNames && Array.isArray(data.cardIds)) {
+        const names = data.cardIds.map(id => (game.obj(id) || {}).name).filter(Boolean);
+        if (new Set(names).size !== names.length) bad('answer.cardIds', 'answer', 'two permanents with the same name, where they must have different names');
+      }
+      break;
+    }
     case 'choose': {
       const C = globalThis.MTG && globalThis.MTG.choice;
       if (C && C.check) {

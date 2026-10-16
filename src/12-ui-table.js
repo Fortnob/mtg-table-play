@@ -2336,6 +2336,9 @@
         if (this.chooseHere(ch)) return this.choosePrimary(ch);
         if (ch.type === 'sacrifice') {
           const need = ch.count || 1;
+          // (Transmutation Font: "with different names")
+          const names = ch.differentNames ? this.sacSel.map(id => (this.objIn(id) || {}).name) : [];
+          if (new Set(names).size !== names.length) return { label: 'Sacrifice', sub: 'They must all have different names.', cls: 'go', disabled: true };
           return { label: ch.exileInstead ? 'Exile' : 'Sacrifice', sub: `${this.sacSel.length}/${need} chosen`, cls: 'go', disabled: this.sacSel.length !== need };
         }
         return { label: 'Decide', disabled: true, cls: 'idle', sub: 'answer the question above' };

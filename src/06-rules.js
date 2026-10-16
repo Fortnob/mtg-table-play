@@ -11761,8 +11761,12 @@
       if (cost.unattachSelf && !(self && self.attachedTo)) return `${self ? self.name : 'It'} isn't attached to anything.`;
       if (cost.sacrifice) {
         const need = cost.sacrifice.upTo ? 0 : this._costCount(cost.sacrifice.n, opts);
-        if (this._costSacPool(pid, cost.sacrifice, self, opts).length < need)
+        const spool = this._costSacPool(pid, cost.sacrifice, self, opts);
+        if (spool.length < need)
           return `Nothing to sacrifice (${cost.sacrifice.filter || 'permanent'}).`;
+        // Transmutation Font: "Sacrifice three artifact tokens with different names" (differentNames)
+        if (cost.sacrifice.differentNames && this._distinctNames(spool) < need)
+          return `Not enough ${O.nounPlural(cost.sacrifice.filter || 'permanent')} with different names to sacrifice.`;
       }
       /* Viscerid Drone: "Sacrifice a creature and a Swamp" — enough of each, and
          enough different permanents for both together (sacrificeAlso) */
@@ -11932,6 +11936,21 @@
               prompt: `Sacrifice up to ${need} ${(cost.sacrifice.filter || 'permanent') + (need === 1 ? '' : 's')} to pay the cost.` });
           }
         } else if (cost.sacrifice.upTo) pick = pick || [];
+        /* Transmutation Font: "with different names" — one of a name, the first picked; by itself, the cheapest of each
+           name; asked, saying so (differentNames) */
+        else if (cost.sacrifice.differentNames) {
+          const oneEach = (list) => list.filter((c, i) => list.findIndex(x => x.name === c.name) === i);
+          pick = oneEach(pick);
+          if (need > 0 && pick.length < need) {
+            if (auto || this._distinctNames(pool) === need) pick = oneEach(this._cheapestFirst(pool)).slice(0, need);
+            else {
+              pick = null;
+              ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent', differentNames: true,
+                candidates: pool.map(x => x.id),
+                prompt: `Sacrifice ${O.nounCount(need, cost.sacrifice.filter || 'permanent')} with different names to pay the cost.` });
+            }
+          }
+        }
         else if (need > 0 && pick.length < need) {
           // (the ones the second part can't use go first)
           // (only as many as it needs, or all of them alike — two untouched Treasures: nothing to choose)
@@ -23795,7 +23814,9 @@
                are about the spell it countered. */
             this._lastAffected = { id: item.objId, controller: item.controller, owner: item.controller,
               name: item.name, power: 0, toughness: 0,
-              mv: (item.obj && item.obj.card && item.obj.card.cmc) || 0 };
+              mv: (item.obj && item.obj.card && item.obj.card.cmc) || 0,
+              // (Mana Sculpt: "the amount of mana spent to cast that spell" — counteredSpent)
+              spent: (item.obj && !item.isCopy && item.obj.manaSpent) || 0 };
             this._lastCountered = this._lastAffected;
             if (item.kind !== 'spell' && item.objId) this._counteredSrc = item.objId;
             this.logEvent('counter', `${item.name} is countered.`);
@@ -31352,8 +31373,9 @@
             effects: (e.effects || []).map(x => {
               /* Mana Drain: "an amount equal to that spell's mana value" is
                  counted now, while the spell it means is still known. */
-              if (x.op === 'addManaPer' && x.per && x.per.counteredMv) {
-                const k = (this._lastCountered && this._lastCountered.mv) || 0;
+              // (Mana Sculpt: "equal to the amount of mana spent to cast that spell" — counteredSpent)
+              if (x.op === 'addManaPer' && x.per && (x.per.counteredMv || x.per.counteredSpent)) {
+                const k = (this._lastCountered && this._lastCountered[x.per.counteredSpent ? 'spent' : 'mv']) || 0;
                 return { op: 'addMana', symbols: Array.from({ length: k }, () => x.symbol || 'C') };
               }
               /* "Its controller may draw…at the next upkeep": who that is
@@ -35015,7 +35037,15 @@
            the battlefield." — every one this resolution exiled, under your control (exiledNowToBattlefield) */
         case 'exiledNowToBattlefield': {
           const idsX = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
-          const putX = idsX.map(id => this.obj(id)).filter(o => o && o.zone === 'exile' && this._cardFitsWords(o, e.words || 'permanent') && (o.analysis() || {}).isPermanent);
+          let putX = idsX.map(id => this.obj(id)).filter(o => o && o.zone === 'exile' && this._cardFitsWords(o, e.words || 'permanent') && (o.analysis() || {}).isPermanent);
+          // Lord of the Void: "put a creature card from among them" — one, the controller's pick (one)
+          if (e.one && putX.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'exiledToBattlefield', kind: 'objects', zone: 'exile', items: this._chooseItems(putX), min: 1, max: 1,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${this._aCard(e.words || 'permanent', 'card')} from among them onto the battlefield under your control.` }, 'entb');
+            if (got === SUSPEND) return SUSPEND;
+            putX = [this.obj(((got && got.picks) || [])[0])].filter(o => o && putX.includes(o));
+            if (!putX.length) putX = [idsX.map(id => this.obj(id)).find(o => o && o.zone === 'exile' && this._cardFitsWords(o, e.words || 'permanent'))].filter(Boolean);
+          }
           for (const o of putX) this.moveObject(o, 'battlefield', { controller: ctx.controller });
           if (putX.length) this.logEvent('zone', `${me.name} puts ${putX.map(o => o.name).join(', ')} onto the battlefield.`);
           break;
@@ -43337,9 +43367,13 @@
       const want = Math.min(ch.count || 1, pool.length);
       const ids = (data && data.cardIds) || [];
       let pick = ids.map(id => pool.find(o => o.id === id)).filter(Boolean);
-      pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
+      pick = pick.filter((o, i) => pick.indexOf(o) === i);
+      // Transmutation Font: "with different names" — never two of a name (differentNames)
+      const dn = !!ch.differentNames;
+      if (dn) pick = pick.filter((o, i) => pick.findIndex(x => x.name === o.name) === i);
+      pick = pick.slice(0, want);
       if (!ch.optional && pick.length < want) {
-        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
+        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o) && !(dn && pick.some(x => x.name === o.name))) pick.push(o); }
       }
       const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
       // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled

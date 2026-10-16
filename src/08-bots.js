@@ -2068,6 +2068,12 @@
       if (!best || (was && (g.characteristics(was) || {}).isCreature && pw(was) >= pw(best))) return { picks: [] };
       return { picks: [best.id] };
     },
+    /* Lord of the Void: the best of the creature cards it exiled */
+    exiledToBattlefield(s) {
+      const g = this.game;
+      const best = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => g._cardValue(b) - g._cardValue(a))[0];
+      return best ? { picks: [best.id] } : null;
+    },
     /* Resourceful Defense: counters go where they were asked to go */
     moveCounters(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Esper Terra: as many lore counters as it may — the copied Saga's chapters, now */

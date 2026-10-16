@@ -346,8 +346,12 @@
       // "Sacrifice this", "Sacrifice this artifact", "Sacrifice CARDNAME" —
       // all of them mean the permanent whose ability this is
       if (/^Sacrifice (this|~|it|CARDNAME)\b/i.test(p)) { cost.sacSelf = true; continue; }
-      // Transmutation Font: "Sacrifice three artifact tokens with different names" — a price the table can't check yet
-      if (/^Sacrifice .+ with different names$/i.test(p)) { cost.other.push(p); continue; }
+      // Transmutation Font: "Sacrifice three artifact tokens with different names" — never two of a name (differentNames)
+      if ((m = p.match(/^(Sacrifice .+) with different names$/i))) {
+        const c1 = parseCost(m[1]);
+        if (c1.sacrifice && !c1.other.length && !c1.sacSelf && !c1.sacrifice.upTo) { cost.sacrifice = Object.assign(c1.sacrifice, { differentNames: true }); continue; }
+        cost.other.push(p); continue;
+      }
       /* Viscerid Drone: "Sacrifice a creature and a Swamp"; Jarad: "a Swamp and a
          Forest"; Sandstone Deadfall: "two lands and this artifact" — two parts,
          each with its own kind, paid with different permanents (sacrificeAlso) */
@@ -4169,8 +4173,9 @@
     // (Expansion: "… with mana value 4 or less")
     // (Myojin of Cryptic Dreams: "Copy target permanent spell you control three times." — times)
     // (Venser, Fervent Forger: "Copy target instant or sorcery spell an opponent controls twice.")
-    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control| an opponent controls)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
-      make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
+    // (See Double: "Copy target spell." — any spell)
+    { re: /^Copy target (?:(instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) )?spell( you control| an opponent controls)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
+      make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: (m[1] || 'spell').toLowerCase() },
         m[2] ? { controller: /opponent/i.test(m[2]) ? 'opponent' : 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }, m[4] ? { times: /twice/i.test(m[4]) ? 2 : num(m[4].trim().split(' ')[0].toLowerCase()) } : {}) },
     // Double Major: "Copy target creature spell you control, except it isn't legendary if the spell is legendary." (nonLegendary)
     { re: /^Copy target (creature|permanent|artifact|enchantment) spell you control, except it isn'?t legendary if the spell is legendary\.?$/i,
@@ -5402,6 +5407,10 @@
     // (Expensive Taste: "Exile the top two cards of target opponent's library face down.")
     { re: /^Exile the top (two|three|four|five|X|\d+) cards of target (opponent|player)'?s library( face down)?\.?$/i,
       make: (m) => Object.assign({ op: 'exileTop', who: 'target', n: num(m[1]), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }, m[3] ? { faceDown: true } : {}) },
+    /* Lord of the Void: "exile the top seven cards of that player's library, then put a creature card from among them onto
+       the battlefield under your control." — one of them, picked; the rest stay exiled (exiledNowToBattlefield one) */
+    { re: /^Exile the top (two|three|four|five|six|seven|eight|nine|ten|\d+) cards of that player'?s library, then put an? ([a-z]+) card from among them onto the battlefield under your control\.?$/i,
+      make: (m) => [{ op: 'exileTop', who: 'triggerPlayer', n: num(m[1]) }, { op: 'exiledNowToBattlefield', words: m[2].toLowerCase(), one: true }] },
     { re: /^You may cast any number of (?:spells|instant and\/or sorcery spells)( with mana value (X|\d+) or less)? from among (?:them|those cards|the nonland cards exiled this way|cards exiled this way|the exiled cards) without paying their mana costs\.?$/i,
       make: (m) => Object.assign({ op: 'castFree' }, m[2] ? { maxMv: num(m[2]) } : {},
         /instant and\/or sorcery/i.test(m[0]) ? { filter: 'instant or sorcery' } : {}) },
@@ -7657,7 +7666,13 @@
         if (!cond) return null;
         // (Karai, Future of the Foot: "instead return that card to the battlefield" — the card the sentence before targeted)
         if (/^return that (?:permanent |creature )?card to the battlefield$/i.test(m[2])) return { op: 'noop', insteadOf: { cond, effects: [{ op: 'reanimate', sameAsPrevTarget: true }] } };
-        const parsed = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        let parsed = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        /* Spirit Water Revival: "instead shuffle your graveyard into your library, draw seven cards, and you have no maximum
+           hand size for the rest of the game" — a list of things done, each read as its own sentence */
+        if ((!parsed.auto || !parsed.effects.length) && /, and /.test(m[2])) {
+          const parts = m[2].split(/, (?:and )?/);
+          if (parts.length >= 3) parsed = parseSentenceList(parts.map(x => x.charAt(0).toUpperCase() + x.slice(1) + '.'));
+        }
         if (!parsed.auto || !parsed.effects.length) return null;
         return { op: 'noop', insteadOf: { cond, effects: parsed.effects } };
       } },
@@ -7891,6 +7906,11 @@
       make: (m) => ({ op: 'delayed', event: 'yourMain1', forPlayer: 'you', nextTurn: false,
         name: 'Add mana for the countered spell',
         effects: [{ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { counteredMv: true } }] }) },
+    /* Mana Sculpt: "If you control a Wizard, add an amount of {C} equal to the amount of mana spent to cast that spell at the
+       beginning of your next main phase." — the Wizard as it resolves; the mana counted now (counteredSpent) */
+    { re: /^If (you control an? [A-Z][a-z]+), add an amount of (\{[^}]+\}) equal to the amount of mana spent to cast that spell at the beginning of your next main phase\.?$/,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'ifCond', cond, then: [{ op: 'delayed', event: 'yourMain1', forPlayer: 'you', nextTurn: false,
+        name: 'Add mana for the countered spell', effects: [{ op: 'addManaPer', symbol: MANA.parse(m[2])[0], per: { counteredSpent: true } }] }] } : null; } },
 
 
     /* ===== the sentences that come up most often across the whole card pool ===== */
@@ -8481,7 +8501,8 @@
       make: () => ({ op: 'continuous', layer: 6, scope: { self: true }, flag: 'blocksFliersOnly' }) },
     { re: /^This ability triggers only once each turn\.?$/i, make: () => ({ op: 'noop' }) },
     // See Double: "This spell can't be copied." — copying it is something the engine never does to it
-    { re: /^This spell can'?t be copied\.?$/i, make: () => ({ op: 'noop' }) },
+    // (See Double: "This spell can't be copied." — uncopyable)
+    { re: /^This spell can'?t be copied\.?$/i, make: () => ({ op: 'noop', uncopyable: true }) },
     // Sontaran General, Sparkmage's Gambit: "Those creatures can't block this turn."
     { re: /^Those creatures can'?t block this turn\.?$/i, make: () => ({ op: 'restrict', flag: 'cantBlock', scope: 'lastGroup' }) },
     // Anzrag's Rampage, Zara: "Return it to your hand at the beginning of the next end step."
@@ -14549,7 +14570,8 @@
       if (cm) { commanderCount = /both|two/i.test(cm[1]) ? 2 : /three/i.test(cm[1]) ? 3 : 99; return false; }
       /* Flame of Anor: "If you control a Wizard as you cast this spell,
          you may choose two instead." The same note, about something else. */
-      const om = b.match(/^If (.+?) as you cast this spell, you may choose (both|any number|two|three)(?: of them)? instead\.?$/i);
+      // (See Double: "If an opponent has eight or more cards in their graveyard, you may choose both instead." — as it is cast)
+      const om = b.match(/^If (.+?)(?: as you cast this spell)?, you may choose (both|any number|two|three)(?: of them)? instead\.?$/i);
       const oc = om && condOf(om[1]);
       if (oc) { otherCount = { cond: oc, count: /both|two/i.test(om[2]) ? 2 : /three/i.test(om[2]) ? 3 : 99 }; return false; }
       /* Inscription of Abundance: "Choose one. If this spell was kicked,

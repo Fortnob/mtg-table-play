@@ -73393,4 +73393,136 @@ module.exports = (test) => {
     t.eq(p2.attachedTo, f2.id, 'the bot left Pacifism');
     t.eq(T.manualLines().length, 0);
   });
+  test('Cards: Lord of the Void — combat damage exiles the top seven of that player\'s library; one creature card of the controller\'s choice comes over', (mk, t) => {
+    t.auto('Lord of the Void');
+    const T = mk({ library: Array(20).fill('Island') });
+    const lord = T.bf('A', 'Lord of the Void');
+    const bear = T.top('B', 'Grizzly Bears'), giant = T.top('B', 'Hill Giant'), shock = T.top('B', 'Shock');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [bear.id] }; });
+    T.answer('declareAttackers', () => [{ attackerId: lord.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 13);
+    t.ok(q && q.purpose === 'exiledToBattlefield' && q.items.length === 2, 'asked between the two creature cards');
+    t.zone(bear, 'battlefield'); t.eq(bear.controller, 'A', 'under A\'s control');
+    t.zone(giant, 'exile'); t.zone(shock, 'exile');
+    t.eq(T.g.zones.B.exile.length, 6, 'the rest stay exiled');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Spirit Water Revival — waterbend {6} paid: the graveyard shuffled in, seven drawn, no maximum hand size; not paid: draw two; exiled either way', (mk, t) => {
+    t.auto('Spirit Water Revival');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.toMain('A');
+    for (let k = 0; k < 9; k++) T.bf('A', 'Island');
+    const g1 = T.grave('A', 'Grizzly Bears'), g2 = T.grave('A', 'Shock');
+    const swr = T.hand('A', 'Spirit Water Revival');
+    let asked = null;
+    T.answer('mode', (ch) => { asked = ch; return { modes: [0] }; });
+    const lib = T.zone('A', 'library').length;
+    T.cast('A', swr);
+    t.ok(asked && /waterbend \{6\}/.test(asked.prompt), 'asked whether to waterbend');
+    t.ok(g1.zone !== 'graveyard' && g2.zone !== 'graveyard', 'the graveyard shuffled in');
+    t.eq(T.zone('A', 'graveyard').length, 0);
+    t.eq(T.zone('A', 'hand').length, 7, 'seven drawn');
+    t.eq(T.zone('A', 'library').length, lib + 2 - 7);
+    t.ok(T.player('A').noMaxHand, 'no maximum hand size');
+    t.zone(swr, 'exile', 'exiled');
+    // not paid: draw two, the graveyard stays
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.toMain('A');
+    for (let k = 0; k < 9; k++) T2.bf('A', 'Island');
+    const h1 = T2.grave('A', 'Grizzly Bears');
+    const s2 = T2.hand('A', 'Spirit Water Revival');
+    T2.answer('mode', () => ({ modes: [1] }));
+    T2.cast('A', s2);
+    t.eq(T2.zone('A', 'hand').length, 2, 'two drawn');
+    t.zone(h1, 'graveyard');
+    t.zone(s2, 'exile');
+    t.eq(T.manualLines().length + T2.manualLines().length, 0);
+  });
+  test('Cards: Transmutation Font — three artifact tokens with different names sacrificed to fetch an artifact; two of a name are not enough', (mk, t) => {
+    t.auto('Transmutation Font');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const font = T.bf('A', 'Transmutation Font');
+    const ring = T.top('A', 'Sol Ring');
+    T.g._createNamedToken('A', { token: 'Clue', n: 2 });
+    T.g._createNamedToken('A', { token: 'Food', n: 1 });
+    T.mana('A', '3');
+    t.no(T.g.activateAbility('A', font.id, 1, { auto: true, targets: [] }), 'two Clues and a Food: not three names');
+    t.ok(/different names/.test(T.g.lastError || ''), T.g.lastError);
+    T.g._createNamedToken('A', { token: 'Blood', n: 1 });
+    T.g._createNamedToken('A', { token: 'Gold', n: 1 });
+    let q = null;
+    T.answer('sacrifice', (ch) => { q = ch; const clues = T.bfOf('A').filter(o => o.name === 'Clue'); return { cardIds: [clues[0].id, clues[1].id, T.bfOf('A').find(o => o.name === 'Food').id] }; });
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Sol Ring').id] }));
+    T.activate('A', font, 1, { auto: false });
+    t.ok(q && q.differentNames && /with different names/.test(q.prompt), 'asked, saying so');
+    const left = T.bfOf('A').filter(o => o.isToken).map(o => o.name).sort();
+    t.eq(left.length, 2, 'three went');
+    t.ok(left.includes('Clue'), 'only one Clue went');
+    t.zone(ring, 'battlefield', 'the Sol Ring fetched');
+    // the first ability: a token of the controller's choice
+    T.nextTurn('A');
+    T.answer('mode', () => ({ modes: [2] }));
+    T.activate('A', font, 0);
+    t.eq(T.bfOf('A').filter(o => o.name === 'Food').length, 1, 'a Food');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Mana Sculpt — with a Wizard, {C} for each mana spent on the countered spell at your next main phase; without one, none', (mk, t) => {
+    t.auto('Mana Sculpt');
+    const run = (wizard) => {
+      const T = mk({ library: Array(20).fill('Island') });
+      if (wizard) T.bf('B', 'Prodigal Sorcerer');
+      const blaze = T.hand('A', 'Blaze');
+      T.mana('A', 'RRRR');
+      T.cast('A', blaze, { resolve: false, x: 3, targets: ['B'] });
+      T.g.passPriority('A', true);
+      T.mana('B', '1UU');
+      T.cast('B', T.hand('B', 'Mana Sculpt'), { targets: [T.stackTarget(blaze)] });
+      t.zone(blaze, 'graveyard');
+      t.eq(T.life('B'), 20);
+      T.nextTurn('B');
+      t.eq(T.manualLines().length, 0);
+      return T.player('B').pool.C || 0;
+    };
+    t.eq(run(true), 4, 'four colourless: the mana spent, X and all');
+    t.eq(run(false), 0, 'no Wizard, no mana');
+  });
+  test('Cards: See Double — copy target spell, or a token copy of a creature; both once an opponent has eight cards in their graveyard; it can\'t be copied', (mk, t) => {
+    t.auto('See Double');
+    const setup = (fill) => {
+      const T = mk({ library: Array(20).fill('Island') });
+      for (let k = 0; k < fill; k++) T.grave('B', 'Island');
+      const giant = T.bf('B', 'Hill Giant');
+      const shock = T.hand('A', 'Shock');
+      T.mana('A', 'R');
+      T.cast('A', shock, { resolve: false, targets: ['B'] });
+      T.mana('A', '2UU');
+      return { T, giant, shock };
+    };
+    // one mode: the spell copied
+    const a = setup(0);
+    a.T.cast('A', a.T.hand('A', 'See Double'), { modes: [0], targets: [a.T.stackTarget(a.shock)] });
+    t.eq(a.T.life('B'), 16, 'Shock and its copy');
+    t.eq(a.T.bfOf('A').length, 0);
+    // both, with eight cards in an opponent's graveyard
+    const b = setup(8);
+    b.T.answer('pickTarget', () => ({ targets: [{ kind: 'stack', id: b.T.stackTarget(b.shock).id }, { kind: 'object', id: b.giant.id }] }));
+    b.T.cast('A', b.T.hand('A', 'See Double'), { modes: [0, 1] });
+    t.eq(b.T.life('B'), 16, 'both: the copy');
+    t.ok(b.T.bfOf('A').some(o => o.isToken && o.name === 'Hill Giant'), 'both: a Giant token');
+    // seven: both refused
+    const c = setup(7);
+    t.no(c.T.g.castSpell('A', c.T.hand('A', 'See Double').id, { auto: true, modes: [0, 1], targets: [c.T.stackTarget(c.shock), { kind: 'object', id: c.giant.id }] }), 'not both with seven');
+    // it can't be copied
+    const d = setup(0);
+    const sd = d.T.hand('A', 'See Double');
+    d.T.cast('A', sd, { modes: [1], targets: [d.giant], resolve: false });
+    d.T.g.passPriority('A', true);
+    d.T.mana('B', 'UUR');
+    d.T.cast('B', d.T.hand('B', 'Twincast'), { targets: [d.T.stackTarget(sd)] });
+    t.no(d.T.bfOf('B').some(o => o.name === 'Hill Giant' && o.isToken), 'Twincast copies nothing');
+    t.eq(a.T.manualLines().length + b.T.manualLines().length, 0);
+  });
 };
