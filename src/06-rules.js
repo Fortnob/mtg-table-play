@@ -20890,9 +20890,6 @@
           if (ab.commandOnly && o.zone !== 'command') continue;
           // "enters or attacks" is one ability that answers to either event
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
-          // "Whenever one or more of your opponents are attacked" is relative to this ability's controller.
-          if (event === 'opponentsAttacked' &&
-              !this.opponentsOf(o.controller).some(q => (data.attackedPlayers || []).includes(q.id))) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           // a graveyard ability works from there and nowhere else
           if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
