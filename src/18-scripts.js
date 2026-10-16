@@ -592,7 +592,7 @@
         text: "Destroy all artifacts you don't control, then exile the top X cards of your library, where X is the number of artifacts that were put into graveyards from the battlefield this turn. You may put a creature card exiled this way onto the battlefield. It gains haste. Return it to your hand at the beginning of the next end step.",
         effects: [
           { op: 'destroyAll', what: 'artifact', notYou: true },
-          { op: 'impulse', n: { artifactsDiedThisTurn: true } },
+          { op: 'impulse', n: { artifactsDiedThisTurn: true }, play: false },
           { op: 'takeFromExiled', n: 1, filter: 'creature', to: 'battlefield', optional: true,
             prompt: 'You may put a creature card exiled this way onto the battlefield.',
             then: [
