@@ -3094,6 +3094,9 @@
     // Scavenger's Talent: "return a creature card from your graveyard to the battlefield with a finality counter on it"
     { re: /^(?:Then )?[Rr]eturn an? ([a-z]+) card from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/,
       make: (m) => ({ op: 'graveyardPick', n: 1, upTo: false, filter: m[1].toLowerCase(), to: 'battlefield', counter: m[2].toLowerCase() }) },
+    // Black Sun's Twilight: "return a creature card with mana value X or less from your graveyard to the battlefield tapped" — picked as it resolves
+    { re: /^(?:Then )?[Rr]eturn an? ([a-z]+) card with mana value (X|\d+) or less from your graveyard to the battlefield( tapped)?\.?$/,
+      make: (m) => Object.assign({ op: 'graveyardPick', n: 1, upTo: false, filter: m[1].toLowerCase(), to: 'battlefield', maxMv: m[2] === 'X' ? 'X' : +m[2] }, m[3] ? { tapped: true } : {}) },
     // Sanctum of Eternity: "Return target commander you own from the battlefield to your hand."
     { re: /^Return target commander you own from the battlefield to your hand\.?$/i,
       make: () => ({ op: 'bounce', targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent', commander: true, owner: 'you' }] }) },
@@ -14206,6 +14209,10 @@
         if ((pre.keywords || []).some(k => !kwKnown(k))) return null;
         return [{ op: 'fightPair', pre, targets: [targetSpec('target creature you control'), targetSpec("target creature you don't control")] }];
       } },
+    /* Ancient Animus: "Put a +1/+1 counter on target creature you control if it's legendary. Then it fights target
+       creature an opponent controls." — the counter, then the fight (fightPair) */
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on target creature you control if (it'?s [a-z]+)\. Then it fights (target creature (?:an opponent controls|you don'?t control))\.$/i,
+      make: (m) => { const cond = condOf(m[2]); return cond ? [{ op: 'fightPair', pre: { cond, counter: m[1].toLowerCase() }, targets: [targetSpec('target creature you control'), targetSpec(m[3])] }] : null; } },
     /* Delay: "Counter target spell. If the spell is countered this way, exile it with three time counters on it
        instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." */
     { re: /^Counter target spell\. If the spell is countered this way, exile it with (two|three|four|five) time counters on it instead of putting it into its owner'?s graveyard\. If it doesn'?t have suspend, it gains suspend\.$/i,

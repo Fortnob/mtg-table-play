@@ -81006,4 +81006,47 @@ module.exports = (test) => {
     t.zone(bear2, 'battlefield', 'one target is fine');
     t.zone(bear, 'graveyard');
   });
+
+  test('Cards: Ancient Animus — a +1/+1 counter only on a legendary creature, then it fights', (mk, t) => {
+    t.auto('Ancient Animus');
+    const T = mk();
+    const g = T.g;
+    const leg = T.bf('A', 'Isamaru, Hound of Konda');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const elf = T.bf('B', 'Llanowar Elves');
+    const bears = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Ancient Animus'), { targets: [leg, bears] });
+    t.eq(leg.counters['+1/+1'] || 0, 1, 'legendary: a counter');
+    t.zone(bears, 'graveyard', 'the 3/3 Isamaru fights the Bears: dead');
+    t.zone(leg, 'battlefield', 'and Isamaru, 3/3 with the counter, lives through 2');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Ancient Animus'), { targets: [bear, elf] });
+    t.eq(bear.counters['+1/+1'] || 0, 0, 'not legendary: no counter');
+    t.zone(elf, 'graveyard', 'the Bears fight the Elves');
+    t.zone(bear, 'battlefield', 'and live');
+    t.eq(bear.damage || 0, 1, 'with 1 damage');
+  });
+
+  test("Cards: Black Sun's Twilight — -X/-X; X of 5 or more also returns a creature card with mana value X or less, tapped", (mk, t) => {
+    t.auto("Black Sun's Twilight");
+    const T = mk();
+    const g = T.g;
+    const wurm = T.bf('B', 'Craw Wurm');
+    const angel = T.grave('A', 'Serra Angel');
+    const big = T.grave('A', 'Craw Wurm');
+    T.mana('A', 'B5');
+    T.cast('A', T.hand('A', "Black Sun's Twilight"), { targets: [wurm], x: 5 });
+    t.zone(wurm, 'graveyard', 'the Wurm -5/-5: dead');
+    t.zone(angel, 'battlefield', 'X of 5: the Angel (mana value 5) returns');
+    t.ok(angel.tapped, 'tapped');
+    t.zone(big, 'graveyard', 'the Craw Wurm (mana value 6) does not');
+    const T2 = mk();
+    const bear = T2.bf('B', 'Grizzly Bears');
+    const elf = T2.grave('A', 'Llanowar Elves');
+    T2.mana('A', 'B4');
+    T2.cast('A', T2.hand('A', "Black Sun's Twilight"), { targets: [bear], x: 4 });
+    t.zone(bear, 'graveyard', 'X of 4: the Bears die');
+    t.zone(elf, 'graveyard', 'but nothing returns');
+  });
 };
