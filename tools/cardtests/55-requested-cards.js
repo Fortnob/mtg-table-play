@@ -69,7 +69,7 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bear), basePower, 'being attacked is not the same as an opponent being attacked');
     T.g._fire('opponentsAttacked', null, { attackedPlayers: ['B'] });
     T.resolve();
-    t.eq(T.g.powerOf(bear), basePower + T.zone('A', 'hand').length, 'the attacking creature gets +X/+X for A\\'s hand size');
+    t.eq(T.g.powerOf(bear), basePower + T.zone('A', 'hand').length, "the attacking creature gets +X/+X for the player's hand size");
   });
 
   test('Green Slime counters an artifact ability and destroys its source', (mk, t) => {
