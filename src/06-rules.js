@@ -10605,6 +10605,16 @@
       }
       // what the draft noted: Lurking Automaton's counters, Cogwork Tracker's player
       this._enterNoted(o);
+      /* Displaced Dinosaurs: "As a historic permanent you control enters, it becomes a 7/7 Dinosaur creature in addition
+         to its other types." — for good, whatever happens to the Dinosaurs after (entersBecome) */
+      for (const s0 of this.battlefield) {
+        if (s0 === o || s0.controller !== o.controller || s0.phasedOut) continue;
+        const eb = this._staticOp(s0, 'entersBecome');
+        if (!eb || !this._cardFitsWords(o, eb.words || 'permanent')) continue;
+        o.effects.push(Object.assign(JSON.parse(JSON.stringify(eb.eff || {})), { until: null }));
+        o._chr = null;
+        this.logEvent('rules', `${o.name} enters as ${eb.label || 'a creature'} (${s0.name}).`);
+      }
       /* Metallic Mimic, Giada, Renata: "each other creature you control
          (of the chosen type) enters with an additional +1/+1 counter on it
          (for each Angel you already control)"; Muzzio's Preparations, from
@@ -17006,6 +17016,8 @@
           const top = Math.max(...this.players.filter(q => !q.hasLost).map(q => q.life));
           return d.life >= top;
         }
+        // Preacher of the Schism: "while you have the most life or are tied for most life"
+        case 'youMostLife': return !!me && me.life >= Math.max(...this.players.filter(q => !q.hasLost).map(q => q.life));
         case 'selfIsToken': return !!src && (!!src.isToken) !== !!cond.not;
         // Baba Lysaga, Night Witch: "three or more card types among the sacrificed permanents" (sacrificedTypes)
         case 'sacrificedTypes': {
@@ -17563,6 +17575,12 @@
         case 'thatPlayerMoreLife': {
           const p = this.player(((ctx && ctx.triggerData) || {}).player), me2 = this.player(ctx && ctx.controller);
           return !!p && !!me2 && p.life > me2.life;
+        }
+        // Cartographer's Hawk: "a player who controls more lands than you" — the player hit
+        case 'thatPlayerMoreLands': {
+          const p = this.player(((ctx && ctx.triggerData) || {}).player), me2 = this.player(ctx && ctx.controller);
+          const lands = (pid) => this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._matchesCategory(x, 'land')).length;
+          return !!p && !!me2 && lands(p.id) > lands(me2.id);
         }
         case 'thatPlayerLife': {
           const td = (ctx && ctx.triggerData) || {};

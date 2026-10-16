@@ -18597,6 +18597,12 @@
        "if" asked again (onTrigger) */
     { re: /^Whenever (?:this creature|CARDNAME) attacks a player who has more life than you,? /i, event: 'attacks', self: true,
       extra: { attacksPlayer: true, condition: { kind: 'thatPlayerMoreLife', onTrigger: true } } },
+    /* Preacher of the Schism: "Whenever this creature attacks the player with the most life or tied for most life,";
+       "Whenever this creature attacks while you have the most life or are tied for most life," — as it attacks (onTrigger) */
+    { re: /^Whenever (?:this creature|CARDNAME) attacks the player with the most life or tied for most life,? /i, event: 'attacks', self: true,
+      extra: { attacksPlayer: true, condition: { kind: 'attackingMostLife', onTrigger: true } } },
+    { re: /^Whenever (?:this creature|CARDNAME) attacks while you have the most life or are tied for most life,? /i, event: 'attacks', self: true,
+      extra: { condition: { kind: 'youMostLife', onTrigger: true } } },
     { re: /^Whenever (?:this creature|CARDNAME) attacks (?:a player|an opponent),? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
     { re: /^When (?:this (?:creature|artifact|enchantment|permanent|land)|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
     // Flourishing Defenses: "Whenever a -1/-1 counter is put on a creature" — once for each counter
@@ -19255,6 +19261,9 @@
     // Tinybones, Pocket Nuisance: "Whenever a player discards one or more cards" — once for the lot (anyDiscardBatch)
     { re: /^Whenever a player discards one or more cards,? /i, event: 'anyDiscard', extra: { batch: true } },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
+    // Cartographer's Hawk: "When this creature deals combat damage to a player who controls more lands than you," — as it hits (onTrigger)
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) deals combat damage to a player who controls more lands than you,? /i, event: 'combatDamageToPlayer', self: true,
+      extra: { condition: { kind: 'thatPlayerMoreLands', onTrigger: true } } },
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
     { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },
     // Kitt Kanto, Mayhem Diva: "At the beginning of combat on each player's turn," — "that player" whose turn it is
@@ -24316,7 +24325,8 @@
       if (r) return r;
     }
     // Dragoon's Lance: "Equipped creature gets +1/+0 and is a Knight in addition to its other types."
-    if ((mm2 = String(line).match(/^((?:Equipped|Enchanted) creature) gets ([+-]\d+\/[+-]\d+) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/))) {
+    // (Machinist's Arsenal: "gets +2/+2 for each artifact you control and is an Artificer …")
+    if ((mm2 = String(line).match(/^((?:Equipped|Enchanted) creature) gets ([+-]\d+\/[+-]\d+(?: for each [a-z ]+? you control)?) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/))) {
       const r = both(mm2[1] + ' gets ' + mm2[2] + '.', mm2[1] + ' is a ' + mm2[3] + ' in addition to its other types.');
       if (r) return r;
     }
@@ -26342,6 +26352,10 @@
       // Kalain, Reclusive Painter: "Other creatures you control enter with an additional +1/+1 counter on them for each mana from a Treasure spent to cast them." (perTreasureMana)
       { re: /^Other creatures you control enter with an additional \+1\/\+1 counter on them for each mana from a Treasure spent to cast them\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', perTreasureMana: true }, auto: true },
+      // Displaced Dinosaurs: "As a historic permanent you control enters, it becomes a 7/7 Dinosaur creature in addition to its other types." (entersBecome)
+      { re: /^As an? ([a-z]+) permanent you control enters, it becomes an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
+        make: (m) => ({ op: 'entersBecome', words: m[1].toLowerCase(), eff: { addTypes: ['Creature'], setPt: { p: +m[2], t: +m[3] }, addSubtypes: [m[4]] },
+          label: `a ${m[2]}/${m[3]} ${m[4]} creature` }), auto: true },
       // Coin of Mastery: "Each creature you control enters with an additional +1/+1 counter on it for each mana from an artifact source spent to cast it." (perArtifactMana)
       { re: /^Each creature you control enters with an additional \+1\/\+1 counter on it for each mana from an artifact source spent to cast it\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', perArtifactMana: true }, auto: true },

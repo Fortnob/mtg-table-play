@@ -78882,4 +78882,87 @@ module.exports = (test) => {
     T.activate('A', coin, 0);
     t.ok(T.bfOf('A').some(x => x.isToken && x.name === 'Treasure'), 'a Treasure');
   });
+
+  test('Cards: Displaced Dinosaurs — a historic permanent of yours enters as a 7/7 Dinosaur creature, for good', (mk, t) => {
+    t.auto('Displaced Dinosaurs');
+    const T = mk();
+    const g = T.g;
+    const dd = T.bf('A', 'Displaced Dinosaurs');
+    const ring = T.bf('A', 'Sol Ring', { etb: true });
+    t.ok(g.characteristics(ring).isCreature, 'Sol Ring is a creature');
+    t.eq(g.powerOf(ring), 7); t.eq(g.toughnessOf(ring), 7);
+    t.ok(g._hasCreatureType(ring, 'Dinosaur'), 'a Dinosaur');
+    t.ok(g._matchesCategory(ring, 'artifact'), 'still an artifact');
+    const isa = T.bf('A', 'Isamaru, Hound of Konda', { etb: true });
+    t.eq(g.powerOf(isa), 7, 'a legendary creature: 7/7');
+    const bear = T.bf('A', 'Grizzly Bears', { etb: true });
+    t.eq(g.powerOf(bear), 2, 'not historic: unchanged');
+    const theirs = T.bf('B', 'Mind Stone', { etb: true });
+    t.no(g.characteristics(theirs).isCreature, "an opponent's artifact: unchanged");
+    g.moveObject(dd, 'graveyard');
+    g.bumpBoard();
+    t.eq(g.powerOf(ring), 7, 'the Dinosaurs gone, the Sol Ring stays a 7/7');
+  });
+
+  test('Cards: Preacher of the Schism — attacking the player with the most life: a Vampire; while you have the most: draw, lose 1', (mk, t) => {
+    t.auto('Preacher of the Schism');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(10).fill('Island') });
+    const g = T.g;
+    const pr = T.bf('A', 'Preacher of the Schism');
+    T.player('B').life = 25;
+    const vamps = () => g.battlefield.filter(x => x.isToken && x.controller === 'A' && /Vampire/.test(x.card.type_line || '')).length;
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: pr.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(vamps(), 1, 'B has the most life: a Vampire');
+    t.eq(T.zone('A', 'hand').length, h0, 'A has less than B: no card');
+    T.nextTurn('A');
+    T.player('B').life = 20; T.player('A').life = 22;
+    const h1 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: pr.id, defenderId: 'C' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(vamps(), 1, 'C does not have the most: no Vampire');
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'A has the most: a card');
+    t.eq(T.life('A'), 21, 'and 1 life lost');
+  });
+
+  test("Cards: Cartographer's Hawk — hits a player with more lands: back to hand, and a Plains onto the battlefield tapped", (mk, t) => {
+    t.auto("Cartographer's Hawk");
+    const T = mk({ library: ['Plains', 'Island'] });
+    const g = T.g;
+    const hawk = T.bf('A', "Cartographer's Hawk");
+    T.bf('B', 'Island'); T.bf('B', 'Island');
+    T.bf('A', 'Plains');
+    T.answer('declareAttackers', () => [{ attackerId: hawk.id, defenderId: 'B' }]);
+    T.answer('confirm', { yes: true });
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.zone(hawk, 'hand', 'back to its owner\'s hand');
+    const plains = T.bfOf('A').filter(x => x.name === 'Plains');
+    t.eq(plains.length, 2, 'a Plains found');
+    t.ok(plains.some(x => x.tapped), 'tapped');
+    // as many lands: stays
+    const h2 = T.bf('A', "Cartographer's Hawk");
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: h2.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    T.resolve();
+    t.zone(h2, 'battlefield', 'B has no more lands than A: it stays');
+  });
+
+  test("Cards: Machinist's Arsenal — a Hero to wear it; +2/+2 for each artifact you control, and an Artificer", (mk, t) => {
+    t.auto("Machinist's Arsenal");
+    const T = mk();
+    const g = T.g;
+    T.mana('A', 'W4');
+    T.cast('A', T.hand('A', "Machinist's Arsenal"));
+    const hero = T.bfOf('A').find(x => x.isToken && /Hero/.test(x.card.type_line || ''));
+    t.ok(hero, 'a Hero token');
+    t.eq(g.powerOf(hero), 3, '1/1 and one artifact: +2/+2');
+    t.ok(g._hasCreatureType(hero, 'Artificer'), 'an Artificer');
+    T.bf('A', 'Sol Ring'); g.bumpBoard();
+    t.eq(g.toughnessOf(hero), 5, 'two artifacts: +4/+4');
+  });
 };
