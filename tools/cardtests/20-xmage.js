@@ -71474,4 +71474,157 @@ module.exports = (test) => {
     t.eq(T.asked.slice(q0).filter(c => c.type === 'confirm').length, 0, 'no target: no question');
     t.ok(T.life('A') <= life0 - 2, 'two Arenas now');
   });
+  test('Cards: Biophagus — its mana casts a creature with an additional +1/+1 counter; a non-Human, multicoloured one for its kin', (mk, t) => {
+    t.auto('Biophagus');
+    t.auto('Animal Attendant');
+    t.auto("Guildmages' Forum");
+    const T = mk();
+    const bio = T.bf('A', 'Biophagus');
+    t.ok(T.g.tapForMana('A', bio.id, 0, 'G'), T.g.lastError);
+    T.mana('A', '1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.zone(bear, 'battlefield');
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'one additional counter');
+    // a creature not paid with it: none
+    T.mana('A', 'W');
+    const lion = T.hand('A', 'Savannah Lions');
+    T.cast('A', lion);
+    t.eq(lion.counters['+1/+1'] || 0, 0, 'not its mana: no counter');
+    // Animal Attendant: a Human gets none, a non-Human one
+    const U = mk();
+    const aa = U.bf('A', 'Animal Attendant');
+    U.g.tapForMana('A', aa.id, 0, 'W');
+    const elite = U.hand('A', 'Elite Vanguard');
+    U.cast('A', elite);
+    t.eq(elite.counters['+1/+1'] || 0, 0, 'a Human: no counter');
+    U.nextTurn('B'); U.nextTurn('A');
+    U.g.tapForMana('A', aa.id, 0, 'G');
+    U.mana('A', '1');
+    const bear2 = U.hand('A', 'Grizzly Bears');
+    U.cast('A', bear2);
+    t.eq(bear2.counters['+1/+1'] || 0, 1, 'a non-Human: a counter');
+    // Guildmages' Forum: multicoloured only
+    const V = mk();
+    const gf = V.bf('A', "Guildmages' Forum");
+    V.mana('A', '1');
+    V.g.tapForMana('A', gf.id, 1, 'G');
+    V.mana('A', '1');
+    const bear3 = V.hand('A', 'Grizzly Bears');
+    V.cast('A', bear3);
+    t.eq(bear3.counters['+1/+1'] || 0, 0, 'mono-green: no counter');
+    V.nextTurn('B'); V.nextTurn('A');
+    V.mana('A', '1');
+    V.g.tapForMana('A', gf.id, 1, 'G');
+    V.mana('A', 'W');
+    const ses = V.hand('A', 'Watchwolf');
+    V.cast('A', ses);
+    t.eq(ses.counters['+1/+1'] || 0, 1, 'green-white: a counter');
+  });
+  test('Cards: Marauding Raptor — 2 damage to each other creature of yours that enters; a Dinosaur hit pumps it +2/+0', (mk, t) => {
+    t.auto('Marauding Raptor');
+    const T = mk();
+    const mr = T.bf('A', 'Marauding Raptor');
+    T.mana('A', '1G');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.zone(bear, 'graveyard', 'a 2/2 dies to two damage');
+    t.eq(T.g.powerOf(mr), 2, 'not a Dinosaur: no pump');
+    const dino = T.bf('A', 'Colossal Dreadmaw', { etb: true });
+    T.resolve();
+    t.eq(dino.damage, 2, 'the Dinosaur is dealt 2');
+    t.eq(T.g.powerOf(mr), 4, 'a Dinosaur hit: +2/+0');
+    // an opponent's creature: nothing
+    const ob = T.bf('B', 'Colossal Dreadmaw', { etb: true });
+    T.resolve();
+    t.eq(ob.damage, 0, "an opponent's creature isn't hit");
+    t.eq(T.g.powerOf(mr), 4);
+    T.nextTurn('B');
+    t.eq(T.g.powerOf(mr), 2, 'until end of turn');
+  });
+  test("Cards: Biomancer's Familiar — creatures' abilities cost {2} less; the next adapt this turn ignores the counters already there", (mk, t) => {
+    t.auto("Biomancer's Familiar");
+    const T = mk();
+    const bf = T.bf('A', "Biomancer's Familiar");
+    const aero = T.bf('A', 'Aeromunculus', { counters: { '+1/+1': 1 } });
+    T.mana('A', 'GU');
+    T.activate('A', aero, 0);
+    t.eq(aero.counters['+1/+1'], 1, 'counters already: adapt does nothing ({2}{G}{U} paid with {G}{U})');
+    T.activate('A', bf, 0, { targets: [aero] });
+    T.mana('A', 'GU');
+    T.activate('A', aero, 0);
+    t.eq(aero.counters['+1/+1'], 2, 'adapts as though it had none: adapt 1 more');
+    T.mana('A', 'GU');
+    T.activate('A', aero, 0);
+    t.eq(aero.counters['+1/+1'], 2, 'only the next time');
+    // this turn only
+    const U = mk();
+    const bf2 = U.bf('A', "Biomancer's Familiar");
+    const aero2 = U.bf('A', 'Aeromunculus', { counters: { '+1/+1': 1 } });
+    U.activate('A', bf2, 0, { targets: [aero2] });
+    U.nextTurn('B'); U.nextTurn('A');
+    U.mana('A', 'GU');
+    U.activate('A', aero2, 0);
+    t.eq(aero2.counters['+1/+1'], 1, 'a later turn: as usual');
+  });
+  test('Cards: Reaver Titan — protection from mana value 3 or less; 5 damage to each opponent as it attacks', (mk, t) => {
+    t.auto('Reaver Titan');
+    t.auto('Mistmeadow Skulk');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const rt = T.bf('A', 'Reaver Titan');
+    t.ok(T.g._protectedFrom(rt, T.hand('B', 'Shatter')), 'a 2-mana spell: protected');
+    t.ok(T.g._protectedFrom(rt, T.hand('B', "Hero's Downfall")), 'a 3-mana spell: protected too');
+    t.no(T.g._protectedFrom(rt, T.hand('B', 'Hour of Revelation')), 'a 6-mana spell: not');
+    t.no(T.g._protectedFrom(rt, T.bf('B', 'Colossal Dreadmaw')), 'a 6-mana creature: not');
+    t.ok(T.g._protectedFrom(rt, T.bf('B', 'Grizzly Bears')), 'a 2-mana creature: protected');
+    // crewed, it attacks: 5 to each opponent
+    const crew = T.bf('A', 'Colossal Dreadmaw');
+    T.answer('pickCard', { cardIds: [crew.id] });
+    T.activate('A', rt, 0);
+    t.ok(T.g.characteristics(rt).isCreature, 'crewed');
+    T.answer('declareAttackers', () => [{ attackerId: rt.id, defenderId: 'C' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 15, 'B: 5 from the trigger');
+    t.eq(T.life('C'), 5, 'C: 5, and 10 in combat');
+    // Mistmeadow Skulk: the other way round
+    const sk = T.bf('A', 'Mistmeadow Skulk');
+    t.no(T.g._protectedFrom(sk, T.hand('B', 'Lightning Bolt')), 'the Skulk: a 1-mana spell gets through');
+    t.ok(T.g._protectedFrom(sk, T.hand('B', 'Murder')), 'a 3-mana one does not');
+  });
+  test('Cards: Lost Monarch of Ifnir — a Zombie hit a player: at the second main phase mill three, then may take back a creature card', (mk, t) => {
+    t.auto('Lost Monarch of Ifnir');
+    const T = mk({ library: ['Grizzly Bears', 'Island'] });
+    const lm = T.bf('A', 'Lost Monarch of Ifnir');
+    const wc = T.bf('A', 'Walking Corpse');
+    t.eq(T.g._kwArg(wc, 'afflict'), 3, 'other Zombies have afflict 3');
+    const lib0 = T.zone('A', 'library').length;
+    T.answer('declareAttackers', () => [{ attackerId: wc.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 18, 'the Zombie hit B');
+    let asked = null;
+    T.answer('*', (ch) => { asked = ch; const c = (ch.candidates || ch.cards || []).map(x => x.id || x)[0]; return { cardIds: c ? [c] : [] }; });
+    const hand0 = T.zone('A', 'hand').length;
+    for (let k = 0; k < 6 && T.g.phase.id !== 'postcombat'; k++) { T.settle(); T.g.passPriority(T.g.priorityPlayer.id, true); }
+    T.resolve();
+    t.eq(T.g.phase.id, 'postcombat', 'in the second main phase');
+    t.eq(T.zone('A', 'library').length, lib0 - 3, 'three milled');
+    t.ok(asked, 'asked which card to return');
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'a creature card back to hand');
+    t.ok(T.zone('A', 'hand').every(o => o.analysis().isCreature), 'a creature card');
+    // no Zombie hit: nothing
+    const U = mk();
+    U.bf('A', 'Lost Monarch of Ifnir');
+    const bear = U.bf('A', 'Grizzly Bears');
+    const lib1 = U.zone('A', 'library').length;
+    U.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    U.answer('declareBlockers', () => []);
+    U.toMain('A', 'endCombat');
+    t.eq(U.life('B'), 18);
+    for (let k = 0; k < 6 && U.g.phase.id !== 'postcombat'; k++) { U.settle(); U.g.passPriority(U.g.priorityPlayer.id, true); }
+    U.resolve();
+    t.eq(U.zone('A', 'library').length, lib1, 'not a Zombie: no mill');
+    void lm;
+  });
 };

@@ -12591,6 +12591,12 @@
         if (item.obj && this._cardFitsWords(item.obj, rider.slice(14) + ' spell')) item.uncounterable = true;
         return;
       }
+      // Biophagus: "If this mana is spent to cast a creature spell, that creature enters with an additional +1/+1 counter on it."
+      if (typeof rider === 'string' && rider.startsWith('plusCounter:')) {
+        const so = item.obj, a = so && so.analysis();
+        if (a && a.isCreature && this._cardFitsWords(so, rider.slice(12))) so._enterPlusCounters = (so._enterPlusCounters || 0) + 1;
+        return;
+      }
       // Arena of Glory: a creature spell paid with it arrives with haste
       if (rider === 'hasteCreature') {
         const a = item.obj && item.obj.analysis();
@@ -13935,6 +13941,13 @@
       // Pippin, Guard of the Citadel: protection from lands, battles or kindred, as they are now
       const MORE_TYPES = { lands: 'Land', battles: 'Battle', kindred: 'Kindred' };
       if (MORE_TYPES[s]) return this._cardTypesOf(o).includes(MORE_TYPES[s]);
+      /* Reaver Titan: "Protection from mana value 3 or less"; Mistmeadow Skulk: "protection from mana value 3 or greater"
+         — a spell's with its X, a face-down one's 0 (protMv) */
+      const mvq = s.match(/^mana value (\d+) or (less|greater|more)$/);
+      if (mvq) {
+        const mv = o.zone === 'stack' && o._castMv != null ? o._castMv : o.faceDown ? 0 : ((o.card && o.card.cmc) || 0);
+        return mvq[2] === 'less' ? mv <= +mvq[1] : mv >= +mvq[1];
+      }
       const colorMap = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
       for (const [w, c] of Object.entries(colorMap)) if (s.includes(w) && (a.colors || []).includes(c)) return true;
       if (s.includes('artifacts') && a.isArtifact) return true;
@@ -16740,6 +16753,12 @@
           const pV = xV && (xV.zone === 'battlefield' ? this.powerOf(xV) : xV._lastPower);
           return !!xV && !!src && pV != null && pV > this.powerOf(src);
         }
+        // Lost Monarch of Ifnir: "if a player was dealt combat damage by a Zombie this turn" (playerHitByType)
+        case 'playerHitByType':
+          return (cond.opponent && me ? this.opponentsOf(me.id) : this.players).some(p => this._combatHitByType(p.id, cond.type) > 0);
+        // Marauding Raptor: "If a Dinosaur is dealt damage this way" — one this resolution dealt damage to (dealtThisWayFits)
+        case 'dealtThisWayFits':
+          return (this._dealtThisWay || []).some(id => { const x = this.obj(id); return !!x && this._cardFitsWords(x, cond.words); });
         // Shelinda, Yevon Acolyte: "if its power is less than Shelinda's power" (triggerPowerBelowSelf)
         case 'triggerPowerBelowSelf': {
           const tdB = (ctx && ctx.triggerData) || {};
@@ -32247,8 +32266,16 @@
 
         case 'adapt': {
           if (!src) break;
-          if ((src.counters['+1/+1'] || 0) > 0) break;     // only if it has none
+          // Biomancer's Familiar: "it adapts as though it had no +1/+1 counters on it" — the next time this turn (adaptFresh)
+          const fresh = src._adaptFresh === this.turn;
+          if (fresh) delete src._adaptFresh;
+          if (!fresh && (src.counters['+1/+1'] || 0) > 0) break;     // only if it has none
           this.addCounters(src, '+1/+1', n(e.n) || 1);
+          break;
+        }
+        // Biomancer's Familiar: "The next time target creature adapts this turn, it adapts as though it had no +1/+1 counters on it."
+        case 'adaptFresh': {
+          for (const t of targets) { const o = t.kind === 'object' && this.obj(t.id); if (o && o.zone === 'battlefield') o._adaptFresh = this.turn; }
           break;
         }
 

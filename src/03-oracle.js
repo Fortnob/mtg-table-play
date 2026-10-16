@@ -1765,6 +1765,10 @@
        on it equal to the number of times it's been cast from the command zone this game." (opalCommander) */
     { re: /^If you spend this mana to cast your commander, it enters with a number of additional \+1\/\+1 counters on it equal to the number of times it'?s been cast from the command zone this game\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'opalCommander', open: true }) },
+    /* Biophagus: "If this mana is spent to cast a creature spell, that creature enters with an additional +1/+1 counter
+       on it."; Animal Attendant: "a non-Human creature spell"; Guildmages' Forum: "on a multicolored creature spell" (plusCounter) */
+    { re: /^If (?:this|that) mana is spent (?:to cast|on) an? ((?:[a-z-]+ )?creature) spell, that creature enters with an additional \+1\/\+1 counter on it\.?$/i,
+      make: (m) => ({ op: 'spendOnly', rider: 'plusCounter:' + m[1].toLowerCase(), open: true }) },
     /* Three Tree City: as much as there are creatures of the chosen type */
     { re: /^Add an amount of mana of that color equal to the number of ([a-z ]+?) of the chosen type\.?$/i,
       make: (m) => { const sc = scopeOf(m[1] + ' of the chosen type'); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
@@ -3525,6 +3529,12 @@
     // Zoological Study: "Mill five cards, then return a creature card milled this way to your hand." (takeFromMilled)
     { re: /^Mill (two|three|four|five|six|seven|eight|nine|ten|\d+) cards, then (?:return|put) an? ([a-z]+) card milled this way (?:in)?to your hand\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'takeFromMilled', n: 1, filter: m[2].toLowerCase(), optional: false }] }) },
+    // Lost Monarch of Ifnir: "mill three cards, then you may return a creature card from your graveyard to your hand"
+    { re: /^Mill (two|three|four|five|six|\d+) cards, then ((?:you may )?return an? [a-z ]+ card from your graveyard to your hand)\.?$/i,
+      make: (m) => {
+        const then = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        return then && then.op === 'graveyardPick' ? { op: 'sequence', list: [{ op: 'mill', n: num(m[1]), who: 'you' }, then] } : null;
+      } },
     /* "You may put a creature card from among the milled cards into your
        hand": one of what the mill just put in the graveyard */
     { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way|those cards) (?:into|to) your hand\.?$/i,
@@ -7875,6 +7885,9 @@
       make: () => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, name: 'Draw a card',
         effects: [{ op: 'draw', n: 1, who: 'you' }] }) },
     { re: /^Adapt (\d+)\.?$/i, make: (m) => ({ op: 'adapt', n: +m[1] }) },
+    // Biomancer's Familiar: "The next time target creature adapts this turn, it adapts as though it had no +1/+1 counters on it." (adaptFresh)
+    { re: /^The next time (target creature) adapts this turn, it adapts as though it had no \+1\/\+1 counters on it\.?$/i,
+      make: (m) => ({ op: 'adaptFresh', targets: [targetSpec(m[1])] }) },
     { re: /^Remove a (-1\/-1|\+1\/\+1|[a-z ]+?) counter from (?:CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].trim(), n: -1, scope: 'self' }) },
     { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you control (two|three|one|\d+) or fewer other lands\.?$/i,
@@ -8694,6 +8707,14 @@
       make: (m) => ({ op: 'sequence', list: [{ op: 'addMana', symbols: [m[1].toUpperCase()] }, { op: 'addManaPer', symbol: m[1].toUpperCase(), per: { removedCounters: true, mult: 1 } }] }) },
     // Inferno Elemental: "this creature deals 3 damage to that creature"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to that creature\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toTriggerObject: true }) },
+    // Marauding Raptor: "Whenever another creature you control enters, this creature deals 2 damage to it."
+    { re: /^(?:CARDNAME|This creature) deals (\d+) damage to it\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toTriggerObject: true }) },
+    // Marauding Raptor: "If a Dinosaur is dealt damage this way, this creature gets +2/+0 until end of turn." (dealtThisWayFits)
+    { re: /^If an? ([A-Z][a-z]+|creature) is dealt damage this way, (.+)$/,
+      make: (m) => {
+        const then = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        return then && then.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'dealtThisWayFits', words: m[1] }, then: [then] } : null;
+      } },
     // Storm, Queen of Wakanda: "Storm deals damage equal to her power to that creature." — the one the trigger is about
     { re: /^(?:CARDNAME|This creature) deals damage equal to (?:its|his|her|CARDNAME'?s) power to that creature\.?$/i,
       make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerObject: true }) },
@@ -15668,7 +15689,9 @@
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
-        /^Equip (?:\{|\d)/.test(m[2].trim()));
+        /^Equip (?:\{|\d)/.test(m[2].trim()) ||
+        // Reaver Titan: "Void Shields — Protection from mana value 3 or less"
+        /^Protection from [a-z0-9 ]+$/i.test(m[2].trim()));
     if (!ABILITY_WORDS.has(word) && !flavour) return line;
     const rest = m[2].trim();
     return rest.charAt(0).toUpperCase() + rest.slice(1);
@@ -16184,6 +16207,8 @@
     [/^you have a full party$/i, () => ({ kind: 'fullParty' })],
     // Torch the Witness, Bottle-Cap Blast: "if excess damage was dealt (to a creature) this way"
     [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
+    // Lost Monarch of Ifnir: "if a player was dealt combat damage by a Zombie this turn" (playerHitByType)
+    [/^(a player|an opponent) was dealt combat damage by an? ([A-Z][a-z]+) this turn$/, (m) => ({ kind: 'playerHitByType', type: m[2].toLowerCase(), opponent: /opponent/.test(m[1]) })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is tapped$/i, () => ({ kind: 'selfTapped' })],
     // Isperia the Inscrutable: "a card with the chosen name is revealed this way" — in the hand just revealed (chosenNameRevealed)
