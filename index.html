@@ -15033,6 +15033,8 @@ MTG.setGameSpeed = function (id) {
       if (e.op === 'noUntap') return e.scope === 'self';
       // Yuna, Grand Summoner: "When you next cast a creature spell this turn, that creature enters with two additional +1/+1 counters on it."
       if (e.op === 'nextCreatureCounter') return true;
+      // Vexing Puzzlebox: "{T}: Add one mana of any color. Roll a d20." — a roll with nothing printed under it (its ruling: a mana ability)
+      if (e.op === 'rollDie') return !(e.table || []).length && !e.perTreasureSpent;
       /* Magus Lucea Kane: "When you next cast a spell with {X} in its mana cost or activate an ability with {X} in its
          activation cost this turn, copy that spell or ability." — a trigger for later, set up with the mana */
       if (e.op === 'getEmblem') return !!(e.thisTurn && e.once);
@@ -15175,6 +15177,9 @@ MTG.setGameSpeed = function (id) {
     if (noPt && !(e.grantedText && new RegExp('^' + selfWords + "'s power and toughness are each equal to ", 'i').test(e.grantedText) && !/CARDNAME/.test(e.grantedText))) return null;
     /* A token handed an ability has to be able to use it: the text is
        read as the token's own card would be, and has to read whole. */
+    /* Nesting Dragon: '"When this token dies, create a … token with flying and '{R}: This token gets +1/+0 …'"' — a
+       quote within the quote is in single marks; as the token's own text it is a quote of its own */
+    if (e.grantedText && /(?:^|\s)'/.test(e.grantedText)) e.grantedText = e.grantedText.replace(/(^|\s)'(.+?)'(?=$|\s|[.,)])/g, '$1"$2"');
     if (e.grantedText) {
       const probe = analyze({ id: 'tokentext:' + U.hash(e.grantedText), name: e.name || e.subtypes, type_line: 'Token Creature — ' + e.subtypes,
         oracle_text: e.grantedText, keywords: [], layout: 'token' });
@@ -17161,6 +17166,14 @@ MTG.setGameSpeed = function (id) {
         const tg = targetSpec(m[3]);
         return tg && kinds.every(k => kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, targets: [tg] } : null;
       } },
+    /* Inspirit, Flagship Vessel: "put your choice of a +1/+1 counter or two charge counters on up to one other target
+       artifact" — a kind and its number, picked together (kindChoice, kindChoiceN) */
+    { re: /^Put your choice of (an?|one|two|three) ([+\-0-9/a-z]+) counters? or (an?|one|two|three) ([+\-0-9/a-z]+) counters? on ((?:another )?target [a-z ]+?)\.?$/i,
+      make: (m) => {
+        const kinds = [m[2].toLowerCase(), m[4].toLowerCase()], ns = [num(m[1]), num(m[3])];
+        const tg = targetSpec(m[5]);
+        return tg && !tg.unknown && kinds[0] !== kinds[1] && ns.every(x => typeof x === 'number') ? { op: 'counters', kind: kinds[0], kindChoice: kinds, kindChoiceN: ns, n: ns[0], targets: [tg] } : null;
+      } },
     /* Aragorn, Company Leader: "put one of each of those kinds of counters on up to one other target creature" — the kinds
        the trigger is about (kindFromTrigger) */
     { re: /^Put one of each of those kinds of counters on (up to one other target creature|another target creature|target creature)\.?$/i,
@@ -18060,6 +18073,13 @@ MTG.setGameSpeed = function (id) {
     // (Aerid Konstrari: "create a Heartwood token")
     { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Mutagen|Heartwood) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
+    // Bloodroot Apothecary: "you and target opponent each create a Treasure token" — you, then the opponent targeted
+    { re: /^You and target (opponent|player) each create (a|an|one|two) (Treasure|Clue|Food|Blood|Map|Gold) tokens?\.?$/i,
+      make: (m) => [{ op: 'createNamedToken', n: num(m[2].replace(/^an?$/i, 'one')), token: m[3] },
+        { op: 'createNamedToken', n: num(m[2].replace(/^an?$/i, 'one')), token: m[3], who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }] },
+    // Mutable Explorer: "create a tapped Mutavault token" (its words in _createNamedToken's list)
+    { re: /^Create (a|one|two) (tapped )?Mutavault tokens?\.?$/i,
+      make: (m) => Object.assign({ op: 'createNamedToken', n: num(m[1]), token: 'Mutavault' }, m[2] ? { tapped: true } : {}) },
 
     // --- sentences that need no action from the engine ---
     /* "They can't be regenerated": a rider on the destruction before it,
@@ -18878,6 +18898,11 @@ MTG.setGameSpeed = function (id) {
        toughness" — each its own number, all counted before any go on (eachOwn) */
     { re: /^Put a number of (\+1\/\+1|[a-z]+) counters on each ([a-z ]+?) equal to that creature'?s (power|toughness)\.?$/i,
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: 0, scope: sc, eachOwn: m[3].toLowerCase() } : null; } },
+    /* Astarion's Thirst: "Put X +1/+1 counters on a commander creature you control, where X is the power of the creature
+       exiled this way." — chosen as it resolves, not targeted (chooseFrom commander); X as the creature last was */
+    { re: /^Put X (\+1\/\+1) counters on a commander creature you control, where X is the power of the creature exiled this way\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: { exiledLastPower: true },
+        chooseFrom: { type: 'creature', filter: 'commander creature you control', zone: 'battlefield', controller: 'you', commander: true } }) },
     // Szarel, Genesis Shepherd: "put a number of +1/+1 counters equal to CARDNAME's power on up to one other target creature" (countersEqualTo)
     { re: /^Put a number of (\+1\/\+1|[a-z]+) counters equal to (.+?) on (up to one )?(other |another )?(target creature(?: you control)?)\.?$/i,
       make: (m) => {
@@ -19702,6 +19727,10 @@ MTG.setGameSpeed = function (id) {
     { re: /^(?:You )?[Cc]reate a number of (Treasure|Food|Clue|Blood|Gold) tokens equal to the result\.?$/,
       make: (m) => ({ op: 'createNamedToken', token: m[1], n: 'lastRoll' }) },
     { re: /^Draw cards equal to the result\.?$/i, make: () => ({ op: 'draw', who: 'you', n: 'lastRoll' }) },
+    /* Vexing Puzzlebox: "Whenever you roll one or more dice, put a number of charge counters on this artifact equal to
+       the result." — the roll that set it off, not whatever was rolled last (triggerRollTotal) */
+    { re: /^Put (?:a number of ([a-z+\-0-9/]+) counters on (?:this artifact|this creature|CARDNAME) equal to the result|X ([a-z+\-0-9/]+) counters on (?:this artifact|this creature|CARDNAME), where X is the result)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: (m[1] || m[2]).toLowerCase(), n: 'triggerRollTotal', scope: 'self' }) },
     // Tamiyo, Seasoned Scholar: "Draw cards equal to half the number of cards in your library, rounded up."
     { re: /^Draw cards equal to half the number of cards in your library, rounded up\.?$/i,
       make: () => ({ op: 'draw', who: 'you', n: { halfLibrary: 'you', up: true } }) },
@@ -21160,6 +21189,10 @@ MTG.setGameSpeed = function (id) {
 
 
     /* ===== a land that gets up and attacks ===== */
+    /* Mutable Explorer's Mutavault token: "{1}: This token becomes a 2/2 creature with all creature types until end of
+       turn. It's still a land." — every creature type is changeling's (as Mutavault itself) */
+    { re: /^(?:This token|This creature) becomes an? (\d+)\/(\d+) creature with all creature types until end of turn\.?$/i,
+      make: (m) => ({ op: 'becomes', scope: 'self', duration: 'eot', eff: { addTypes: ['Creature'], keywords: ['Changeling'], setPt: { p: +m[1], t: +m[2] } } }) },
     // (Ride the Shoopuf: "This enchantment becomes a 7/7 Beast creature in addition to its other types." — for good)
     { re: /^(?=.*(?:until end of turn|in addition to its other types)\.?$)(?:This (?:land|permanent|artifact|enchantment)|CARDNAME) becomes an? ([\dX*]+\/[\dX*]+)((?: (?:white|blue|black|red|green|colorless|and))*) ([A-Za-z][-A-Za-z ]*?) creature(?: with ((?:(?! in addition)[a-z, '])+?))?(?: in addition to its other types)?( until end of turn)?\.?$/i,
       make: (m) => ({ op: 'animate', pt: m[1],
@@ -22644,16 +22677,19 @@ MTG.setGameSpeed = function (id) {
     /* Clones: "You may have CARDNAME enter the battlefield as a copy of
        any creature on the battlefield." */
     // (Imposter Mech: "this Vehicle … a creature an opponent controls" — opponents)
-    { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
+    { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: with power \d+ or greater)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,
       make: (m0) => {
         /* Mockingbird: "…with mana value less than or equal to the amount
            of mana spent to cast this creature" */
         const spentRe = / with mana value less than or equal to the amount of mana spent to cast (?:this creature|CARDNAME)/i;
         const upToSpent = spentRe.test(m0[0]);
-        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
+        const m = upToSpent ? m0[0].replace(spentRe, '').match(/^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent|Vehicle)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control| an opponent controls)?(?: with power \d+ or greater)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i) : m0;
         if (!m) return null;
         const e = { op: 'etbAsCopy', what: m[2].trim().toLowerCase() };
         if (upToSpent) e.upToSpent = true;
+        // Deceptive Frostkite: "a creature you control with power 4 or greater" (minPower)
+        const minPow = m0[0].match(/ with power (\d+) or greater/);
+        if (minPow) e.minPower = +minPow[1];
         if (!/^(?:(?:nonland |nonlegendary )?(?:creature|artifact|enchantment|land|equipment|permanent|planeswalker)(?: or (?:creature|artifact|enchantment|planeswalker))?)$/.test(e.what)) return null;
         if (m[1]) e.tapped = true;
         if (m[3] && /opponent/i.test(m[3])) e.opponents = true;
@@ -23367,6 +23403,8 @@ MTG.setGameSpeed = function (id) {
         const then = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1));
         return then && then.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'dealtThisWayFits', words: m[1] }, then: [then] } : null;
       } },
+    // Screaming Nemesis: "If a player is dealt damage this way, they can't gain life for the rest of the game." (noLifeGainForever)
+    { re: /^If a player is dealt damage this way, (?:they|that player) can'?t gain life for the rest of the game\.?$/i, make: () => ({ op: 'noLifeGainForever' }) },
     // Storm, Queen of Wakanda: "Storm deals damage equal to her power to that creature." — the one the trigger is about
     { re: /^(?:CARDNAME|This creature) deals damage equal to (?:its|his|her|CARDNAME'?s) power to that creature\.?$/i,
       make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerObject: true }) },
@@ -26306,6 +26344,15 @@ MTG.setGameSpeed = function (id) {
         return body.effects.concat([{ op: 'repeatWhile', cond, before: [{ op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'self' }],
           body: JSON.parse(JSON.stringify(body.effects)) }]);
       } },
+    /* Sphinx's Tutelage: "Target opponent mills two cards. If two nonland cards that share a color were milled this way,
+       repeat this process." — the same opponent again, while two of the cards milled share a color (repeatWhile, shareColor) */
+    { re: /^(.+?\.) If two (nonland )?cards that share a colou?r were milled this way, repeat this process\.$/i,
+      make: (m) => {
+        const body = parseSentenceList(splitSentences(m[1]));
+        if (!body.auto || !body.effects.length || body.effects.some(x => x && x.op === 'manual') || !body.effects.some(x => x && x.op === 'mill')) return null;
+        return body.effects.concat([{ op: 'repeatWhile', cond: { kind: 'didThisWay', how: 'milled', filter: m[2] ? 'nonland' : '', shareColor: 2 },
+          body: JSON.parse(JSON.stringify(body.effects)) }]);
+      } },
     /* Karn, the Great Creator: "You may reveal an artifact card you own from outside the game or choose a face-up
        artifact card you own in exile. Put that card into your hand." (wish, alsoExile) */
     { re: /^You may reveal an? ([a-z ]+?) card you own from outside the game or choose a face-up \1 card you own in exile\. Put that card into your hand\.$/i,
@@ -27305,6 +27352,22 @@ MTG.setGameSpeed = function (id) {
     { re: /^After the second main phase this turn, there'?s an additional combat phase( followed by an additional main phase)?\. At the beginning of that combat, untap all creatures that attacked this turn\.?$/i,
       make: (m) => [{ op: 'extraCombatAfterMain', nth: 2, withMain: !!m[1], beginName: 'Untap all creatures that attacked this turn',
         beginEffects: [{ op: 'untapAttackedThisTurn', all: true }] }] },
+    /* All-Out Assault: "if it's your main phase, there is an additional combat phase after this phase followed by an
+       additional main phase. When you next attack this turn, untap each creature you control." (delayed youAttack) */
+    { re: /^(?:if it'?s your main phase, )?there is an additional combat phase after this phase,? followed by an additional main phase\. When you next attack this turn, untap each creature you control\.$/i,
+      make: () => [{ op: 'ifCond', cond: { kind: 'yourMainPhase' }, then: [{ op: 'extraCombat', count: 1, withMain: true, inMain: true },
+        { op: 'delayed', event: 'youAttack', eventYours: true, thisTurn: true, name: 'Untap each creature you control', effects: [{ op: 'untapAll', what: 'creatures' }] }] }] },
+    /* Rose Room Treasurer: "create a Treasure token if this is the first or second time this ability has resolved this
+       turn. Otherwise, you may pay {X}. When you do, this creature deals X damage to any target." — the "you may pay …
+       When you do" read whole as the other branch */
+    { re: /^(.+?) if (this is the (?:first|first or second|first, second, or third) time this ability has resolved this turn)\. Otherwise, (you may pay .+)$/i,
+      make: (m) => {
+        const cond = condOf(m[2]);
+        const a = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.'));
+        const b = parseSentenceList(splitSentences(m[3]));
+        if (!cond || !a.auto || !b.auto || !a.effects.length || !b.effects.length || a.effects.concat(b.effects).some(x => !x || x.op === 'manual')) return null;
+        return [{ op: 'ifCond', cond, then: a.effects, otherwise: b.effects }];
+      } },
     /* Moraug, Fury of Akoum: "if it's your main phase, there's an additional
        combat phase after this phase. At the beginning of that combat, untap
        all creatures you control." */
@@ -27987,6 +28050,16 @@ MTG.setGameSpeed = function (id) {
         // (a trigger's "you may" is asked as it triggers: what is left is a must)
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
           m[5] ? { anyMana: true } : {})];
+      } },
+    /* Diluvian Primordial: "for each opponent, you may cast up to one target instant or sorcery card from that player's
+       graveyard without paying its mana cost. If a spell cast this way would be put into a graveyard, exile it instead."
+       — one target in each opponent's graveyard, each cast or not as it resolves (perOpponentFrom, exileAfter) */
+    { re: /^For each opponent, you may cast up to one target ([a-z ,]+?) card from that player'?s graveyard without paying its mana cost\. If a spell cast this way would be put into a graveyard, exile it instead\.?$/i,
+      make: (m) => {
+        const words = m[1].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', upTo: true });
+        if (spec.unknown) return null;
+        return [{ op: 'castFree', from: 'targets', must: false, exileAfter: true, perOpponentFrom: spec }];
       } },
     /* Satya, Aetherflux Genius: "create a tapped and attacking token that's a copy of up to one other target nontoken
        creature you control. You get {E}{E}. At the beginning of the next end step, sacrifice that token unless you pay
@@ -31420,6 +31493,8 @@ MTG.setGameSpeed = function (id) {
       (m) => ({ kind: 'spellsCastOfKind', n: 1, words: m[1].toLowerCase() })],
     // Omnath, Belladonna Took: "this is the first time this ability has resolved this turn", "it's the second (third) time"
     [/^this is the (first|second|third) time this ability has resolved this turn$/i, (m) => ({ kind: 'nthResolution', n: { first: 1, second: 2, third: 3 }[m[1].toLowerCase()] })],
+    // Rose Room Treasurer: "this is the first or second time this ability has resolved this turn" (nthResolution max)
+    [/^this is the (first or second|first, second, or third) time this ability has resolved this turn$/i, (m) => ({ kind: 'nthResolution', max: /third/i.test(m[1]) ? 3 : 2 })],
     [/^it'?s the (second|third) time$/i, (m) => ({ kind: 'nthResolution', n: { second: 2, third: 3 }[m[1].toLowerCase()] })],
     // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
     [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
@@ -31607,9 +31682,10 @@ MTG.setGameSpeed = function (id) {
     // Baird, Argivian Recruiter: "if you control a creature with power greater than its base power" (controlPumped)
     [/^you control a creature with power greater than its base power$/i, () => ({ kind: 'controlPumped' })],
     // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
-    [/^there are (\w+) or more (\+1\/\+1|[a-z]+) counters among ([A-Za-z]+?s) you control$/i, (m) => {
+    // (Lux Artillery: "there are thirty or more counters among artifacts and creatures you control" — any kind, either type)
+    [/^there are (\w+) or more (?:(\+1\/\+1|[a-z]+) )?counters among ([A-Za-z]+?s(?: and [a-z]+s)?) you control$/i, (m) => {
       const sc = scopeOf(m[3] + ' you control'), n = num(m[1]);
-      return sc && typeof n === 'number' ? { kind: 'countersAmongAtLeast', n, counter: m[2].toLowerCase(), scope: sc } : null;
+      return sc && typeof n === 'number' ? { kind: 'countersAmongAtLeast', n, counter: m[2] ? m[2].toLowerCase() : null, scope: sc } : null;
     }],
     // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
     [/^that creature has an? (\+1\/\+1|[a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjCounter', counter: m[1].toLowerCase() })],
@@ -32936,6 +33012,10 @@ MTG.setGameSpeed = function (id) {
     // Henry Wu, InGen Geneticist: "Whenever a creature you control exploits a non-Human creature," (exploitedNotType)
     { re: /^Whenever a creature you control exploits a non-([A-Z][a-z]+) creature,? /, event: 'exploits', extraOf: (m) => ({ exploitedNotType: m[1] }) },
     /* an Aura or Equipment watching the creature it is on */
+    /* Infiltration Lens: "Whenever equipped creature becomes blocked by a creature," — once for each blocker; the creature
+       it is on is the attacker (ofEnchanted, ofEnchantedSource) */
+    { re: /^Whenever (?:equipped|enchanted) creature becomes blocked by a creature,? /i,
+      event: 'blockedByCreature', aboutObject: true, extra: { ofEnchanted: true, ofEnchantedSource: true } },
     // (The Aetherspark: "Whenever equipped creature deals combat damage during your turn" — yourTurnOnly)
     { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked)( during your turn)?,? /i,
       event: 'becomesTapped', aboutObject: true,
@@ -33149,9 +33229,10 @@ MTG.setGameSpeed = function (id) {
     { re: /^When(?:ever)? a player sacrifices (?:a|another) permanent(?:,| )/i, event: 'anySacrifice' },
     /* Mortician Beetle, Legate Lanius, It That Betrays: "Whenever a player (an opponent) sacrifices
        a (nontoken) creature (permanent)," — anyone's sacrifice, and what it was (sacrificedAny) */
-    { re: /^Whenever (a player|an opponent) sacrifices (?:a|an|another) (nontoken )?(creature|permanent|artifact|land), /i,
+    // (Bloodroot Apothecary: "Whenever an opponent sacrifices a noncreature token")
+    { re: /^Whenever (a player|an opponent) sacrifices (?:a|an|another) (nontoken |noncreature )?(creature|permanent|artifact|land|token), /i,
       event: 'anySacrifice', aboutObject: true,
-      filt: (m) => ({ words: (m[2] ? 'nontoken ' : '') + m[3].toLowerCase() }),
+      filt: (m) => ({ words: (m[2] ? m[2].toLowerCase() : '') + m[3].toLowerCase() }),
       extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
     // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed," — anyone's (permDestroyed)
     { re: /^Whenever an? (noncreature artifact|artifact|creature|permanent|nontoken permanent) is sacrificed or destroyed,? /i,
@@ -39607,6 +39688,12 @@ MTG.setGameSpeed = function (id) {
         make: (m) => { const kws = keywordList(m[3]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
           { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } },
           { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws }] } : null; }, auto: true },
+      /* Eye of Nidhogg: "Enchanted creature is a black Dragon with base power and toughness 4/2, has flying and deathtouch,
+         and is goaded." — its color and creature type replaced (layers 5, 4), the size (7b), the keywords (6) */
+      { re: /^(?:Enchanted|Equipped) creature is an? (white|blue|black|red|green) ([A-Z][a-z]+) with base power and toughness (\d+)\/(\d+), has ([a-z ,]+?),? and is goaded\.?$/,
+        make: (m) => { const kws = keywordList(m[5]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
+          { op: 'continuous', layer: 4, scope: { attached: true, what: 'creature' }, setCreatureTypes: [m[2]],
+            setColors: [{ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1]]], setPt: { p: +m[3], t: +m[4] }, grant: kws }] } : null; }, auto: true },
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
@@ -45178,6 +45265,8 @@ MTG.setGameSpeed = function (id) {
         (!e.yours || o.controller === controller) &&
         // (Imposter Mech: "a creature an opponent controls" — opponents)
         (!e.opponents || this.opponentsOf(controller).some(q => q.id === o.controller)) &&
+        // (Deceptive Frostkite: "with power 4 or greater" — minPower)
+        (!e.minPower || this.powerOf(o) >= e.minPower) &&
         // Mockingbird: no more mana value than the mana spent to cast it
         (!e.upToSpent || ((o.card && o.card.cmc) || 0) <= (src.manaSpent || 0)));
     }
@@ -51148,6 +51237,7 @@ MTG.setGameSpeed = function (id) {
       o._enterTappedCast = null;
       o._leaveExileCast = null;
       o._gainsTextCast = null;
+      o._kwCast = null;
       o._enterPlusCounters = 0;
       o._enterAttachCast = null;
       o._enterHasteTurn = null;
@@ -52474,6 +52564,8 @@ MTG.setGameSpeed = function (id) {
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
       if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
       if (o._gainsTextCast) { const gt = o._gainsTextCast; o._gainsTextCast = null; if (o.enteredFrom === 'stack') { o.effects.push({ grantText: gt, until: null }); this.bumpBoard(); } }
+      // (Lux Artillery: keywords the spell gained, the permanent's too — sunburst among them, read below)
+      if (o._kwCast) { const kc = o._kwCast; o._kwCast = null; if (o.enteredFrom === 'stack') { for (const k of kc) o.effects.push({ keywords: k.keywords.slice(), until: k.until }); o._chr = null; this.bumpBoard(); } }
       /* Galea, Kindler of Hope: the Equipment cast from the top of the library: "When this Equipment enters, attach it to
          target creature you control." — its target chosen as it goes on the stack */
       if (o._enterAttachCast) {
@@ -52493,7 +52585,9 @@ MTG.setGameSpeed = function (id) {
       let enterCounters = null;
       /* (a clone is what it copies as it enters, the counters that card enters with included (CR 707.9, 614.12):
          Flesh Duplicate's "it has vanishing 3" — so its words now, not the printed ones) */
-      const ewc = (o.analysis() || a).entersWithCounters;
+      let ewc = (o.analysis() || a).entersWithCounters;
+      // (sunburst gained, not printed: Lux Artillery — +1/+1 counters on a creature, charge counters on anything else, CR 702.44a)
+      if (!ewc && this.hasKw(o, 'sunburst')) ewc = { kind: this.characteristics(o).isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
       if (ewc && !(ewc.ifKicked && !o.wasKicked) &&
           !(ewc.cond && !this._condMet(ewc.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
@@ -59106,7 +59200,8 @@ MTG.setGameSpeed = function (id) {
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
           const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[this._resolvedKey(ctx)];
-          return !!rec && rec.turn === this.turn && rec.n === cond.n;
+          // (Rose Room Treasurer: "the first or second time" — up to that many: max)
+          return !!rec && rec.turn === this.turn && (cond.max ? rec.n <= cond.max : rec.n === cond.n);
         }
         case 'echoDue': return !!src && !!src.echoDue;
         case 'notRenowned': return !!src && !src.renowned;
@@ -59232,6 +59327,11 @@ MTG.setGameSpeed = function (id) {
             : cond.how === 'discarded' ? (this._lastDiscarded || [])
             : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []));
           const f = String(cond.filter || '');
+          // (Sphinx's Tutelage: "two nonland cards that share a color" — two of those that fit with a color in common: shareColor)
+          if (cond.shareColor) {
+            const cols = ids.map(id => this.obj(id)).filter(c => c && (!f || this._itFits(c, f))).map(c => (c.analysis() || {}).colors || []);
+            return cols.some((a, i) => cols.some((b, j) => j > i && a.some(x => b.includes(x))));
+          }
           return ids.some(id => { const c = this.obj(id); return c && (/ or /.test(f) ? f.split(' or ').some(w => this._itFits(c, w))
             : /, /.test(f) ? f.split(', ').every(w => this._itFits(c, w)) : this._itFits(c, f)); });
         }
@@ -60773,6 +60873,8 @@ MTG.setGameSpeed = function (id) {
       // Skullcrack: "Players can't gain life this turn"; "your opponents can't …"
       const t = this.noLifeGainTurn;
       if (t && t.turn === this.turn && (t.who === 'all' || (t.who === 'opponents' && p.id !== t.by))) return true;
+      // Screaming Nemesis: "they can't gain life for the rest of the game"
+      if (p.noLifeGainForever) return true;
       for (const o of this.battlefield) {
         const e = this._staticOp(o, 'noLifeGain');
         if (!e) continue;
@@ -62123,6 +62225,8 @@ MTG.setGameSpeed = function (id) {
         modesChosen: data.modesChosen,
         // Farideh, Devil's Chosen: every die rolled together ("any of those results")
         amounts: data.amounts,
+        // Vexing Puzzlebox: "the result" of the dice rolled together (rollTotal)
+        rollTotal: data.rollTotal,
         // Eriette, the Beguiler: the Aura that became attached ("that Aura")
         auraId: event === 'auraAttached' && data.source ? data.source.id : undefined,
         // who controlled the permanent it is about (Bereavement: "its controller discards")
@@ -62760,7 +62864,8 @@ MTG.setGameSpeed = function (id) {
             if (earlier.length) continue;
           }
           // an Aura or Equipment watching the creature it is on, whoever controls that creature
-          if (ab.ofEnchanted && !(data.object && o.attachedTo === data.object.id)) continue;
+          // (Infiltration Lens: "becomes blocked by a creature" — the creature it is on is the attacker, the source: ofEnchantedSource)
+          if (ab.ofEnchanted && !((ab.ofEnchantedSource ? data.source : data.object) && o.attachedTo === (ab.ofEnchantedSource ? data.source : data.object).id)) continue;
           // Harsh Mentor: only an opponent's activation
           if (ab.activatorIsOpponent && data.playerId === o.controller) continue;
           // "a creature dealt damage by this creature this turn dies"
@@ -64494,7 +64599,8 @@ MTG.setGameSpeed = function (id) {
         }
         if (e2.scope === 'triggerObject') {
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
-          if (x && x.zone === 'battlefield') fn(x);
+          // (Lux Artillery: "Whenever you cast an artifact creature spell, it gains sunburst" — the spell: a keyword it keeps as it enters)
+          if (x && (x.zone === 'battlefield' || (x.zone === 'stack' && e2.op === 'grantKeyword'))) fn(x);
           return;
         }
         if (e2.scope === 'lastTarget') { const x = firstObj(); if (x) fn(x); return; }
@@ -64992,6 +65098,11 @@ MTG.setGameSpeed = function (id) {
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
         // Balin, Loremaster: "the number of cards discarded this way" — by this player, as this resolves (discardedThisRes)
         if (v && typeof v === 'object' && v.discardedThisRes) return (((this.resolving || {})._discBy) || []).filter(d => d.pid === ctx.controller).length * (v.mult || 1);
+        // Astarion's Thirst: "the power of the creature exiled this way" — as it last was on the battlefield (exiledLastPower)
+        if (v && typeof v === 'object' && v.exiledLastPower) {
+          const xo = this._lastExiled && this.obj(this._lastExiled);
+          return xo && xo.zone === 'exile' ? Math.max(0, Number(xo._lastPower) || 0) * (v.mult || 1) : 0;
+        }
         // Stitcher Geralf: "the total power of the cards exiled this way" — as the cards say (exiledPower)
         if (v && typeof v === 'object' && v.exiledPower) {
           const ids = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
@@ -65012,6 +65123,8 @@ MTG.setGameSpeed = function (id) {
         // "the excess damage dealt this way"
         if (v === 'lastExcess') return this._lastExcess || 0;
         // "loses that much life": the amount the trigger was about
+        // Vexing Puzzlebox: "equal to the result" — of the roll that set the trigger off (triggerRollTotal)
+        if (v === 'triggerRollTotal') { const tdR = ctx.triggerData || {}; return Math.max(0, Number(tdR.rollTotal != null ? tdR.rollTotal : tdR.amount) || 0); }
         if (v === 'triggerAmount') {
           const tdA = ctx.triggerData || {};
           // The Ur-Dragon, Poetic Ingenuity: "one or more Dragons attack, draw that many" — how many were in the lot (batchCount)
@@ -65797,13 +65910,17 @@ MTG.setGameSpeed = function (id) {
           }
           // Aragorn, Company Leader: "your choice of a counter from among first strike, vigilance, …" (kindChoice)
           if (e.kindChoice && e.kindChoice.length > 1) {
+            // (Inspirit, Flagship Vessel: "a +1/+1 counter or two charge counters" — each kind with its number: kindChoiceN)
+            const kN = e.kindChoiceN || null;
+            const kOn = (e.targets || []).length ? firstObj() : src;
             const kc = this._choose({ playerId: ctx.controller, purpose: 'counterKindPick', kind: 'options', min: 1, max: 1,
-              options: e.kindChoice.map(k => ({ label: U.titleCase(k) + ' counter' })), kinds: e.kindChoice.slice(),
+              options: e.kindChoice.map((k, i) => ({ label: kN ? MTG.oracle.nounCount(kN[i], k + ' counter') : U.titleCase(k) + ' counter' })), kinds: e.kindChoice.slice(),
+              objId: kOn ? kOn.id : null,
               // (Owen Grady, Raptor Trainer: "on target Dinosaur" — the one targeted)
               prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a counter to put on ${(e.targets || []).length ? (firstObj() ? firstObj().name : 'it') : src ? src.name : 'it'}.` }, 'ckind');
             if (kc === SUSPEND) return SUSPEND;
             const ki = kc && kc.picks && kc.picks[0];
-            e = Object.assign({}, e, { kind: e.kindChoice[ki] || e.kindChoice[0], kindChoice: null });
+            e = Object.assign({}, e, { kind: e.kindChoice[ki] || e.kindChoice[0], kindChoice: null }, kN ? { n: kN[ki] != null ? kN[ki] : kN[0], kindChoiceN: null } : {});
           }
           // Aragorn, Company Leader: "one of each of those kinds of counters" — the kind the trigger is about (kindFromTrigger)
           if (e.kindFromTrigger) {
@@ -66660,10 +66777,16 @@ MTG.setGameSpeed = function (id) {
             this.bumpBoard();
             break;
           }
-          applyToScope(e, (o) => o.effects.push(e.duration === 'nextTurn'
-            ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
-            : e.duration === 'whileControl' ? { keywords: kws, until: null, whileFrom: src.id, whileControl: ctx.controller }
-            : { keywords: kws, until: e.duration === 'permanent' ? null : 'eot' }));
+          applyToScope(e, (o) => {
+            o.effects.push(e.duration === 'nextTurn'
+              ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
+              : e.duration === 'whileControl' ? { keywords: kws, until: null, whileFrom: src.id, whileControl: ctx.controller }
+              : { keywords: kws, until: e.duration === 'permanent' ? null : 'eot' });
+            /* Lux Artillery: "Whenever you cast an artifact creature spell, it gains sunburst" — the spell's, and the
+               permanent's it becomes (_kwCast, carried over as it enters) */
+            // (Tyvar Kell's emblem: "it gains haste until end of turn" — so for the turn)
+            if (o.zone === 'stack' && (!e.duration || e.duration === 'permanent' || e.duration === 'eot')) (o._kwCast = o._kwCast || []).push({ keywords: kws, until: e.duration === 'permanent' ? null : 'eot' });
+          });
           break;
         }
         /* "…gains 'When this creature dies, …' until end of turn": the
@@ -68473,6 +68596,15 @@ MTG.setGameSpeed = function (id) {
         case 'noLifeGainTurn':
           this.noLifeGainTurn = { turn: this.turn, who: e.who || 'all', by: ctx.controller };
           this.logEvent('rules', (e.who === 'opponents' ? me.name + "'s opponents" : 'Players') + " can't gain life this turn.");
+          break;
+        // Screaming Nemesis: "If a player is dealt damage this way, they can't gain life for the rest of the game." (dealtThisWay)
+        case 'noLifeGainForever':
+          for (const pid of (((this.resolving || {})._dmgPlayers) || [])) {
+            const q = this.player(pid);
+            if (!q || q.hasLost || q.noLifeGainForever) continue;
+            q.noLifeGainForever = true;
+            this.logEvent('rules', `${q.name} can't gain life for the rest of the game.`);
+          }
           break;
         case 'noPreventionTurn':
           this.noPreventTurn = this.turn;
@@ -73753,6 +73885,9 @@ MTG.setGameSpeed = function (id) {
             forPlayer: e.forPlayer === 'you' ? ctx.controller : e.forPlayer === 'chosen' ? ctx.chosenPlayer : e.forPlayer === 'owner' ? ownerP : null,
             notBefore: e.nextTurn ? this.turn : null,
             sameTurnOk: !e.nextTurn,
+            // (All-Out Assault: "When you next attack this turn" — your attack only, gone at the turn's end: eventYours, thisTurn)
+            ...(e.eventYours ? { eventController: ctx.controller } : {}),
+            ...(e.thisTurn ? { untilTurn: this.turn } : {}),
             // (Obzedat, Ghost Council: only while it is the same card in exile — whileExiled)
             ...(e.whileExiled && objId && this.obj(objId) && this.obj(objId).zone === 'exile' ? { whileExiled: this.obj(objId).exileStamp } : {}),
             objId: objId || null,
@@ -80359,7 +80494,8 @@ MTG.setGameSpeed = function (id) {
           const total = this._lastRoll + (e.plus ? Math.max(0, n(e.plus)) : 0);
           if (e.plus) this.logEvent('rules', `${me.name} rolls ${this._lastRoll}, plus ${total - this._lastRoll}: ${total}.`);
           // one event a die (Mr. House: "Whenever you roll a 4 or higher"); "one or more dice" sees the first, and all of them (amounts)
-          rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller }));
+          // (Vexing Puzzlebox: "equal to the result" — the dice rolled together, and what was added: rollTotal)
+          rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller, rollTotal: rolled.reduce((s, x) => s + x, 0) + (total - this._lastRoll) }));
           // the results printed under the roll
           const row = (e.table || []).find(r => total >= r.min && total <= r.max);
           /* Delina, Wild Mage: "You may roll again." — the same die and the same results, read afresh (rollAgain) */
@@ -80379,7 +80515,7 @@ MTG.setGameSpeed = function (id) {
             const dice = { group: this._newRollGroup(), of: 2 };
             rolls = [this._rollDie(me, sides, dice), this._rollDie(me, sides, dice)];
             marks[key] = rolls;
-            rolls.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolls, dieIndex: k, playerId: ctx.controller }));
+            rolls.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolls, dieIndex: k, playerId: ctx.controller, rollTotal: rolls[0] + rolls[1] }));
           }
           const nm = src ? U.frontName(src.name) : 'it';
           const say = (t, v) => String(t || '').replace(/\b99\b/g, String(v)).replace(/CARDNAME/g, nm);
@@ -83121,6 +83257,8 @@ MTG.setGameSpeed = function (id) {
         Heartwood: { type: 'Token Artifact — Heartwood', text: '{T}: Add {R} or {G}.', colors: ['R', 'G'] },
         // T'Challa, the Black Panther: "an artifact with indestructible and "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.""
         Vibranium: { type: 'Token Artifact — Vibranium', text: 'Indestructible\n{T}: Add {C}. This mana can’t be spent to cast a nonartifact spell.' },
+        // Mutable Explorer: "a tapped Mutavault token. (It's a land with "{T}: Add {C}" and "{1}: This token becomes …")"
+        Mutavault: { type: 'Token Land', text: '{T}: Add {C}.\n{1}: This token becomes a 2/2 creature with all creature types until end of turn. It’s still a land.' },
         // Ginger, Queen of Sweets: "a Gingerbrute token. (It's a {1} 1/1 Food Golem artifact creature with haste, …)"
         Gingerbrute: { type: 'Token Artifact Creature — Food Golem', manaCost: '{1}', cmc: 1, power: 1, toughness: 1, text: 'Haste\n{1}: This creature can’t be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this creature: You gain 3 life.' },
       };
@@ -86854,6 +86992,8 @@ MTG.setGameSpeed = function (id) {
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,
           // what a player has for good or ill, for the table to show beside them
           rad: p.rad || 0, cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
+          // Screaming Nemesis: can't gain life for the rest of the game (said only of such a player)
+          noLifeGain: p.noLifeGainForever ? true : undefined,
           ringLevel: p.ringLevel || 0, ringBearer: p.ringBearer || null, speed: p.speed || 0,
           // what you noted while drafting, for your own eyes: the table needs it to tell which targets a noted colour allows
           draftNotes: p.id === playerId && p.draftNotes ? JSON.parse(JSON.stringify(p.draftNotes)) : null,
@@ -95441,6 +95581,9 @@ MTG.setGameSpeed = function (id) {
     counterKindPick(s) {
       const pref = ['+1/+1', 'double strike', 'indestructible', 'deathtouch', 'lifelink', 'first strike', 'flying', 'trample', 'hexproof', 'menace', 'vigilance', 'reach'];
       const kinds = s.kinds || [];
+      // (Inspirit, Flagship Vessel: "a +1/+1 counter or two charge counters" — charge on what is not a creature)
+      const on = s.objId && this.game.obj(s.objId);
+      if (on && kinds.includes('charge') && !(on.analysis() || {}).isCreature) return { picks: [kinds.indexOf('charge')] };
       const best = kinds.slice().sort((a, b) => ((pref.indexOf(a) + 100) % 100) - ((pref.indexOf(b) + 100) % 100))[0];
       return { picks: [Math.max(0, kinds.indexOf(best))] };
     },
@@ -126034,6 +126177,8 @@ Sideboard
         p.rad ? ['bad', `☢ ${p.rad} rad`, 'Rad counters: at the start of their precombat main phase they mill that many, and lose 1 life and 1 rad for each nonland card milled'] : null,
         p.cityBlessing ? ['crown', '✶ City’s blessing', 'Has the city’s blessing for the rest of the game'] : null,
         p.enduringStory ? ['crown', '❧ Enduring story', 'Has an enduring story for the rest of the game'] : null,
+        // Screaming Nemesis: no life gained, for good
+        p.noLifeGain ? ['bad', '⊘ No life gain', "Can't gain life for the rest of the game"] : null,
         p.ringLevel ? ['crown', `◎ Ring ${p.ringLevel}`, this.ringTip(p)] : null,
         p.speed ? ['', p.speed >= 4 ? '» Max speed' : `» Speed ${p.speed}`,
           p.speed >= 4 ? 'Speed 4, as fast as it goes' : 'Goes up by one, once each of their turns, when an opponent loses life; it stops at 4'] : null,
