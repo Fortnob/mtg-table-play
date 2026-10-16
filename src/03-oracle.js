@@ -5366,6 +5366,9 @@
       make: () => ({ op: 'damage', each: 'creature', n: countSpec('creatures', 1, 'any') }) },
     /* Wishclaw Talisman */
     { re: /^An opponent gains control of (?:this artifact|CARDNAME|this permanent)\.?$/i, make: () => ({ op: 'giveSelfToOpponent' }) },
+    // Bucknard's Everfull Purse: "The player to your right gains control of this artifact." — the one before you in turn order (giveControl to: right)
+    { re: /^The player to your (left|right) gains control of (?:this artifact|this creature|CARDNAME|this permanent)\.?$/i,
+      make: (m) => ({ op: 'giveControl', to: m[1].toLowerCase(), self: true }) },
     // Rohgahh of Kher Keep: "tap Rohgahh and all creatures named Kobolds of Kher Keep, then an opponent gains control of them" (alsoNamed, tapFirst)
     { re: /^Tap CARDNAME and all creatures named ([A-Z][^,.]+), then an opponent gains control of them\.?$/,
       make: (m) => ({ op: 'giveSelfToOpponent', alsoNamed: m[1], tapFirst: true }) },
@@ -5651,6 +5654,10 @@
     // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control get +2/+0 until end of turn"
     { re: /^Creatures attacking your opponents(?: and\/or planeswalkers they control)? get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true } }) },
+    /* Martial Impetus: "Whenever enchanted creature attacks, each other creature that's attacking one of your opponents gets
+       +1/+1 until end of turn." — other than the enchanted one (otherThanHost) */
+    { re: /^Each other creature that'?s attacking one of your opponents gets \+(\d+)\/\+(\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true, other: true, otherThanHost: true } }) },
     // Silkguard: "Auras, Equipment, and modified creatures you control gain hexproof until end of turn."
     { re: /^Auras, Equipment, and modified creatures you control gain (hexproof|indestructible|shroud) until end of turn\.?$/i,
       make: (m) => { const kw = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
@@ -7106,6 +7113,13 @@
     // Bumi, Unleashed: "Only land creatures can attack during that combat phase." — the one just added (onlyAttack)
     { re: /^Only (land|artifact|enchantment|legendary|token|nontoken) creatures can attack during that combat phase\.?$/i,
       make: (m) => ({ op: 'extraCombatOnly', words: m[1].toLowerCase() + ' creature' }) },
+    /* Illusionist's Gambit: "Remove all attacking creatures from combat and untap them. After this phase, there is an
+       additional combat phase. Each of those creatures attacks that combat if able. They can't attack you or planeswalkers
+       you control that combat." — the ones removed (lastGroup), in the combat just promised (extraCombatRule) */
+    { re: /^Remove all attacking creatures from combat and untap them\.?$/i,
+      make: () => [{ op: 'removeFromCombat', scope: { who: 'all', what: 'creature', attacking: true } }, { op: 'untap', scope: 'lastGroup' }] },
+    { re: /^Each of those creatures attacks that combat if able\.?$/i, make: () => ({ op: 'extraCombatRule', must: true }) },
+    { re: /^They can'?t attack you or planeswalkers you control that combat\.?$/i, make: () => ({ op: 'extraCombatRule', notYou: true }) },
     // Great Train Heist: "If it's your combat phase, there is an additional combat phase after this phase."
     { re: /^If it'?s your main phase, there is an additional combat phase after this phase(, followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },
@@ -10429,10 +10443,11 @@
     /* "return a creature or planeswalker card from your graveyard to your
        hand": not a target — chosen as it happens */
     // (Tyvar, Jubilant Brawler: "… with mana value 2 or less …")
-    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
+    // (Desecrate Reality: "a permanent card with an odd mana value" — mvParity)
+    { re: /^(?:Then )?[Rr]eturn (a|an|one|two|up to one|up to two|X) ([a-zA-Z ,-]+?) cards?(?: with mana value (\d+) or less| with an? (even|odd) mana value)? from your graveyard to (your hand|the battlefield)( tapped)?\.?$/,
       // (Blood for Bones: "…to the battlefield, then return another creature card …" is two sentences, not one kind of card)
       make: (m) => (/\btarget\b|^or |\bfrom your graveyard\b|, then\b/i.test(m[2]) ? null : Object.assign({ op: 'graveyardPick', n: num(m[1].replace(/^up to /, '')), upTo: /^up to/.test(m[1]),
-        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[4]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {}, m[5] ? { tapped: true } : {})) },
+        filter: m[2].trim().toLowerCase(), to: /hand/.test(m[5]) ? 'hand' : 'battlefield' }, m[3] ? { maxMv: +m[3] } : {}, m[4] ? { mvParity: m[4].toLowerCase() } : {}, m[6] ? { tapped: true } : {})) },
     // Mech Hangar: "Target Vehicle becomes an artifact creature until end of turn."
     // (Mobilizer Mech: "up to one other target Vehicle you control")
     { re: /^((?:[Uu]p to one )?(?:other |another )?[Tt]arget Vehicle(?: you control)?) becomes an artifact creature until end of turn\.?$/,
@@ -10832,6 +10847,8 @@
     if (/^the number of permanent types among cards in your graveyard$/i.test(p)) return { typesInGraveyards: 'you', permanentTypes: true, mult: 1 };
     // Niv-Mizzet, Guildpact: "the number of different color pairs among permanents you control that are exactly two colors"
     if (/^the number of different colou?r pairs among permanents you control that are exactly two colou?rs$/i.test(p)) return { colorPairsYours: true, mult: 1 };
+    // White Lotus Tile: "the greatest number of creatures you control that have a creature type in common" (sharedTypeMax)
+    if (/^the greatest number of creatures you control that have a creature type in common$/i.test(p)) return { sharedTypeMax: true, mult: 1 };
     // Thraben Charm: "twice the number of creatures you control"
     const tw = p.match(/^twice (the number of .+)$/i);
     if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }
@@ -11217,6 +11234,9 @@
     // the "with" clauses come last and say one checkable thing each
     const pw = p.match(/with (?:mana value|converted mana cost) (\d+) or less/);
     if (pw) spec.maxMv = +pw[1];
+    // Desecrate Reality: "target permanent that player controls with an even mana value" (mvParity)
+    const par = p.match(/with an? (even|odd) mana value/);
+    if (par) spec.mvParity = par[1];
     // Blue Sun's Twilight, Spell Blast: "with mana value X (or less)", the X it was cast with
     const px = p.match(/with (?:mana value|converted mana cost) x( or less| or greater)?$/i);
     if (px) { if (!px[1]) spec.mv = 'X'; else if (/less/.test(px[1])) spec.maxMv = 'X'; else spec.minMv = 'X'; }
@@ -11265,7 +11285,7 @@
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
       spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withKeywordAny || spec.withoutKeyword || spec.withCounter || spec.withoutCounter || spec.withAnyCounter || spec.noCounters ||
-      spec.maxPtSum != null || spec.maxPowerOrToughness != null || spec.minPowerOrToughness != null;
+      spec.maxPtSum != null || spec.maxPowerOrToughness != null || spec.minPowerOrToughness != null || !!spec.mvParity;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
     if (withClause && !known) spec.unknown = true;
@@ -11276,7 +11296,7 @@
       for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more|\d+))?/g,
         /with power (?:\d+|x) or (?:less|greater|more)/g, /with toughness \d+ or (?:less|greater|more)/g,
         new RegExp('with (?:' + KW + ') or (?:' + KW + ')\\b', 'g'), new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with(?:out)? an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
-        /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
+        /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g, /with an? (?:even|odd) mana value/g]) left = left.replace(re, ' ');
       // "target creature with flying an opponent controls"
       const lc = left.match(/\s(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)\s*$/);
       if (lc) {
@@ -11490,6 +11510,8 @@
     if (mvMax != null && (obj.card.cmc || 0) > mvMax) return false;
     if (mvMin != null && (obj.card.cmc || 0) < mvMin) return false;
     if (mvIs != null && (obj.card.cmc || 0) !== mvIs) return false;
+    // Desecrate Reality: "with an even mana value" (mvParity; zero is even)
+    if (spec.mvParity && ((obj.card.cmc || 0) % 2 === 0) !== (spec.mvParity === 'even')) return false;
     // Sidisi, Regent of the Mire: "with mana value X plus 1" (mvXPlus)
     if (spec.mvXPlus != null && ctx && ctx.x != null && (obj.card.cmc || 0) !== ctx.x + spec.mvXPlus) return false;
     if (spec.attacking && !obj.attacking) return false;

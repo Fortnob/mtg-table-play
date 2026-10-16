@@ -23342,8 +23342,8 @@ module.exports = (test) => {
 
   test('Commanders: Oviya, Automech Artisan', (mk, t) => {
     t.auto('Oviya, Automech Artisan');
-    // (Martial Impetus's "each other creature that's attacking one of your opponents" is other than the enchanted one: left to a person)
-    t.no(mk().MTG.oracle.analyze(require('../harness').card('Martial Impetus')).fullyAutomated, 'Martial Impetus stays with a person');
+    // (Martial Impetus's "each other creature that's attacking one of your opponents" is other than the enchanted one: otherThanHost)
+    t.ok(mk().MTG.oracle.analyze(require('../harness').card('Martial Impetus')).fullyAutomated, 'Martial Impetus reads its own "other"');
     // a creature attacking one of A's opponents has trample; one at home doesn't
     const O = mk({ library: Array(20).fill('Forest') });
     O.toMain('A');
@@ -75917,5 +75917,116 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Grizzly Bears'));
     t.no(T.asked.slice(n0).some(c => c.type === 'confirm'), 'a creature spell: nothing');
     t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Martial Impetus — as the enchanted creature attacks, each other creature attacking your opponents gets +1/+1', (mk, t) => {
+    t.auto('Martial Impetus');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    const bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves'), giant = T.bf('B', 'Hill Giant');
+    const mi = T.bf('A', 'Martial Impetus');
+    mi.attachedTo = bear.id; bear.attachments = [mi.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'C' }, { attackerId: elf.id, defenderId: 'A' },
+      { attackerId: giant.id, defenderId: 'C' }]);
+    T.toMain('B', 'declareAttackers'); T.resolve();
+    t.eq(T.g.powerOf(giant), 4, 'the Giant attacking C, an opponent of A: +1/+1');
+    t.eq(T.g.toughnessOf(giant), 4);
+    t.eq(T.g.powerOf(bear), 3, 'the enchanted creature itself: only the Aura\'s +1/+1');
+    t.eq(T.g.powerOf(elf), 1, 'the Elves attacking A: nothing');
+    T.nextTurn('C');
+    t.eq(T.g.powerOf(giant), 3, 'until end of turn');
+  });
+  test("Cards: Bucknard's Everfull Purse — a d4's worth of Treasures, then the player to your right gains control of it", (mk, t) => {
+    t.auto("Bucknard's Everfull Purse");
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    const purse = T.bf('A', "Bucknard's Everfull Purse");
+    T.mana('A', '1');
+    T.activate('A', purse, 0);
+    const roll = T.g._lastRoll;
+    t.ok(roll >= 1 && roll <= 4, 'a d4 rolled');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === 'Treasure').length, roll, 'as many Treasures as the roll');
+    t.eq(purse.controller, 'C', 'the player to the right of A (the one before A in turn order) has it now');
+    // two players: the opponent
+    const U = mk({ library: Array(20).fill('Plains') });
+    const p2 = U.bf('B', "Bucknard's Everfull Purse");
+    U.toMain('B');
+    U.mana('B', '1');
+    U.activate('B', p2, 0);
+    t.eq(p2.controller, 'A', 'to A');
+    t.ok(p2.tapped, 'still tapped');
+  });
+  test("Cards: Illusionist's Gambit — attackers removed and untapped; in an additional combat they attack if able, but not you", (mk, t) => {
+    t.auto("Illusionist's Gambit");
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    T.toMain('B');
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'A' }, { attackerId: giant.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    for (let i = 0; i < 4 && T.g.priorityPlayer && T.g.priorityPlayer.id !== 'A'; i++) T.g.passPriority(T.g.priorityPlayer.id, true);
+    T.mana('A', 'UU2');
+    T.cast('A', T.hand('A', "Illusionist's Gambit"));
+    t.no(bear.attacking, 'removed from combat'); t.no(giant.attacking);
+    t.no(bear.tapped, 'untapped'); t.no(giant.tapped);
+    for (let i = 0; i < 60 && !(T.g.pendingChoice && T.g.pendingChoice.type === 'declareAttackers'); i++) {
+      if (T.g.pendingChoice) T.settle(); else T.g.passPriority(T.g.priorityPlayer.id, true);
+    }
+    t.eq(T.life('A'), 20, 'nothing reached A in the first combat');
+    t.eq(T.g.activePlayer.id, 'B'); t.eq(T.g.phase.id, 'combat', 'an additional combat on B\'s turn');
+    t.no(T.g.declareAttackers('B', [{ attackerId: bear.id, defenderId: 'A' }, { attackerId: giant.id, defenderId: 'C' }]), "they can't attack A");
+    t.no(T.g.declareAttackers('B', [{ attackerId: giant.id, defenderId: 'C' }]), 'each of them attacks if able');
+    t.ok(T.g.declareAttackers('B', [{ attackerId: bear.id, defenderId: 'C' }, { attackerId: giant.id, defenderId: 'C' }]), 'both at C');
+    T.toMain('B', 'end');
+    t.eq(T.life('C'), 20 - 5, 'C takes it');
+    t.ok(T.g.mustAttack(elf) === false, 'the Elves, which never attacked, are free');
+    // next turn: nothing holds
+    T.nextTurn('B');
+    t.no(T.g.mustAttack(bear), 'only that combat');
+    t.no(T.g._cantAttackYou(bear, 'A'));
+  });
+  test('Cards: White Lotus Tile — X mana of one color, X the biggest group of your creatures sharing a creature type', (mk, t) => {
+    t.auto('White Lotus Tile');
+    const T = mk();
+    const tile = T.bf('A', 'White Lotus Tile');
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Llanowar Elves'); T.bf('A', 'Grizzly Bears'); T.bf('A', 'Hill Giant');
+    T.bf('B', 'Llanowar Elves');
+    t.ok(T.g.tapForMana('A', tile.id, 0, 'R'), T.g.lastError);
+    t.eq(T.player('A').pool.R, 2, 'two Elves: two red');
+    // a changeling is in every group
+    const U = mk();
+    const t2 = U.bf('A', 'White Lotus Tile');
+    U.bf('A', 'Llanowar Elves'); U.bf('A', 'Llanowar Elves'); U.bf('A', 'Changeling Outcast'); U.bf('A', 'Grizzly Bears');
+    U.g.tapForMana('A', t2.id, 0, 'G');
+    t.eq(U.player('A').pool.G, 3, 'two Elves and a changeling');
+    // the auto-payer counts it whole
+    const V = mk();
+    V.bf('A', 'White Lotus Tile');
+    V.bf('A', 'Hill Giant'); V.bf('A', 'Hill Giant');
+    V.cast('A', V.hand('A', 'Grizzly Bears'));
+    t.ok(V.bfOf('A').some(o => o.name === 'Grizzly Bears'), 'two Giants pay for the Bears');
+    // no creatures: nothing
+    const W = mk();
+    const t3 = W.bf('A', 'White Lotus Tile');
+    W.g.tapForMana('A', t3.id, 0, 'G');
+    t.eq(W.player('A').pool.G || 0, 0, 'no creatures: no mana');
+  });
+  test('Cards: Desecrate Reality — up to one permanent with an even mana value of each opponent exiled; adamant: an odd one back from your graveyard', (mk, t) => {
+    t.auto('Desecrate Reality');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    const giant = T.bf('B', 'Hill Giant'), elfB = T.bf('B', 'Llanowar Elves'), bear = T.bf('C', 'Grizzly Bears'), mine = T.bf('A', 'Hill Giant');
+    const gyElf = T.grave('A', 'Llanowar Elves'), gyBear = T.grave('A', 'Grizzly Bears');
+    const offered = [];
+    T.answer('choose', (ch) => { offered.push(ch.items.map(x => x.id)); return { picks: [ch.items[0].id] }; });
+    T.answer('choose', (ch) => { offered.push(ch.items.map(x => x.id)); return { picks: [ch.items[0].id] }; });
+    T.mana('A', 'CCC4');
+    T.cast('A', T.hand('A', 'Desecrate Reality'));
+    t.eq(JSON.stringify(offered), JSON.stringify([[giant.id], [bear.id]]), "B's Giant (not the Elves, mana value 1), then C's Bears");
+    t.zone(giant, 'exile', 'mana value 4: even'); t.zone(bear, 'exile', 'mana value 2: even');
+    t.zone(elfB, 'battlefield'); t.zone(mine, 'battlefield', 'not an opponent\'s');
+    t.zone(gyElf, 'battlefield', 'adamant: the Elves (mana value 1) back');
+    t.zone(gyBear, 'graveyard', 'not the Bears (even)');
+    // colored mana: no adamant
+    const U = mk({ library: Array(20).fill('Plains') });
+    const g2 = U.grave('A', 'Llanowar Elves');
+    U.mana('A', 'CCWWWWW');
+    U.cast('A', U.hand('A', 'Desecrate Reality'));
+    t.zone(g2, 'graveyard', 'two colorless mana: nothing back');
   });
 };

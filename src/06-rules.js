@@ -1213,17 +1213,20 @@
         if (this._resumePhase == null) this._resumePhase = cur + 1;
         const add = [];
         // (Bumi, Unleashed: a combat only some creatures can attack in — onlyAttack)
-        for (const x of due) add.push(...x.phases.map(ph => (x.onlyAttack && ph === 2 ? { ph, onlyAttack: x.onlyAttack } : ph)));
+        // (Illusionist's Gambit: who must attack in it, and whom they can't — attackRule)
+        for (const x of due) add.push(...x.phases.map(ph => ((x.onlyAttack || x.attackRule) && ph === 2
+          ? Object.assign({ ph }, x.onlyAttack ? { onlyAttack: x.onlyAttack } : {}, x.attackRule ? { attackRule: x.attackRule } : {}) : ph)));
         // (a promised phase may already carry what happens as it begins: World at War's beginDelayed)
         this._phaseQueue = add.concat(this._phaseQueue || []);
       }
-      this._combatOnlyAttack = null;
+      this._combatOnlyAttack = null; this._combatAttackRule = null;
       if (this._phaseQueue && this._phaseQueue.length) {
         const nx = this._phaseQueue.shift();
         // Obeka, Splitter of Seconds: an additional upkeep step, alone (upkeepOnly)
         if (nx && typeof nx === 'object' && nx.upkeepOnly) { this._upkeepOnly = true; return nx.ph; }
         if (nx && typeof nx === 'object') {
           if (nx.onlyAttack) this._combatOnlyAttack = { turn: this.turn, words: nx.onlyAttack };
+          if (nx.attackRule) this._combatAttackRule = Object.assign({ turn: this.turn }, JSON.parse(JSON.stringify(nx.attackRule)));
           // World at War: "At the beginning of that combat, …" — a delayed trigger for this combat, set up as it comes (beginDelayed)
           if (nx.beginDelayed) this.scheduleDelayed(Object.assign({ event: 'eachCombatBegin', sameTurnOk: true }, JSON.parse(JSON.stringify(nx.beginDelayed))));
           return nx.ph;
@@ -1236,7 +1239,7 @@
 
     _endTurn() {
       const ap = this.activePlayer;
-      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = []; this._combatOnlyAttack = null; this._upkeepOnly = false;
+      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = []; this._combatOnlyAttack = null; this._combatAttackRule = null; this._upkeepOnly = false;
       this._checkDayNight();         // day/night flips between turns
       this.spellsThisTurn = 0;
       // cleanup already ran as a step
@@ -4984,6 +4987,18 @@
           if (cs.length === 2) pairs.add(cs.slice().sort().join(''));
         }
         return pairs.size * mult;
+      }
+      /* White Lotus Tile: "the greatest number of creatures you control that have a creature type in common" — the
+         biggest group sharing one type, a changeling in every group (sharedTypeMax) */
+      if (v.sharedTypeMax) {
+        const per = new Map();
+        let every = 0;
+        for (const x of this.battlefield) {
+          if (x.controller !== pid || x.phasedOut || !(this.characteristics(x) || {}).isCreature) continue;
+          if (this.hasKw(x, 'changeling')) { every++; continue; }
+          for (const t of new Set(((x.analysis() || {}).subtypes || []).map(s => s.toLowerCase()).filter(s => CREATURE_TYPES_LOWER.has(s)))) per.set(t, (per.get(t) || 0) + 1);
+        }
+        return (Math.max(0, ...per.values()) + every) * mult;
       }
       // Loot, the Key to Everything: "the number of card types among other nonland permanents you control" (typesAmongScope)
       if (v.typesAmongScope) {
@@ -13911,6 +13926,9 @@
       const a = o.analysis();
       if (!a) return false;
       if (this._mustAttackPwNow(o)) return true;
+      // Illusionist's Gambit: "Each of those creatures attacks that combat if able." (_combatAttackRule)
+      const ar = this._combatAttackRule;
+      if (ar && ar.must && ar.turn === this.turn && (ar.ids || []).includes(o.id)) return true;
       // Rowan Kenrith: "each creature that player controls attacks if able" — during that player's next turn (attackNextTurn)
       const ctl = this.player(o.controller);
       if (ctl && ctl.attackNextTurn && ctl.attackNextTurn.turn === this.turn && this.activePlayer && this.activePlayer.id === o.controller) return true;
@@ -14179,6 +14197,8 @@
         const a = o.analysis();
         // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to attack (hadToAttack)
         o._hadToAttack = this.mustAttack(o) ? { turn: this.turn, combat: this.combatsThisTurn || 1 } : null;
+        // (Illusionist's Gambit: removed from an earlier combat, it is a new attacker in this one, CR 506.4)
+        o.removedFromCombat = false;
         o.attacking = d.defenderId;
         // Port Razer: the players it has attacked this turn (noRepeatAttack)
         if (this.player(d.defenderId)) {
@@ -15292,6 +15312,8 @@
       }
       // Ruhan of the Fomori: "this combat" only (mustAttackCombat)
       for (const o of this.battlefield) if (o.mustAttackCombat) { o.mustAttackPlayer = null; o.mustAttackCombat = false; }
+      // (removed from combat: from that combat only — Illusionist's Gambit's creatures attack again in the next, CR 506.4)
+      for (const o of this.battlefield) if (o.removedFromCombat) o.removedFromCombat = false;
       /* Mana kept through combat by firebending drains away with it. */
       for (const p of this.players) {
         if (p.poolKeepUntil === 'combat') { p.pool.clear(); p.poolKeepUntil = null; }
@@ -22970,7 +22992,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
-        if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.sharedTypeMax || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || v.ringBearerPower || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -24053,6 +24075,8 @@
           const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s => s.id) : [];
           const pool = yard.filter(c => c !== src && !sacIds.includes(c.id) && this._cardFitsWords(c, e.filter || 'card') &&
             (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)) &&
+            // (Desecrate Reality: "a permanent card with an odd mana value" — mvParity)
+            (!e.mvParity || (((c.card && c.card.cmc) || 0) % 2 === 0) === (e.mvParity === 'even')) &&
             // (Haunting Voyage: "creature cards of that type" — the one chosen just before: chosenType)
             (!e.chosenType || !!(src && src.chosenType && this._hasCreatureType(c, src.chosenType))));
           const want = Math.min(nVar(e.n), pool.length);
@@ -33295,6 +33319,16 @@
           if (lastX) lastX.onlyAttack = e.words;
           break;
         }
+        /* Illusionist's Gambit: "Each of those creatures attacks that combat if able. They can't attack you or planeswalkers
+           you control that combat." — the creatures just removed (lastGroup), in the combat just promised (attackRule) */
+        case 'extraCombatRule': {
+          const lastX = (this._extraPhases || []).filter(x => x.turn === this.turn).pop();
+          if (!lastX) break;
+          const r = lastX.attackRule = lastX.attackRule || { ids: (this._lastGroup || []).slice() };
+          if (e.must) r.must = true;
+          if (e.notYou) r.notPid = ctx.controller;
+          break;
+        }
         /* Y'shtola Rhul: "Then if it's the first end step of the turn, there is an
            additional end step after this step." — in the second, it isn't */
         /* Obeka, Splitter of Seconds: "you get that many additional upkeep steps after this phase" — each an
@@ -37109,7 +37143,9 @@
           // Alexios, Deimos of Kosmos: "that player gains control of Alexios" — whose upkeep it is, of itself
           // Starke of Rath: "That permanent's controller gains control of Starke." — the target's, as it last was (targetController)
           const tgo = e.to === 'targetController' ? firstObj() : null;
-          const p = e.to === 'triggerPlayer' ? triggerPlayer() : e.to === 'targetController'
+          // Bucknard's Everfull Purse: "The player to your right" — the one before you in turn order (to: left / right)
+          const sideId = e.to === 'left' || e.to === 'right' ? this._specCtx().sideOf(ctx.controller, e.to) : null;
+          const p = sideId ? this.player(sideId) : e.to === 'left' || e.to === 'right' ? null : e.to === 'triggerPlayer' ? triggerPlayer() : e.to === 'targetController'
             ? (tgo ? this.player(tgo.zone === 'battlefield' ? tgo.controller : (tgo._leftController || tgo.controller)) : null) : firstPlayer();
           const x = e.self ? src : firstObj();
           if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
@@ -40106,6 +40142,8 @@
       // Alandra, Sky Dreamer: "Alandra and Drakes you control" — this one as well (orSelf)
       if (sc.orSelf && src && src.id === o.id) return true;
       if (sc.other && src && src.id === o.id) return false;
+      // Martial Impetus: "each other creature" on an Aura — other than the creature it enchants (otherThanHost)
+      if (sc.otherThanHost && src && src.attachedTo === o.id) return false;
       // Kjeldoran Frostbeast: blocking it, or blocked by it
       if (sc.combatWithSelf) {
         if (!src) return false;
@@ -40872,6 +40910,10 @@
       let def = this.player(defenderId), walker = false;
       if (!def) { const pw = this.obj(defenderId); def = pw && this.player(pw.controller); walker = true; }
       if (!def) return null;
+      // Illusionist's Gambit: "They can't attack you or planeswalkers you control that combat." (_combatAttackRule)
+      const ar = this._combatAttackRule;
+      if (ar && ar.notPid === def.id && ar.turn === this.turn && (ar.ids || []).includes(o.id))
+        return { src: null, who: (walker ? 'planeswalkers ' + def.name + ' controls' : def.name) + ' this combat' };
       // Port Razer: "can't attack a player it has already attacked this turn" (noRepeatAttack)
       if (!walker && o._attackedPlayers && o._attackedPlayers.turn === this.turn && o._attackedPlayers.ids.includes(def.id) &&
         this._staticOp(o, 'noRepeatAttack')) return { src: o, who: def.name + ' again this turn' };
