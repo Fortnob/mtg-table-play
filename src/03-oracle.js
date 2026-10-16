@@ -1175,7 +1175,10 @@
       oracle_text: text, keywords: [], layout: 'emblem' });
     // standing rules the engine asks of a player's emblems as well as their permanents
     // (Tibalt, Cosmic Impostor: "You may play cards exiled with Tibalt …" — playExiledWithLink)
-    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty', 'playExiledWithLink', 'noPoison'];
+    // (Teferi, Who Slows the Sunset: "Untap all permanents you control during each opponent's untap step", "You draw a card
+    // during each opponent's draw step" — untapOnEveryUntapStep, drawOnOppDrawStep)
+    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty', 'playExiledWithLink', 'noPoison',
+      'untapOnEveryUntapStep', 'drawOnOppDrawStep'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       // Ob Nixilis of the Black Oath: "an emblem with '{1}{B}, Sacrifice a creature: …'" — worked from the command zone
       (ab.kind === 'activated' && ab.fromCommandZone) ||
@@ -1759,6 +1762,8 @@
     { re: /^This mana can'?t be spent to cast spells from your hand\.?$/i, make: () => ({ op: 'spendOnly', anyAbility: true, notFromHand: true }) },
     // Mm'menon, the Right Hand: "Spend this mana only to cast a spell from anywhere other than your hand." (notFromHand)
     { re: /^Spend this mana only to cast (?:a spell|spells) from anywhere other than your hand\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notFromHand: true }) },
+    // Thieving Varmint: "Spend this mana only to cast spells you don't own." (notOwned)
+    { re: /^Spend this mana only to cast spells you don'?t own\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notOwned: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
     { re: /^Spend this mana only to cast spells\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell' }) },
     // Jasmine Boreal of the Seven: "Spend this mana only to cast creature spells with no abilities." (noAbilities)
@@ -5440,7 +5445,8 @@
     { re: /^CARDNAME deals X damage to each creature, where X is the number of creatures on the battlefield\.?$/i,
       make: () => ({ op: 'damage', each: 'creature', n: countSpec('creatures', 1, 'any') }) },
     /* Wishclaw Talisman */
-    { re: /^An opponent gains control of (?:this artifact|CARDNAME|this permanent)\.?$/i, make: () => ({ op: 'giveSelfToOpponent' }) },
+    // (Akroan Horse: "When this creature enters, an opponent gains control of it.")
+    { re: /^An opponent gains control of (?:this artifact|CARDNAME|this permanent|this creature|it)\.?$/i, make: () => ({ op: 'giveSelfToOpponent' }) },
     // Bucknard's Everfull Purse: "The player to your right gains control of this artifact." — the one before you in turn order (giveControl to: right)
     { re: /^The player to your (left|right) gains control of (?:this artifact|this creature|CARDNAME|this permanent)\.?$/i,
       make: (m) => ({ op: 'giveControl', to: m[1].toLowerCase(), self: true }) },
@@ -8094,6 +8100,11 @@
        Tanaka's power from among them onto the battlefield tapped." — her power as it resolves (maxMv ofSelf) */
     { re: /^You may put any number of (artifact|creature|permanent) cards with mana value less than or equal to CARDNAME'?s power from among them onto the battlefield( tapped)?\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), maxMv: { ofSelf: 'power' }, to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }) },
+    /* Birthing Ritual: "you may put a creature card with mana value X or less from among those cards onto the battlefield,
+       where X is 1 plus the sacrificed creature's mana value" (maxMv ofSacrificed) */
+    { re: /^You may put an? (creature|artifact|permanent) card with mana value X or less from among (?:them|those cards) onto the battlefield, where X is (one|two|three|\d+) plus the sacrificed (?:creature|permanent|artifact)'?s mana value\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: m[1].toLowerCase(), maxMv: { ofSacrificed: 'mv', plus: num(m[2]) }, to: 'battlefield', optional: true, rest: 'keep',
+        prompt: `You may put ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card with mana value X or less from among them onto the battlefield.` }) },
     // Malevolent Rumble: "You may put a permanent card from among them into your hand."
     { re: /^You may put an? ([-a-z ]*?)card from among them into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'keep' }) },
@@ -12935,6 +12946,15 @@
           { op: 'reflexive', ifMilled: true, text: 'When one or more cards are milled this way, ' + m[2],
             effects: [{ op: 'exile', targets: [Object.assign(sp, { type: 'card', controller: 'opponent', mvAtMostTrigger: true })] },
               { op: 'castCopy', of: 'last', fromRes: true }] }];
+      } },
+    /* Teferi, Who Slows the Sunset: "Choose up to one target artifact, up to one target creature, and up to one target
+       land. Untap the chosen permanents you control. Tap the chosen permanents you don't control." (untapMineTapTheirs) */
+    { re: /^Choose up to one target (artifact|creature|land), up to one target (artifact|creature|land), and up to one target (artifact|creature|land)\. Untap the chosen permanents you control\. Tap the chosen permanents you don'?t control\.(?: ([\s\S]+))?$/i,
+      make: (m) => {
+        const tail = m[4] ? voteBody(m[4]) : [];
+        const sp = (w) => Object.assign(targetSpec('target ' + w.toLowerCase()), { upTo: true });
+        const specs = [sp(m[1]), sp(m[2]), sp(m[3])];
+        return tail && specs.every(s => s && !s.unknown) ? [{ op: 'untapMineTapTheirs', targets: specs }, ...tail] : null;
       } },
     /* Clockspinning: "Choose a counter on target permanent or suspended card. Remove that counter from that permanent or
        card or put another of those counters on it." (tickCounter, orSuspended) */
@@ -23971,6 +23991,9 @@
       make: (m) => ({ op: 'replace', id: 'lifePlus', event: 'gainLife', who: 'you', how: 'add', n: num(m[1]) }) },
     { re: /^If you would gain life, you gain twice that much life instead\.?$/i,
       make: () => ({ op: 'replace', id: 'lifeDouble', event: 'gainLife', who: 'you', how: 'double' }) },
+    // Phial of Galadriel: "If you would gain life while you have 5 or less life, you gain twice that much life instead." (cond)
+    { re: /^If you would gain life while ([^,]+), you gain twice that much life instead\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'replace', id: 'lifeDouble', event: 'gainLife', who: 'you', how: 'double', cond } : null; } },
     /* Authority of the Consuls, Blind Obedience: the other side's arrivals come in tapped */
     // Root Maze: "Artifacts and lands enter tapped." — everyone's
     // (Zhao, the Moon Slayer: "Nonbasic lands enter tapped." — etbTapNonbasic)
@@ -26391,8 +26414,11 @@
       { re: /^Each legendary creature you control gets \+1\/\+1 for each other legendary creature you control\.?$/i,
         make: () => { const c = { scope: { who: 'you', what: 'creature', legendary: true }, mult: 1, plus: -1 };
           return { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', legendary: true }, pt: { p: c, t: Object.assign({}, c) } }; }, auto: true },
-      { re: /^Untap all (artifacts|creatures|permanents) you control during each other player'?s untap step\.?$/i,
-        make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase().replace(/s$/, '') }), auto: true },
+      // (Teferi, Who Slows the Sunset's emblem: "during each opponent's untap step" — opponentsOnly)
+      { re: /^Untap all (artifacts|creatures|permanents) you control during each (other player|opponent)'?s untap step\.?$/i,
+        make: (m) => Object.assign({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase().replace(/s$/, '') }, /opponent/i.test(m[2]) ? { opponentsOnly: true } : {}), auto: true },
+      // Teferi, Who Slows the Sunset's emblem: "You draw a card during each opponent's draw step." (drawOnOppDrawStep)
+      { re: /^You draw a card during each opponent'?s draw step\.?$/i, eff: { op: 'drawOnOppDrawStep' }, auto: true },
       // Ohabi Caleria: "Untap all Archers you control during each other player's untap step." — a creature type
       { re: /^Untap all ([A-Z][a-z]+) you control during each other player'?s untap step\.?$/,
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: singularType(m[1]).toLowerCase() }), auto: true },
@@ -26406,6 +26432,9 @@
          some, the first one in your draw step) is two */
       { re: /^If you would draw a card( except the first one you draw in each of your draw steps)?, draw two cards instead\.?$/i,
         make: (m) => ({ op: 'drawDouble', exceptFirst: !!m[1] }), auto: true },
+      // Phial of Galadriel: "If you would draw a card while you have no cards in hand, draw two cards instead." (drawDouble cond)
+      { re: /^If you would draw a card while ([^,]+), draw two cards instead\.?$/i,
+        make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'drawDouble', exceptFirst: false, cond } : null; }, auto: true },
       /* Reed Richards, Smartest Man: "The first time you would draw a card each turn except the first card you draw during
          each of your draw steps, you draw four cards instead." (drawFirstInstead) */
       { re: /^The first time you would draw a card each turn except the first card you draw during each of your draw steps, you draw (two|three|four|five) cards instead\.?$/i,

@@ -1424,6 +1424,8 @@
         // Quest for Renewal: only once it has four quest counters
         if (ef && ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
         // (Horizon Boughs, a plane: "All permanents untap during each player's untap step." — allPlayers)
+        // (Teferi, Who Slows the Sunset's emblem: "during each opponent's untap step" — opponentsOnly)
+        if (ef && ef.opponentsOnly && !this.opponentsOf(src.controller).some(q => q.id === ap.id)) continue;
         if (ef) alsoUntap.push({ controller: src.controller, filter: ef.filter || null, selfId: ef.selfOnly ? src.id : null, all: !!ef.allPlayers });
       }
       // Unwinding Clock untaps only artifacts, Bender's Waterskin only itself
@@ -1550,6 +1552,12 @@
           // a bot takes a land back by The Necrobloom's dredge only when it has no land in hand to play (grantDredge)
           !this.zones[ap.id].hand.some(c => (c.analysis() || {}).isLand))) this._dredge(ap, (dr.find(x => !x.granted) || dr[0]).o);
         else this._drawCards(ap, 1);
+      }
+      // Teferi, Who Slows the Sunset's emblem: "You draw a card during each opponent's draw step." (drawOnOppDrawStep)
+      for (const src of this._withEmblems(this.battlefield)) {
+        if (src.phasedOut || !this._staticOp(src, 'drawOnOppDrawStep')) continue;
+        const p = this.player(src.controller);
+        if (p && !p.hasLost && this.opponentsOf(p.id).some(q => q.id === ap.id)) this._drawCards(p, 1);
       }
       this._fire('yourDrawStep', ap.id);
       this._fire('eachDrawStep', null, { playerId: ap.id });
@@ -13565,6 +13573,8 @@
       }
       // Mm'menon, the Right Hand: "only to cast a spell from anywhere other than your hand" — paid for while it is still there
       if (spendOnly.notFromHand && spell.zone === 'hand') return false;
+      // Thieving Varmint: "only to cast spells you don't own" — the mana's maker's, as the spender (notOwned)
+      if (spendOnly.notOwned && (!src || spell.owner === src.controller)) return false;
       // Jasmine Boreal of the Seven: "creature spells with no abilities"
       if (spendOnly.noAbilities && !this._hasNoAbilities(spell)) return false;
       return true;
@@ -38766,6 +38776,18 @@
             x._chr = null;
             this.logEvent('counters', `${x.name}: ${d > 0 ? d + ' time counter' + (d === 1 ? '' : 's') + ' added' : -d + ' time counter' + (d === -1 ? '' : 's') + ' removed'} (${x.counters.time}).`);
             if (d < 0) this._timeCountersOff(x, -d);
+          }
+          break;
+        }
+        // Teferi, Who Slows the Sunset: "Untap the chosen permanents you control. Tap the chosen permanents you don't control."
+        case 'untapMineTapTheirs': {
+          const seen = new Set();
+          for (const t of targets) {
+            const o = t && t.kind === 'object' && this.obj(t.id);
+            if (!o || o.zone !== 'battlefield' || seen.has(o)) continue;
+            seen.add(o);
+            if (o.controller === ctx.controller) { if (o.tapped) { this._markUntapped(o); this.emit('sfx', 'untap'); } }
+            else if (!o.tapped) { this._markTapped(o); this.emit('sfx', 'tap'); }
           }
           break;
         }

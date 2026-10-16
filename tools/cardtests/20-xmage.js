@@ -78430,4 +78430,96 @@ module.exports = (test) => {
     T.cast('A', bolt, { targets: ['B'] });
     t.eq(T.life('B'), 17, 'cast with blue mana');
   });
+
+  test('Cards: Phial of Galadriel — two cards for a draw from an empty hand; twice the life at 5 or less', (mk, t) => {
+    t.auto('Phial of Galadriel');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Phial of Galadriel');
+    t.eq(T.zone('A', 'hand').length, 0);
+    g.drawCards('A', 1);
+    t.eq(T.zone('A', 'hand').length, 2, 'no cards in hand: two instead');
+    g.drawCards('A', 1);
+    t.eq(T.zone('A', 'hand').length, 3, 'cards in hand: one');
+    g.drawCards('B', 1);
+    t.eq(T.zone('B', 'hand').length, 1, "only yours");
+    T.player('A').life = 5;
+    g.changeLife('A', 3);
+    t.eq(T.life('A'), 11, '5 life: twice 3');
+    g.changeLife('A', 3);
+    t.eq(T.life('A'), 14, 'more than 5: as it is');
+  });
+
+  test("Cards: Thieving Varmint — two mana of one color for 1 life, only for spells you don't own", (mk, t) => {
+    t.auto('Thieving Varmint');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const v = T.bf('A', 'Thieving Varmint');
+    const theirs = T.put('B', 'Lightning Bolt', 'exile');
+    theirs.impulseBy = 'A'; theirs.impulseUntil = 99999;
+    const mine = T.hand('A', 'Lightning Bolt');
+    t.ok(g.tapForMana('A', v.id, 0, 'R'), g.lastError);
+    t.eq(T.life('A'), 19, 'paid 1 life');
+    t.no(g.castSpell('A', mine.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'not for your own spell');
+    T.cast('A', theirs, { targets: ['B'] });
+    t.eq(T.life('B'), 17, "B's Bolt, cast with it");
+  });
+
+  test('Cards: Teferi, Who Slows the Sunset — +1: untap your chosen permanents, tap the others; gain 2', (mk, t) => {
+    t.auto('Teferi, Who Slows the Sunset');
+    const T = mk({ library: Array(20).fill('Island') });
+    const tf = T.bf('A', 'Teferi, Who Slows the Sunset');
+    tf.counters.loyalty = 4;
+    const ring = T.bf('A', 'Sol Ring', { tapped: true }), bears = T.bf('B', 'Grizzly Bears'), forest = T.bf('A', 'Forest', { tapped: true });
+    const idx = tf.analysis().manaAbilities.length + tf.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^\+1:/.test(x.text));
+    T.activate('A', tf, idx, { targets: [ring, bears, forest] });
+    t.no(ring.tapped, 'your artifact untapped'); t.no(forest.tapped, 'your land untapped');
+    t.ok(bears.tapped, "an opponent's creature tapped");
+    t.eq(T.life('A'), 22);
+  });
+  test('Cards: Teferi, Who Slows the Sunset — −7: an emblem; untap and draw during each opponent\'s steps', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const tf = T.bf('A', 'Teferi, Who Slows the Sunset');
+    tf.counters.loyalty = 8;
+    const idx = tf.analysis().manaAbilities.length + tf.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /^[−-]7:/.test(x.text));
+    T.activate('A', tf, idx);
+    const forest = T.bf('A', 'Forest', { tapped: true }), bf = T.bf('B', 'Forest', { tapped: true });
+    const a0 = T.zone('A', 'hand').length, b0 = T.zone('B', 'hand').length;
+    T.nextTurn('B');
+    t.no(forest.tapped, "your Forest untaps during B's untap step");
+    t.no(bf.tapped, "B's own untaps as ever");
+    t.eq(T.zone('A', 'hand').length, a0 + 1, "a card during B's draw step");
+    t.eq(T.zone('B', 'hand').length, b0 + 1, 'B draws as ever');
+    forest.tapped = true;
+    const a1 = T.zone('A', 'hand').length;
+    T.nextTurn('A');
+    t.eq(T.zone('A', 'hand').length, a1 + 1, 'your own draw step: just the one');
+  });
+
+  test('Cards: Akroan Horse — an opponent gains control of it; its controller\'s opponents get Soldiers', (mk, t) => {
+    t.auto('Akroan Horse');
+    const T = mk({ library: Array(20).fill('Island') });
+    const h = T.bf('A', 'Akroan Horse', { etb: true }); T.resolve();
+    t.eq(h.controller, 'B', 'B controls it');
+    T.nextTurn('B');
+    t.ok(T.bfOf('A').some(o => o.isToken && /Soldier/.test(o.name)), "at B's upkeep, A gets a Soldier");
+    t.no(T.bfOf('B').some(o => o.isToken), 'not B');
+  });
+
+  test('Cards: Birthing Ritual — sacrifice a creature: a creature card of up to 1 more mana value from the top seven onto the battlefield', (mk, t) => {
+    t.auto('Birthing Ritual');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Birthing Ritual');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const angel = T.top('A', 'Hill Giant'), giant = T.top('A', 'Centaur Courser');
+    let offered = null;
+    T.answer('sacrifice', { cardIds: [bears.id] });
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [giant.id] }; });
+    T.toMain('A', 'end'); T.resolve();
+    t.zone(bears, 'graveyard', 'sacrificed');
+    t.zone(giant, 'battlefield', 'mana value 3: 1 plus 2');
+    t.ok(offered && !offered.includes('Hill Giant') && !offered.includes('Island'), 'only creature cards of mana value 3 or less');
+    const lib = T.zone('A', 'library');
+    t.ok(lib.slice(-6).includes(angel), 'the rest on the bottom');
+  });
 };
