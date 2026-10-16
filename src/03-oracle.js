@@ -1901,6 +1901,8 @@
     // Brass Squire: "Attach target Equipment you control to target creature you control."
     { re: /^Attach target Equipment you control to target creature you control\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
+    // Inventory Management: "For each Aura and Equipment you control, you may attach it to a creature you control." (attachEachYours)
+    { re: /^For each Aura and Equipment you control, you may attach it to a creature you control\.?$/i, make: () => ({ op: 'attachEachYours' }) },
     /* Ardenn, Intrepid Archaeologist: "attach any number of Auras and Equipment you control to target permanent or
        player" — which ones, picked as it resolves, from those that can go there (attachAnyTo) */
     { re: /^Attach any number of Auras and Equipment you control to target permanent or player\.?$/i,
@@ -7396,6 +7398,13 @@
     { re: /^(That player|Target player|Target opponent) returns an? ([a-z][a-z ]*?) they control to (?:its|their) owner'?s hand\.?$/i,
       make: (m) => Object.assign({ op: 'returnOwn', filter: m[2].trim().toLowerCase(), n: 1, who: /^that/i.test(m[1]) ? 'triggerPlayer' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {}) },
+    // Teferi, Temporal Pilgrim: "Target opponent chooses a permanent they control and returns it to its owner's hand." — as Blizzard Specter's
+    { re: /^Target (player|opponent) chooses an? ([a-z][a-z ]*?) they control and returns it to (?:its|their) owner'?s hand\.?$/i,
+      make: (m) => ({ op: 'returnOwn', filter: m[2].trim().toLowerCase(), n: 1, who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    /* Teferi, Temporal Pilgrim: "Then they shuffle each nonland permanent they control into its owner's library." — the
+       targeted player's (bottomAll shuffle) */
+    { re: /^Then they shuffle each ([a-z][a-z ]*?) they control into (?:its|their) owner(?:'s|s'?) librar(?:y|ies)\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1].trim() + 's you control'); return sc && !sc.self ? { op: 'bottomAll', shuffle: true, scope: Object.assign({}, sc, { who: 'target' }) } : null; } },
     /* Linessa, Zephyr Mage: "Target player returns a creature they control to its owner's hand, then repeats this
        process for an artifact, an enchantment, and a land." — one after another, each their choice */
     { re: /^Target (player|opponent) returns an? ([a-z]+) they control to its owner'?s hand, then repeats this process for ((?:an? [a-z]+, )*an? [a-z]+,? and an? [a-z]+)\.?$/i,
@@ -13555,6 +13564,10 @@
        words a sentence later giving it one (as "with" in the same sentence would) */
     { re: /^(Create (?:a|an) (?![\dX*]+\/)[^.]*?creature token)\. It has "([^"]+?)"\.?$/,
       make: (m) => { const e = parseTokenSentence(m[1] + ' with "' + m[2] + '"'); return e ? [e] : null; } },
+    /* Rite of the Raging Storm: "that player creates a 5/1 red Elemental creature token named Lightning Rager. It has trample,
+       haste, and "At the beginning of the end step, sacrifice this token."" — as "with" in the same sentence */
+    { re: /^((?:[Cc]reate|[Tt]hat player creates|[Tt]arget player creates|[Ee]ach player creates) (?:a|an) [^.]*?creature token(?: named [A-Z][^.]*?)?)\. It has ([a-z, ]+?),? and "([^"]+?)"\.?$/,
+      make: (m) => { const e = parseEffectSentence(m[1] + ' with ' + m[2] + ', and "' + m[3] + '"', 1); return e && e.op === 'createToken' ? [e] : null; } },
     /* Seize the Spotlight: "Each opponent chooses fame or fortune. For each player who chose fame, gain control of a creature
        that player controls until end of turn. Untap those creatures and they gain haste until end of turn. For each player who
        chose fortune, you draw a card and create a Treasure token." (fameOrFortune) */
@@ -21641,6 +21654,9 @@
     const p = raw.toLowerCase();
     const direct = SCOPE_WORDS[p];
     if (direct) return Object.assign({}, direct);
+    // Rite of the Raging Storm: "Creatures named Lightning Rager" — whoever controls them (name)
+    const namedM = raw.match(/^(creatures|permanents) named ([A-Z][^,.]*)$/i);
+    if (namedM) return { who: 'all', what: namedM[1].toLowerCase().replace(/s$/, ''), name: namedM[2] };
     /* Cid, Timeless Artificer: "Artifact creatures and Heroes you control" — a permanent in either group (either) */
     const eitherM = raw.match(/^((?:[A-Za-z]+ )+creatures) and ([A-Z][a-z'-]+s|Elves) (you control)$/);
     if (eitherM) {
@@ -22851,7 +22867,8 @@
     /* Peregrin Took, Xorn, Chatterfang: those tokens, and one more of another kind */
     // (Tippy-Toe, Terrific Partner: "If you would create one or more tokens, …" — any kind: tokensPlusAny)
     // (Queen Allenal of Ruadach: "those tokens plus a 1/1 white Soldier creature token are created instead" — tokensPlusA)
-    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many|an?) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
+    // (Worldwalker Helm: "If you would create one or more artifact tokens, instead create those tokens plus an additional Map token.")
+    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue|artifact|creature) )?tokens), (?:instead create )?those tokens plus (an additional|that many|an?) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
         // (Donatello, the Brains: "plus a Mutagen token" — tokensPlusMutagen)
         const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map|Mutagen)$/i);
@@ -24399,6 +24416,11 @@
       { re: /^Creature cards in graveyards can'?t enter the battlefield\.?$/i, eff: { op: 'graveCreaturesStay' }, auto: true },
       // Kunoros, Hound of Athreos: "Players can't cast spells from graveyards." — Grafdigger's Cage's (cageGraveyards)
       { re: /^Players can'?t cast spells from graveyards\.?$/i, eff: { op: 'cageGraveyards' }, auto: true },
+      // Soulless Jailer: "Permanent cards in graveyards can't enter the battlefield." (graveCreaturesStay permanents)
+      { re: /^Permanent cards in graveyards can'?t enter the battlefield\.?$/i, eff: { op: 'graveCreaturesStay', permanents: true }, auto: true },
+      // Soulless Jailer: "Players can't cast noncreature spells from graveyards or exile." (cantCastFromZones)
+      { re: /^Players can'?t cast (noncreature |creature )?spells from (graveyards|exile)(?: or (graveyards|exile))?\.?$/i,
+        make: (m) => ({ op: 'cantCastFromZones', words: (m[1] || '').trim(), zones: [m[2], m[3]].filter(Boolean).map(z => z.toLowerCase() === 'graveyards' ? 'graveyard' : 'exile') }), auto: true },
       // Edgar, King of Figaro: "The first time you flip one or more coins each turn, those coins come up heads and you win those flips." (firstFlipsHeads)
       { re: /^The first time you flip one or more coins each turn, those coins come up heads and you win those flips\.?$/i, eff: { op: 'firstFlipsHeads' }, auto: true },
       // Wyll, Pixie Guide, Barbarian Class: a die more, the lowest ignored (rollExtraIgnoreLowest)

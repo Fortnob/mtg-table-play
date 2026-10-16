@@ -2052,6 +2052,22 @@
       const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
       return best ? { picks: [best.id] } : null;
     },
+    /* Inventory Management: an Equipment or a helpful Aura onto our strongest creature, if stronger than the one it is
+       on; an Aura holding an opponent's creature down stays there */
+    attachEachYours(s) {
+      const g = this.game;
+      const x = g.obj(s.attachId);
+      if (!x) return { picks: [] };
+      const was = x.attachedTo && g.obj(x.attachedTo);
+      const hostile = /can't attack|can't block|doesn't untap|enchanted (?:creature|permanent) gets -|loses all abilities|enchanted permanent doesn't/i
+        .test(String((x.analysis() || {}).oracleText || ''));
+      if (hostile || (was && was.controller !== this.pid)) return { picks: [] };
+      // (its own power without what it is wearing: printed, and its +1/+1 counters)
+      const pw = (h) => (parseInt((h.card || {}).power, 10) || 0) + (Number((h.counters || {})['+1/+1']) || 0);
+      const best = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => pw(b) - pw(a))[0];
+      if (!best || (was && (g.characteristics(was) || {}).isCreature && pw(was) >= pw(best))) return { picks: [] };
+      return { picks: [best.id] };
+    },
     /* Resourceful Defense: counters go where they were asked to go */
     moveCounters(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Esper Terra: as many lore counters as it may — the copied Saga's chapters, now */

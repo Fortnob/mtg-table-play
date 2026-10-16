@@ -5497,6 +5497,12 @@
         const dosan = this._anyStatic('castOnlyOwnTurn');
         if (dosan) return { ok: false, reason: `${dosan.name}: spells can be cast only during their caster's own turn.` };
       }
+      // Soulless Jailer: "Players can't cast noncreature spells from graveyards or exile." (cantCastFromZones)
+      if (o.zone === 'graveyard' || o.zone === 'exile') for (const s1 of this.battlefield) {
+        const cz = !s1.phasedOut && this._staticOp(s1, 'cantCastFromZones');
+        if (cz && (cz.zones || []).includes(o.zone) && (!cz.words || this._cardFitsWords(o, cz.words)))
+          return { ok: false, reason: `${s1.name}: players can't cast ${cz.words ? cz.words + ' ' : ''}spells from ${o.zone === 'exile' ? 'exile' : 'graveyards'}.` };
+      }
       if (o.zone !== 'hand' && this.opponentsOf(playerId).some(q => this._anyStaticOf(q.id, 'onlyFromHand')))
         return { ok: false, reason: 'An opponent stops spells cast from anywhere but your hand.' };
       // Avatar's Wrath: "Until your next turn, your opponents can't cast spells from anywhere other than their hands" (silenceUntil)
@@ -18744,8 +18750,9 @@
       }
       /* Kunoros, Hound of Athreos, Grafdigger's Cage: "Creature cards in graveyards can't enter the battlefield." —
          it stays where it is */
-      if (from === 'graveyard' && toZone === 'battlefield' && (this._anyStatic('graveCreaturesStay') || this._anyStatic('cageGraveyards')) &&
-          (o.analysis() || {}).isCreature) {
+      // (Soulless Jailer: "Permanent cards in graveyards can't enter the battlefield." — permanents)
+      if (from === 'graveyard' && toZone === 'battlefield' && (((o.analysis() || {}).isCreature && (this._anyStatic('graveCreaturesStay') || this._anyStatic('cageGraveyards'))) ||
+          ((o.analysis() || {}).isPermanent && this._withEmblems(this.battlefield).some(s => this._staticOpsAll(s, 'graveCreaturesStay').some(e => e.permanents))))) {
         this.logEvent('rules', `${o.name} can't enter the battlefield from a graveyard.`);
         return o;
       }
@@ -30046,6 +30053,32 @@
           this.logEvent('rules', `${eq.name} is attached to ${hostY.name}.`);
           break;
         }
+        /* Inventory Management: "For each Aura and Equipment you control, you may attach it to a creature you control." —
+           one at a time, each to a creature it could legally go on, or left where it is (attachEachYours) */
+        case 'attachEachYours': {
+          const mine = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut &&
+            ((o.analysis() || {}).isEquipment || this._auraNow(o)));
+          for (const x of mine) {
+            if (x.zone !== 'battlefield' || x.controller !== ctx.controller) continue;
+            const hosts = this.battlefield.filter(h => h.controller === ctx.controller && !h.phasedOut && h !== x && h.id !== x.attachedTo &&
+              (this.characteristics(h) || {}).isCreature && this._attachableTo(x, h, null));
+            if (!hosts.length) continue;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'attachEachYours', kind: 'objects', items: this._chooseItems(hosts), min: 0, max: 1,
+              optional: true, attachId: x.id,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach ${x.name} to a creature you control.` }, 'aey' + x.id);
+            if (got === SUSPEND) return SUSPEND;
+            const host = this.obj(((got && got.picks) || [])[0]);
+            if (!host || !hosts.includes(host) || host.zone !== 'battlefield' || x.attachedTo === host.id) continue;
+            const was = x.attachedTo && this.obj(x.attachedTo);
+            if (was) was.attachments = (was.attachments || []).filter(id => id !== x.id);
+            x.attachedTo = host.id;
+            x.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+            host.attachments = (host.attachments || []).filter(id => id !== x.id).concat(x.id);
+            this.bumpBoard();
+            this.logEvent('rules', `${x.name} is attached to ${host.name}.`);
+          }
+          break;
+        }
         case 'attachPutToChosen': {
           const eq = this._lastPut && this.obj(this._lastPut);
           if (!eq || eq.zone !== 'battlefield') break;
@@ -32492,6 +32525,7 @@
         case 'untapOnEveryUntapStep':
         case 'cageGraveyards':
         case 'graveCreaturesStay':
+        case 'cantCastFromZones':
         case 'playFromTop':
         case 'playFrom':
           break;
@@ -36586,7 +36620,16 @@
         }
         // Terminus: every creature to the bottom of its owner's library
         case 'bottomAll': {
-          for (const o of this._scopeList(e.scope, ctx.controller, src).slice()) this.moveObject(o, 'library', { toBottom: true });
+          /* Teferi, Temporal Pilgrim: "Then they shuffle each nonland permanent they control into its owner's library." — the
+             targeted player's, shuffled in (shuffle) */
+          const tp0 = e.scope && e.scope.who === 'target' ? firstPlayer() : null;
+          if (e.scope && e.scope.who === 'target' && !tp0) break;
+          const owners = new Set();
+          for (const o of this._scopeList(e.scope, ctx.controller, src, tp0 && tp0.id).slice()) {
+            this.moveObject(o, 'library', { toBottom: !e.shuffle });
+            if (o.zone === 'library') owners.add(o.owner);
+          }
+          if (e.shuffle) for (const pid of owners) { this.rng.shuffle(this.zones[pid].library); this.logEvent('zone', `${this.player(pid).name} shuffles their library.`); }
           break;
         }
         // Quandrix Command: cards from a graveyard into their owner's library, shuffled
