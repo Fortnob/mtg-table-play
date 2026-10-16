@@ -24301,17 +24301,29 @@
            effect decides which, as it resolves. A bot taps someone else's
            and untaps its own. */
         case 'tapOrUntap': {
-          const x = firstObj();
-          if (!x || x.zone !== 'battlefield') break;
-          let tapIt = !x.tapped;
-          if (!me.isBot) {
-            const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
-              options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }], prompt: `${ctx.name || 'Effect'}: tap or untap ${x.name}?` }, 'tou');
-            if (got === SUSPEND) return SUSPEND;
-            tapIt = ((got && got.picks) || [0])[0] === 0;
-          } else tapIt = x.controller !== ctx.controller;
-          if (tapIt) this._markTapped(x); else this._markUntapped(x);
-          this.emit('sfx', tapIt ? 'tap' : 'untap');
+          /* Hidden Strings: "You may tap or untap target permanent, then you may tap or untap another target permanent" —
+             each target in turn (each), and either may be left as it is (optional) */
+          const list = e.each ? targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)) : [firstObj()];
+          for (let k = 0; k < list.length; k++) {
+            const x = list[k];
+            if (!x || x.zone !== 'battlefield') continue;
+            let tapIt = !x.tapped;
+            if (!me.isBot) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
+                options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }].concat(e.optional ? [{ i: 2, label: 'Leave it' }] : []),
+                prompt: `${ctx.name || 'Effect'}: ${e.optional ? 'you may ' : ''}tap or untap ${x.name}${e.optional ? '.' : '?'}` }, 'tou' + (k || ''));
+              if (got === SUSPEND) return SUSPEND;
+              const pick = ((got && got.picks) || [0])[0];
+              if (pick === 2) continue;
+              tapIt = pick === 0;
+            } else {
+              tapIt = x.controller !== ctx.controller;
+              // (a bot leaves alone what is already the way it wants it)
+              if (e.optional && !!x.tapped === tapIt) continue;
+            }
+            if (tapIt) this._markTapped(x); else this._markUntapped(x);
+            this.emit('sfx', tapIt ? 'tap' : 'untap');
+          }
           break;
         }
         /* Bolster N (CR 701.39): N +1/+1 counters on the creature you
@@ -43613,6 +43625,32 @@
         return !e.payLifeMv || this._canPayLifeMv(me, (c.card && c.card.cmc) || 0);
       });
       if (!fits.length) return [];
+      /* Invoke Calamity: "up to two instant and/or sorcery spells with total mana value 6 or less from your graveyard
+         and/or hand" — several, picked together, their mana values added up (upTo, totalMv) */
+      if (e.totalMv != null) {
+        const cap = Number(e.totalMv) || 0;
+        const most = Math.max(1, Number(e.upTo) || 1);
+        const mvOf = (c) => (c.card && c.card.cmc) || 0;
+        const able = fits.filter(c => mvOf(c) <= cap);
+        if (!able.length) return [];
+        if (me.isBot) {
+          const out = [];
+          let left = cap;
+          for (const c of able.slice().sort((x, y) => this._cardValue(y) - this._cardValue(x))) {
+            if (out.length >= most) break;
+            if (mvOf(c) <= left) { out.push(c.id); left -= mvOf(c); }
+          }
+          return out;
+        }
+        const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: 'hand',
+          items: this._chooseItems(able).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })),
+          min: 0, max: Math.min(most, able.length), constraints: [{ kind: 'sum', key: 'mv', max: cap, label: 'mana value' }],
+          prompt: `${ctx.name || 'Effect'}: you may cast up to ${['zero', 'one', 'two', 'three', 'four', 'five'][most] || most} ${e.filter ? e.filter + ' ' : ''}spells with total mana value ${cap} or less from your graveyard and/or hand without paying their mana costs.`.replace(/ {2,}/g, ' ') }, 'cfhgN');
+        if (got === SUSPEND) return SUSPEND;
+        const ids = ((got && got.picks) || []).filter(id => able.some(x => x.id === id)).slice(0, most);
+        let tot = 0;
+        return ids.filter(id => { const k = mvOf(this.obj(id)); if (tot + k > cap) return false; tot += k; return true; });
+      }
       if (me.isBot) {
         // a bot pays only life it can spare
         const ok = fits.filter(c => ((c.card && c.card.cmc) || 0) <= Math.max(0, me.life - 8));

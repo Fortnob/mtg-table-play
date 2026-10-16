@@ -77177,4 +77177,151 @@ module.exports = (test) => {
     g.moveObject(land, 'graveyard'); g._fire('youSacrifice', 'A', { count: 1, object: land, objController: 'A', source: land });
     t.ok(g._playFromRule('A', bolt, 'spell'), 'a land sacrificed: now it is');
   });
+
+  test('Cards: Invoke Calamity — up to two instants and/or sorceries, total mana value 6 or less, from graveyard and hand for free; exiled after', (mk, t) => {
+    t.auto('Invoke Calamity');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const div = T.grave('A', 'Divination'), conc = T.grave('A', 'Concentrate');
+    T.grave('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [bolt.id, div.id] }; });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    const inv = T.hand('A', 'Invoke Calamity');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'RRRR1');
+    T.cast('A', inv);
+    t.ok(q && q.purpose === 'castFreePick' && q.max === 2, 'up to two');
+    t.ok((q.constraints || []).some(c => c.kind === 'sum' && c.max === 6), 'total mana value 6 or less');
+    t.ok(!q.items.some(it => (g.obj(it.id) || {}).name === 'Grizzly Bears'), 'instants and sorceries only');
+    t.eq(T.life('B'), 17, 'the Bolt, from hand');
+    t.eq(T.zone('A', 'hand').length, h0 - 2 + 2, 'Divination from the graveyard: two cards');
+    t.zone(bolt, 'exile', 'the Bolt exiled instead of going to the graveyard');
+    t.zone(div, 'exile', 'Divination exiled too');
+    t.zone(conc, 'graveyard');
+    t.zone(inv, 'exile', 'Invoke Calamity exiled');
+  });
+  test('Cards: Invoke Calamity — none chosen: nothing cast; a pick over the total is refused', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const div = T.grave('A', 'Divination'), conc = T.grave('A', 'Concentrate');
+    let q = null, over = null;
+    T.answer('choose', (ch) => { q = ch; over = g.resolveChoice('A', { picks: [div.id, conc.id] }); return { picks: [] }; });
+    const inv = T.hand('A', 'Invoke Calamity');
+    T.mana('A', 'RRRR1');
+    T.cast('A', inv);
+    t.zone(div, 'graveyard'); t.zone(conc, 'graveyard');
+    t.zone(inv, 'exile');
+    t.ok(q && q.min === 0, 'may cast none');
+    t.no(over, 'Divination and Concentrate: 7, refused');
+  });
+
+  test('Cards: Hidden Strings — you may tap or untap a permanent, then another', (mk, t) => {
+    t.auto('Hidden Strings');
+    const T = mk({ library: Array(20).fill('Island') });
+    const bear = T.bf('B', 'Grizzly Bears'), forest = T.bf('A', 'Forest', { tapped: true });
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [0] }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { picks: [1] }; });
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Hidden Strings'), { targets: [bear, forest] });
+    t.eq(asked.length, 2, 'asked about each');
+    t.ok(asked.every(ch => ch.purpose === 'tapOrUntap' && ch.options.length === 3), 'tap, untap, or leave it');
+    t.ok(bear.tapped, 'the Bears tapped');
+    t.no(forest.tapped, 'the Forest untapped');
+  });
+  test('Cards: Hidden Strings — either may be left as it is', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const bear = T.bf('B', 'Grizzly Bears'), elf = T.bf('B', 'Llanowar Elves');
+    T.answer('choose', { picks: [2] });
+    T.answer('choose', { picks: [0] });
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Hidden Strings'), { targets: [bear, elf] });
+    t.no(bear.tapped, 'the Bears left alone');
+    t.ok(elf.tapped, 'the Elves tapped');
+  });
+
+  test('Cards: Mirrorhall Mimic — enters as a copy of a creature, a Spirit as well', (mk, t) => {
+    t.auto('Mirrorhall Mimic // Ghastly Mimicry');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const giant = T.bf('B', 'Hill Giant');
+    T.answer('pickCard', { cardIds: [giant.id] });
+    const mm = T.hand('A', 'Mirrorhall Mimic // Ghastly Mimicry');
+    T.mana('A', 'U3');
+    T.cast('A', mm);
+    t.eq(mm.name, 'Hill Giant', 'a copy of the Giant');
+    t.ok(g._hasCreatureType(mm, 'Spirit') && g._hasCreatureType(mm, 'Giant'), 'a Spirit Giant');
+  });
+  test('Cards: Mirrorhall Mimic — disturbed, Ghastly Mimicry makes a Spirit token copy of the enchanted creature each upkeep; exiled, not put into a graveyard', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const mm = T.grave('A', 'Mirrorhall Mimic // Ghastly Mimicry');
+    T.mana('A', 'UU3');
+    T.cast('A', mm, { via: 'disturb', targets: [bear] });
+    t.zone(mm, 'battlefield');
+    t.eq(mm.attachedTo, bear.id, 'Ghastly Mimicry on the Bears');
+    T.nextTurn('B'); T.nextTurn('A');
+    const toks = T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
+    t.eq(toks.length, 1, 'a token copy at the upkeep');
+    t.ok(toks[0] && g._hasCreatureType(toks[0], 'Spirit') && g._hasCreatureType(toks[0], 'Bear'), 'a Spirit Bear');
+    g.moveObject(bear, 'graveyard'); g.checkStateBasedActions(); T.resolve();
+    t.zone(mm, 'exile', 'exiled instead of going to the graveyard');
+  });
+
+  test('Cards: Mirror March — a nontoken creature of yours: a hasty token copy for each flip won, exiled at the next end step', (mk, t) => {
+    t.auto('Mirror March');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Mirror March');
+    const seq = [true, true, false];
+    g.rng.chance = () => (seq.length ? seq.shift() : false);
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    const toks = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
+    t.eq(toks().length, 2, 'two flips won: two tokens (the tokens set nothing off)');
+    t.ok(toks().every(o => g.hasKw(o, 'haste')), 'with haste');
+    T.bf('B', 'Hill Giant', { etb: true }); T.resolve();
+    t.eq(T.bfOf('B').filter(o => o.isToken).length, 0, "B's creature: nothing");
+    T.nextTurn('B');
+    t.eq(toks().length, 0, 'exiled at the end step');
+  });
+  test('Cards: Mirror March — the first flip lost: no tokens', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Mirror March');
+    g.rng.chance = () => false;
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0);
+  });
+
+  test('Cards: Dawn of a New Age — a hope counter for each creature; a card each end step, then sacrificed for 4 life once they are gone', (mk, t) => {
+    t.auto('Dawn of a New Age');
+    const T = mk({ library: Array(30).fill('Plains') });
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Savannah Lions');
+    T.bf('B', 'Hill Giant');
+    const dawn = T.bf('A', 'Dawn of a New Age', { etb: true });
+    t.eq(dawn.counters.hope, 2, 'two creatures of yours: two hope counters');
+    const h0 = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.eq(dawn.counters.hope, 1, 'one removed at your end step');
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'a card for it');
+    t.zone(dawn, 'battlefield', 'one left: stays');
+    T.nextTurn('A');
+    const h1 = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'the last one: a card');
+    t.zone(dawn, 'graveyard', 'then sacrificed');
+    t.eq(T.life('A'), 24, 'and 4 life');
+  });
+  test('Cards: Dawn of a New Age — no creatures: no counter, no card, sacrificed for 4 life at the end step', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Plains') });
+    const dawn = T.bf('A', 'Dawn of a New Age', { etb: true });
+    t.eq(dawn.counters.hope || 0, 0);
+    const h0 = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'hand').length, h0, 'none removed: no card');
+    t.zone(dawn, 'graveyard'); t.eq(T.life('A'), 24);
+  });
 };

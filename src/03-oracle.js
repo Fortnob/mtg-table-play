@@ -1120,7 +1120,8 @@
       delete g0.until; delete g0.plural;
     }
     let targeted = false;
-    const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); } };
+    // (Mirror March: "For each flip you won, create a token that's a copy of that creature" — inside the flips: repeatPerFlip)
+    const walk = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk(e.list, fn); walk(e.then, fn); walk(e.otherwise, fn); if (e.op === 'repeatPerFlip') walk(e.effects, fn); } };
     walk(effects, (e) => { if (e.targets && e.targets.length) targeted = true; });
     if (targeted) return;
     // (Oketra's Avenger: "prevent all combat damage that would be dealt to it this turn" — flagEot)
@@ -2135,6 +2136,11 @@
     // (Stinging Lionfish: "target nonland permanent")
     { re: /^Tap or untap (target (?:creature|permanent|nonland permanent|artifact|land|artifact or creature))\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'tapOrUntap', targets: [t] } : null; } },
+    /* Hidden Strings: "You may tap or untap target permanent, then you may tap or untap another target permanent." — each
+       in turn, either left as it is (each, optional) */
+    { re: /^You may tap or untap (target (?:creature|permanent|nonland permanent|artifact|land)), then you may tap or untap another (target (?:creature|permanent|nonland permanent|artifact|land))\.?$/i,
+      make: (m) => { const a = targetSpec(m[1]), b = targetSpec(m[2]);
+        return a && b && !a.unknown && !b.unknown ? { op: 'tapOrUntap', each: true, optional: true, targets: [Object.assign(a, { distinct: true }), Object.assign(b, { distinct: true })] } : null; } },
     // Keening Stone: "Target player mills X cards, where X is the number of cards in that player's graveyard."
     { re: /^Target player mills X cards, where X is the number of cards in that player'?s graveyard\.?$/i,
       make: () => ({ op: 'mill', who: 'target', n: { targetGraveyardCount: true }, targets: [{ type: 'player' }] }) },
@@ -5454,6 +5460,14 @@
        legendary, and it has haste for good. */
     { re: /^Create a token that'?s a copy of equipped creature(, except (?:the token|it) isn'?t legendary)?\.?$/i,
       make: (m) => ({ op: 'copyPermanent', of: 'attached', nonLegendary: !!m[1] }) },
+    // Ghastly Mimicry: "create a token that's a copy of enchanted creature, except it's a Spirit in addition to its other types"
+    { re: /^Create a token that'?s a copy of enchanted creature, except (it'?s an? [A-Z][a-z]+ in addition to its other types)\.?$/i,
+      make: (m) => {
+        const e = { op: 'copyPermanent', of: 'attached' };
+        if (!copyExceptions(m[1], e) || !e.addTypes || Object.keys(e).length !== 3) return null;
+        e.addSubtypes = e.addTypes; delete e.addTypes;
+        return e;
+      } },
     { re: /^(?:That token|The token) gains haste( until end of turn)?\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: ['Haste'], scope: 'thatToken', duration: m[1] ? 'eot' : 'permanent' }) },
     /* Selvala, Heart of the Wilds */
@@ -12076,6 +12090,12 @@
     { re: /^Exile target instant or sorcery card from a graveyard\. Copy that card (twice|three times|four times)\. You may cast the copies without paying their mana costs\. Exile CARDNAME\.?$/i,
       make: (m) => [{ op: 'exileCopyCast', copies: ({ twice: 2, 'three times': 3, 'four times': 4 })[m[1].toLowerCase()],
         targets: [{ type: 'card', filter: 'instant or sorcery', zone: 'graveyard' }] }, { op: 'exileSelf' }] },
+    /* Invoke Calamity: "You may cast up to two instant and/or sorcery spells with total mana value 6 or less from your
+       graveyard and/or hand without paying their mana costs. If those spells would be put into your graveyard, exile them
+       instead. Exile Invoke Calamity." (castFree handOrGraveyard, upTo, totalMv, exileAfter) */
+    { re: /^You may cast up to (one|two|three) (instant and\/or sorcery|instant|sorcery) spells with total mana value (\d+) or less from your graveyard and\/or hand without paying their mana costs\. If those spells would be put into your graveyard, exile them instead\. Exile CARDNAME\.?$/i,
+      make: (m) => [{ op: 'castFree', from: 'handOrGraveyard', filter: m[2].replace(' and/or ', ' or ').toLowerCase(), upTo: num(m[1]), totalMv: +m[3], exileAfter: true },
+        { op: 'exileSelf' }] },
     /* Transmute Artifact: "Sacrifice an artifact. If you do, search your library for an artifact card. If that card's mana
        value is less than or equal to the sacrificed artifact's mana value, put it onto the battlefield. If it's greater, you
        may pay {X}, where X is the difference. If you do, put it onto the battlefield. If you don't, put it into its owner's
@@ -14176,6 +14196,12 @@
     // The Face of Boe: "You may cast a spell with suspend from your hand. If you do, pay its suspend cost rather than its mana cost."
     { re: /^You may cast a spell with suspend from your hand\. If you do, pay its suspend cost rather than its mana cost\.(\s*Activate only as a sorcery\.)?$/i,
       make: (m) => [{ op: 'castSuspendCost' }].concat(m[1] ? [{ op: 'noop' }] : []) },
+    /* Dawn of a New Age: "remove a hope counter from this enchantment. If you do, draw a card. Then if this enchantment has no
+       hope counters on it, sacrifice it and you gain 4 life." — removed only when there is one (selfCounters) */
+    { re: /^Remove an? ([a-z]+) counter from (?:this enchantment|this artifact|CARDNAME)\. If you do, draw a card\. Then if (?:this enchantment|this artifact|CARDNAME) has no \1 counters on it, sacrifice it and you gain (\d+) life\.?$/i,
+      make: (m) => { const k = m[1].toLowerCase();
+        return [{ op: 'ifCond', cond: { kind: 'selfCounters', n: 1, counter: k }, then: [{ op: 'counters', kind: k, n: -1, scope: 'self' }, { op: 'draw', who: 'you', n: 1 }] },
+          { op: 'ifCond', cond: { kind: 'selfCounters', n: 0, cmp: 'atMost', counter: k }, then: [{ op: 'sacrificeSelf' }, { op: 'gainLife', who: 'you', n: +m[2] }] }]; } },
     /* Darigaaz Reincarnated: "remove an egg counter from it. Then if this card has no egg counters on it, return it to
        the battlefield." — the exiled card itself, back under its owner's control */
     { re: /^Remove an? ([a-z]+) counter from it\. Then if this card has no \1 counters on it, return it to the battlefield\.?$/i,
@@ -21637,7 +21663,8 @@
       const c1 = countOf(etbTwo[2]), c2 = countOf(etbTwo[3]);
       if (c1 && c2 && plainCount(c1) && plainCount(c2)) out.entersWithCounters = { kind: etbTwo[1], n: { count: c1, count2: c2 } };
     }
-    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (an?|an additional|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
+    // (Dawn of a New Age: "This enchantment enters with a hope counter on it for each creature you control")
+    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact|This enchantment) enters(?: the battlefield)? with (an?|an additional|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
     if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[3])) {
       const c = countOf(etbEach[3]);
       const k = /^an?(?: additional)?$/i.test(etbEach[1]) ? 1 : num(etbEach[1]);
@@ -25085,7 +25112,7 @@
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
       // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two … counters on it for each" — etbEachMore)
-      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (?:an?|an additional|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
+      { re: /^(?:CARDNAME|This creature|This artifact|This enchantment) enters(?: the battlefield)? with (?:an?|an additional|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
         make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || (countOf(m[1]) || {}).spellsCastWords || (countOf(m[1]) || {}).commanderCasts || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
