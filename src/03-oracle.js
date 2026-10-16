@@ -1213,6 +1213,10 @@
     /* Hei Bai, Forest Guardian: "You may put that card onto the battlefield. Then shuffle." — the cards stay where they
        are if not, for the shuffle after (optional, rest stay) */
     if (/^You may put that card onto the battlefield\.?$/i.test(rest) && w === 'reveal') return Object.assign(e, { dest: 'battlefield', optional: true, rest: 'stay' });
+    /* Songbirds' Blessing: "You may put that card onto the battlefield. If you don't, put it into your hand. Put the rest
+       on the bottom of your library in a random order." (optional, elseHand) */
+    if (w === 'reveal' && /^You may put that card onto the battlefield\. If you don'?t, put it into your hand\. Put the rest on the bottom of your library in a random order\.?$/i.test(rest))
+      return Object.assign(e, { dest: 'battlefield', optional: true, elseHand: true, rest: 'bottom' });
     /* Jhoira, Weatherlight Corsair: "You put that card onto the battlefield under your control and lose life equal to that
        permanent's mana value. That player puts the rest of the revealed cards on the bottom …" (loseMv) */
     if (w !== 'reveal' && /^You put that card onto the battlefield under your control and lose life equal to that permanent'?s mana value\. That player puts the rest of the revealed cards on the bottom of their library in a random order\.?$/i.test(rest))
@@ -2743,6 +2747,9 @@
       make: (m) => ({ op: 'manual', enterRider: { setPt: { p: +m[2], t: +m[3] }, addTypes: ['Creature'], minX: +m[1] } }) },
     // Hellcat, Undying Vigilante: "She loses all abilities and gains haste." — as the card returned enters (enterRider)
     { re: /^(?:It|He|She|They) lose(?:s)? all abilities and gains? haste\.?$/, make: () => ({ op: 'manual', enterRider: { loseAll: true, keywords: ['Haste'] } }) },
+    // Ghost Vacuum: "Each of them is a 1/1 Spirit in addition to its other types." — as they enter (enterRider)
+    { re: /^Each of them is an? (\d+)\/(\d+) ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { setPt: { p: +m[1], t: +m[2] }, addSubtypes: [m[3]] } }) },
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
     /* Tom, Bert, and William: "When Tom, Bert, and William die, if they were a creature, return them to the battlefield.
@@ -3342,6 +3349,9 @@
     // Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your control" (exiledWithToBattlefield)
     { re: /^Put all (creature) cards exiled with CARDNAME onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase() }) },
+    // Ghost Vacuum: "Put each creature card exiled with this artifact onto the battlefield under your control with a flying counter on it." (enterCounters)
+    { re: /^Put each (creature) card exiled with (?:CARDNAME|this artifact) onto the battlefield under your control with an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => kwKnown(m[2].toLowerCase()) ? { op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), enterCounters: { kind: m[2].toLowerCase(), n: 1 } } : null },
     // Tezzeret, Master of the Bridge: "Exile the top ten cards of your library. Put all artifact cards from among them onto the battlefield." (exiledNowToBattlefield)
     { re: /^Put all ([a-z]+) cards from among them onto the battlefield\.?$/i,
       make: (m) => ({ op: 'exiledNowToBattlefield', words: m[1].toLowerCase() }) },
@@ -4468,7 +4478,8 @@
     { re: /^If the creature had power (\w+) or greater, create (two|three|four) of those tokens instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'noop', insteadOf: { cond: { kind: 'triggerPowerLki', n: num(m[1]) }, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null) },
     // Safana, Calimport Cutthroat: "Create three of those tokens instead if you've completed a dungeon." (read as "If …, create …")
-    { re: /^If (.+?), create (two|three|four) of those tokens instead\.?$/i,
+    // (Increasing Devotion: "If this spell was cast from a graveyard, create ten of those tokens instead.")
+    { re: /^If (.+?), create (two|three|four|five|six|seven|eight|nine|ten) of those tokens instead\.?$/i,
       make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null; } },
     // Increasing Vengeance: "If this spell was cast from a graveyard, copy that spell twice instead." — the copy before, twice (copyPrevTimes)
     { re: /^If (.+?), copy that spell (twice|three times) instead\.?$/i,
@@ -10604,6 +10615,8 @@
     let p = String(phrase || '').trim().replace(/\.$/, '');
     // Li'l Giri Saves the Day (a plane): "the number of times you've rolled the planar die this turn" (planarRolls)
     if (/^the number of times you'?ve rolled the planar die this turn$/i.test(p)) return { planarRolls: true, mult: 1 };
+    // Stinging Study: "the mana value of a commander you own on the battlefield or in the command zone" — the one picked (commanderMv, pickCommanderMv)
+    if (/^the mana value of a commander you own on the battlefield or in the command zone$/i.test(p)) return { commanderMv: true, mult: 1 };
     // Hotel of Fears (a plane): "your devotion to that color" — the colour just chosen (devotionChosen)
     if (/^your devotion to that colou?r$/i.test(p)) return { devotionChosen: true, mult: 1 };
     // Gardens of Tranquil Repose (a plane): "one plus the number of cards exiled with CARDNAME" (exiledWithSelf)
@@ -11609,7 +11622,12 @@
     if (wx && !/\bwhere X\b/.test(wx[1])) {
       const k = whereXAmount(wx[1], wx[2]);
       const inner = k && parseEffectSentence(wx[1] + '.', 0);
-      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) { inner.text = s; return inner; }
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, k)) {
+        inner.text = s;
+        // (Stinging Study: "a commander you own" — which one, picked first: pickCommanderMv)
+        if (k.commanderMv) return { op: 'sequence', list: [{ op: 'pickCommanderMv' }].concat(inner.op === 'sequence' ? inner.list : [inner]), text: s };
+        return inner;
+      }
     }
     /* Dawnsire: "deals 100 damage to up to one target creature" — read with
        "target", and the one target made optional */
@@ -12383,8 +12401,11 @@
         { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
     /* Agitator Ant: "each player may put two +1/+1 counters on a creature they control. Goad each creature that had
        counters put on it this way." (eachPlayerMayCounters) */
-    { re: /^each player may put (a|an|one|two|three|four|\d+) (\+1\/\+1|[a-z]+) counters? on a creature they control\.(?: (Goad each creature that had counters put on it this way)\.)?$/i,
-      make: (m) => [{ op: 'eachPlayerMayCounters', kind: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : /^\d+$/.test(m[1]) ? +m[1] : num(m[1].toLowerCase()), goad: !!m[3] }] },
+    /* (Orzhov Advokist: "If a player does, creatures that player controls can't attack you or planeswalkers you control
+       until your next turn." — pacify) */
+    { re: /^each player may put (a|an|one|two|three|four|\d+) (\+1\/\+1|[a-z]+) counters? on a creature they control\.(?: (Goad each creature that had counters put on it this way)\.)?(?: (If a player does, creatures that player controls can'?t attack you or planeswalkers you control until your next turn)\.)?$/i,
+      make: (m) => [Object.assign({ op: 'eachPlayerMayCounters', kind: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : /^\d+$/.test(m[1]) ? +m[1] : num(m[1].toLowerCase()), goad: !!m[3] },
+        m[4] ? { pacify: true } : {})] },
     // Mimic Vat: "you may exile that card. If you do, return each other card exiled with this artifact …" — the card that died
     { re: /^you may exile (?:that card|it)\. If you do, (return each other card exiled with (?:this artifact|this creature|CARDNAME) to its owner'?s graveyard\.)$/i,
       make: (m) => { const p = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1));
@@ -13827,7 +13848,7 @@
        bottom of your library in a random order." Dig until one fits (or
        two, or X); "Its controller reveals …" after a Polymorph. */
     // (Sméagol, Helpful Guide: "target opponent reveals cards … until they reveal a land card. Put that card onto the battlefield tapped under your control …")
-    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|You may put|The player puts|That player puts|They put)[^.]+|\.\s+You put that card [^.]+\.\s+That player puts the rest of the revealed cards [^.]+)?\.?)(?:\s+([\s\S]+))?$/,
+    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+You may put that card onto the battlefield\.\s+If you don'?t, put it into your hand\.\s+Put the rest [^.]+|\.\s+(?:Put|You may put|The player puts|That player puts|They put)[^.]+|\.\s+You put that card [^.]+\.\s+That player puts the rest of the revealed cards [^.]+)?\.?)(?:\s+([\s\S]+))?$/,
       make: (m) => {
         const e = revealUntilOf(m[2]);
         if (!e) return null;
@@ -16112,7 +16133,8 @@
       if (e && e.enterRider) {
         // (Tom, Bert, and William: "return them to the battlefield. They're an artifact." — returnSelfFromGrave)
         // (Hellcat, Undying Vigilante: "return her … She loses all abilities and gains haste." — returnTriggerCard)
-        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave' || prevE.op === 'returnTriggerCard') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
+        // (Ghost Vacuum: "Put each creature card exiled with this artifact onto the battlefield … Each of them is a 1/1 Spirit …" — exiledWithToBattlefield)
+        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave' || prevE.op === 'returnTriggerCard' || prevE.op === 'exiledWithToBattlefield') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
         // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
         const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
         if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }

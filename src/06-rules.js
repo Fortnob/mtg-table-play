@@ -1071,7 +1071,12 @@
       // Mindslaver: "during that player's next turn" — this one (_controlNextTurn)
       this._controlTurnBegins(ap);
       // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
-      if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null); for (const r of ap.noAttackOn) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
+      // (Orzhov Advokist: "until your next turn" — over as that player's turn begins, and not spent before: untilNext)
+      for (const q of this.players) if (q.noAttackOn && q.noAttackOn.some(r => r.untilNext && r.who === ap.id)) {
+        q.noAttackOn = q.noAttackOn.filter(r => !(r.untilNext && r.who === ap.id));
+        if (!q.noAttackOn.length) q.noAttackOn = null;
+      }
+      if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null || r.untilNext); for (const r of ap.noAttackOn) if (!r.untilNext) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
       // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" — this one (silenceOn)
       if (ap.silenceOn) { ap.silenceOn = ap.silenceOn.filter(r => r.on == null); for (const r of ap.silenceOn) r.on = this.turn; if (!ap.silenceOn.length) ap.silenceOn = null; }
       /* "until your next turn" is over, and what phased out phases back in */
@@ -2121,6 +2126,12 @@
       return n;
     }
 
+    /** Stinging Study: the commanders this player owns on the battlefield or in the command zone, with their mana values. */
+    _commanderMvs(pid) {
+      const z = this.zones[pid] || {};
+      return (z.command || []).filter(o => o.isCommander && o.owner === pid && !o.isSignature).map(o => ({ obj: o, mv: (o.card && o.card.cmc) || 0 }))
+        .concat(this.battlefield.filter(o => o.isCommander && o.owner === pid && !o.phasedOut).map(o => ({ obj: o, mv: (o.card && o.card.cmc) || 0 })));
+    }
     /** Oathbreaker: whether this player's Oathbreaker is on the battlefield, so its Signature Spell may be cast. */
     _oathbreakerOut(pid) {
       return this.battlefield.some(o => o.isCommander && o.owner === pid && !o.phasedOut);
@@ -22540,6 +22551,12 @@
           return v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length;
         }
         if (v && typeof v === 'object' && v.commanderCasts) return (me ? this._commanderCastCount(me.id) : 0) * (v.mult || 1);
+        // Stinging Study: "the mana value of a commander you own on the battlefield or in the command zone" — the one picked (commanderMv)
+        if (v && typeof v === 'object' && v.commanderMv) {
+          if (ctx._commanderMv != null) return ctx._commanderMv * (v.mult || 1);
+          const mvs = me ? this._commanderMvs(me.id).map(c => c.mv) : [];
+          return (mvs.length ? Math.max(...mvs) : 0) * (v.mult || 1);
+        }
         // Odric, Blood-Cursed: "the number of abilities from among flying, … found among creatures you control" (kwAmongYours)
         if (v && typeof v === 'object' && v.kwAmongYours) {
           const mine = this.battlefield.filter(o => me && o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature);
@@ -25950,8 +25967,10 @@
             const rest = shown.filter(c => !found.includes(c));
             if (e.optional && found.length && e.dest === 'battlefield') {
               const yes = this._ask({ type: 'confirm', playerId: ctx.controller, card: found[0].card, cardId: found[0].id,
-                prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${found[0].name} onto the battlefield?` }, 'ru' + p.id);
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${found[0].name} onto the battlefield${e.elseHand ? ' (if not, it goes into your hand)' : ''}?` }, 'ru' + p.id);
               if (yes === SUSPEND) return SUSPEND;
+              // Songbirds' Blessing: "If you don't, put it into your hand." (elseHand)
+              if (!yes && e.elseHand) for (const c of found) this.moveObject(c, 'hand');
               if (!yes) found.length = 0;
             }
             /* Neera, Wild Mage: the cards stay where they are, revealed — the one found to cast from there
@@ -28877,7 +28896,10 @@
             if (!pool.length) continue;
             const got = this._choose({ playerId: p.id, purpose: 'eachPlayerCounters', kind: 'objects', zone: 'battlefield',
               items: this._chooseItems(pool), min: 0, max: 1, optional: true, goad: !!e.goad,
-              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put ${O.nounCount(e.n, e.kind + ' counter')} on a creature you control${e.goad ? ` (it will be goaded by ${me.name})` : ''}.` }, 'epc' + p.id);
+              // (Orzhov Advokist: the price of the counters said — pacify)
+              ...(e.pacify ? { pacify: true, pacifyBy: ctx.controller } : {}),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put ${O.nounCount(e.n, e.kind + ' counter')} on a creature you control${e.goad ? ` (it will be goaded by ${me.name})` : ''}` +
+                `${e.pacify && p.id !== ctx.controller ? ` (if you do, creatures you control can't attack ${me.name} or planeswalkers ${me.name} controls until ${me.name}'s next turn)` : ''}.` }, 'epc' + p.id);
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks && got.picks[0] && this.obj(got.picks[0]);
             if (x && pool.includes(x)) picks.push(x);
@@ -28886,8 +28908,18 @@
           for (const x of picks) {
             if (x.zone !== 'battlefield') continue;
             const before = Number(x.counters[e.kind]) || 0;
+            const by = x.controller;
             this.addCounters(x, e.kind, e.n);
-            if ((Number(x.counters[e.kind]) || 0) > before) goaded.push(x);
+            if ((Number(x.counters[e.kind]) || 0) > before) {
+              goaded.push(x);
+              /* Orzhov Advokist: "If a player does, creatures that player controls can't attack you or planeswalkers you
+                 control until your next turn." — that player's, whichever creatures they are (noAttackOn untilNext) */
+              const q = this.player(by);
+              if (e.pacify && q && by !== ctx.controller && !(q.noAttackOn || []).some(r => r.untilNext && r.who === ctx.controller)) {
+                (q.noAttackOn = q.noAttackOn || []).push({ who: ctx.controller, on: null, untilNext: true });
+                this.logEvent('rules', `${q.name}'s creatures can't attack ${me.name} or planeswalkers ${me.name} controls until ${me.name}'s next turn.`);
+              }
+            }
           }
           if (e.goad) for (const x of goaded) { x.goadedBy = ctx.controller; this.logEvent('rules', `${x.name} is goaded.`); }
           this.bumpBoard();
@@ -29072,6 +29104,23 @@
           const d = this._lastDiscovered;
           const k = d ? (Number(e.n) || 0) - (d.mv || 0) : 0;
           if (k > 0) this._createNamedToken(ctx.controller, { token: 'Treasure', n: k, tapped: true });
+          break;
+        }
+        /* Stinging Study: "where X is the mana value of a commander you own on the battlefield or in the command zone" —
+           which commander, asked when theirs differ (pickCommanderMv; read by the commanderMv amount) */
+        case 'pickCommanderMv': {
+          // (once for the spell: "You draw X cards and you lose X life" is one X)
+          if (ctx._commanderMv != null) break;
+          const list = this._commanderMvs(ctx.controller);
+          const mvs = [...new Set(list.map(c => c.mv))];
+          if (mvs.length < 2) { ctx._commanderMv = mvs.length ? mvs[0] : 0; break; }
+          const got = this._choose({ playerId: ctx.controller, purpose: 'commanderMv', kind: 'options', min: 1, max: 1,
+            options: list.map((c, i) => ({ i, label: `${c.obj.name} (mana value ${c.mv})`, mv: c.mv })),
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}X is the mana value of which commander?` }, 'pcmv');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = list[((got && got.picks) || [])[0]] || list[0];
+          ctx._commanderMv = pick.mv;
+          this.logEvent('rules', `${me.name} chooses ${pick.obj.name}: X is ${pick.mv}.`);
           break;
         }
         // Hellkite Courser: a commander out for the turn, with haste, and back to the command zone
@@ -29543,7 +29592,11 @@
           }
           const moved = [];
           for (const c of list.slice(0, e.one ? 1 : list.length)) {
-            this.moveObject(c, 'battlefield', Object.assign({ controller: ctx.controller }, e.tapped ? { tapped: true } : {}));
+            // Ghost Vacuum: "with a flying counter on it. Each of them is a 1/1 Spirit …" — as each enters (enterCounters, enterEff)
+            if (e.enterCounters) c._enterExtraCounter = Object.assign({}, e.enterCounters);
+            this.moveObject(c, 'battlefield', Object.assign({ controller: ctx.controller }, e.tapped ? { tapped: true } : {},
+              e.enterEff ? { enterEffects: [Object.assign({}, e.enterEff)] } : {}));
+            if (c.zone !== 'battlefield') c._enterExtraCounter = null;
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             if (c.zone === 'battlefield') moved.push(c.id);
           }
@@ -40131,7 +40184,8 @@
       if (!walker && this.config.planechase && this._planarHeld(def.id, 'notAttacked')) return { src: null, who: def.name + ' until a player planeswalks' };
       // The Second Doctor: "can't attack you or permanents you control during their next turn" (noAttackOn)
       const atkP = this.player(o.controller);
-      const civil = atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id && !r.walkerType);
+      // (Orzhov Advokist: "until your next turn" — untilNext)
+      const civil = atkP && (atkP.noAttackOn || []).find(r => (r.on === this.turn || r.untilNext) && r.who === def.id && !r.walkerType);
       if (civil) return { src: o, who: walker ? 'permanents ' + def.name + ' controls' : def.name };
       // Jace, Multiverse Architect: "creatures they control can't attack Jaces you control this turn" (walkerType)
       const pwDef = walker ? this.obj(defenderId) : null;

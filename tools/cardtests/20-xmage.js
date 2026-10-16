@@ -73642,4 +73642,144 @@ module.exports = (test) => {
     { const gg2 = T.hand('A', 'Giant Growth'), bear = T.bf('A', 'Grizzly Bears'); t.no(T.g.castSpell('A', gg2.id, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'no green: Giant Growth can\'t be paid'); }
     t.eq(T.manualLines().length, 0);
   });
+
+  test('Cards: Ghost Vacuum — cards exiled with it come back as 1/1 Spirits with a flying counter; noncreature cards and others stay', (mk, t) => {
+    t.auto('Ghost Vacuum');
+    const T = mk();
+    const gv = T.bf('A', 'Ghost Vacuum');
+    const giant = T.grave('B', 'Hill Giant'), bolt = T.grave('B', 'Lightning Bolt'), other = T.grave('B', 'Grizzly Bears');
+    T.activate('A', gv, 0, { targets: [giant] });
+    t.zone(giant, 'exile');
+    gv.tapped = false;
+    T.activate('A', gv, 0, { targets: [bolt] });
+    t.zone(bolt, 'exile');
+    T.g.moveObject(other, 'exile');   // exiled by something else
+    gv.tapped = false;
+    T.mana('A', '6');
+    T.activate('A', gv, 1);
+    t.zone(gv, 'graveyard', 'sacrificed');
+    t.zone(giant, 'battlefield');
+    t.eq(giant.controller, 'A', 'under A\'s control');
+    t.eq(T.g.powerOf(giant), 1, '1 power'); t.eq(T.g.toughnessOf(giant), 1, '1 toughness');
+    t.ok(T.g._hasCreatureType(giant, 'Spirit') && T.g._hasCreatureType(giant, 'Giant'), 'a Spirit in addition');
+    t.eq(giant.counters.flying, 1, 'a flying counter'); t.ok(T.g.hasKw(giant, 'flying'), 'flying');
+    t.zone(bolt, 'exile', 'not a creature card');
+    t.zone(other, 'exile', 'not exiled with it');
+  });
+
+  test('Cards: Orzhov Advokist — each player may take two counters; one who does can\'t attack you or yours until your next turn, through every turn till then', (mk, t) => {
+    t.auto('Orzhov Advokist');
+    const T = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const adv = T.bf('A', 'Orzhov Advokist');
+    const walker = T.bf('A', 'Ajani Goldmane');
+    const bearB = T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+    const bearC = T.bf('C', 'Grizzly Bears'); T.bf('C', 'Hill Giant');
+    const prompts = {};
+    T.answer('choose', (ch) => { prompts[ch.playerId] = ch.prompt; return { picks: [adv.id] }; });
+    T.answer('choose', (ch) => { prompts[ch.playerId] = ch.prompt; return { picks: [bearB.id] }; });
+    T.answer('choose', (ch) => { prompts[ch.playerId] = ch.prompt; return { picks: [] }; });
+    T.nextTurn('A');
+    t.eq(adv.counters['+1/+1'], 2, 'A took the counters');
+    t.eq(bearB.counters['+1/+1'], 2, 'B took the counters');
+    t.no(bearC.counters['+1/+1'], 'C declined');
+    t.ok(/can't attack A or planeswalkers A controls until A's next turn/.test(prompts.B || ''), 'B told the price');
+    t.no(/can't attack/.test(prompts.A || ''), 'not A');
+    T.nextTurn('B');
+    t.ok(g._cantAttackYou(bearB, 'A'), "B can't attack A");
+    t.ok(g._cantAttackYou(T.g.battlefield.find(o => o.controller === 'B' && o.name === 'Hill Giant'), walker.id), "nor A's planeswalker, with another creature");
+    t.no(g._cantAttackYou(bearB, 'C'), 'B may attack C');
+    T.nextTurn('C');
+    t.no(g._cantAttackYou(bearC, 'A'), 'C declined: free');
+    // a creature B takes control of later is one of B's creatures too
+    bearC.controller = 'B';
+    t.ok(g._cantAttackYou(bearC, 'A'), 'a creature B controls now');
+    bearC.controller = 'C';
+    // A's next turn: over (everyone declines this time)
+    for (let i = 0; i < 3; i++) T.answer('choose', () => ({ picks: [] }));
+    T.nextTurn('B');
+    t.no(g._cantAttackYou(bearB, 'A'), 'only until A\'s next turn');
+  });
+
+  test('Cards: Songbirds\' Blessing — the enchanted creature attacks: dig to an Aura, onto the battlefield or else into the hand, the rest on the bottom', (mk, t) => {
+    t.auto("Songbirds' Blessing");
+    const setup = () => {
+      const T = mk({ library: Array(20).fill('Island') });
+      const bear = T.bf('A', 'Grizzly Bears');
+      const sb = T.bf('A', "Songbirds' Blessing"); sb.attachedTo = bear.id; bear.attachments = [sb.id];
+      T.top('A', 'Swamp');
+      const aura = T.top('A', 'Rancor');
+      T.top('A', 'Plains'); T.top('A', 'Mountain');
+      T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+      return { T, bear, aura };
+    };
+    // yes: onto the battlefield, enchanting the creature chosen
+    const { T, bear, aura } = setup();
+    let q = null;
+    T.answer('confirm', (ch) => { q = ch; return { yes: true }; });
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    t.ok(q && /Rancor onto the battlefield/.test(q.prompt) && /into your hand/.test(q.prompt), 'asked: ' + (q && q.prompt));
+    t.zone(aura, 'battlefield');
+    t.eq(aura.attachedTo, bear.id, 'Rancor on the Bears');
+    const lib = T.zone('A', 'library');
+    t.eq(lib[0].name, 'Swamp', 'the card under the Aura stays on top');
+    t.eq(lib.slice(-2).map(o => o.name).sort().join(','), 'Mountain,Plains', 'the rest on the bottom');
+    // no: into the hand
+    const S = setup();
+    S.T.answer('confirm', () => ({ yes: false }));
+    S.T.toMain('A', 'declareAttackers'); S.T.resolve();
+    t.zone(S.aura, 'hand', 'declined: into the hand');
+    t.eq(S.T.zone('A', 'library').slice(-2).map(o => o.name).sort().join(','), 'Mountain,Plains', 'the rest on the bottom');
+  });
+
+  test('Cards: Increasing Devotion — five Humans from the hand, ten when cast from a graveyard by flashback', (mk, t) => {
+    t.auto('Increasing Devotion');
+    const T = mk();
+    const humans = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Human' || (o.isToken && T.g._hasCreatureType(o, 'Human'))).length;
+    const dev = T.hand('A', 'Increasing Devotion');
+    T.mana('A', '3WW');
+    T.cast('A', dev);
+    t.eq(humans(), 5, 'five from the hand');
+    t.zone(dev, 'graveyard');
+    T.mana('A', '7WW');
+    T.cast('A', dev, { via: 'flashback' });
+    t.eq(humans(), 15, 'ten more from the graveyard');
+    t.zone(dev, 'exile', 'flashback exiles it');
+    const tok = T.bfOf('A').find(o => o.isToken);
+    t.eq(T.g.powerOf(tok), 1, '1/1'); t.ok((tok.card.colors || []).includes('W'), 'white');
+  });
+
+  test('Cards: Stinging Study — draw and lose the mana value of a commander you own, asked once when they differ; none, nothing', (mk, t) => {
+    t.auto('Stinging Study');
+    const T = mk({ library: Array(30).fill('Island') });
+    const giant = T.put('A', 'Hill Giant', 'command'); giant.isCommander = true;
+    const bears = T.bf('A', 'Grizzly Bears'); bears.isCommander = true;
+    const theirs = T.put('B', 'Craw Wurm', 'command'); theirs.isCommander = true;
+    let q = null, asked = 0;
+    T.answer('choose', (ch) => { q = ch; asked++; return { picks: [ch.options.findIndex(o => /Hill Giant/.test(o.label))] }; });
+    const h = T.zone('A', 'hand').length, life = T.life('A');
+    T.mana('A', '4B');
+    T.cast('A', T.hand('A', 'Stinging Study'));
+    t.ok(q && q.purpose === 'commanderMv' && q.options.length === 2, 'asked between the two of A\'s');
+    t.eq(asked, 1, 'once');
+    t.eq(T.zone('A', 'hand').length, h + 4, 'drew 4');
+    t.eq(T.life('A'), life - 4, 'lost 4');
+    // one commander: no question
+    const T2 = mk({ library: Array(30).fill('Island') });
+    const b2 = T2.bf('A', 'Grizzly Bears'); b2.isCommander = true;
+    const h2 = T2.zone('A', 'hand').length;
+    T2.mana('A', '4B');
+    T2.cast('A', T2.hand('A', 'Stinging Study'));
+    t.eq(T2.zone('A', 'hand').length, h2 + 2, 'drew 2');
+    t.eq(T2.life('A'), 18, 'lost 2');
+    t.eq(T2.asked.filter(c => c.purpose === 'commanderMv').length, 0, 'not asked');
+    // none on the battlefield or in the command zone (one in the graveyard): nothing
+    const T3 = mk({ library: Array(30).fill('Island') });
+    const g3 = T3.grave('A', 'Hill Giant'); g3.isCommander = true;
+    const h3 = T3.zone('A', 'hand').length;
+    T3.mana('A', '4B');
+    T3.cast('A', T3.hand('A', 'Stinging Study'));
+    t.eq(T3.zone('A', 'hand').length, h3, 'drew none');
+    t.eq(T3.life('A'), 20, 'lost none');
+  });
 };

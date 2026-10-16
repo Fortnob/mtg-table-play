@@ -1966,7 +1966,18 @@
       const g = this.game;
       const mine = (s.items || []).map(x => g.obj(x.id)).filter(o => o && o.controller === this.pid && !g.hasKw(o, 'defender'))
         .sort((a, b) => g.powerOf(b) - g.powerOf(a));
+      /* (Orzhov Advokist: no attacking its controller until their next turn — not while that is the only player to
+         attack and we have something to attack with: pacify) */
+      if (s.pacify && s.pacifyBy !== this.pid && mine.some(o => g.powerOf(o) >= 2) &&
+          !g.opponentsOf(this.pid).some(p => !p.hasLost && p.id !== s.pacifyBy)) return { picks: [] };
       return { picks: mine.length ? [mine[0].id] : [] };
+    },
+    /* Stinging Study: the most cards we can afford in life (commanderMv) */
+    commanderMv(s) {
+      const life = (this.game.player(this.pid) || {}).life || 0;
+      const opts = (s.options || []).map((o, i) => ({ i, mv: o.mv || 0 })).sort((a, b) => b.mv - a.mv);
+      const ok = opts.find(o => life - o.mv >= 6) || opts[opts.length - 1];
+      return { picks: ok ? [ok.i] : [0] };
     },
     /* Sigurd, Jarl of Ravensthorpe: on to the next chapter, rather than back */
     loreAddOrRemove() { return { picks: [0] }; },
@@ -5159,9 +5170,12 @@
       // Sisters of Stone Death: "Put a creature card exiled with Sisters …" — only with one there
       const ew1 = flat.find(e => e.op === 'exiledWithToBattlefield' && !e.mvX);
       if (ew1) {
-        const best = g._exiledWithPool(o, ew1.words).sort((p, q) => this.rating(q) - this.rating(p))[0];
+        const pool = g._exiledWithPool(o, ew1.words).sort((p, q) => this.rating(q) - this.rating(p));
+        const best = pool[0];
         if (!best) return null;
-        v += 1 + this.rating(best) * 0.6;
+        // (Ghost Vacuum: "Put each creature card exiled with this artifact …" for itself sacrificed — not for one alone)
+        if (!ew1.one && cost.sacSelf && pool.length < 2) return null;
+        v += 1 + (ew1.one ? this.rating(best) : pool.reduce((t, c) => t + this.rating(c), 0)) * 0.6;
       }
       // Koh, the Face Stealer: "Choose a creature card exiled with Koh." — only for a better card than the one chosen
       const cxw = flat.find(e => e.op === 'chooseExiledWith');
