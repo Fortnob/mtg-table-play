@@ -6132,6 +6132,8 @@
             if (ef.keywordAny && !ef.keywordAny.some(k => (((o.analysis() || {}).keywordSet) || EMPTY_SET).has(k))) continue;
             // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
             if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
+            // Thundermane Dragon: "creature spells with power 4 or greater" (spellMinPower)
+            if (ef.spellMinPower != null && kind !== 'land' && !((parseInt((o.analysis() || {}).power, 10) || 0) >= ef.spellMinPower)) continue;
             // Muldrotha, the Gravetide: the permanent types this card could still be played as this turn
             if (ef.perType) {
               const freeTypes = this._playFromTypesLeft(src, o, kind);
@@ -8958,6 +8960,7 @@
       o._gainsTextCast = null;
       o._enterPlusCounters = 0;
       o._enterAttachCast = null;
+      o._enterHasteTurn = null;
       // (Hauken's Insight: a card exiled with it, cast by its leave — not by a leave of the card's own)
       if ((o.zone === 'graveyard' || o.zone === 'library' || (o.zone === 'exile' && o.exiledWithId && !this._impulseOpen(o, playerId))) && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
@@ -8976,6 +8979,8 @@
         }
         // Mikey & Don, Party Planners: "If you cast a creature spell this way, that creature enters with an additional +1/+1 counter on it."
         if (lv && lv.plusCounter && o.zone === 'library' && (o.analysis() || {}).isCreature) o._enterPlusCounters = (o._enterPlusCounters || 0) + 1;
+        // Thundermane Dragon: "If you cast a creature spell this way, it gains haste until end of turn." (haste)
+        if (lv && lv.haste && o.zone === 'library' && (o.analysis() || {}).isCreature) o._enterHasteTurn = this.turn;
         // Kaldring, the Rimestaff: "If you do, it enters tapped." (enterTappedAny)
         if (lv && lv.enterTappedAny && o.zone === 'graveyard') o._enterTappedCast = true;
         // Galea, Kindler of Hope: "When you cast an Equipment spell this way, it gains "When this Equipment enters, …"" (equipAttach)
@@ -10246,6 +10251,8 @@
       // Summon: Fenrir: "enters with an additional +1/+1 counter"
       // (Torgal, A Fine Hound: only as the spell they were promised to resolves — not a countered card brought back later)
       if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; if (o.enteredFrom === 'stack') this.addCounters(o, '+1/+1', k); }
+      // (Thundermane Dragon: the creature cast from the top of the library has haste the turn it was cast: _enterHasteTurn)
+      if (o._enterHasteTurn) { const ht = o._enterHasteTurn; o._enterHasteTurn = null; if (o.enteredFrom === 'stack' && ht === this.turn) o.effects.push({ keywords: ['Haste'], until: 'eot' }); }
       // Noctis, Prince of Lucis: "If you cast a spell this way, that artifact enters with a finality counter on it."
       if (o._enterFinality) { o._enterFinality = null; if (o.enteredFrom === 'stack') this.addCounters(o, 'finality', 1); }
       // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
@@ -19838,6 +19845,12 @@
     /* ---------- triggered abilities ---------- */
     _fire(event, controllerId, data) {
       data = data || {};
+      /* Hooded Hydra: "As this creature is turned face up, put five +1/+1 counters on it." — however it is turned up,
+         before anything sees it face up (asTurnedUp) */
+      if (event === 'turnedFaceUp' && data.object && data.object.zone === 'battlefield') {
+        const tu = this._staticOp(data.object, 'asTurnedUp');
+        if (tu) this.addCounters(data.object, tu.counter, tu.n);
+      }
       /* "Whenever a player sacrifices a permanent": once for each one */
       if (event === 'youSacrifice') {
         // Elanor Gardner: what each player sacrificed this turn, by its types (sacrificedThisTurn)
@@ -26381,14 +26394,16 @@
         // (Dihada, Binder of Wills: "all nonland permanents", untapped by the next sentence)
         case 'threatenAll': {
           const ts = this._stampNew();
-          const all = this.battlefield.filter(x => !x.phasedOut && (e.what ? this._matchesCategory(x, e.what) : (this.characteristics(x) || {}).isCreature));
+          const all = this.battlefield.filter(x => !x.phasedOut && (e.what ? this._matchesCategory(x, e.what) : (this.characteristics(x) || {}).isCreature) &&
+            // (Mob Rule: "with power 4 or greater" / "with power 3 or less" — minPower, maxPower)
+            (e.minPower == null || this.powerOf(x) >= e.minPower) && (e.maxPower == null || this.powerOf(x) <= e.maxPower));
           for (const x of all) {
             if (!e.noUntap) this._markUntapped(x);
             if (x.controller !== ctx.controller) x.effects.push({ control: ctx.controller, until: 'eot', ts });
           }
           this._refreshControl();
           this._lastGroup = all.map(x => x.id);         // "They gain haste until end of turn."
-          this.logEvent('control', `${me.name} gains control of every ${e.what || 'creature'} until end of turn.`);
+          this.logEvent('control', `${me.name} gains control of every ${e.what || 'creature'}${e.minPower != null ? ` with power ${e.minPower} or greater` : e.maxPower != null ? ` with power ${e.maxPower} or less` : ''} until end of turn.`);
           break;
         }
         // Humble Defector: "Target opponent gains control of this creature."
@@ -34556,6 +34571,8 @@
           break;
         }
         case 'castFree': {
+          // Planetarium of Wan Shi Tong: "Do this only once each turn." — used up by a cast (oncePerTurn)
+          if (e.oncePerTurn && src && src._castFreeTurn === this.turn) break;
           const r = this.resolving;
           const slot = r ? r.index + ':freePool' : null;
           r && (r.marks = r.marks || {});
@@ -34707,6 +34724,7 @@
             if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
             if (r) r.marks[slot + 'n']++;
             castHere++;
+            if (e.oncePerTurn && src) src._castFreeTurn = this.turn;
             // (Kefka, Dancing Mad: "a spell you cast this way" — castOwnersLoseMv)
             if (r) (r.castThisWay = r.castThisWay || []).push(c.id);
             const it = this.stack.find(st => st.objId === c.id);

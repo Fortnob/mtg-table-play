@@ -73782,4 +73782,123 @@ module.exports = (test) => {
     t.eq(T3.zone('A', 'hand').length, h3, 'drew none');
     t.eq(T3.life('A'), 20, 'lost none');
   });
+
+  test('Cards: Planetarium of Wan Shi Tong — after a scry, the top card cast for nothing, once a turn; a no leaves it for the next scry', (mk, t) => {
+    t.auto('Planetarium of Wan Shi Tong');
+    const T = mk({ library: Array(20).fill('Island') });
+    const pl = T.bf('A', 'Planetarium of Wan Shi Tong');
+    T.top('A', 'Hill Giant'); const bears = T.top('A', 'Grizzly Bears');
+    const asks = [];
+    T.answer('confirm', (ch) => { asks.push(ch.prompt); return { yes: false }; });
+    T.mana('A', '1');
+    T.activate('A', pl, 0);
+    t.ok(asks.some(p => /Cast Grizzly Bears without paying/.test(p)), 'offered the Bears: ' + asks.join(' / '));
+    t.zone(bears, 'library', 'declined');
+    // a later scry the same turn: offered again, and cast
+    pl.tapped = false;
+    T.answer('confirm', () => ({ yes: true }));
+    T.mana('A', '1');
+    T.activate('A', pl, 0);
+    t.zone(bears, 'battlefield', 'cast for nothing');
+    // used up: a third scry this turn offers nothing
+    pl.tapped = false;
+    const giant = T.zone('A', 'library').find(o => o.name === 'Hill Giant');
+    const before = T.asked.length;
+    T.mana('A', '1');
+    T.activate('A', pl, 0);
+    t.no(T.asked.slice(before).some(c => c.type === 'confirm' && /Cast /.test(c.prompt || '')), 'not offered again this turn');
+    t.zone(giant, 'library');
+    // the next turn: offered again
+    T.nextTurn('B'); T.nextTurn('A');
+    pl.tapped = false;
+    let offered = false;
+    T.answer('confirm', (ch) => { offered = offered || /Cast /.test(ch.prompt); return { yes: false }; });
+    T.top('A', 'Grizzly Bears');
+    T.mana('A', '1');
+    T.activate('A', pl, 0);
+    t.ok(offered, 'a new turn, a new cast');
+  });
+
+  test('Cards: Hooded Hydra — turned face up, five +1/+1 counters; dies into that many Snakes', (mk, t) => {
+    t.auto('Hooded Hydra');
+    const T = mk();
+    const hy = T.hand('A', 'Hooded Hydra');
+    T.mana('A', '3');
+    t.ok(T.g.castSpell('A', hy.id, { via: 'morph', auto: true }), T.g.lastError);
+    T.resolve();
+    t.ok(hy.faceDown, 'face down');
+    t.no(hy.counters['+1/+1'], 'no counters face down');
+    T.mana('A', '3GG');
+    t.ok(T.g.turnFaceUp('A', hy.id, { auto: true }), T.g.lastError);
+    T.resolve();
+    t.no(hy.faceDown, 'face up');
+    t.eq(hy.counters['+1/+1'], 5, 'five counters');
+    t.eq(T.g.powerOf(hy), 5, '5/5');
+    T.g.moveObject(hy, 'graveyard'); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && T.g._hasCreatureType(o, 'Snake')).length, 5, 'five Snakes');
+  });
+
+  test('Cards: Mob Rule — every creature with power 4 or more, or 3 or less, taken until end of turn, untapped and hasty', (mk, t) => {
+    t.auto('Mob Rule');
+    const T = mk();
+    const wurm = T.bf('B', 'Craw Wurm', { tapped: true }), bears = T.bf('B', 'Grizzly Bears', { tapped: true });
+    const mine = T.bf('A', 'Hill Giant', { tapped: true });
+    T.mana('A', '4RR');
+    T.cast('A', T.hand('A', 'Mob Rule'), { modes: [0] });
+    t.eq(wurm.controller, 'A', 'the Wurm taken');
+    t.eq(bears.controller, 'B', 'the Bears not');
+    t.no(wurm.tapped, 'the Wurm untapped'); t.ok(T.g.hasKw(wurm, 'haste'), 'with haste');
+    t.ok(mine.tapped, 'A\'s Giant (power 3) not one of them');
+    T.nextTurn('B');
+    t.eq(wurm.controller, 'B', 'back at end of turn');
+    // power 3 or less
+    const T2 = mk();
+    const w2 = T2.bf('B', 'Craw Wurm', { tapped: true }), b2 = T2.bf('B', 'Grizzly Bears', { tapped: true });
+    const g2 = T2.bf('A', 'Hill Giant', { tapped: true });
+    T2.mana('A', '4RR');
+    T2.cast('A', T2.hand('A', 'Mob Rule'), { modes: [1] });
+    t.eq(b2.controller, 'A', 'the Bears taken'); t.eq(w2.controller, 'B', 'the Wurm not');
+    t.no(b2.tapped, 'the Bears untapped'); t.ok(T2.g.hasKw(b2, 'haste'), 'hasty');
+    t.no(g2.tapped, 'A\'s own Giant untapped too, one of those creatures');
+  });
+
+  test('Cards: Eidolon of Countless Battles — +1/+1 for each creature and each Aura you control, itself and bestowed on another', (mk, t) => {
+    t.auto('Eidolon of Countless Battles');
+    const T = mk();
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Hill Giant');
+    const e = T.hand('A', 'Eidolon of Countless Battles');
+    T.mana('A', '1WW');
+    T.cast('A', e);
+    // two creatures (the Eidolon, the Bears), no Auras: 0/0 + 2
+    t.eq(T.g.powerOf(e), 2, 'a 2/2'); t.eq(T.g.toughnessOf(e), 2, '2 toughness');
+    const pac = T.bf('A', 'Pacifism'); pac.attachedTo = bears.id; bears.attachments = [pac.id]; T.g.bumpBoard();
+    t.eq(T.g.powerOf(e), 3, 'and +1 for the Aura');
+    // bestowed: an Aura on the Bears, two Auras and one creature
+    const T2 = mk();
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    const e2 = T2.hand('A', 'Eidolon of Countless Battles');
+    T2.mana('A', '2WW');
+    T2.cast('A', e2, { via: 'bestow', targets: [b2] });
+    t.eq(e2.attachedTo, b2.id, 'bestowed on the Bears');
+    t.eq(T2.g.powerOf(b2), 2 + 1 + 1, 'Bears: 2, one creature, one Aura (the Eidolon itself)');
+  });
+
+  test('Cards: Thundermane Dragon — a creature spell with power 4 or more cast from the top of the library, with haste; not a smaller one', (mk, t) => {
+    t.auto('Thundermane Dragon');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Thundermane Dragon');
+    const wurm = T.top('A', 'Craw Wurm');
+    T.mana('A', '4GG');
+    T.cast('A', wurm);
+    t.zone(wurm, 'battlefield', 'cast from the top');
+    t.ok(T.g.hasKw(wurm, 'haste'), 'with haste');
+    T.nextTurn('B');
+    t.no(T.g.hasKw(wurm, 'haste'), 'until end of turn');
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.bf('A', 'Thundermane Dragon');
+    const bears = T2.top('A', 'Grizzly Bears');
+    T2.mana('A', '1G');
+    t.no(T2.g.castSpell('A', bears.id, { auto: true }), 'power 2: not from the top');
+  });
 };

@@ -9336,6 +9336,10 @@
     // Fell the Mighty: "Destroy all creatures with power greater than target creature's power."
     { re: /^Destroy all creatures with power greater than target creature'?s power\.?$/i,
       make: () => ({ op: 'destroyAll', what: 'creature', aboveTargetPower: true, targets: [{ type: 'creature' }] }) },
+    /* Mob Rule: "Gain control of all creatures with power 4 or greater until end of turn." — those yours already among
+       "those creatures" the next sentence untaps (threatenAll noUntap, minPower/maxPower) */
+    { re: /^Gain control of all creatures(?: with power (\d+) or (greater|less))? until end of turn\.?$/i,
+      make: (m) => Object.assign({ op: 'threatenAll', noUntap: true }, m[1] ? (/greater/i.test(m[2]) ? { minPower: +m[1] } : { maxPower: +m[1] }) : {}) },
     // Insurrection: "Untap all creatures and gain control of them until end of turn."
     { re: /^Untap all creatures and gain control of them until end of turn\.?$/i, make: () => ({ op: 'threatenAll' }) },
     // Dihada, Binder of Wills: "Gain control of all nonland permanents until end of turn." — "Untap them." its own sentence
@@ -14158,6 +14162,10 @@
     { re: /^Choose target card exiled with CARDNAME\. You may cast that card this turn without paying its mana cost\. If that spell would be put into a graveyard, put it on the bottom of its owner'?s library instead\.?$/i,
       make: () => [{ op: 'mayPlayExiled', ofTarget: true, castOnly: true, free: true, duration: 'eot', bottomAfter: true,
         targets: [{ type: 'card', filter: 'card', zone: 'exile', exiledWithSource: true }] }] },
+    /* Planetarium of Wan Shi Tong: "look at the top card of your library. You may cast that card without paying its mana
+       cost. Do this only once each turn." — a cast each turn, a no leaving it for a later look (castFree looked, oncePerTurn) */
+    { re: /^Look at the top card of your library\. You may cast (?:that card|it) without paying its mana cost\.( Do this only once each turn\.)?$/i,
+      make: (m) => [{ op: 'lookTop', n: 1 }, Object.assign({ op: 'castFree', from: 'looked', upTo: 1 }, m[1] ? { oncePerTurn: true } : {})] },
     /* Urianger Augurelt: "Look at the top card of your library. You may exile it face down." — exiled with Urianger,
        for its "Play Arcanum" (faceDown) */
     { re: /^Look at the top card of your library\. You may exile (?:it|that card) face down\.?$/i,
@@ -22500,6 +22508,17 @@
         const conds = [].concat(ef.cond || [], cond || []);
         return Object.assign({}, ef, { fromGraveyard: true }, conds.length ? { cond: conds.length === 1 ? conds[0] : conds } : {});
       } },
+    /* Eidolon of Countless Battles: "This creature gets +1/+1 for each creature you control and +1/+1 for each Aura you
+       control." — the two counts added (sum) */
+    { re: /^(.+?) gets? \+(\d+)\/\+(\d+) for each ([-a-zA-Z0-9' ]+?) and \+(\d+)\/\+(\d+) for each ([-a-zA-Z0-9' ]+?)\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        const a = countOf(m[4]), b = countOf(m[7]);
+        if (!scope || !a || !b) return null;
+        return { op: 'continuous', layer: 7, scope, pt: {
+          p: { sum: [Object.assign({}, a, { mult: +m[2] }), Object.assign({}, b, { mult: +m[5] })], mult: 1 },
+          t: { sum: [Object.assign({}, a, { mult: +m[3] }), Object.assign({}, b, { mult: +m[6] })], mult: 1 } } };
+      } },
     /* "This creature gets +1/+0 for each artifact you control." */
     { re: /^(.+?) gets? \+(\d+)\/\+(\d+) for each ([-a-zA-Z0-9+/' ]+?)\.?$/i,
       make: (m) => {
@@ -25327,6 +25346,9 @@
       // Arwen: "Each other creature you control enters with a number of additional +1/+1 counters on it equal to CARDNAME's toughness."
       { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s toughness\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourceToughness: true }, auto: true },
+      // Hooded Hydra: "As this creature is turned face up, put five +1/+1 counters on it." (asTurnedUp)
+      { re: /^As (?:CARDNAME|this creature) is turned face up, put (a|an|one|two|three|four|five|six|seven|\d+) (\+1\/\+1|[a-z]+) counters? on it\.?$/i,
+        make: (m) => ({ op: 'asTurnedUp', counter: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : num(m[1]) }), auto: true },
       // Master Biomancer: "… equal to this creature's power and as a Mutant in addition to its other types." (bySourcePower, addSubtypes)
       { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s power(?: and as an? ([A-Z][a-z]+) in addition to its other types)?\.?$/,
         make: (m) => Object.assign({ op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourcePower: true }, m[1] ? { addSubtypes: [m[1]] } : {}), auto: true },
@@ -25728,6 +25750,10 @@
          Equipment spell this way, it gains "When this Equipment enters, attach it to target creature you control."" (equipAttach) */
       { re: /^You may cast Aura and Equipment spells from the top of your library\. When you cast an Equipment spell this way, it gains "When this Equipment enters, attach it to target creature you control\."\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'aura or equipment', equipAttach: true }), auto: true },
+      /* Thundermane Dragon: "You may cast creature spells with power 4 or greater from the top of your library. If you cast a
+         creature spell this way, it gains haste until end of turn." (spellMinPower, haste) */
+      { re: /^You may cast creature spells with power (\d+) or greater from the top of your library\.(?: If you cast a creature spell this way, it gains haste until end of turn\.)?$/i,
+        make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', spellMinPower: +m[1] }, /haste/i.test(m[0]) ? { haste: true } : {}), auto: true },
       // Johann, Apprentice Sorcerer: "Once each turn, you may cast an instant or sorcery spell from the top of your library." (oncePerTurn)
       { re: /^Once each turn, you may cast an? ([a-z]+(?: or [a-z]+)?) spell from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: m[1].toLowerCase(), oncePerTurn: true }), auto: true },
