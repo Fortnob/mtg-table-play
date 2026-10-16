@@ -1709,7 +1709,7 @@
     /* "Spend this mana only to cast a creature spell of the chosen type,
        and that spell can't be countered." — the mana's own restriction,
        kept with the ability that makes it. */
-    { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z ,/]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?\.?$/i,
+    { re: /^Spend this mana only to cast (?:an? )?([a-zA-Z ,/]+?) spells?( of the chosen type)?(,? and (?:that spell|it) can'?t be countered)?(?: or activate (?:an ability|abilities) of ([^.]+))?( or to gain a Class level)?\.?$/i,
       make: (m) => {
         // (Codsworth: "Aura and/or Equipment spells" — either one; Tablet of Discovery: "instant and sorcery spells")
         // (Séance Board: "instant, sorcery, Demon, and Spirit spells" — any one of them)
@@ -1723,6 +1723,8 @@
           if (/ (?:source )?of the chosen type$/.test(of)) { out.abilitiesChosenType = true; of = of.replace(/ (?:source )?of the chosen type$/, ''); }
           if (/^(?:colorless )?[a-z]+$/.test(of)) out.abilitiesOf = of.replace(/([^s])s$/, '$1');
         }
+        // Sorcerer Class: "…or to gain a Class level" — a level-up's cost may use it too (classLevel)
+        if (m[5]) out.classLevel = true;
         return out;
       } },
     // The Ringhart Crest: "Spend this mana only to cast a creature spell of the chosen type or a legendary creature spell." (orWords)
@@ -1933,8 +1935,9 @@
     { re: /^Attach up to one target Equipment you control to (target attacking creature|target creature you control|target [A-Z][a-z]+ you control)\.?$/,
       make: (m) => { const host = targetSpec(m[1]); return host && !host.unknown ? { op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'], upTo: true }, host] } : null; } },
     // Brass Squire: "Attach target Equipment you control to target creature you control."
-    { re: /^Attach target Equipment you control to target creature you control\.?$/i,
-      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
+    // (Blacksmith's Talent: "… to up to one target creature you control" — upTo)
+    { re: /^Attach target Equipment you control to (up to one )?target creature you control\.?$/i,
+      make: (m) => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, Object.assign({ type: 'creature', controller: 'you' }, m[1] ? { upTo: true } : {})] }) },
     // Inventory Management: "For each Aura and Equipment you control, you may attach it to a creature you control." (attachEachYours)
     { re: /^For each Aura and Equipment you control, you may attach it to a creature you control\.?$/i, make: () => ({ op: 'attachEachYours' }) },
     /* Ardenn, Intrepid Archaeologist: "attach any number of Auras and Equipment you control to target permanent or
@@ -2677,8 +2680,9 @@
         return a.effects.concat(b.effects);
       } },
     // Fanatic of Mogis: "it deals damage to each opponent equal to your devotion to red"
-    { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to (.+?)\.?$/i,
-      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, each: 'opponent' } : null; } },
+    // (Sorcerer Class: "that spell deals damage to each opponent equal to …" — the spell the trigger is about deals it: fromTrigger)
+    { re: /^(It|CARDNAME|This creature|That spell) deals damage to each opponent equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k ? Object.assign({ op: 'damage', n: k, each: 'opponent' }, /^that spell$/i.test(m[1]) ? { fromTrigger: true } : {}) : null; } },
     // Daredevil, Fearless Fighter: "Daredevil deals damage to you equal to that card's mana value." — the card just exiled
     { re: /^(?:It|CARDNAME|This creature) deals damage to you equal to (that card'?s mana value)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damage', n: k, toSelf: true } : null; } },
@@ -6245,6 +6249,16 @@
           m[7] ? { rest: /graveyard/i.test(m[7]) ? 'graveyard' : 'bottomRandom' } : {},
           /^target/i.test(m[4]) ? { targets: [{ type: 'player', opponent: true }] } : {});
       } },
+    /* Ghostly Dancers: "return an enchantment card from your graveyard to your hand or unlock a locked door of a Room
+       you control" — one or the other, chosen as it resolves (modal, atResolve; unlockLockedDoor) */
+    { re: /^(Return an? [a-z]+ card from your graveyard to your hand) or (unlock a locked door of a Room you control)\.?$/i,
+      make: (m) => { const a = parseEffectSentence(m[1] + '.', 1);
+        return a && a.op === 'graveyardPick' ? { op: 'modal', count: 1, atResolve: true, modes: [
+          { label: m[1], auto: true, effects: [a] },
+          { label: m[2].charAt(0).toUpperCase() + m[2].slice(1), auto: true, effects: [{ op: 'unlockLockedDoor' }] }] } : null; } },
+    // Ghostly Keybearer: "unlock a locked door of up to one target Room you control" (unlockLockedDoor)
+    { re: /^Unlock a locked door of (up to one )?target Room you control\.?$/i,
+      make: (m) => ({ op: 'unlockLockedDoor', targets: [Object.assign(targetSpec('target Room you control'), m[1] ? { upTo: true } : {})] }) },
     // Marina Vendrell: "Lock or unlock a door of target Room you control." (lockOrUnlockDoor)
     { re: /^Lock or unlock a door of target Room you control\.?$/i,
       make: () => ({ op: 'lockOrUnlockDoor', targets: [targetSpec('target Room you control')] }) },
@@ -6840,6 +6854,13 @@
       make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerPlayer: true }) },
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the number of cards in their hand\.?$/i,
       make: () => ({ op: 'damage', n: { cardsInHand: 'triggerPlayer' }, toTriggerPlayer: true }) },
+    // Maddening Hex: "This Aura deals damage to that player equal to the result." — the die just rolled
+    { re: /^(?:CARDNAME|This (?:Aura|enchantment|creature|artifact)) deals damage to that player equal to the result\.?$/i,
+      make: () => ({ op: 'damage', n: 'lastRoll', toTriggerPlayer: true }) },
+    /* Maddening Hex: "Then attach this Aura to another one of your opponents chosen at random." — a player it could
+       enchant, other than the one it is on; nobody's choice (attachSelf, randomOtherOpponent) */
+    { re: /^(?:Then )?attach (?:this Aura|CARDNAME) to another one of your opponents chosen at random\.?$/i,
+      make: () => ({ op: 'attachSelf', scope: 'randomOtherOpponent' }) },
     { re: /^(?:They|That player) mills? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'mill', who: 'triggerPlayer', n: num(m[1]) }) },
     { re: /^(?:They|That player) mills? that many cards\.?$/i,
@@ -8834,7 +8855,8 @@
       make: () => [{ op: 'draw', who: 'you', n: { ofSacrificed: 'mv' } }, { op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: { ofSacrificed: 'mv' } }] },
     // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
     { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z' ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => { const k = amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
+      // (Broodcaller Scourge: "less than or equal to that damage" — the combat damage the trigger is about)
+      make: (m) => { const k = /^that damage$/i.test(m[2]) ? 'triggerAmount' : amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
     // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
     // Yuna, Grand Summoner: "… that creature enters with two additional +1/+1 counters on it."
     { re: /^When you next cast a creature spell this turn, that creature enters with (an|two|three) additional \+1\/\+1 counters? on it\.?$/i,
@@ -10763,6 +10785,8 @@
     if (/^your devotion to that colou?r$/i.test(p)) return { devotionChosen: true, mult: 1 };
     // Gardens of Tranquil Repose (a plane): "one plus the number of cards exiled with CARDNAME" (exiledWithSelf)
     if (/^(one plus )?the number of cards exiled with CARDNAME$/i.test(p)) return Object.assign({ exiledWithSelf: true, mult: 1 }, /^one plus/i.test(p) ? { plus: 1 } : {});
+    // Maddening Hex: "roll a d6. This Aura deals damage to that player equal to the result." — the die just rolled
+    if (/^the result$/i.test(p)) return 'lastRoll';
     // Elvish Mariner, Elrond: "the number of cards looked at while scrying this way" — what the trigger saw (countedTargets)
     if (/^the number of cards looked at while scrying this way$/i.test(p)) return 'triggerAmount';
     // The Wise Mothman: "the number of nonland cards milled this way" — the lot the trigger counted

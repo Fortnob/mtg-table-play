@@ -13336,6 +13336,18 @@
       }
     }
 
+    /** Could this branch of a choice made as it resolves do anything (Ghostly Dancers: atResolve)? Only what is known is checked. */
+    _modeDoable(effects, ctx) {
+      const e = effects[0];
+      if (!e) return false;
+      const me = ctx.controller;
+      // "return an enchantment card from your graveyard to your hand": one there
+      if (e.op === 'graveyardPick') return this.zones[me].graveyard.some(o => this._cardFitsWords(o, e.filter || 'card'));
+      // "unlock a locked door of a Room you control": a Room of yours with a door shut
+      if (e.op === 'unlockLockedDoor') return this.battlefield.some(o => o.controller === me && !o.phasedOut && o.face !== 2 && (O.analyze(o.card, 0) || {}).isRoom);
+      return true;
+    }
+
     /** May mana with this restriction pay for that spell? */
     _spendAllowed(spendOnly, spell, src) {
       if (!spendOnly) return true;
@@ -13378,6 +13390,8 @@
          kind of permanent may borrow it as well. */
       if (spendOnly.abilitiesOf && this._cardFitsWords(abilityOf, spendOnly.abilitiesOf) &&
         (!spendOnly.abilitiesChosenType || this._hasCreatureType(abilityOf, (src || {}).chosenType))) return true;
+      // Sorcerer Class: "or to gain a Class level" — the level-up's own ability (classLevel)
+      if (spendOnly.classLevel && ab && (ab.effects || []).some(e => e && e.op === 'classLevel')) return true;
       // Freya Crescent: "or activate an equip ability"
       return !!(spendOnly.equipAbility && ab && /^Equip\b/i.test(ab.text || ''));
     }
@@ -20123,7 +20137,8 @@
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           // Primo, the Unbounded: "equal to the damage dealt" — what the whole lot dealt that player
-          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt|for each 1 damage dealt|the amount of damage those creatures dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
+          // (Broodcaller Scourge: "mana value less than or equal to that damage")
+          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt|for each 1 damage dealt|the amount of damage those creatures dealt|less than or equal to that damage/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
           // Quilled Greatwurm: "deals combat damage …, put that many" — all a source dealt at once, to whatever it hit
           if (had && event === 'dealsDamage' && ab.batchPerSource) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
@@ -25552,6 +25567,24 @@
           this.logEvent('rules', `${me.name} locks ${o.card.card_faces[pick.door].name}.`);
           break;
         }
+        /* Ghostly Dancers: "unlock a locked door of a Room you control" — any locked door of any of yours, picked as it
+           resolves; Ghostly Keybearer: "… of up to one target Room you control" — of that one. Unlocking is unlocking
+           (its "when you unlock this door", "whenever you fully unlock a Room": CR 709.5) (unlockLockedDoor) */
+        case 'unlockLockedDoor': {
+          const rooms = (e.targets && e.targets.length ? [firstObj()].filter(Boolean) : this.battlefield.filter(o => !o.phasedOut))
+            .filter(o => o.zone === 'battlefield' && o.controller === ctx.controller && o.face !== 2 && (O.analyze(o.card, 0) || {}).isRoom && (o.card.card_faces || []).length >= 2);
+          const options = [];
+          for (const o of rooms) {
+            for (const d of [0, 1]) if (o.face !== d) options.push({ label: `Unlock ${o.card.card_faces[d].name}${rooms.length > 1 ? ` (${o.name})` : ''}`, door: d, unlock: true, objId: o.id });
+          }
+          if (!options.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'roomDoor', kind: 'options', options, min: 1, max: 1, compact: true,
+            prompt: 'Unlock a locked door of a Room you control.' }, 'unlockDoor');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = options[((got && got.picks) || [0])[0]] || options[0];
+          this._unlockDoor(this.obj(pick.objId), pick.door);
+          break;
+        }
         /* Neera, Wild Mage: "you may put it on the bottom of its owner's library. If you do, …" — the spell the trigger is
            about, while it is still a card on the stack; not asked otherwise */
         case 'spellToLibrary': {
@@ -28497,6 +28530,23 @@
             for (const i of picks) { const m = modes[i]; if (m) run.push(...this._ownTargets(m.effects || [])); }
             this._spliceNext(run);
             this.logEvent('rules', `${me.name} chooses: ${picks.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
+            break;
+          }
+          /* Ghostly Dancers: "return an enchantment card from your graveyard to your hand or unlock a locked door of a
+             Room you control" — chosen as it resolves, from what can be done; one of them alone isn't asked (atResolve) */
+          if (e.atResolve) {
+            const can = modes.map((m, i) => i).filter(i => this._modeDoable((modes[i] && modes[i].effects) || [], ctx));
+            if (!can.length) { this.logEvent('rules', `${ctx.name || 'Effect'}: there is nothing to do.`); break; }
+            let i = can[0];
+            if (can.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'modes', kind: 'options', min: 1, max: 1,
+                options: can.map(k => ({ i: k, label: truncate(modes[k].label || ('Mode ' + (k + 1)), 90) })),
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}choose one.` }, 'modes');
+              if (got === SUSPEND) return SUSPEND;
+              i = can[((got && got.picks) || [0])[0]] != null ? can[got.picks[0]] : can[0];
+            }
+            this._spliceNext(this._ownTargets((modes[i] && modes[i].effects) || []));
+            this.logEvent('rules', `${me.name} chooses: ${modes[i].label}`);
             break;
           }
           // Bumi, King of Three Trials: "choose up to X" — with X at 0, there is nothing to choose (upToX)
@@ -33751,6 +33801,21 @@
           break;
         }
         case 'attachSelf': {
+          /* Maddening Hex: "attach this Aura to another one of your opponents chosen at random" — one it could
+             enchant (CR 701.3b), not the player it is on; with none, it stays (randomOtherOpponent) */
+          if (e.scope === 'randomOtherOpponent') {
+            if (!src || src.zone !== 'battlefield') break;
+            const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost && p.id !== src.attachedTo && this._attachableTo(src, null, p));
+            if (!opps.length) break;
+            const to = opps[this.rng.int(opps.length)];
+            const old = src.attachedTo && this.obj(src.attachedTo);
+            if (old) old.attachments = (old.attachments || []).filter(x => x !== src.id);
+            src.attachedTo = to.id;
+            src.ts = this._stampNew();
+            this.bumpBoard();
+            this.logEvent('rules', `${to.name} is chosen at random: ${src.name} is attached to ${to.name}.`);
+            break;
+          }
           // "attach this Equipment to it": the creature the trigger is about
           const tid = e.scope === 'triggerObject' ? (ctx.triggerData || {}).objectId
             // "manifest dread, then attach this Equipment to that creature"
@@ -45398,7 +45463,8 @@
     const find = (list) => {
       for (let i = 0; i < (list || []).length; i++) {
         const e = list[i];
-        if (e && e.op === 'modal') return { modal: e, list, at: i };
+        // (Ghostly Dancers: "… or …" — a choice made as it resolves, no modes on the stack: atResolve)
+        if (e && e.op === 'modal' && !e.atResolve) return { modal: e, list, at: i };
         if (e && e.op === 'sequence') { const got = find(e.list); if (got) return got; }
       }
       return null;
