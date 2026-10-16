@@ -70877,4 +70877,158 @@ module.exports = (test) => {
     T3.cast('A', fd3);
     t.zone(fd3, 'graveyard', 'a 0/0 dies');
   });
+
+  test("Cards: Ugin's Labyrinth — imprints a colorless card of mana value 7 or more; {C}{C} while it holds one; {T}: the card back", (mk, t) => {
+    t.auto("Ugin's Labyrinth");
+    const T = mk();
+    const g = T.g;
+    const crusher = T.hand('A', "Ulamog's Crusher");
+    T.hand('A', 'Wurmcoil Engine'); T.hand('A', 'Craw Wurm');
+    let asked = null;
+    T.answer('pickCard', (ch) => { asked = ch; return { cardIds: [crusher.id] }; });
+    const lab = T.hand('A', "Ugin's Labyrinth");
+    T.playLand('A', lab);
+    t.ok(asked && asked.optional, 'one optional pick');
+    t.eq(asked.cards.map(c => c.name).join(','), "Ulamog's Crusher", 'colorless, 7 or more only');
+    t.zone(crusher, 'exile');
+    const before = g.player('A').pool.total();
+    t.ok(g.tapForMana('A', lab.id, 0), 'taps for mana');
+    t.eq(g.player('A').pool.total() - before, 2, '{C}{C} with a card exiled');
+    g.player('A').pool.clear && g.player('A').pool.clear();
+    lab.tapped = false;
+    const acts = lab.analysis().manaAbilities.concat(lab.analysis().abilities.filter(x => x.kind === 'activated'));
+    const ret = acts.findIndex(x => /Return the exiled card/.test(x.text || ''));
+    T.activate('A', lab, ret);
+    t.zone(crusher, 'hand', 'returned');
+    lab.tapped = false;
+    const b2 = g.player('A').pool.total();
+    g.tapForMana('A', lab.id, 0);
+    t.eq(g.player('A').pool.total() - b2, 1, 'just {C} now');
+  });
+
+  test('Cards: Charred Foyer // Warped Space — the upkeep impulse; once each turn a spell cast from exile for {0}', (mk, t) => {
+    t.auto('Charred Foyer // Warped Space');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const r = T.hand('A', 'Charred Foyer // Warped Space');
+    T.mana('A', '4RR');
+    T.cast('A', r, { face: 1 });
+    t.eq(r.name, 'Warped Space');
+    // a card in exile with no permission: nothing
+    const loose = T.put('A', 'Grizzly Bears', 'exile');
+    t.eq(g.altUsesFor('A', loose.id).filter(x => x.via === 'grantZero').length, 0, 'not castable from exile: no {0}');
+    // unlock Charred Foyer: at the upkeep, the top card exiled and playable
+    const a = r.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.mana('A', '3R');
+    T.activate('A', r, acts.findIndex(x => x.special === 'unlock'));
+    t.eq(r.face, 2, 'both doors');
+    T.top('A', 'Hill Giant');
+    const top2 = T.top('A', 'Craw Wurm');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.zone(top2, 'exile', 'Charred Foyer exiled the top card');
+    const use = g.altUsesFor('A', top2.id).find(x => x.via === 'grantZero');
+    t.ok(use, '{0} offered for it');
+    T.cast('A', top2, { via: 'grantZero' });
+    t.zone(top2, 'battlefield', 'cast for {0}');
+    // once each turn
+    const other = T.put('A', 'Hill Giant', 'exile');
+    Object.assign(other, { impulseBy: 'A', impulseUntil: g.turn });
+    t.ok(g._impulseOpen(other, 'A'), 'castable from exile');
+    t.eq(g.altUsesFor('A', other.id).filter(x => x.via === 'grantZero').length, 0, 'used this turn');
+    T.nextTurn('B');
+    other.impulseUntil = g.turn;
+    t.eq(g.altUsesFor('B', other.id).filter(x => x.via === 'grantZero').length, 0, "not for another player's card");
+    other.impulseBy = 'A';
+    t.eq(g.altUsesFor('A', other.id).filter(x => x.via === 'grantZero').length, 1, 'again the next turn');
+  });
+
+  test("Cards: Urza's Bauble — look at a card at random in target player's hand; a card at the next upkeep", (mk, t) => {
+    t.auto("Urza's Bauble");
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const bauble = T.bf('A', "Urza's Bauble");
+    const h1 = T.hand('B', 'Lightning Bolt'), h2 = T.hand('B', 'Counterspell'), h3 = T.hand('B', 'Grizzly Bears');
+    let shown = null;
+    T.answer('choose', (ch) => { if (ch.items && ch.items.length) shown = ch; return { picks: [] }; });
+    T.activate('A', bauble, 0, { targets: ['B'] });
+    t.zone(bauble, 'graveyard', 'sacrificed');
+    t.ok(shown && shown.items.length === 1 && shown.playerId === 'A', 'one card shown to A');
+    const seen = g.obj(shown.items[0].id);
+    t.ok([h1, h2, h3].includes(seen), "one of B's cards");
+    t.ok(g._knows(seen, 'A'), 'A knows it');
+    t.eq([h1, h2, h3].filter(c => g._knows(c, 'A')).length, 1, 'only that one');
+    const hand = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.eq(T.zone('A', 'hand').length, hand + 1, "A drew at the next turn's upkeep");
+  });
+
+  test('Cards: Tamiyo, Field Researcher — +1: until your next turn, either target creature dealing combat damage draws you a card', (mk, t) => {
+    t.auto('Tamiyo, Field Researcher');
+    const T = mk({ library: Array(40).fill('Island') });
+    const g = T.g;
+    const tam = T.bf('A', 'Tamiyo, Field Researcher');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const wurm = T.bf('B', 'Craw Wurm');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.activate('A', tam, 0, { targets: [bear, wurm] });
+    t.eq(tam.counters.loyalty, 5, '+1');
+    const hand = () => T.zone('A', 'hand').length;
+    let h = hand();
+    // A's bear hits B: a card
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    toMain2(T);
+    t.eq(T.life('B'), 18);
+    t.eq(hand(), h + 1, 'the bear dealt combat damage: a card');
+    // B's turn: B's Wurm attacks Tamiyo's controller, the bear blocks — both deal combat damage: two cards
+    T.nextTurn('B');
+    bear.tapped = false; // (as if it had vigilance: it attacked last turn)
+    h = hand();
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'A' }, { attackerId: elf.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bear.id, attackerIds: [wurm.id] }]);
+    toMain2(T);
+    t.eq(hand(), h + 2, "both targets dealt combat damage (the Wurm on B's side too); the Elves weren't chosen");
+    t.zone(bear, 'graveyard');
+    // A's next turn: over
+    T.nextTurn('A');
+    h = hand();
+    const bear2 = T.bf('A', 'Grizzly Bears');
+    T.nextTurn('B');
+    h = hand();
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'A' }]);
+    toMain2(T);
+    t.eq(hand(), h, 'until your next turn only');
+    t.ok(bear2);
+    t.eq(g.delayedTriggers.filter(d => d.untilNextTurnOf).length, 0, 'the watches are gone');
+  });
+
+  test('Cards: Twilight Diviner — a creature of yours entering from a graveyard makes a token copy, once each turn', (mk, t) => {
+    t.auto('Twilight Diviner');
+    const T = mk({ library: Array(30).fill('Island') });
+    const div = T.bf('A', 'Twilight Diviner');
+    const copies = (nm) => T.bfOf('A').filter(o => o.isToken && o.name === nm).length;
+    // from the hand: nothing (and the once a turn not used up)
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'cast from the hand: no copy');
+    // from the graveyard: a token copy
+    const wurm = T.grave('A', 'Craw Wurm');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Reanimate'), { targets: [wurm] });
+    t.zone(wurm, 'battlefield');
+    t.eq(copies('Craw Wurm'), 1, 'a token copy of the Wurm');
+    // again this turn: no more
+    const hg = T.grave('A', 'Hill Giant');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Reanimate'), { targets: [hg] });
+    t.zone(hg, 'battlefield');
+    t.eq(copies('Hill Giant'), 0, 'once each turn');
+    // an opponent's creature from a graveyard: not "you control"
+    T.nextTurn('A');
+    const ow = T.grave('B', 'Hill Giant');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Reanimate'), { targets: [ow] });
+    t.eq(copies('Hill Giant'), 1, "the next turn, again (it's yours now)");
+    t.zone(div, 'battlefield');
+  });
 };

@@ -6482,7 +6482,7 @@
         /* As Foretold: once each turn, {0} for a spell with mana value no more than its time counters — a card with no
            mana cost too (grantAltZeroOnce, _altZeroTurn) */
         // (Darksteel Monolith: "for a colorless spell you cast from your hand" — words, fromHand; no counters to compare)
-        const azOk = (s0) => { const z0 = this._staticOp(s0, 'grantAltZeroOnce'); return !!z0 && (!z0.fromHand || o.zone === 'hand') &&
+        const azOk = (s0) => { const z0 = this._staticOp(s0, 'grantAltZeroOnce'); return !!z0 && (!z0.fromHand || o.zone === 'hand') && !z0.fromExile &&
           (!z0.words || this._cardFitsWords(o, z0.words)) && (!z0.counter || ((o.card && o.card.cmc) || 0) <= (Number((s0.counters || {})[z0.counter]) || 0)); };
         const az = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && s0._altZeroTurn !== this.turn && azOk(s0));
         if (az) {
@@ -6547,6 +6547,16 @@
           this._staticOp(s, 'freeFromHandOnce') && (o.zone === 'hand' || this._staticOp(s, 'freeFromHandOnce').orTop) &&
           this._cardFitsWords(o, this._staticOp(s, 'freeFromHandOnce').filter || 'card'));
         if (zt) out.push({ kind: 'cast', via: 'freeHandOnce', cost: '', srcId: zt.id, label: `Cast it without paying its mana cost (${zt.name})` });
+      }
+      /* Warped Space: "Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast from exile." — a
+         card in exile that may be cast now for its cost (an impulse, a play-from rule, an adventure's creature); As
+         Foretold's "a spell you cast" there too (grantAltZeroOnce, fromExile) */
+      if (o.zone === 'exile' && !a.isLand && (this._impulseOpen(o, playerId) || this._playFromRule(playerId, o, 'spell') ||
+          (o.adventureBy === playerId && (o.face || 0) === 0))) {
+        const azX = (s0) => { const z0 = this._staticOp(s0, 'grantAltZeroOnce'); return !!z0 && !z0.fromHand &&
+          (!z0.words || this._cardFitsWords(o, z0.words)) && (!z0.counter || ((o.card && o.card.cmc) || 0) <= (Number((s0.counters || {})[z0.counter]) || 0)); };
+        const az = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && s0._altZeroTurn !== this.turn && azX(s0));
+        if (az) out.push({ kind: 'cast', via: 'grantZero', cost: '', srcId: az.id, alt: { mana: '', label: 'Pay {0}' }, label: `Pay {0} instead (${az.name})` });
       }
       if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand &&
           this._freeTypeOk(o)) {
@@ -16764,6 +16774,11 @@
           if (cond.counter) return (Number(src.counters[cond.counter]) || 0) >= (cond.n || 1);
           return Object.values(src.counters || {}).some(v => Number(v) > 0);
         }
+        // Ugin's Labyrinth: "If a card is exiled with this land" — the card it imprinted, still in exile (selfHoldsExiled)
+        case 'selfHoldsExiled': {
+          const im = src && src.imprinted && this.obj(src.imprinted);
+          return !!im && im.zone === 'exile';
+        }
         case 'attackedWith': return ((this.turnHistory || {}).attackers || 0) >= (cond.n || 1);
         case 'controlLegend':
           return !!me && this.battlefield.some(o => o.controller === me.id && (o.analysis() || {}).isCreature &&
@@ -19064,6 +19079,12 @@
         if (d.eventController != null && d.event === event && controllerId !== d.eventController) { keep.push(d); continue; }
         // (Kelsien, the Plague: "this turn" over, gone; only that creature dying, as the one it was — watchObj)
         if (d.untilTurn != null && this.turn !== d.untilTurn) continue;
+        // (Tamiyo, Field Researcher: "Until your next turn" — gone once that turn has begun: untilNextTurnOf)
+        if (d.untilNextTurnOf && !this._beforeNextTurnOf(d.untilNextTurnOf.pid, d.untilNextTurnOf.taken)) continue;
+        // (… "deals combat damage": combat damage only, once each combat damage step however many it hit — combatOnly)
+        if (d.combatOnly && d.event === event && !(data && data.combat)) { keep.push(d); continue; }
+        if (d.combatOnly && d.event === event && d._firedStep === this.turn + ':' + this.step + ':' + (this.combatsThisTurn || 1) &&
+          data && data.object && data.object.id === d.watchObj) { keep.push(d); continue; }
         // (Mysterio: leaving as the permanent it was when the note was left — watchLeaving, _leftPrev)
         if (d.watchObj && !(d.event === event && data && data.object && data.object.id === d.watchObj &&
           ((d.watchLeaving ? data.object._leftPrev : data.object._leftSeq) || null) === d.watchLeftSeq)) { keep.push(d); continue; }
@@ -19079,6 +19100,7 @@
           controller: d.controller, name: d.name || 'Delayed trigger',
           effects: d.effects || [], auto: true, abilityText: d.name || '', delayed: true,
         });
+        if (d.combatOnly) d._firedStep = this.turn + ':' + this.step + ':' + (this.combatsThisTurn || 1);
         if (!d.once) keep.push(d);
         // (Merieke Ri Berit: "leaves the battlefield or becomes untapped" — the first of a group to fire ends the rest: group)
         else if (d.group) (firedGroups = firedGroups || new Set()).add(d.group);
@@ -27448,6 +27470,25 @@
             }
             source = pick;
           }
+          /* Twilight Diviner: "Whenever one or more other creatures you control enter, if they entered or were cast from a
+             graveyard, create a token that's a copy of one of them." — one of those that did, still on the battlefield
+             (or as it last was there); which one, when there is more than one (batchFromGraveyard) */
+          if (e.of === 'batchFromGraveyard') {
+            const td = ctx.triggerData || {};
+            const lot = (td.batchIds || [td.objectId]).map(id => id && this.obj(id)).filter((x, i, all) => x && all.indexOf(x) === i &&
+              (x.enteredFrom === 'graveyard' || (x.enteredFrom === 'stack' && x.castFromZone === 'graveyard')));
+            const here = lot.filter(x => x.zone === 'battlefield' && !x.phasedOut);
+            const pool = here.length ? here : lot;
+            if (!pool.length) break;
+            let pick = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'copyWhich', kind: 'objects', zone: pool[0].zone,
+                items: this._chooseItems(pool), min: 1, max: 1, prompt: 'Choose one of those creatures to copy.' }, 'copyWhich');
+              if (got === SUSPEND) return SUSPEND;
+              pick = pool.find(x => x.id === ((got && got.picks) || [])[0]) || pool[0];
+            }
+            source = pick;
+          }
           /* Calamity, Galloping Inferno: "choose a nonlegendary creature that saddled it this turn" — one tapped to
              saddle it this turn, still a creature on the battlefield; asked only when there is more than one (saddledSelf) */
           if (e.of === 'saddledSelf') {
@@ -29783,8 +29824,10 @@
           const held = src.holds || [];
           const where = e.to === 'graveyard' ? 'graveyard' : 'hand';
           for (const o of Array.from(this.objects.values())) {
-            if ((o.heldBy !== src.id && !held.includes(o.id)) || o.zone !== 'exile') continue;
+            // (Ugin's Labyrinth: "Return the exiled card" — the one it imprinted)
+            if ((o.heldBy !== src.id && !held.includes(o.id) && src.imprinted !== o.id) || o.zone !== 'exile') continue;
             o.heldBy = null;
+            if (src.imprinted === o.id) src.imprinted = null;
             this.moveObject(o, where);
             this.logEvent('zone', `${o.name} returns to ${this.player(o.owner).name}'s ${where}.`);
           }
@@ -30247,6 +30290,20 @@
             this.scheduleDelayed({ event: e.event || 'permCombatDamage', controller: ctx.controller, objId: src ? src.id : null, watchObj: w.id,
               watchLeftSeq: w._leftSeq || null, untilTurn: this.turn, name: e.name || 'When that creature deals combat damage to a player this turn',
               effects: (e.effects || []).map(x => (x.sinceNow && src ? Object.assign({}, x, { sinceTs: src.ts, sinceXf: src.xformN || 0 }) : x)) });
+            break;
+          }
+          /* Tamiyo, Field Researcher: "Until your next turn, whenever either of those creatures deals combat damage, you
+             draw a card." — each target watched, as the permanent it is now, every time, until your next turn begins
+             (watchTargets: repeat, untilNextTurnOf, combatOnly — once each combat damage step) */
+          if (e.watchTargets) {
+            const me0 = this.player(ctx.controller);
+            for (const w of targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id))) {
+              if (!w || w.zone !== 'battlefield') continue;
+              this.scheduleDelayed({ event: e.event || 'dealsDamage', once: false, controller: ctx.controller, objId: src ? src.id : null,
+                watchObj: w.id, watchLeftSeq: w._leftSeq || null, combatOnly: !!e.combatOnly,
+                untilNextTurnOf: e.untilYourNextTurn ? { pid: ctx.controller, taken: (me0 && me0.turnsTaken) || 0 } : null,
+                untilTurn: e.untilYourNextTurn ? null : this.turn, name: e.name || 'Whenever that creature deals combat damage', effects: e.effects || [] });
+            }
             break;
           }
           if (e.watchDeath) {
@@ -31645,6 +31702,23 @@
             this._revealedHand = { pid: p.id, names: hand.map(o => o.name) };
             this._knowHand(p.id, '*');
             this.logEvent('reveal', `${p.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`);
+            break;
+          }
+          /* Urza's Bauble: "Look at a card at random in target player's hand" — one card, chosen by the game, known to
+             the one who looked (atRandom) */
+          if (e.atRandom) {
+            if (!hand.length) { this.logEvent('reveal', `${p.name} has no cards in hand.`); break; }
+            const mk = this.resolving ? (this.resolving.marks = this.resolving.marks || {}) : {};
+            const one = (mk.randomLook && hand.find(o => o.id === mk.randomLook)) || hand[this.rng.int(hand.length)];
+            mk.randomLook = one.id;
+            this._know([one], ctx.controller);
+            // (in your own hand there is nothing to show you)
+            if (p.id !== ctx.controller) {
+              const seen = this._choose({ playerId: ctx.controller, kind: 'objects', min: 0, max: 0,
+                items: [{ id: one.id, name: one.name, card: one.card }], prompt: `A card at random from ${p.name}'s hand.` }, 'lookRandom');
+              if (seen === SUSPEND) return SUSPEND;
+            }
+            this.logEvent('reveal', `${me.name} looks at a card at random in ${p.id === ctx.controller ? 'their own' : p.name + "'s"} hand.`);
             break;
           }
           // (looked at: the one who looked knows these cards for as long as they stay in that hand)
@@ -37281,7 +37355,9 @@
         case 'imprintFromHand': {
           const mvOf = (c) => (c.card && c.card.cmc) || 0;
           const pool = this.zones[ctx.controller].hand.filter(c => this._cardFitsWords(c, e.filter || 'card') &&
-            (e.maxMv == null || mvOf(c) <= n(e.maxMv)) && (e.mv == null || mvOf(c) === n(e.mv)));
+            (e.maxMv == null || mvOf(c) <= n(e.maxMv)) && (e.mv == null || mvOf(c) === n(e.mv)) &&
+            // (Ugin's Labyrinth: "with mana value 7 or greater")
+            (e.minMv == null || mvOf(c) >= n(e.minMv)));
           if (!pool.length || !src) break;
           const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
             cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })), prompt: `Exile a card from your hand with ${src.name}?` }, 'imp');

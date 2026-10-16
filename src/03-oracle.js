@@ -5933,6 +5933,9 @@
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'damage', n: k, toTriggerPlayer: true } : null; } },
     { re: /^Look at target (?:player|opponent)'?s hand\.?$/i,
       make: () => ({ op: 'revealHand', look: true, targets: [{ type: 'player' }] }) },
+    // Urza's Bauble: "Look at a card at random in target player's hand." (atRandom)
+    { re: /^Look at a card at random in target (player|opponent)'?s hand\.?$/i,
+      make: (m) => ({ op: 'revealHand', look: true, atRandom: true, targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
     // Seer's Vision: "Look at target player's hand and choose a card from it." — then "That player discards that card."
     { re: /^Look at target (player|opponent)'?s hand and choose an? ([a-z]+ )?card from it\.?$/i,
       make: (m) => [{ op: 'revealHand', look: true, targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] },
@@ -6716,9 +6719,10 @@
     /* Isochron Scepter, Elite Arcanist, Panoptic Mirror: "(you may) exile an
        instant card with mana value 2 or less from your hand" — kept with
        this permanent, for "the exiled card" later */
-    { re: /^(You may )?[Ee]xile an? ((?:instant|sorcery|instant or sorcery|nonland|creature|artifact) card)(?: with mana value (\d+|X)( or less)?)? from your hand\.?$/,
+    // (Ugin's Labyrinth: "a colorless card with mana value 7 or greater" — minMv)
+    { re: /^(You may )?[Ee]xile an? ((?:instant|sorcery|instant or sorcery|nonland|creature|artifact|colorless) card)(?: with mana value (\d+|X)( or less| or greater)?)? from your hand\.?$/,
       make: (m) => Object.assign({ op: 'imprintFromHand', filter: m[2].replace(/ card$/, ''), optional: !!m[1] },
-        m[3] ? (m[4] ? { maxMv: /x/i.test(m[3]) ? 'X' : +m[3] } : { mv: /x/i.test(m[3]) ? 'X' : +m[3] }) : {}) },
+        m[3] ? (m[4] ? { [/greater/.test(m[4]) ? 'minMv' : 'maxMv']: /x/i.test(m[3]) ? 'X' : +m[3] } : { mv: /x/i.test(m[3]) ? 'X' : +m[3] }) : {}) },
     // Tree of Perdition: "Exchange target opponent's life total with this creature's toughness."
     { re: /^Exchange target opponent'?s life total with (?:this creature|CARDNAME)'?s toughness\.?$/i,
       make: () => ({ op: 'exchangeLifeToughness', targets: [{ type: 'player', opponent: true }] }) },
@@ -9444,6 +9448,8 @@
         return inner.auto && inner.effects.length ? { op: 'ifCopyIs', what: m[1].toLowerCase(), then: inner.effects } : null; } },
     // Orvar, the All-Form: "create a token that's a copy of one of those permanents" — those the spell targets (of spellTargets)
     { re: /^Create a token that'?s a copy of one of those permanents\.?$/i, make: () => ({ op: 'copyPermanent', n: 1, grant: [], of: 'spellTargets' }) },
+    // Twilight Diviner: "… if they entered or were cast from a graveyard, create a token that's a copy of one of them." (batchFromGraveyard)
+    { re: /^Create a token that'?s a copy of one of them\.?$/i, make: () => ({ op: 'copyPermanent', n: 1, grant: [], of: 'batchFromGraveyard' }) },
     // Ran and Shaw: "create a token that's a copy of Ran and Shaw, except it's not legendary"
     { re: /^Create a token that'?s a copy of (?:CARDNAME|this creature), except (?:the token isn'?t|it isn'?t|it'?s not|it is not) legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', self: true, n: 1, grant: [], nonLegendary: true }) },
@@ -12999,6 +13005,13 @@
         { op: 'grantKeyword', keywords: [m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase()], duration: 'eot', scope: 'lastAffected' },
         { op: 'delayed', event: 'permCombatDamage', watchDamage: true, name: 'When that creature deals combat damage to a player this turn',
           effects: [{ op: 'transform', self: true, sinceNow: true }] }] },
+    /* Tamiyo, Field Researcher: "Choose up to two target creatures. Until your next turn, whenever either of those
+       creatures deals combat damage, you draw a card." — each watched until your next turn, a draw each time either
+       deals combat damage (once a damage step: watchTargets) */
+    { re: /^Choose up to (two|three) target creatures\. Until your next turn, whenever (?:either|any) of those creatures deals combat damage, you draw a card\.?$/i,
+      make: (m) => [{ op: 'delayed', watchTargets: true, event: 'dealsDamage', combatOnly: true, untilYourNextTurn: true,
+        name: 'Whenever that creature deals combat damage, you draw a card', effects: [{ op: 'draw', n: 1, who: 'you' }],
+        targets: Array.from({ length: num(m[1]) }, () => Object.assign(targetSpec('target creature'), { upTo: true, distinct: true })) }] },
     /* Captain Howler, Sea Scourge: "target creature gets +2/+0 until end of turn for each card discarded this way.
        Whenever that creature deals combat damage to a player this turn, you draw a card." — the cards in the
        discard trigger's lot; the creature targeted watched for the rest of the turn (an emblem, as Hunter's Insight) */
@@ -13667,6 +13680,9 @@
     { re: /^Add \{C\}\. If you control an Urza'?s ([A-Za-z-]+) and an Urza'?s ([A-Za-z-]+), add (\{C\}(?:\{C\})+) instead\.?$/i,
       make: (m) => [{ op: 'addMana', symbols: ['C'],
         tron: { names: [m[1], m[2]].map(x => "urza's " + x.toLowerCase().replace(/-/g, ' ')), symbols: MANA.parse(m[3]) } }] },
+    // Ugin's Labyrinth: "Add {C}. If a card is exiled with this land, add {C}{C} instead." — a mana ability either way (ifCond)
+    { re: /^Add ((?:\{[WUBRGC]\})+)\. If (a card is exiled with (?:this land|this artifact|CARDNAME)), add ((?:\{[WUBRGC]\})+) instead\.?$/i,
+      make: (m) => { const cond = condOf(m[2]); return cond ? [{ op: 'ifCond', cond, then: [{ op: 'addMana', symbols: MANA.parse(m[3]) }], otherwise: [{ op: 'addMana', symbols: MANA.parse(m[1]) }] }] : null; } },
     /* The Enduring creatures of Duskmourn: back as an enchantment, and only
        ever once as a creature */
     { re: /^[Ii]f it was a creature, return it to the battlefield under its owner'?s control\. It'?s an enchantment\.?$/,
@@ -16237,6 +16253,8 @@
     [/^none of them were cast or no mana was spent to cast them$/i, () => ({ kind: 'batchUncastOrFree' })],
     // Celes, Rune Knight: "if one or more of them entered from a graveyard or was cast from a graveyard" (batchFromGraveyard)
     [/^one or more of them entered from a graveyard or (?:was|were) cast from a graveyard$/i, () => ({ kind: 'batchFromGraveyard' })],
+    // Twilight Diviner: "if they entered or were cast from a graveyard" — any of them (batchFromGraveyard)
+    [/^they entered or were cast from a graveyard$/i, () => ({ kind: 'batchFromGraveyard' })],
     // Agent of Treachery: "you control three or more permanents you don't own"
     [/^you control (\w+) or more permanents you don'?t own$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'controlNotOwned', n: num(m[1]) } : null)],
     // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
@@ -16310,6 +16328,8 @@
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Risona, Asari Commander: "if it doesn't have an indestructible counter on it"
     [/^(?:it|this creature|CARDNAME) doesn'?t have an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Ugin's Labyrinth: "If a card is exiled with this land" (selfHoldsExiled)
+    [/^a card is exiled with (?:this land|this artifact|CARDNAME)$/i, () => ({ kind: 'selfHoldsExiled' })],
     // Darigaaz Reincarnated: "if this card is exiled with an egg counter on it" — a trigger that works from exile (fromExile, analyze)
     [/^this card is exiled with an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
     // Blaster, Morale Booster: "If Blaster has no +1/+1 counters on it"
@@ -24151,6 +24171,9 @@
       // Darksteel Monolith: "Once each turn, you may pay {0} rather than pay the mana cost for a colorless spell you cast from your hand."
       { re: /^Once each turn, you may pay \{0\} rather than pay the mana cost for a colorless spell you cast from your hand\.?$/i,
         make: () => ({ op: 'grantAltZeroOnce', words: 'colorless', fromHand: true }), auto: true },
+      // Warped Space: "Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast from exile." (fromExile)
+      { re: /^Once each turn, you may pay \{0\} rather than pay the mana cost for a spell you cast from exile\.?$/i,
+        make: () => ({ op: 'grantAltZeroOnce', fromExile: true }), auto: true },
       // Semblance Anvil: "Spells you cast that share a card type with the exiled card cost {2} less to cast." (shareTypeImprinted)
       { re: /^Spells you cast that share a card type with the exiled card cost \{(\d+)\} less to cast\.?$/i,
         make: (m) => ({ op: 'costMod', who: 'you', words: 'spell', chosenType: false, amount: -(+m[1]), shareTypeImprinted: true }), auto: true },
