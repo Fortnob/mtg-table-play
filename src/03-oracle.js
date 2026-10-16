@@ -9858,6 +9858,11 @@
         const inner = parseEffects(m[3].replace(/^(\w)/, (c) => c.toUpperCase()));
         return inner.auto ? { op: 'ifDiscarded', type: m[2].toLowerCase(), not: /n'?t/i.test(m[1]), then: inner.effects } : null;
       } },
+    /* Waterbending Lesson: "Then discard a card unless you waterbend {2}." — asked, mana or artifacts and creatures tapped
+       for {1} each; not paid, the discard (mayPay waterbend) */
+    { re: /^(?:Then )?discard (a|one|two|three) cards? unless you waterbend ((?:\{\d+\})+)\.?$/i,
+      make: (m) => ({ op: 'mayPay', pay: { mana: m[2], waterbend: true }, then: [], otherwise: [{ op: 'discard', n: num(m[1]), who: 'you' }],
+        prompt: `Waterbend ${m[2]}? If you don't, discard ${num(m[1]) === 1 ? 'a card' : m[1] + ' cards'}.` }) },
     /* Thirst for Knowledge: "Then discard two cards unless you discard an artifact card." */
     /* (Thirst for Discovery: "a basic land card"; Arm-Mounted Anchor: "a Pirate card"; Compulsive Research:
        "Then that player discards two cards unless they discard a land card"; Wrench Mind, Bandit's Talent) */
@@ -11060,6 +11065,8 @@
     if (/^the total amount of life your opponents (?:have )?lost this turn$/i.test(p)) return done({ opponentsLifeLost: true, mult: 1 });
     // Chandra's Incinerator: "the total amount of noncombat damage dealt to your opponents this turn" (opponentsNoncombatDamage)
     if (/^the total amount of noncombat damage dealt to your opponents this turn$/i.test(p)) return done({ opponentsNoncombatDamage: true, mult: 1 });
+    // Shadowgrange Archfiend: "the greatest power among creatures sacrificed this way" — as they last were (sacThisWayMaxPower)
+    if (/^the greatest power among creatures sacrificed this way$/i.test(p)) return done({ sacThisWayMaxPower: true, mult: 1 });
     // Notorious Throng: "the damage dealt to your opponents this turn" (opponentsDamaged, as Bloodthirst X counts it)
     if (/^the (?:total amount of )?damage dealt to your opponents this turn$/i.test(p)) return done({ opponentsDamaged: true, mult: 1 });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
@@ -12920,6 +12927,9 @@
        permanent." — one kind of those on it, asked when there are several (addCounterOfKind) */
     { re: /^Choose a counter on (target [a-z ]+?)\. Put an additional counter of that kind on that (?:permanent|creature|planeswalker)\.?$/i,
       make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? [{ op: 'addCounterOfKind', n: 1, targets: [sp] }] : null; } },
+    // Animation Module: "Choose a counter on target permanent or player. Give that permanent or player another counter of that kind." — a player's too
+    { re: /^Choose a counter on target permanent or player\. Give that permanent or player another counter of that kind\.?$/i,
+      make: () => [{ op: 'addCounterOfKind', n: 1, targets: [{ type: 'any', filter: 'permanent or player', zone: 'battlefield', anyOf: ['permanent'] }] }] },
     // Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." (castCopiesExiled)
     { re: /^copy each exiled card you own with an? ([a-z]+) counter on it\. You may cast the copies\.?$/i,
       make: (m) => [{ op: 'castCopiesExiled', counter: m[1].toLowerCase() }] },
@@ -26030,6 +26040,14 @@
       { re: /^Each creature you control can block an additional creature each combat\.?$/i, eff: { op: 'groupBlocksExtra' }, auto: true },
       // Platinum Angel
       { re: /^You can'?t lose the game and your opponents can'?t win the game\.?$/i, eff: { op: 'cantLose' }, auto: true },
+      // The Golden Throne: "If you would lose the game, instead exile CARDNAME and your life total becomes 1." (loseGameInstead)
+      { re: /^If you would lose the game, instead exile (?:CARDNAME|this artifact|this permanent) and your life total becomes (\d+)\.?$/i,
+        make: (m) => ({ op: 'loseGameInstead', exileSelf: true, life: +m[1] }), auto: true },
+      /* Secret Arcade: "Nonland permanents you control and permanent spells you control are enchantments in addition to
+         their other types." — on the battlefield in layer 4, the spells as they are read (artifactsElsewhere: type, stackOnly) */
+      { re: /^Nonland permanents you control and permanent spells you control are (artifacts|enchantments) in addition to their other types\.?$/i,
+        make: (m) => { const scope = eachScope('Nonland permanents you control'); const ty = U.titleCase(m[1].replace(/s$/, ''));
+          return scope ? [{ op: 'continuous', layer: 4, scope, addTypes: [ty] }, { op: 'artifactsElsewhere', type: ty, stackOnly: true }] : null; }, auto: true },
       // Worship, Ali from Cairo: "(If you control a creature,) damage that would reduce your life total to less than 1 reduces it to 1 instead."
       { re: /^(?:If (.+?), )?[Dd]amage that would reduce your life total to less than 1 reduces it to 1 instead\.?$/,
         make: (m) => {

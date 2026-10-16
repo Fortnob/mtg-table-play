@@ -174,11 +174,18 @@
       }
       /* Encroaching Mycosynth: "permanent spells you control and nonland permanent cards you own that aren't on the
          battlefield" are artifacts too (artifactsElsewhere) */
-      if (base && this.zone !== 'battlefield' && this.game && base.isPermanent && !base.isLand && !(base.types || []).includes('Artifact')) {
+      // (Secret Arcade: "permanent spells you control are enchantments" — another type, on the stack only: type, stackOnly)
+      if (base && this.zone !== 'battlefield' && this.game && base.isPermanent && !base.isLand) {
         const ae = this.game._artifactsElsewhere();
         const who = this.zone === 'stack' ? (this.controller || this.owner) : this.owner;
-        if (ae && ae.includes(who)) {
-          if (this._chrArtBase !== base) { this._chrArtBase = base; this._chrArtA = Object.assign({}, base, { types: (base.types || []).concat('Artifact'), isArtifact: true }); }
+        const add = ae ? [...new Set(ae.filter(x => x.pid === who && (!x.stackOnly || this.zone === 'stack')).map(x => x.type))].filter(ty => !(base.types || []).includes(ty)) : [];
+        if (add.length) {
+          const key = add.join(',');
+          if (this._chrArtBase !== base || this._chrArtKey !== key) {
+            this._chrArtBase = base; this._chrArtKey = key;
+            this._chrArtA = Object.assign({}, base, { types: (base.types || []).concat(add) },
+              add.includes('Artifact') ? { isArtifact: true } : {}, add.includes('Enchantment') ? { isEnchantment: true } : {});
+          }
           base = this._chrArtA;
         }
       }
@@ -6441,7 +6448,12 @@
         /* Madness: cast from exile for its madness cost, only as its trigger resolves (madnessOpen: madnessCast) — not
            from the graveyard, and not later */
         if (k === 'madness' && arg && o.zone === 'exile' && o.madnessOpen && o.owner === playerId) {
-          out.push({ kind: 'cast', via: 'madness', cost: arg, label: 'Madness ' + arg });
+          // Shadowgrange Archfiend: "Madness—{2}{B}, Pay 8 life." — the mana, and the life as part of the price (alt life)
+          const madMana = this._madnessCost(o) || '', madLife = this._madnessLife(o);
+          const pl = this.player(playerId);
+          if (!madLife) out.push({ kind: 'cast', via: 'madness', cost: arg, label: 'Madness ' + arg });
+          else if (pl && pl.life >= madLife && !this._lifeFrozen(pl) && !this._lifeSacCostBan())
+            out.push({ kind: 'cast', via: 'madness', cost: madMana, alt: { mana: madMana, life: madLife }, label: `Madness ${madMana}, pay ${madLife} life` });
         }
         if (o.zone === 'graveyard' && Object.prototype.hasOwnProperty.call(GRAVE, k) && arg) {
           /* Escape prints two costs in one clause: the mana, and a number
@@ -7312,7 +7324,7 @@
       if (!cost) return;
       this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
         controller: o.owner, name: `${o.name} — madness`, auto: true, effects: [{ op: 'madnessCast' }],
-        abilityText: `When this card is exiled this way, its owner may cast it by paying ${cost} rather than paying its mana cost. If that player doesn't, they put this card into their graveyard.`,
+        abilityText: `When this card is exiled this way, its owner may cast it by paying ${cost}${this._madnessLife(o) ? ' and ' + this._madnessLife(o) + ' life' : ''} rather than paying its mana cost. If that player doesn't, they put this card into their graveyard.`,
         triggerData: { event: 'madness', objectId: o.id } });
     }
 
@@ -7491,7 +7503,14 @@
     _madnessCost(o) {
       const a = o && (o.trueAnalysis ? o.trueAnalysis() : o.analysis());
       const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^madness$/i.test(x.keyword || '') && x.arg);
-      return ab ? ab.arg : null;
+      // (Shadowgrange Archfiend: "{2}{B}, Pay 8 life." — the mana; the life is _madnessLife's)
+      return ab ? ((String(ab.arg).match(/^((?:\{[^}]+\})+),/) || [])[1] || ab.arg) : null;
+    }
+    /** Shadowgrange Archfiend: "Madness—{2}{B}, Pay 8 life." — the life a madness cost asks for too, or 0. */
+    _madnessLife(o) {
+      const a = o && (o.trueAnalysis ? o.trueAnalysis() : o.analysis());
+      const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^madness$/i.test(x.keyword || '') && x.arg);
+      return ab ? (+((String(ab.arg).match(/\bPay (\d+) life\b/i) || [])[1]) || 0) : 0;
     }
     /** One card discarded where it goes by itself: the graveyard, or a way that must be taken (madness) — `how` as for
         _discardWays ('cost': cycling, channel, an additional cost, the cleanup step). The caller calls _afterDiscard. */
@@ -18439,15 +18458,17 @@
     /** Something changed on the battlefield: recompute rather than remember. */
     bumpBoard() { this._boardEpoch = (this._boardEpoch || 0) + 1; }
     /** Mycosynth Lattice: the colours every card off the battlefield and every spell has now, or null (allCards). */
-    /** Encroaching Mycosynth: the players whose permanent spells and nonland permanent cards off the battlefield are artifacts too (artifactsElsewhere). */
+    /** Encroaching Mycosynth: the players whose permanent spells and nonland permanent cards off the battlefield are artifacts too (artifactsElsewhere);
+        Secret Arcade: whose permanent spells are enchantments too — [{ pid, type, stackOnly }] */
     _artifactsElsewhere() {
       if (this.__artElseKey === this._boardKey) return this.__artElse;
       // (asked again while it is being worked out: nothing yet)
       this.__artElseKey = this._boardKey; this.__artElse = null;
       let out = null;
       for (const x of this.battlefield) {
-        if (x.phasedOut || !this._staticOp(x, 'artifactsElsewhere')) continue;
-        if (!(out = out || []).includes(x.controller)) out.push(x.controller);
+        const ae = !x.phasedOut && this._staticOp(x, 'artifactsElsewhere');
+        if (!ae) continue;
+        (out = out || []).push({ pid: x.controller, type: ae.type || 'Artifact', stackOnly: !!ae.stackOnly });
       }
       this.__artElseKey = this._boardKey; this.__artElse = out;
       return out;
@@ -22790,6 +22811,8 @@
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
         // Nahiri's Lithoforming: "For each land sacrificed this way" — what this resolution had you sacrifice (sacByYouThisWay)
+        // Shadowgrange Archfiend: "the greatest power among creatures sacrificed this way" — as they last were (sacThisWayMaxPower)
+        if (v && typeof v === 'object' && v.sacThisWayMaxPower) return Math.max(0, ...((this.resolving || {})._sacBy || []).filter(s0 => (s0.types || []).includes('Creature')).map(s0 => s0.power || 0)) * (v.mult || 1);
         if (v && typeof v === 'object' && v.sacByYouThisWay) return ((this.resolving || {})._sacBy || []).filter(s => s.pid === ctx.controller).length * (v.mult || 1);
         // Kylox, Visionary Inventor: "where X is their total power" — of those just sacrificed, as they last were (lastSacPower)
         if (v && typeof v === 'object' && v.lastSacPower) return (this._lastSacPower || 0) * (v.mult || 1);
@@ -28264,6 +28287,25 @@
           /* "You may pay {E}{E}{E}": energy, not mana (Guide of Souls) */
           const eN = (String(pay.mana || '').match(/\{E\}/gi) || []).length;
           if (eN) pay = Object.assign({}, pay, { energy: eN, mana: String(pay.mana).replace(/\{E\}/gi, '') || null });
+          /* Waterbending Lesson: "discard a card unless you waterbend {2}" — mana, or artifacts and creatures tapped for
+             {1} each; not asked when it can't be paid (waterbend) */
+          if (pay.waterbend) {
+            const plan = this._waterbendPlan(ctx.controller, null, {}, pay.mana);
+            if (!plan) { this._spliceNext(e.otherwise); break; }
+            const yesW = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller, payMana: pay.mana,
+              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${e.prompt || whole(e.text || 'waterbend', 90)} (Each artifact and creature you tap pays for {1}.)` }, 'qw');
+            if (yesW === SUSPEND) return SUSPEND;
+            const plan2 = yesW && this._waterbendPlan(ctx.controller, null, {}, pay.mana);
+            if (!plan2) { this._spliceNext(e.otherwise); break; }
+            if (plan2.tap.length) {
+              for (const x of plan2.tap) this._markTapped(x);
+              this.logEvent('rules', `${me.name} waterbends, tapping ${plan2.tap.map(x => x.name).join(', ')}.`);
+            }
+            if (plan2.mana && !this.payMana(ctx.controller, plan2.mana, { auto: true })) { this._spliceNext(e.otherwise); break; }
+            this._noteBend(ctx.controller, 'water');
+            this._spliceNext(e.then);
+            break;
+          }
           /* Isu the Abominable: "you may pay {G}, {W}, or {U}. If you do, …" — one question: which of those that can
              be paid, or none (manaOneOf) */
           if (pay.manaOneOf) {
@@ -38200,6 +38242,28 @@
         /* Ichormoon Gauntlet: "choose a counter on target permanent. Put an additional counter of that kind on that
            permanent." — the kind asked for only when there is more than one (addCounterOfKind) */
         case 'addCounterOfKind': {
+          /* Animation Module: "Give that permanent or player another counter of that kind" — a player's counters
+             (poison, energy, experience, rad) too */
+          const tp = !firstObj() && firstPlayer();
+          if (tp) {
+            const PK = ['poison', 'energy', 'experience', 'rad'];
+            const pks = PK.filter(k => (Number(tp[k]) || 0) > 0);
+            if (!pks.length) { this.logEvent('rules', `${tp.name} has no counters.`); break; }
+            let pk = pks[0];
+            if (pks.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'addCounterKind', kind: 'options', min: 1, max: 1, targetPlayer: tp.id,
+                options: pks.map((k, i) => ({ i, label: k })), prompt: `Give ${tp.name} another counter of which kind?` }, 'ackp');
+              if (got === SUSPEND) return SUSPEND;
+              pk = pks[(got && got.picks[0]) || 0] || pks[0];
+            }
+            const k1 = n(e.n) || 1;
+            if (pk === 'poison') { this.addPoison(tp, k1, ctx.controller); break; }
+            if (this._playerCountersBarred()) break;
+            tp[pk] = (Number(tp[pk]) || 0) + k1;
+            this.logEvent('counters', `${tp.name} gets ${k1 === 1 ? 'another ' + pk + ' counter' : k1 + ' more ' + pk + ' counters'} (${tp[pk]}).`);
+            this._playerCountersPut(tp, pk, k1, ctx.controller);
+            break;
+          }
           const x = firstObj();
           if (!x || x.zone !== 'battlefield') break;
           const kinds = Object.keys(x.counters || {}).filter(k => Number(x.counters[k]) > 0);
@@ -38699,7 +38763,7 @@
             const price = use ? use.cost || '' : cost;
             const payable = !!use && this.couldPay(pid, price, this.manaSources(pid));
             const yes = payable ? this._ask({ type: 'confirm', playerId: pid, purpose: 'madness', objId: x.id, cost: price, payMana: price,
-              prompt: `Cast ${x.name} for its madness cost (${price || '{0}'})? If you don't, it goes to your graveyard.` }, 'mad') : null;
+              prompt: `Cast ${x.name} for its madness cost (${price || '{0}'}${use && use.alt && use.alt.life ? ' and ' + use.alt.life + ' life' : ''})? If you don't, it goes to your graveyard.` }, 'mad') : null;
             if (yes === SUSPEND) { x.madnessOpen = false; return SUSPEND; }
             const go = payable && yes && yes.yes !== false;
             // its targets (and modes), chosen as it is cast; none it could take, and it isn't cast
@@ -42428,6 +42492,17 @@
       if (p.cantLoseTurn === this.turn && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
       // Celestine Reef (a plane): "until a player planeswalks, you can't lose the game"
       if (this.config.planechase && this._planarHeld(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
+      // The Golden Throne: "If you would lose the game, instead exile The Golden Throne and your life total becomes 1." (loseGameInstead)
+      const gt = reason !== 'concede' && reason !== 'timeout' && reason !== 'time' && this._anyStaticOf(p.id, 'loseGameInstead');
+      if (gt && gt.zone === 'battlefield') {
+        const li = this._staticOp(gt, 'loseGameInstead');
+        this.moveObject(gt, 'exile');
+        this.logEvent('rules', `${p.name} would lose the game; instead ${gt.name} is exiled.`);
+        const to = Number(li && li.life) || 1;
+        if (p.life !== to) this.changeLife(p, to - p.life);
+        this.logEvent('life', `${p.name}'s life becomes ${to}.`);
+        return;
+      }
       p.hasLost = true;
       p.lossReason = reason;
       p.lossFrom = from || null;

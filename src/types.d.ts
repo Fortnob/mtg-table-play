@@ -594,6 +594,8 @@ declare namespace MTG {
     default?: number;
     noneLabel?: string;
     confirmLabel?: string;
+    /** Animation Module: the player whose counter is asked about (purpose addCounterKind) */
+    targetPlayer?: Id;
   }
 
   /** Every question the engine can put to a player, by type. */

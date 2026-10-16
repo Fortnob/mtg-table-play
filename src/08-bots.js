@@ -2442,9 +2442,10 @@
       const g = this.game;
       const o = g.obj(s.objId);
       const labels = (s.options || []).map(x => String(x.label || ''));
-      const mine = !!o && o.controller === this.pid;
-      const good = ['loyalty', '+1/+1', 'shield', 'lore', 'oil', 'charge'];
-      const bad = ['-1/-1', 'stun', 'time'];
+      // (Animation Module: a player's counters — targetPlayer)
+      const mine = o ? o.controller === this.pid : s.targetPlayer === this.pid;
+      const good = ['loyalty', '+1/+1', 'shield', 'lore', 'oil', 'charge', 'energy', 'experience'];
+      const bad = ['-1/-1', 'stun', 'time', 'poison', 'rad'];
       const rank = (k) => { const i = (mine ? good : bad).indexOf(k); return i < 0 ? 50 : i; };
       const best = labels.slice().sort((a, b) => rank(a) - rank(b))[0];
       return { picks: [Math.max(0, labels.indexOf(best))] };
@@ -3438,7 +3439,8 @@
       const g = this.game;
       /* Madness: casting it now for less is nearly always better than
          letting it sit in the graveyard. */
-      if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
+      // (Shadowgrange Archfiend: "Pay 8 life" too — only with plenty to spare)
+      if (ch.purpose === 'madness') { const ml = ch.objId && g.obj(ch.objId) ? g._madnessLife(g.obj(ch.objId)) : 0; return (!ml || (g.player(this.pid) || {}).life > ml + 5) && g.couldPay(this.pid, ch.cost || '', this.manaSources()); }
       if (ch.purpose === 'leyline') return true;
       // Braid of Fire: its cumulative upkeep only gives mana — kept (cumulativeUpkeepAdd)
       if (ch.purpose === 'cumulativeUpkeepAdd') return true;
