@@ -6839,7 +6839,10 @@
       }
       // Six: on your turn, a nonland permanent card in your graveyard has retrace
       if (o.zone === 'graveyard' && o.owner === playerId && a.isPermanent && !a.isLand && this.activePlayer && this.activePlayer.id === playerId &&
-          this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
+          this._withEmblems(this.battlefield).some(x => !x.phasedOut && x.controller === playerId &&
+            (this._staticOp(x, 'grantRetraceNonlandPermanents') || {}).op === 'grantRetraceNonlandPermanents' &&
+            (!this._staticOp(x, 'grantRetraceNonlandPermanents').filter || this._cardFitsWords(o, this._staticOp(x, 'grantRetraceNonlandPermanents').filter))) &&
+          !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
       /* A standing grant (flashback, encore), from a permanent (or emblem) of this player's; Iroh, Grand Lotus: "During your
@@ -6853,6 +6856,13 @@
         }
         return null;
       };
+      // Deeproot Historian grants retrace to matching nonland cards in your graveyard.
+      if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand &&
+          !out.some(u => u.via === 'retrace') &&
+          fbGrant('grantRetrace', e => !e.words || this._cardFitsWords(o, e.words))) {
+        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
+      }
+
       /* Henzie "Toolbox" Torre: "Each creature spell you cast with mana value 4 or greater has blitz. The blitz cost is
          equal to its mana cost." — offered when the card has no blitz of its own (grantBlitz) */
       if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'blitz')) {
@@ -14634,6 +14644,8 @@
         }
         this.emit('sfx', 'attack');
         this._attackKeywords(declarations.map(d => this.obj(d.attackerId)).filter(Boolean));
+        const attackedPlayers = [...new Set(declarations.filter(d => this.player(d.defenderId)).map(d => d.defenderId))];
+        if (attackedPlayers.length) this._fire('opponentsAttacked', null, { attackedPlayers });
         this.logEvent('combat', `${this.player(playerId).name} attacks with ${declarations.map(d => this.obj(d.attackerId).name).join(', ')}.`);
       } else if (this._atkStepTrig === this.turn) {
         // (Noctis, Heir Apparent: something waits on this step — the step goes on: _atkStepTrig)
@@ -18587,7 +18599,7 @@
       for (let i = 0; i < statics.length; i++) {
         const entry = statics[i];
         const ef = entry.ef;
-        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt || ef.setPtFromExiledWith)) continue;
+        if (!(ef.grant || ef.grantChosen || ef.grantFromExiled || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.setPtFromMv || ef.pt || ef.switchPt || ef.setPtFromExiledWith)) continue;
         if (!this._contReaches(entry, o, a, lb)) continue;
         // Greymond, Avacyn's Stalwart: "have each of the chosen abilities" — the ones chosen as it entered (grantChosen)
         const grant = ef.grantChosen ? ((entry.src && entry.src.chosenKeywords) || [])
@@ -18595,6 +18607,10 @@
         if (grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
+        if (ef.setPtFromMv && ((o.trueAnalysis ? o.trueAnalysis() : o.analysis()) || {}).isArtifact && !((o.trueAnalysis ? o.trueAnalysis() : o.analysis()) || {}).isCreature) {
+          const mv = Number((o.card || {}).cmc) || 0;
+          (ef.cda ? defining : setting).push({ ts: entry.ts, set: { p: mv, t: mv } });
+        }
         // Duplicant: "the power, toughness … of the last creature card exiled with it" — its printed numbers (setPtFromExiledWith)
         if (ef.setPtFromExiledWith) {
           const xc = this._lastExiledCreatureWith(entry.src);
@@ -19558,6 +19574,18 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      // Titania's Song: the noncreature artifacts this static effect currently reaches keep
+      // its type, ability-loss and mana-value power/toughness changes until end of turn
+      // when the Song leaves. Snapshot targets while the continuous effect still exists.
+      const persistedStatics = from === 'battlefield' && toZone !== 'battlefield'
+        ? this._continuous().filter(entry => entry.src === o && entry.ef.persistOnLeavingEot)
+        : [];
+      const persistedTargets = new Map();
+      for (const entry of persistedStatics) for (const target of this.battlefield) {
+        if (target === o || target.phasedOut) continue;
+        const base = this._baseAnalysis(target);
+        if (base && this._contReaches(entry, target, base, null)) persistedTargets.set(target.id, entry.ef);
+      }
       // (where everybody could see it go from, face up: _knowAfterMove)
       const inSight = from !== 'hand' && from !== 'library' && !o.faceDown && !(from === 'exile' && o.faceDownExile);
       // Bad Wolf Bay (a plane): "cards can't enter from exile this turn" — they stay in exile
@@ -19771,6 +19799,7 @@
         if (!(wasA && wasA.isLand)) h.nonlandLeft = (h.nonlandLeft || 0) + 1;
         // The Lady of Otaria: "a land you controlled was put into a graveyard from the battlefield this turn" (landToGyBy)
         if (wasA && wasA.isLand && toZone === 'graveyard') { h.landToGyBy = h.landToGyBy || {}; h.landToGyBy[o.controller] = true; }
+        if (wasA && wasA.isArtifact && toZone === 'graveyard') h.artifactsDiedFromBattlefield = (h.artifactsDiedFromBattlefield || 0) + 1;
         if (wasA && wasA.isCreature && toZone === 'graveyard') {
           h.creaturesDied++;
           // Gadrak, the Crown-Scourge: "each nontoken creature that died this turn"
@@ -20096,8 +20125,33 @@
         if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
         if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
+        // Apply continuous effects whose text expressly says they survive the source leaving.
+        if (from === 'battlefield' && o.zone !== 'battlefield' && persistedTargets.size) {
+          let kept = 0;
+          for (const [id, effect] of persistedTargets) {
+            const target = this.obj(id);
+            if (!target || target.zone !== 'battlefield') continue;
+            const linger = Object.assign({}, effect);
+            // The continuous layer-7 mana-value setting becomes a fixed value once
+            // Titania's Song is gone; per-object effects cannot keep its static-layer query.
+            if (linger.setPtFromMv) {
+              const mv = Number((target.card || {}).cmc) || 0;
+              linger.setPt = { p: mv, t: mv };
+              delete linger.setPtFromMv;
+            }
+            delete linger.op; delete linger.layer; delete linger.scope; delete linger.persistOnLeavingEot;
+            linger.until = 'eot';
+            target.effects.push(linger);
+            target._chr = null;
+            kept++;
+          }
+          if (kept) {
+            this.bumpBoard();
+            this.logEvent('rules', `Titania's Song's effect continues until end of turn for ${kept} artifact permanent${kept === 1 ? '' : 's'}.`);
+          }
+        }
         this._lastLeft = o.id;
-        this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
+        this._fire('permLeaves', null, { object: o, objController: lastCtrl, fromZone: from, toZone });
         // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed"
         // (Karmic Justice: "a spell or ability an opponent controls destroys" — whose it was: playerId, destroyerIsOpponent)
         if (destroyed) this._fire('permDestroyed', null, Object.assign({ object: o, objController: lastCtrl }, destroyedBy ? { playerId: destroyedBy } : {}));
@@ -20729,6 +20783,9 @@
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
+        // Party Dude triggers only for attacks against one or more opponents of this Class's controller.
+        if (event === 'opponentsAttacked' &&
+            !this.opponentsOf(o.controller).some(p => (data.attackedPlayers || []).includes(p.id))) return;
         // Keranos, God of Storms: "Reveal the first card you draw on each of your turns."
         if (ab.revealDrawn && data.object) { this._know(data.object, '*'); this.logEvent('reveal', `${(this.player(o.controller) || {}).name} reveals ${data.object.name}.`); }
         /* "One or more creatures die" is one trigger for the lot of them,
@@ -23191,6 +23248,8 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        // Anzrag's Rampage and Structural Assault count artifacts put into graveyards from the battlefield this turn.
+        if (v && typeof v === 'object' && v.artifactsDiedThisTurn) return (this.turnHistory || {}).artifactsDiedFromBattlefield || 0;
         // "+1/+0 for each …": nothing times anything is nothing (not the "|| 1" the counts below fall back on)
         if (v && typeof v === 'object' && v.mult === 0 && !v.plus) return 0;
         // Call the Coppercoats: the creatures the targeted players control
@@ -24582,6 +24641,14 @@
           break;
         }
         case 'destroy':
+          // Green Slime: destroy the permanent whose activated or triggered ability was countered.
+          if (e.scope === 'counteredSource') {
+            const x = this._counteredSrc && this.obj(this._counteredSrc);
+            if (x && x.zone === 'battlefield' && (!e.words || this._cardFitsWords(x, e.words))) {
+              this._spliceNext([Object.assign({}, e, { scope: null, targets: [{ kind: 'object', id: x.id }] })]);
+            }
+            break;
+          }
           // "Destroy this enchantment."
           if (e.scope === 'self') {
             if (src && src.zone === 'battlefield' && !this.hasKw(src, 'indestructible') && !this._totemArmor(src) && !this._regenerated(src)) this.moveObject(src, 'graveyard');
@@ -25187,6 +25254,16 @@
           // (Hakbal of the Surging Soul: each Merfolk, named by id — exploreEach)
           const who = e.objId ? this.obj(e.objId) : t0 ? this.obj(t0.id) : src;
           if ((t0 || e.objId) && !(who && who.zone === 'battlefield')) break;
+          // Topography Tracker: each tracker adds one whole explore, with its own reveal and choice.
+          if (who && !e._topographyApplied) {
+            const extras = this.battlefield.filter(o => o.controller === who.controller && !o.phasedOut &&
+              this._staticOp(o, 'exploreAdditional')).length;
+            if (extras) {
+              this._spliceNext(Array.from({ length: Math.min(10, extras + 1) },
+                () => Object.assign({}, e, { _topographyApplied: true })));
+              break;
+            }
+          }
           const top = z.library[0];
           const ta = top.analysis();
           // Wildgrowth Walker: "whenever a creature you control explores" (Nicanzil, Current Conductor: "explores a land card" — exploredLand)
@@ -25740,6 +25817,7 @@
             ? this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)
             : this.battlefield.slice().filter(x => !x.phasedOut && match(x));
           const victims = pool.filter(x => {
+            if (e.notYou && x.controller === ctx.controller) return false;
             if (e.withoutCounter && (x.counters[e.withoutCounter] || 0) > 0) return false;
             // Thanos, the Mad Titan: "each other creature with mana value of the chosen quality" (other, mvParity)
             if (e.other && src && x.id === src.id) return false;
@@ -29655,6 +29733,13 @@
         case 'skipDraw': me.skipNextDraw = true; break;
 
         case 'ifLastWas': {
+          if (e.ofTrigger) {
+            const td = ctx.triggerData || {};
+            if (e.fromZone && td.fromZone !== e.fromZone) break;
+            if (e.toZone && td.toZone !== e.toZone) break;
+            if (e.controller === 'opponent' && td.objController === ctx.controller) break;
+            if (e.controller === 'you' && td.objController !== ctx.controller) break;
+          }
           // "untap target artifact or creature. If it's an artifact creature, …": the target
           // (Aunt May: "If it's a Spider" — the creature the trigger is about)
           let x = e.ofTrigger ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) : e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
@@ -33270,6 +33355,34 @@
           break;
         }
 
+        case 'takeFromExiled': {
+          const group = (this._lastExiledList || []).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
+          const legal = group.filter(o => !e.filter || this._matchesFilter(o, e.filter));
+          const want = Math.min(Math.max(0, n(e.n)), legal.length);
+          let taken = [];
+          this._lastPut = null;
+          if (legal.length && want) {
+            const picked = this._choose({ playerId: ctx.controller, purpose: 'takeFromExiled', kind: 'objects', zone: 'exile',
+              panel: true, reveal: true, items: this._chooseItems(legal),
+              min: 0, max: want, optional: !!e.optional, prompt: e.prompt || `Choose up to ${want} card(s) to put onto the battlefield.` }, 'takeExiled');
+            if (picked === SUSPEND) return SUSPEND;
+            taken = ((picked && picked.picks) || []).map(id => this.obj(id)).filter(o => o && legal.includes(o));
+          }
+          this._takenOntoBf = [];
+          for (const o of taken) {
+            this.moveObject(o, e.to || 'battlefield');
+            if (o.zone === 'battlefield') this._takenOntoBf.push(o.id);
+          }
+          this._lastAffected = taken.length ? { kind: 'object', id: taken[taken.length - 1].id } : null;
+          if (taken.length) {
+            this._lastPut = taken[taken.length - 1].id;
+            this._noteLastAffected(taken.map(o => ({ kind: 'object', id: o.id })));
+          }
+          this._lastExiledList = group.filter(o => !taken.includes(o)).map(o => o.id);
+          if (taken.length && e.then && e.then.length) this._spliceNext(e.then);
+          break;
+        }
+
         case 'takeFromLooked': {
           if (e.rest === 'graveyard') this._lookedToGraveyard = 0;
           if (e.to === 'battlefield') this._takenOntoBf = [];
@@ -33302,6 +33415,10 @@
               const tp = this.obj((ctx.triggerData || {}).objectId);
               const theirs = tp ? this._cardTypesOf(tp) : [];
               if (!this._cardTypesOf(o).some(x => theirs.includes(x))) return false;
+            }
+            if (e.sharesCreatureTypeWithAttached) {
+              const host = src && src.attachedTo && this.obj(src.attachedTo);
+              if (!host || !this._shareCreatureType(o, host)) return false;
             }
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
@@ -34976,7 +35093,17 @@
           }
           if (!pool.length) break;
           const z = this.zones[ctx.controller].library;
-          const order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          let order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          if (e.op === 'restToBottom' && e.anyOrder && pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'restToBottomOrder', kind: 'objects',
+              zone: 'library', panel: true, reveal: true, ordered: true, items: this._chooseItems(pool),
+              min: pool.length, max: pool.length,
+              prompt: 'Choose the order of these cards on the bottom of your library, from topmost to bottommost.' }, 'restBottomOrder');
+            if (got === SUSPEND) return SUSPEND;
+            const ids = (got && (got.order || got.picks)) || [];
+            const arranged = ids.map(id => this.obj(id)).filter(x => pool.includes(x));
+            order = arranged.concat(pool.filter(x => !arranged.includes(x)));
+          }
           for (const o of order) {
             this._removeFromZone(o);
             if (e.op === 'restToGraveyard') { o.zone = 'library'; this.moveObject(o, 'graveyard'); }
@@ -36234,6 +36361,19 @@
           break;
         }
         case 'exileTop': {
+          if (e.who == null && e.reveal && e.n != null) {
+            const z = this.zones[ctx.controller];
+            const count = Math.min(z.library.length, Math.max(0, n(e.n)));
+            const ids = z.library.slice(0, count).map(o => o.id);
+            this._lastExiledList = ids.slice();
+            this._lastExiled = ids[0] || null;
+            for (const id of ids) {
+              const o = this.obj(id);
+              if (o) { this._know(o, '*'); this.moveObject(o, 'exile'); }
+            }
+            this.logEvent('reveal', `${me.name} exiles the top ${count} card${count === 1 ? '' : 's'} of their library.`);
+            break;
+          }
           const who = e.who === 'each' ? this.players.filter(x => !x.hasLost)
             : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             // Ulamog: "defending player exiles the top twenty cards"
