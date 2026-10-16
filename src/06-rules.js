@@ -28661,6 +28661,11 @@
           }
           // Echoing Assault: "The token enters tapped and attacking that player." — the player the trigger's attack is at (attackingWho)
           if (e.attackingWho === 'attackedPlayer' && !e.attackingId) e = Object.assign({}, e, { attackingId: (ctx.triggerData || {}).attackedPlayer || null });
+          // Mardu Siegebreaker: "for each opponent, create a tapped token … attacking that opponent" — each still in the game (eachOpponent)
+          if (e.eachOpponent) {
+            for (const foe of this.opponentsOf(ctx.controller).filter(p => !p.hasLost)) this._runEffect(Object.assign({}, e, { eachOpponent: false, attackingId: foe.id }), ctx);
+            break;
+          }
           // Doppelgang: "For each of X target permanents, create X tokens that are copies of that permanent." (eachTarget)
           if (e.eachTarget) {
             for (const t of targets.filter(x => x.kind === 'object')) {
@@ -28733,6 +28738,8 @@
             }
             source = pick;
           }
+          // (Mardu Siegebreaker: "the exiled card" — the one it holds in exile until it leaves: exiledBy)
+          if (e.of === 'exiledBy') source = src ? this.players.flatMap(q => (this.zones[q.id] || {}).exile || []).find(c => c.exiledBy === src.id) || null : null;
           // Cleaver Skaab: "copies of the sacrificed creature", as it last was
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // Grub, Notorious Auntie: "a copy of the blighted creature" — the one the counters just went on (copyBlighted)
@@ -29135,6 +29142,41 @@
           }
           if (e.goad) for (const x of goaded) { x.goadedBy = ctx.controller; this.logEvent('rules', `${x.name} is goaded.`); }
           this.bumpBoard();
+          break;
+        }
+        /* Join forces (Minds Aglow, Collective Voyage, Alliance of Arms, Shared Trauma): "Starting with you, each player
+           may pay any amount of mana." — each in turn order from this ability's controller, as much as they can pay or
+           none; X is the total for the rest (joinForces) */
+        case 'joinForces': {
+          const r = this.resolving;
+          const memo = r ? (r.joinForces = r.joinForces || {}) : {};
+          const ord = this.turnOrder.slice();
+          const at = Math.max(0, ord.indexOf(ctx.controller));
+          let total = 0;
+          for (const id of ord.slice(at).concat(ord.slice(0, at))) {
+            const q = this.player(id);
+            if (!q || q.hasLost) continue;
+            const key = (r ? r.index : 0) + ':' + id;
+            if (memo[key] == null) {
+              const srcs = this.manaSources(id);
+              let cap = 0;
+              for (let k = 1; k <= 60 && this.couldPay(id, '{' + k + '}', srcs); k++) cap = k;
+              let paid = 0;
+              if (cap) {
+                const got = this._choose({ playerId: id, purpose: 'joinForces', kind: 'number', number: { min: 0, max: cap },
+                  prompt: `${(src && src.name) || ctx.name || 'Join forces'}: pay any amount of mana (0 pays nothing).` }, 'jf:' + id);
+                if (got === SUSPEND) return SUSPEND;
+                const want = Math.min(cap, Math.max(0, Number(got && got.number) || 0));
+                if (want && this.payMana(id, '{' + want + '}', { auto: true })) paid = want;
+              }
+              memo[key] = paid;
+              this.logEvent('rules', `${q.name} pays ${paid} mana.`);
+            }
+            total += memo[key];
+          }
+          ctx.x = total;
+          this.logEvent('rules', `${total} mana paid in all.`);
+          this._spliceNext(e.then || []);
           break;
         }
         case 'forEachTargetPlayer': {
@@ -29850,6 +29892,15 @@
           const cards = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && (x.zone === 'graveyard' || x.zone === 'exile'));
           const yes = [];
           for (const c of cards) {
+            /* Mnemonic Deluge: "Copy that card three times. You may cast the copies" — how many of them (copies) */
+            if (e.copies > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'castCopies', kind: 'number', number: { min: 0, max: e.copies },
+                prompt: `Cast how many of the ${e.copies} copies of ${c.name} without paying their mana costs?` }, 'eccn' + c.id);
+              if (got === SUSPEND) return SUSPEND;
+              const k = Math.min(e.copies, Math.max(0, Number(got && got.number) || 0));
+              for (let i = 0; i < k; i++) yes.push(c);
+              continue;
+            }
             const got = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'castCopy', prompt: `Cast a copy of ${c.name} without paying its mana cost?` }, 'ecc' + c.id);
             if (got === SUSPEND) return SUSPEND;
             if (got) yes.push(c);

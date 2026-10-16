@@ -3136,7 +3136,7 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target (?:non-[A-Z][a-z]+ )?[a-zA-Z ]+(?:don'?t control)?|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
+    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target (?:non-[A-Z][a-z]+ )?[a-zA-Z ]+(?:don'?t control)?|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft|Equipment)|CARDNAME)\.?$/i,
       // (Gwafa Hazid, Profiteer: "on target creature you don't control"; The Cheetah Planet: "on target non-Cat creature you control")
       /* (a target is never this permanent: "target creature with flying", "… that entered this turn" hold
          "it" and "this" in their words, which made them read as "on this creature" — Cathedral Acolyte) */
@@ -9428,6 +9428,10 @@
       make: (m) => ({ op: 'becomes', duration: 'eot', ptX: 'X', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
     /* Stegron the Dinosaur Man: "Until end of turn, target creature you control gets +3/+1 and becomes a Dinosaur in
        addition to its other types." */
+    // Coercive Recruiter: "Until end of turn, it gains haste and becomes a Pirate in addition to its other types."
+    { re: /^Until end of turn, (?:it|that creature) gains ([a-z ,]+?) and becomes an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
+      make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? [{ op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' },
+        { op: 'addTypes', subtypes: [m[2]], duration: 'eot', scope: 'lastTarget' }] : null; } },
     { re: /^Until end of turn, (target creature(?: you control)?) gets \+(\d+)\/\+(\d+) and becomes an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
       make: (m) => [{ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', targets: [targetSpec(m[1])] },
         { op: 'becomes', duration: 'eot', eff: { addSubtypes: [m[4]] }, scope: 'lastTarget' }] },
@@ -11839,6 +11843,26 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Mardu Siegebreaker: "for each opponent, create a tapped token that's a copy of the exiled card attacking that
+       opponent. At the beginning of your next end step, sacrifice those tokens." — the card it holds in exile (exiledBy) */
+    { re: /^For each opponent, create a tapped token that'?s a copy of the exiled card attacking that opponent\. At the beginning of your next end step, sacrifice those tokens\.?$/i,
+      make: () => [{ op: 'copyPermanent', of: 'exiledBy', n: 1, tapped: true, attacking: true, eachOpponent: true, grant: [] },
+        { op: 'delayed', event: 'yourEndStep', forPlayer: 'you', subject: 'made', name: 'Sacrifice those tokens at your end step', effects: [{ op: 'sacrificeThat' }] }] },
+    /* Join forces (Minds Aglow): "Starting with you, each player may pay any amount of mana. Each player draws X cards,
+       where X is the total amount of mana paid this way." — what follows reads X as that total (joinForces) */
+    // (Mana-Charged Dragon: "each player starting with you may pay any amount of mana")
+    { re: /^(?:Starting with you, each player|Each player starting with you) may pay any amount of mana\. (.+)$/i,
+      make: (m) => {
+        const rest = m[1].replace(/,? where X is the total amount of mana paid this way,?/i, (w) => (/,$/.test(w) && /^,/.test(w) ? ',' : ''));
+        if (rest === m[1]) return null;
+        const r = parseSentenceList(splitSentences(rest));
+        return r && r.auto && r.effects.length ? [{ op: 'joinForces', then: r.effects }] : null;
+      } },
+    /* Mnemonic Deluge: "Exile target instant or sorcery card from a graveyard. Copy that card three times. You may cast
+       the copies without paying their mana costs. Exile Mnemonic Deluge." (copies) */
+    { re: /^Exile target instant or sorcery card from a graveyard\. Copy that card (twice|three times|four times)\. You may cast the copies without paying their mana costs\. Exile CARDNAME\.?$/i,
+      make: (m) => [{ op: 'exileCopyCast', copies: ({ twice: 2, 'three times': 3, 'four times': 4 })[m[1].toLowerCase()],
+        targets: [{ type: 'card', filter: 'instant or sorcery', zone: 'graveyard' }] }, { op: 'exileSelf' }] },
     /* Transmute Artifact: "Sacrifice an artifact. If you do, search your library for an artifact card. If that card's mana
        value is less than or equal to the sacrificed artifact's mana value, put it onto the battlefield. If it's greater, you
        may pay {X}, where X is the difference. If you do, put it onto the battlefield. If you don't, put it into its owner's

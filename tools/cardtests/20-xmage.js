@@ -74970,4 +74970,122 @@ module.exports = (test) => {
     t.ok(g2.every(c => c.zone === 'battlefield'), 'all three Goblins');
     t.zone(b2, 'graveyard');
   });
+  test('Cards: Mardu Siegebreaker — a creature of yours held in exile; as it attacks, a tapped copy attacking each opponent, sacrificed at your end step', (mk, t) => {
+    t.auto('Mardu Siegebreaker');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    const sb = T.bf('A', 'Mardu Siegebreaker', { etb: true }); T.resolve();
+    t.zone(bear, 'exile', 'the Bears exiled');
+    T.answer('declareAttackers', () => [{ attackerId: sb.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    const toks = T.bfOf('A').filter(o => o.isToken && o.name === 'Grizzly Bears');
+    t.eq(toks.length, 2, 'one copy for each opponent');
+    t.ok(toks.every(o => o.tapped), 'tapped');
+    t.eq(toks.map(o => o.attacking).sort().join(''), 'BC', 'one attacking B, one attacking C');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'sacrificed at the end step');
+    // nothing exiled: no copies
+    const U = mk({ library: Array(20).fill('Plains') });
+    const s2 = U.bf('A', 'Mardu Siegebreaker', { etb: true }); U.resolve();
+    U.answer('declareAttackers', () => [{ attackerId: s2.id, defenderId: 'B' }]);
+    U.toMain('A', 'declareAttackers'); U.resolve();
+    t.eq(U.bfOf('A').filter(o => o.isToken).length, 0, 'nothing exiled: nothing copied');
+  });
+
+  test('Cards: Coercive Recruiter — it or another Pirate entering takes a creature for the turn, untapped, hasty and a Pirate', (mk, t) => {
+    t.auto('Coercive Recruiter');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const giant = T.bf('B', 'Hill Giant', { tapped: true });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    T.bf('A', 'Coercive Recruiter', { etb: true }); T.resolve();
+    t.eq(giant.controller, 'A', 'A controls the Giant');
+    t.no(giant.tapped, 'untapped');
+    t.ok(T.g.hasKw(giant, 'haste'), 'haste');
+    t.ok(T.g._hasCreatureType(giant, 'Pirate'), 'a Pirate');
+    T.nextTurn('B');
+    t.eq(giant.controller, 'B', 'back at end of turn');
+    t.no(T.g._hasCreatureType(giant, 'Pirate'), 'no longer a Pirate');
+  });
+
+  test('Cards: Minds Aglow — join forces: each player pays any amount of mana, then each draws the total', (mk, t) => {
+    t.auto('Minds Aglow');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('B', 'Island'); T.bf('B', 'Island');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch); return { number: ch.playerId === 'A' ? 3 : 2 }; });
+    T.answer('choose', (ch) => { asked.push(ch); return { number: ch.playerId === 'A' ? 3 : 2 }; });
+    const ha = T.zone('A', 'hand').length, hb = T.zone('B', 'hand').length;
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Minds Aglow'));
+    t.eq(asked.map(c => c.playerId).join(''), 'AB', 'starting with A, then B');
+    t.ok(asked.every(c => c.purpose === 'joinForces'), 'join forces');
+    t.eq(T.zone('A', 'hand').length, ha + 5, 'A draws five');
+    t.eq(T.zone('B', 'hand').length, hb + 5, 'B draws five');
+    t.ok(T.bfOf('B').every(o => o.tapped), "B's lands paid");
+    // nobody pays: no cards
+    const U = mk({ library: Array(20).fill('Island') });
+    U.answer('choose', { number: 0 });
+    const hu = U.zone('A', 'hand').length;
+    U.mana('A', 'U2');
+    U.cast('A', U.hand('A', 'Minds Aglow'));
+    t.eq(U.zone('A', 'hand').length, hu, 'nothing paid: nothing drawn');
+  });
+
+  test('Cards: Mnemonic Deluge — an instant or sorcery from any graveyard exiled and copied three times; the copies cast for free', (mk, t) => {
+    t.auto('Mnemonic Deluge');
+    const T = mk({ library: Array(30).fill('Island') });
+    const div = T.grave('B', 'Divination');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { number: 3 }; });
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', 'UUU6');
+    const md = T.hand('A', 'Mnemonic Deluge');
+    T.cast('A', md, { targets: [div] });
+    t.ok(q && q.purpose === 'castCopies' && q.number.max === 3, 'how many of the three copies');
+    t.eq(T.zone('A', 'hand').length, h + 6, 'three Divinations: six cards');
+    t.zone(div, 'exile'); t.zone(md, 'exile', 'Mnemonic Deluge exiled');
+    const U = mk({ library: Array(30).fill('Island') });
+    const d2 = U.grave('A', 'Divination');
+    U.answer('choose', { number: 1 });
+    const h2 = U.zone('A', 'hand').length;
+    U.mana('A', 'UUU6');
+    U.cast('A', U.hand('A', 'Mnemonic Deluge'), { targets: [d2] });
+    t.eq(U.zone('A', 'hand').length, h2 + 2, 'one copy cast');
+  });
+
+  test('Cards: Chainsaw — 3 damage as it enters; a rev counter whenever creatures die; +1/+0 for each', (mk, t) => {
+    t.auto('Chainsaw');
+    const T = mk();
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    const cs = T.bf('A', 'Chainsaw', { etb: true }); T.resolve();
+    t.zone(bear, 'graveyard', '3 damage');
+    t.eq(cs.counters.rev, 1, 'a rev counter for the death');
+    const elf = T.bf('A', 'Llanowar Elves');
+    cs.attachedTo = elf.id; elf.attachments = [cs.id]; T.g.bumpBoard();
+    t.eq(T.g.powerOf(elf), 2, '+1/+0');
+  });
+  test('Join forces: Collective Voyage searches X basic lands for each player; Mana-Charged Dragon gets +X/+0', (mk, t) => {
+    t.auto('Collective Voyage'); t.auto('Mana-Charged Dragon');
+    const T = mk({ library: ['Forest', 'Island', 'Hill Giant'], libraryEach: 4 });
+    T.bf('B', 'Island');
+    T.answer('choose', (ch) => ({ number: ch.playerId === 'A' ? 1 : 1 }));
+    T.answer('choose', (ch) => ({ number: 1 }));
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.filter(c => /Forest|Island/.test(c.name)).slice(0, 2).map(c => c.id) }));
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.filter(c => /Forest|Island/.test(c.name)).slice(0, 2).map(c => c.id) }));
+    const la = T.bfOf('A').length, lb = T.bfOf('B').length;
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Collective Voyage'));
+    t.eq(T.bfOf('A').length, la + 2, 'X = 2: two lands for A');
+    t.eq(T.bfOf('B').length, lb + 2, 'and two for B');
+    const U = mk({ library: Array(20).fill('Mountain') });
+    const dr = U.bf('A', 'Mana-Charged Dragon');
+    U.answer('choose', { number: 3 });
+    U.answer('choose', { number: 0 });
+    U.answer('declareAttackers', () => [{ attackerId: dr.id, defenderId: 'B' }]);
+    for (let i = 0; i < 3; i++) U.bf('A', 'Mountain');
+    U.toMain('A', 'declareAttackers'); U.resolve();
+    t.eq(U.g.powerOf(dr), 5 + 3, '+3/+0');
+  });
 };
