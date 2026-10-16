@@ -72705,4 +72705,73 @@ module.exports = (test) => {
     T2.cast('B', T2.hand('B', 'Mind Rot'), { targets: ['A'] });
     t.zone(rw2, 'battlefield', 'cast for its madness cost');
   });
+
+  /* Mox Diamond (Scryfall: "If you don't discard a land card, Mox Diamond never enters"): its discard is settled as the
+     spell resolves, before it would enter — a replacement effect's discard, so Library of Leng applies */
+  test('Cards: Mox Diamond — the land is picked as it resolves, before it enters; declined, it never enters (Reckless Fireweaver sees nothing)', (mk, t) => {
+    t.auto('Mox Diamond');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Reckless Fireweaver');
+    const f = T.hand('A', 'Forest'), sw = T.hand('A', 'Swamp');
+    let at = null;
+    T.answer('pickCard', (ch) => { at = { purpose: ch.purpose, mox: T.g.obj(ch.objId).zone }; return { cardIds: [sw.id] }; });
+    const mox = T.hand('A', 'Mox Diamond');
+    const lb = T.life('B');
+    T.cast('A', mox);
+    t.ok(at && at.purpose === 'moxDiamond', 'asked which land');
+    t.eq(at && at.mox, 'stack', 'asked before it enters');
+    t.zone(mox, 'battlefield');
+    t.zone(sw, 'graveyard', 'the land picked');
+    t.zone(f, 'hand', 'the other kept');
+    t.eq(T.life('B'), lb - 1, 'Reckless Fireweaver: it entered');
+    // declined: into the graveyard, never on the battlefield
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Reckless Fireweaver');
+    T2.hand('A', 'Forest'); T2.hand('A', 'Swamp');
+    T2.answer('pickCard', () => ({ cardIds: [] }));
+    const mox2 = T2.hand('A', 'Mox Diamond');
+    const lb2 = T2.life('B');
+    T2.cast('A', mox2);
+    t.zone(mox2, 'graveyard', 'declined: the graveyard');
+    t.eq(T2.life('B'), lb2, 'Reckless Fireweaver: it never entered');
+    t.eq(T2.zone('A', 'hand').length, 2, 'no land discarded');
+    // no land card: the graveyard, nothing asked
+    const T3 = mk({ library: Array(30).fill('Island') });
+    T3.bf('A', 'Reckless Fireweaver');
+    const mox3 = T3.hand('A', 'Mox Diamond');
+    const lb3 = T3.life('B');
+    T3.cast('A', mox3);
+    t.zone(mox3, 'graveyard');
+    t.eq(T3.life('B'), lb3, 'never entered');
+    t.eq(T3.asked.filter(ch => ch.purpose === 'moxDiamond').length, 0, 'not asked');
+  });
+
+  test('Cards: Mox Diamond — with Library of Leng the land may go on top instead, asked before the Mox enters; one land, still asked where it goes', (mk, t) => {
+    t.auto('Mox Diamond');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Library of Leng');
+    const f = T.hand('A', 'Forest'), sw = T.hand('A', 'Swamp');
+    const mox = T.hand('A', 'Mox Diamond');
+    const order = [];
+    T.answer('pickCard', () => { order.push('pick'); return { cardIds: [f.id] }; });
+    T.answer('confirm', (ch) => { order.push(ch.purpose + ':' + T.g.obj(ch.objId).zone + ':' + mox.zone); return { yes: true }; });
+    T.cast('A', mox);
+    t.eq(order.join(' '), 'pick discardToTop:hand:stack', 'which land, then where it goes, before the Mox enters');
+    t.zone(mox, 'battlefield');
+    t.eq(T.zone('A', 'library')[0], f, 'the Forest on top');
+    t.zone(sw, 'hand');
+    // one land: no pick, but Leng's question; no: into the graveyard
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Library of Leng');
+    const f2 = T2.hand('A', 'Forest');
+    const mox2 = T2.hand('A', 'Mox Diamond');
+    let q = null;
+    T2.answer('confirm', (ch) => { q = { purpose: ch.purpose, mox: mox2.zone }; return { yes: false }; });
+    T2.cast('A', mox2);
+    t.ok(q && q.purpose === 'discardToTop', 'Leng asks');
+    t.eq(q && q.mox, 'stack', 'before the Mox enters');
+    t.zone(mox2, 'battlefield');
+    t.zone(f2, 'graveyard', 'no: the graveyard');
+    t.eq(T2.asked.filter(ch => ch.purpose === 'moxDiamond').length, 0, 'one land: no pick');
+  });
 };

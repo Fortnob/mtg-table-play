@@ -2847,6 +2847,8 @@
         if (!item._cloneAsked && this._askCloneChoice(item, o, a)) return;
         // Xantcha, Sleeper Agent: the opponent it enters under, asked before it arrives (entersUnderOpponent)
         if (!item._enterAsked && this._askEnterUnder(item, o)) return;
+        // Mox Diamond: the land card it is discarded for, and where that goes, before it would enter (moxDiamond)
+        if (!item._moxAsked && this._askMoxDiamond(item, o)) return;
         o.wasCast = this.turn;
         // the Myojin: "if you cast it from your hand"
         o.castFromZone = item.fromZone || null;
@@ -3039,6 +3041,79 @@
         sourceId: o.id, sourceName: o.name, sourceCard: o.card,
         prompt: `${o.name} enters under the control of an opponent of your choice. Choose an opponent.` });
       return true;
+    }
+    /**
+     * Mox Diamond: "If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto
+     * the battlefield. If you don't, put it into its owner's graveyard." — a replacement, so it is settled before the Mox
+     * arrives (it never enters without the discard: no "enters" trigger sees it). Its discard is an effect's, not a
+     * cost (Library of Leng applies; madness too) — asked here as the spell resolves, the spell waiting (_moxWait):
+     * which land, for a person with more than one (a bot takes its cheapest), then where it goes if that is a choice.
+     * What was settled is o._mox, read as it enters (_moxEnter).
+     */
+    _askMoxDiamond(item, o) {
+      if (!this._staticOp(o, 'moxDiamond')) return false;
+      item._moxAsked = true;
+      const p = this.player(item.controller);
+      const lands = this._moxLands(item.controller);
+      o._mox = null;
+      if (!p || !lands.length) return false;
+      if (!p.isBot && lands.length > 1) {
+        this._moxWait = item;
+        this.queueChoice({ type: 'pickCard', playerId: p.id, count: 1, optional: true, purpose: 'moxDiamond', moxWait: true,
+          objId: o.id, candidates: lands.map(c => c.id), cards: lands.map(c => ({ id: c.id, name: c.name, card: c.card })),
+          sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+          prompt: `Discard a land card to put ${o.name} onto the battlefield? If you don't, it goes to the graveyard instead.` });
+        return true;
+      }
+      return this._moxWay(item, o, this._cheapestFirst(lands)[0]);
+    }
+    /** The land cards in a hand Mox Diamond may be discarded for. */
+    _moxLands(pid) { return ((this.zones[pid] || {}).hand || []).filter(c => (c.analysis() || {}).isLand); }
+    /** The land chosen: where it goes when that is its player's choice (Library of Leng), asked while the spell waits. */
+    _moxWay(item, o, land) {
+      const ways = this._discardWays(item.controller, land, 'effect');
+      const opts = this._discardOptions(ways);
+      o._mox = { land: land.id, way: ways.length && opts.length === 1 ? opts[0] : null, ways };
+      if (!ways.length || opts.length === 1) return false;
+      this._moxWait = item;
+      const ch = this._discardQuestion(item.controller, land, ways);
+      this.queueChoice(Object.assign(ch.type === 'confirm' ? ch : MTG.choice.normalize(ch), { moxWait: true }));
+      return true;
+    }
+    /** An answer for the Mox: the land picked (null: none, and it goes to the graveyard), or where that land goes. */
+    _moxAnswered(land, way) {
+      const item = this._moxWait;
+      this._moxWait = null;
+      const o = item && item.obj;
+      if (!item || !o || o.zone !== 'stack') return;
+      if (way) {
+        if (o._mox) o._mox.way = this._discardChosen(o._mox.ways || [], way.ch, way.ans);
+      } else if (!land) o._mox = { land: null, declined: true };
+      else if (this._moxWay(item, o, land)) return;
+      this._resolveSpell(item);
+    }
+    /**
+     * As a Mox Diamond would enter (moveObject): the land discarded — the one settled as it resolved (o._mox), or, put
+     * there some other way, its controller's cheapest — and it enters; none, and it goes to its owner's graveyard instead.
+     * Returns where it goes.
+     */
+    _moxEnter(o, pid) {
+      const plan = o._mox;
+      o._mox = null;
+      const p = this.player(pid);
+      const lands = this._moxLands(pid);
+      let land = plan && plan.land ? lands.find(c => c.id === plan.land) : null;
+      if (!land && !(plan && plan.declined)) land = this._cheapestFirst(lands)[0] || null;
+      if (!land) {
+        this.logEvent('rules', `${o.name}: ${p ? p.name : 'Its controller'} discards no land card, so it goes to its owner's graveyard instead.`);
+        return 'graveyard';
+      }
+      const way = plan && plan.land === land.id ? plan.way : this._discardSettledWay(pid, land, 'effect');
+      this._discardMove(pid, [{ c: land, way }]);
+      this.logEvent('discard', `${p ? p.name : 'Somebody'} discards ${land.name} for ${o.name}.`);
+      this._lastDiscarded = [land.id];
+      this._afterDiscard(pid, land);
+      return 'battlefield';
     }
     /** Who it enters under: the opponent chosen, or — for a bot, or arriving other than cast — the one with the most life. */
     _enterUnderPick(o, would) {
@@ -10065,7 +10140,7 @@
           if (ef.op !== 'etbTappedUnlessLands' && ef.op !== 'etbTappedUnlessType' &&
               ef.op !== 'etbTappedUnlessPay' && ef.op !== 'etbTappedUnlessLife' &&
               ef.op !== 'etbTappedUnlessOpponents' && ef.op !== 'etbTappedUnlessReveal' &&
-              ef.op !== 'etbAsCopy' && ef.op !== 'etbTappedUnlessCond' && ef.op !== 'moxDiamond') continue;
+              ef.op !== 'etbAsCopy' && ef.op !== 'etbTappedUnlessCond') continue;
           // a land told to enter untapped is not asked whether it enters tapped
           if (o._keepUntapped && /^etbTapped/.test(ef.op)) continue;
           this._runEffect(ef, { controller: o.controller, obj: o, name: o.name });
@@ -18717,6 +18792,10 @@
         if (from === 'stack' && toZone === 'graveyard') { toZone = 'library'; opts = Object.assign({}, opts, { toBottom: true }); }
         if (toZone !== 'stack') o._bottomFromStack = false;
       }
+      /* Mox Diamond: "If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto
+         the battlefield. If you don't, put it into its owner's graveyard." — settled here, before it arrives (_moxEnter) */
+      if (toZone === 'battlefield' && from !== 'battlefield' && this._staticOp(o, 'moxDiamond'))
+        toZone = this._moxEnter(o, opts.controller != null ? opts.controller : (o.controller || o.owner));
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null, markCounterN = 1;
       let exiledWith = null;
@@ -33250,24 +33329,6 @@
           if ((e.then || []).length) this._spliceNext(e.then);
           break;
         }
-        /* Mox Diamond: a land card discarded, or the Mox goes to the graveyard */
-        case 'moxDiamond': {
-          if (!src || src.zone !== 'battlefield') break;
-          const lands = this.zones[ctx.controller].hand.filter(c => (c.analysis() || {}).isLand);
-          if (!lands.length) { this.moveObject(src, 'graveyard'); this.logEvent('rules', `${src.name} has no land to discard and goes to the graveyard.`); break; }
-          if (me.isBot || lands.length === 1) {
-            const c = this._cheapestFirst(lands)[0];
-            if (this._discardThese(ctx.controller, [c], 'mox') === SUSPEND) return SUSPEND;
-            this._afterDiscard(ctx.controller, c);
-            this.logEvent('discard', `${me.name} discards ${c.name} for ${src.name}.`);
-            break;
-          }
-          this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true, purpose: 'moxDiamond',
-            objId: src.id, candidates: lands.map(c => c.id), cards: lands.map(c => ({ id: c.id, name: c.name, card: c.card })),
-            prompt: `Discard a land card to keep ${src.name}? If you don't, it goes to the graveyard.` });
-          break;
-        }
-
         /* "This land enters tapped unless you control a legendary creature" */
         case 'etbTappedUnlessCond': {
           if (!src) break;
@@ -41030,7 +41091,7 @@
       const id = w && w.stackId;
       if (!id) return false;
       const r = this.resolving;
-      return !!((r && r.ctx && r.ctx.id === id) || this.__resItem === id || (this._cloneWait && this._cloneWait.id === id) || (this._enterWait && this._enterWait.id === id));
+      return !!((r && r.ctx && r.ctx.id === id) || this.__resItem === id || (this._cloneWait && this._cloneWait.id === id) || (this._enterWait && this._enterWait.id === id) || (this._moxWait && this._moxWait.id === id));
     }
     /** Control `pid` while the stack item `stackId` resolves (from now, if it is the one resolving). */
     _controlWhileResolving(byId, pid, src, stackId) {
@@ -41325,6 +41386,13 @@
           }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           // a card being discarded with more than one way to go instead of the graveyard, for a discard answered (_discardWait)
+          if (ch.purpose === 'discardInstead' && ch.moxWait) {
+            this.pendingChoice = null;
+            this._moxAnswered(this.obj(ch.objId), { ch, ans: { picks: got.picks } });
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'discardInstead' && ch.discardWait) {
             this.pendingChoice = null;
             this._discardWaitAnswer(ch, { picks: got.picks });
@@ -41427,10 +41495,14 @@
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
           }
+          // Mox Diamond: the land card it would be discarded for, picked as the spell resolves (_moxWait)
           if (ch.purpose === 'moxDiamond') {
-            const mox = this.obj(ch.objId);
-            const ok = ids.some(id => (ch.candidates || []).includes(id) && (this.obj(id) || {}).zone === 'hand');
-            if (!ok && mox && mox.zone === 'battlefield') { this.moveObject(mox, 'graveyard'); this.logEvent('rules', `${mox.name} goes to the graveyard.`); }
+            const land = this.obj(ids.find(id => (ch.candidates || []).includes(id) && (this.obj(id) || {}).zone === 'hand'));
+            this.pendingChoice = null;
+            this._moxAnswered(land || null, null);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
           }
           /* A card cost is paid in full, from the cards it allows. */
           /* A clone was waiting to hear what it copies: it resolves now. */
@@ -41519,13 +41591,6 @@
               if (ch.setX) { const st = this.stack.find(x => x.id === ch.stackId); if (st) { st.x = (o.card && o.card.cmc) || 0; if (st.obj) st.obj.chosenX = st.x; } }
               continue;
             }
-            if (ch.purpose === 'moxDiamond') {
-              if (o.zone === 'hand' && (ch.candidates || []).includes(o.id)) {
-                this.moveObject(o, 'graveyard'); this._afterDiscard(playerId, o);
-                ch._kept = true;
-              }
-              continue;
-            }
             if (ch.purpose === 'returnCost') {
               const sp = ch.sourceId && this.obj(ch.sourceId);
               if (sp) sp._returnedMv = (o.card && o.card.cmc) || 0;
@@ -41589,6 +41654,13 @@
           }
           /* Library of Leng: where a card being discarded goes — for a discard answered, waiting on it (_discardWait); for
              an effect that discards, the effect has the answer (_discardThese) */
+          if (ch.purpose === 'discardToTop' && ch.moxWait) {
+            this.pendingChoice = null;
+            this._moxAnswered(this.obj(ch.objId), { ch, ans: !!(data && data.yes) });
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'discardToTop') {
             if (!ch.discardWait) break;
             this.pendingChoice = null;
