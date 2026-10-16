@@ -74835,4 +74835,139 @@ module.exports = (test) => {
     U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: ['A'] });
     t.eq(U.life('B'), 17, 'damage to A: B loses 3');
   });
+  test('Cards: Communal Brewing — opponents chosen each draw; an ingredient counter plus one for each card drawn; creature spells enter with that many +1/+1 counters', (mk, t) => {
+    t.auto('Communal Brewing');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }, { kind: 'player', id: 'C' }] });
+    const hb = T.zone('B', 'hand').length, hc = T.zone('C', 'hand').length;
+    const cb = T.bf('A', 'Communal Brewing', { etb: true }); T.resolve();
+    t.eq(T.zone('B', 'hand').length, hb + 1, 'B draws'); t.eq(T.zone('C', 'hand').length, hc + 1, 'C draws');
+    t.eq(cb.counters.ingredient, 3, 'one, then one for each of the two cards drawn');
+    T.mana('A', 'G1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    t.eq(bear.counters['+1/+1'], 3, 'the Bears enter with three +1/+1 counters');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(cb.counters.ingredient, 3, 'not a creature spell: nothing');
+    // no opponent chosen: just the one counter
+    const U = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    U.answer('pickTarget', { targets: [] });
+    const cb2 = U.bf('A', 'Communal Brewing', { etb: true }); U.resolve();
+    t.eq(cb2.counters.ingredient, 1, 'nobody drew: one counter');
+  });
+
+  test('Cards: Rise and Shine — the artifact becomes a 0/0 creature with four +1/+1 counters; overloaded, each noncreature artifact you control', (mk, t) => {
+    t.auto('Rise and Shine');
+    const T = mk();
+    const ring = T.bf('A', 'Sol Ring'), sig = T.bf('A', 'Mind Stone');
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Rise and Shine'), { targets: [ring] });
+    t.ok((ring.analysis() || {}).isCreature, 'a creature now');
+    t.eq(T.g.powerOf(ring) + '/' + T.g.toughnessOf(ring), '4/4', 'a 0/0 with four counters');
+    t.no((sig.analysis() || {}).isCreature, 'the other artifact untouched');
+    const U = mk();
+    const r2 = U.bf('A', 'Sol Ring'), m2 = U.bf('A', 'Mind Stone'), orn = U.bf('A', 'Ornithopter'), theirs = U.bf('B', 'Sol Ring');
+    U.mana('A', 'UU4');
+    U.cast('A', U.hand('A', 'Rise and Shine'), { via: 'overload' });
+    t.eq(U.g.powerOf(r2) + '/' + U.g.powerOf(m2), '4/4', 'overloaded: both artifacts 4/4');
+    t.no(orn.counters['+1/+1'], 'Ornithopter was a creature already: no counters');
+    t.no((theirs.analysis() || {}).isCreature, "not B's");
+  });
+
+  test('Cards: The Masamune — attacking, first strike and must be blocked; a creature dying triggers its own abilities twice', (mk, t) => {
+    t.auto('The Masamune');
+    const T = mk();
+    const ms = T.bf('A', 'The Masamune');
+    const zc = T.bf('A', 'Zulaport Cutthroat');
+    ms.attachedTo = zc.id; zc.attachments = [ms.id]; T.g.bumpBoard();
+    t.no(T.g.hasKw(zc, 'first strike'), 'not attacking: no first strike');
+    t.no(T.g._mustBeBlocked(zc), 'nor must it be blocked');
+    T.answer('declareAttackers', () => [{ attackerId: zc.id, defenderId: 'B' }]);
+    let blk = null;
+    T.bf('B', 'Grizzly Bears');
+    T.answer('declareBlockers', (ch) => { blk = ch; return []; });
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    t.ok(T.g.hasKw(zc, 'first strike'), 'attacking: first strike');
+    t.ok(T.g._mustBeBlocked(zc), 'and must be blocked if able');
+    // a creature of A's dies: Zulaport's trigger twice
+    const U = mk();
+    const m2 = U.bf('A', 'The Masamune'), z2 = U.bf('A', 'Zulaport Cutthroat');
+    m2.attachedTo = z2.id; z2.attachments = [m2.id]; U.g.bumpBoard();
+    const bear = U.bf('A', 'Grizzly Bears');
+    U.mana('A', 'R');
+    U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: [bear] });
+    t.eq(U.life('B'), 18, 'B loses 2: the trigger twice');
+    t.eq(U.life('A'), 22, 'A gains 2');
+    // unequipped: once
+    const V = mk();
+    V.bf('A', 'The Masamune'); V.bf('A', 'Zulaport Cutthroat');
+    const b3 = V.bf('A', 'Grizzly Bears');
+    V.mana('A', 'R');
+    V.cast('A', V.hand('A', 'Lightning Bolt'), { targets: [b3] });
+    t.eq(V.life('B'), 19, 'not equipped: once');
+    void blk;
+  });
+
+  test('Cards: Transmute Artifact — sacrifice an artifact; the artifact found enters free up to its mana value, else for the difference or to the graveyard', (mk, t) => {
+    t.auto('Transmute Artifact');
+    const run = (pick, payIt, pool) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.bf('A', 'Sol Ring');
+      const lib = { orn: T.top('A', 'Ornithopter'), jug: T.top('A', 'Juggernaut') };
+      T.answer('pickCard', (ch) => ({ cardIds: [lib[pick].id] }));
+      let asked = null;
+      T.answer('confirm', (ch) => { asked = ch; return { yes: payIt }; });
+      T.mana('A', 'UU' + (pool || ''));
+      T.cast('A', T.hand('A', 'Transmute Artifact'));
+      return { T, lib, asked };
+    };
+    const a = run('orn', true);
+    t.zone(a.lib.orn, 'battlefield', 'mana value 0 against Sol Ring\'s 1: free');
+    t.eq(a.T.zone('A', 'graveyard').filter(c => c.name === 'Sol Ring').length, 1, 'Sol Ring sacrificed');
+    t.no(a.asked, 'nothing to pay');
+    const b = run('jug', true, '3');
+    t.ok(b.asked && b.asked.payMana === '{3}', 'asked to pay {3}, the difference');
+    t.zone(b.lib.jug, 'battlefield', 'paid: onto the battlefield');
+    const c = run('jug', false, '3');
+    t.zone(c.lib.jug, 'graveyard', "not paid: into its owner's graveyard");
+    const d = run('jug', true);
+    t.zone(d.lib.jug, 'graveyard', 'no mana to pay: graveyard, not asked');
+    t.no(d.asked, 'not asked');
+    // no artifact to sacrifice: no search
+    const U = mk({ library: Array(10).fill('Island') });
+    const j2 = U.top('A', 'Juggernaut');
+    U.mana('A', 'UU');
+    U.cast('A', U.hand('A', 'Transmute Artifact'));
+    t.zone(j2, 'library', 'nothing sacrificed: no search');
+  });
+
+  test('Cards: Haunting Voyage — up to two creature cards of the chosen type back; foretold, all of them', (mk, t) => {
+    t.auto('Haunting Voyage');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const gs = ['Raging Goblin', 'Goblin Guide', 'Mogg Fanatic'].map(nm => T.grave('A', nm));
+    const bear = T.grave('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => o.label === 'Goblin')] }; });
+    T.answer('pickCard', (ch) => ({ cardIds: [gs[0].id, gs[1].id] }));
+    T.mana('A', 'BB4');
+    T.cast('A', T.hand('A', 'Haunting Voyage'));
+    t.ok(q && q.purpose === 'creatureType', 'a creature type chosen');
+    t.zone(gs[0], 'battlefield'); t.zone(gs[1], 'battlefield');
+    t.zone(gs[2], 'graveyard', 'only two');
+    t.zone(bear, 'graveyard', 'not a Goblin');
+    // foretold: every Goblin
+    const U = mk({ library: Array(20).fill('Swamp') });
+    const hv = U.hand('A', 'Haunting Voyage');
+    U.mana('A', '2');
+    t.ok(U.g.foretellCard('A', hv.id, { auto: true }), 'foretold');
+    U.nextTurn('A');
+    const g2 = ['Raging Goblin', 'Goblin Guide', 'Mogg Fanatic'].map(nm => U.grave('A', nm));
+    const b2 = U.grave('A', 'Grizzly Bears');
+    U.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.label === 'Goblin')] }));
+    U.mana('A', 'BB5');
+    U.cast('A', hv, { via: 'foretell' });
+    t.ok(g2.every(c => c.zone === 'battlefield'), 'all three Goblins');
+    t.zone(b2, 'graveyard');
+  });
 };

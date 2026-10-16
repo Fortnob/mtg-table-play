@@ -23252,7 +23252,8 @@
           // Finally! Left-Handed Magic Cards: "draw a card from the bottom of your library" — a draw, from there (_drawBottom)
           else if (e.fromBottom) { this._drawBottom = me.id; try { this._drawCards(me, cnt); } finally { this._drawBottom = null; } }
           else this._drawCards(me, cnt);
-          this._drawnThisWay = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0) - drewBefore;
+          const drewNow = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0) - drewBefore;
+          this._drawnThisWay = e._accumDraw ? (this._drawnThisWay || 0) + drewNow : drewNow;
           break;
         }
         case 'discard': {
@@ -23886,7 +23887,9 @@
           // Rise of the Witch-king: "another permanent card" — not the one sacrificed this way (sacrificedThisWay)
           const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s => s.id) : [];
           const pool = yard.filter(c => c !== src && !sacIds.includes(c.id) && this._cardFitsWords(c, e.filter || 'card') &&
-            (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
+            (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)) &&
+            // (Haunting Voyage: "creature cards of that type" — the one chosen just before: chosenType)
+            (!e.chosenType || !!(src && src.chosenType && this._hasCreatureType(c, src.chosenType))));
           const want = Math.min(nVar(e.n), pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
@@ -26900,6 +26903,22 @@
             if (yes === SUSPEND) return SUSPEND;
             if (yes) for (const c of taken) toField.add('field:' + c.id);
           }
+          /* Transmute Artifact: "If that card's mana value is less than or equal to the sacrificed artifact's mana value, put
+             it onto the battlefield. If it's greater, you may pay {X}, where X is the difference. If you don't, put it into
+             its owner's graveyard." (mvOrPay, freeMv) */
+          if (dest === 'mvOrPay' && taken.length) {
+            const free = Math.max(0, Number(n(e.freeMv)) || 0);
+            for (const c of taken) {
+              const diff = ((c.card && c.card.cmc) || 0) - free;
+              if (diff <= 0) { toField.add('field:' + c.id); continue; }
+              const cost = '{' + diff + '}';
+              if (!this.canPayNow(seeker.id, cost)) { this.logEvent('rules', `${seeker.name} cannot pay ${cost} for ${c.name}.`); continue; }
+              const yes = this._ask({ type: 'confirm', playerId: seeker.id, purpose: 'tutorPayDiff', payMana: cost,
+                prompt: `Pay ${cost} to put ${c.name} onto the battlefield? If you don't, it goes to its owner's graveyard.` }, 'mvp:' + c.id);
+              if (yes === SUSPEND) return SUSPEND;
+              if (yes && this.payMana(seeker.id, cost, { auto: true })) toField.add('field:' + c.id);
+            }
+          }
           if (dest === 'split' && taken.length) {
             const k = Math.min((e.split && e.split.battlefield) || 1, taken.length);
             if (taken.length > k) {
@@ -26934,6 +26953,7 @@
               : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand')
               : dest === 'mayField' ? (toField.has('field:' + c.id) ? 'battlefield' : 'hand')
+              : dest === 'mvOrPay' ? (toField.has('field:' + c.id) ? 'battlefield' : 'graveyard')
               // Nazahn, Revered Bladesmith: "If you reveal a card named Hammer of Nazahn …, put it onto the battlefield. Otherwise, … into your hand" (namedField)
               : dest === 'namedField' ? (c.name === e.fieldNamed ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
@@ -29119,11 +29139,13 @@
         }
         case 'forEachTargetPlayer': {
           const list = [];
+          // (Communal Brewing: "each draw a card. … for each card drawn this way" — all of their draws added up: _accumDraw)
+          this._drawnThisWay = 0;
           for (const t of targets) {
             const p = t.kind === 'player' && this.player(t.id);
             if (!p || p.hasLost) continue;
             // (Court of Cunning: "If you're the monarch, each of those players mills ten cards instead" — "you" is this ability's controller: settled now)
-            for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }, f.n && typeof f.n === 'object' && f.n.ifCond ? { n: n(f.n) } : {}));
+            for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }, f.n && typeof f.n === 'object' && f.n.ifCond ? { n: n(f.n) } : {}, f.op === 'draw' ? { _accumDraw: true } : {}));
           }
           if (list.length) this._spliceNext(list);
           break;
@@ -40160,6 +40182,8 @@
           continue;
         }
         if (src.controller !== o.controller) continue;
+        // (The Masamune: "a triggered ability of this creature or an emblem you own" — selfOrEmblem)
+        if (e.selfOrEmblem && !(o === src || (o.card && o.card.layout === 'emblem' && o.owner === src.controller))) continue;
         // (Bifur, Melodic Rider: "As long as you have an enduring story" — needStory)
         if (e.needStory && !(this.player(src.controller) || {}).enduringStory) continue;
         if (e.cause === 'enterOrLeave') { if (gandalf) extra++; }
@@ -40356,6 +40380,8 @@
       // (Neyith of the Dire Hunt: "must be blocked this combat if able" — this one only, mustBeBlockedCombat)
       if ((at.effects || []).some(x => x && x.flag === 'mustBeBlockedCombat' && x.combatNo === this.combatsThisTurn)) return true;
       if (this._hasFlag(at, 'mustBeBlockedTurn')) return true;
+      // (The Masamune: "as long as equipped creature is attacking, it … must be blocked if able" — handed to it: mustBeBlocked)
+      if (this._hasFlag(at, 'mustBeBlocked')) return true;
       // (Frodo Baggins: "as long as Frodo Baggins is your Ring-bearer" — ringBearerOnly)
       const st = this._staticOp(at, 'mustBeBlocked');
       // (Enkira, Hostile Scavenger: "as long as Enkira is equipped" — equippedOnly)

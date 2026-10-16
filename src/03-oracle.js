@@ -8826,6 +8826,14 @@
     // Runadi, Behemoth Caller: "that creature enters with X additional +1/+1 counters on it, where X is its mana value minus 4"
     { re: /^That creature enters with X additional \+1\/\+1 counters on it, where X is its mana value minus (\d+)\.?$/i,
       make: (m) => ({ op: 'spellEntersCounters', n: { triggerSpellMv: true, minus: +m[1] } }) },
+    // Communal Brewing: "… where X is the number of ingredient counters on this enchantment" — counted as it resolves
+    { re: /^That creature enters with X additional \+1\/\+1 counters on it, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k == null ? null : { op: 'spellEntersCounters', n: k }; } },
+    /* Communal Brewing: "Put an ingredient counter on this enchantment, then put an ingredient counter on it for each
+       card drawn this way." — the cards the opponents just drew (drawnThisWay) */
+    { re: /^Put an? ([a-z]+) counter on (?:this enchantment|this artifact|this creature|CARDNAME), then put an? \1 counter on it for each card drawn this way\.?$/i,
+      make: (m) => [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'self' },
+        { op: 'counters', kind: m[1].toLowerCase(), n: { drawnThisWay: true, mult: 1 }, scope: 'self' }] },
     // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
     { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
       make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
@@ -9166,6 +9174,10 @@
     { re: /^Until end of turn, CARDNAME becomes an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )*[A-Z][a-z]+) creature(?: with ([a-z]+(?:(?:, | and )[a-z]+)*))? that'?s still a planeswalker\.?$/,
       make: (m) => ({ op: 'animate', pt: m[1] + '/' + m[2], colorWords: [], subtypes: m[3], addTypes: [],
         keywords: m[4] ? m[4].split(/, | and /).map(x => U.titleCase(x.trim())) : [], duration: 'eot' }) },
+    /* Rise and Shine: "… becomes a 0/0 artifact creature. Put four +1/+1 counters on each artifact that became a creature
+       this way." — whatever the sentence before changed (lastGroup) */
+    { re: /^Put (a|an|one|two|three|four|five|\d+) (\+1\/\+1|[a-z]+) counters? on each (?:artifact|land|permanent|noncreature permanent) that became a creature this way\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), scope: 'lastGroup' }) },
     /* Spectacular Showdown: "Put a double strike counter on target creature, then goad each creature that had a double
        strike counter put on it this way." (overloaded: "each creature") — only those the counter went on (putGroup, lastGroup) */
     { re: /^Put an? ([a-z ]+?) counter on (target creature|each creature), then goad each creature that had an? \1 counter put on it this way\.?$/i,
@@ -11827,6 +11839,21 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Transmute Artifact: "Sacrifice an artifact. If you do, search your library for an artifact card. If that card's mana
+       value is less than or equal to the sacrificed artifact's mana value, put it onto the battlefield. If it's greater, you
+       may pay {X}, where X is the difference. If you do, put it onto the battlefield. If you don't, put it into its owner's
+       graveyard. Then shuffle." (mvOrPay) */
+    { re: /^Sacrifice an? (artifact|creature|enchantment)\. If you do, search your library for an? \1 card\. If that card'?s mana value is less than or equal to the sacrificed \1'?s mana value, put it onto the battlefield\. If it'?s greater, you may pay \{X\}, where X is the difference\. If you do, put it onto the battlefield\. If you don'?t, put it into its owner'?s graveyard\. Then shuffle\.?$/i,
+      make: (m) => [{ op: 'sacrificeChoice', n: 1, who: 'you', filter: m[1].toLowerCase(), other: false },
+        { op: 'ifCond', cond: { kind: 'youSacrificedThisWay', what: U.titleCase(m[1]) }, then: [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'mvOrPay',
+          freeMv: { ofSacrificed: 'mv' }, prompt: 'Search your library for ' + (/^a/i.test(m[1]) ? 'an ' : 'a ') + m[1].toLowerCase() + ' card.' }] }] },
+    /* Haunting Voyage: "Choose a creature type. Return up to two creature cards of that type from your graveyard to the
+       battlefield. If this spell was foretold, return all creature cards of that type from your graveyard to the
+       battlefield instead." (chosenType) */
+    { re: /^Choose a creature type\. Return up to (one|two|three) creature cards of that type from your graveyard to the battlefield\. If this spell was foretold, return all creature cards of that type from your graveyard to the battlefield instead\.?$/i,
+      make: (m) => [{ op: 'chooseTypeNow' }, { op: 'ifCond', cond: { kind: 'castForetold' },
+        then: [{ op: 'graveyardPick', n: 999, filter: 'creature', chosenType: true, to: 'battlefield' }],
+        otherwise: [{ op: 'graveyardPick', n: num(m[1]), upTo: true, filter: 'creature', chosenType: true, to: 'battlefield' }] }] },
     /* General Jarkeld: "Choose two target blocked attacking creatures. If each of those creatures could be blocked by all
        creatures that the other is blocked by, each creature that's blocking exactly one of those attacking creatures stops
        blocking it and is blocking the other attacking creature." (swapBlockers) */
@@ -24545,6 +24572,15 @@
           const kws = keywordList(m[5]);
           return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws, cond } : null;
         }, auto: true },
+      // The Masamune: "As long as equipped creature is attacking, it has first strike and must be blocked if able."
+      { re: /^As long as (equipped|enchanted) creature is attacking, it has ([a-z ,]+?) and must be blocked if able\.?$/i,
+        make: (m) => {
+          const kws = keywordList(m[2]);
+          const cond = { kind: 'attachedIs', attacking: true };
+          return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [
+            { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws, cond },
+            { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'mustBeBlocked', cond: Object.assign({}, cond) }] } : null;
+        }, auto: true },
         // True-Faith Censer: "As long as equipped creature is a Human, it gets an additional +1/+0."
       { re: /^As long as (equipped|enchanted) creature is an? ([A-Z][a-z]+), it gets an additional ([+-]\d+)\/([+-]\d+)\.?$/,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[3], t: +m[4] },
@@ -25765,6 +25801,10 @@
       // Isshin, Two Heavens as One; Wulfgar of Icewind Dale: "If a creature you control attacking causes …" (yours)
       { re: /^If a creature( you control)? attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         make: (m) => Object.assign({ op: 'triggerDouble', cause: 'attack' }, m[1] ? { yours: true } : {}), auto: true },
+      /* The Masamune: 'Equipped creature has "If a creature dying causes a triggered ability of this creature or an emblem
+         you own to trigger, that ability triggers an additional time."' (selfOrEmblem) */
+      { re: /^If a creature dying causes a triggered ability of (?:this creature|CARDNAME) or an emblem you own to trigger, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'die', what: 'creature', selfOrEmblem: true }, auto: true },
       // Krang, the All-Powerful: "If a player drawing a card causes a triggered ability of a permanent you control to trigger, …" (draw)
       { re: /^If a player drawing a card causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'draw' }, auto: true },
