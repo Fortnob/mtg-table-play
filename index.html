@@ -17508,6 +17508,9 @@ MTG.setGameSpeed = function (id) {
     // Scavenger's Talent: "return a creature card from your graveyard to the battlefield with a finality counter on it"
     { re: /^(?:Then )?[Rr]eturn an? ([a-z]+) card from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/,
       make: (m) => ({ op: 'graveyardPick', n: 1, upTo: false, filter: m[1].toLowerCase(), to: 'battlefield', counter: m[2].toLowerCase() }) },
+    // Black Sun's Twilight: "return a creature card with mana value X or less from your graveyard to the battlefield tapped" — picked as it resolves
+    { re: /^(?:Then )?[Rr]eturn an? ([a-z]+) card with mana value (X|\d+) or less from your graveyard to the battlefield( tapped)?\.?$/,
+      make: (m) => Object.assign({ op: 'graveyardPick', n: 1, upTo: false, filter: m[1].toLowerCase(), to: 'battlefield', maxMv: m[2] === 'X' ? 'X' : +m[2] }, m[3] ? { tapped: true } : {}) },
     // Sanctum of Eternity: "Return target commander you own from the battlefield to your hand."
     { re: /^Return target commander you own from the battlefield to your hand\.?$/i,
       make: () => ({ op: 'bounce', targets: [{ type: 'permanent', zone: 'battlefield', filter: 'permanent', commander: true, owner: 'you' }] }) },
@@ -18001,6 +18004,12 @@ MTG.setGameSpeed = function (id) {
        changeling is (CR 702.73a), for the turn */
     { re: /^(Target creature(?: you control)?) gains all creature types until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'grantKeyword', keywords: ['Changeling'], duration: 'eot', targets: [t] } : null; } },
+    /* Amoeboid Changeling: "Target creature loses all creature types until end of turn." — layer 4, its changeling too
+       (loseCreatureTypes); Nameless Inversion: "gets +3/-3 and loses all creature types until end of turn" */
+    { re: /^(Target creature(?: you control| an opponent controls)?) (?:gets ([+-]\d+)\/([+-]\d+) and )?loses all creature types until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); if (!t) return null;
+        const lose = { op: 'becomes', duration: 'eot', eff: { loseCreatureTypes: true }, targets: [t] };
+        return m[2] ? [{ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', targets: [t] }, Object.assign(lose, { targets: null, scope: 'lastTarget' })] : lose; } },
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|The creature that attacked|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
@@ -20081,6 +20090,13 @@ MTG.setGameSpeed = function (id) {
        — "it" the spell the cast trigger is about (exileTriggerSpell) */
     { re: /^Exile it, then exile cards from the top of your library until you exile a nonland card\.?$/i,
       make: () => [{ op: 'exileTriggerSpell' }, { op: 'exileTop', who: 'you', untilNonland: true }] },
+    /* Possibility Storm: "that player exiles it, then exiles cards from the top of their library until they exile a card
+       that shares a card type with it" — the spell's types as it was on the stack (untilSharesSpellType) */
+    { re: /^that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with it\.?$/i,
+      make: () => [{ op: 'exileTriggerSpell' }, { op: 'exileTop', who: 'triggerPlayer', untilSharesSpellType: true }] },
+    // Possibility Storm: "Then they put all cards exiled with this enchantment on the bottom of their library in a random order." — the spell too
+    { re: /^Then they put all cards exiled with (?:this enchantment|CARDNAME) on the bottom of their library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true }) },
     // Lady Loki: "deals damage to each opponent equal to the difference between that spell's mana value and that nonland card's mana value"
     { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to the difference between that spell'?s mana value and that nonland card'?s mana value\.?$/i,
       make: () => ({ op: 'damage', n: { spellMvDiffHit: true }, each: 'opponent' }) },
@@ -22008,6 +22024,8 @@ MTG.setGameSpeed = function (id) {
     /* Wanda's Vision, Gríma, Saruman's Footman: "You may cast that card without paying its mana cost." — the
        card just exiled, cast as this resolves or not at all (CR 608.2g), not later in the turn (thatCard) */
     { re: /^(?:You may )?[Cc]ast that card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
+    // Possibility Storm: "That player may cast that card without paying its mana cost." — the player the trigger is about (by triggerPlayer)
+    { re: /^That player may cast that card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1, by: 'triggerPlayer' }) },
     // The Infamous Cruelclaw: "You may cast that card by discarding a card rather than paying its mana cost." (discardCost)
     { re: /^You may cast that card by discarding a card rather than paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1, discardCost: true }) },
     { re: /^Until the end of your next turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse' }) },
@@ -27557,6 +27575,11 @@ MTG.setGameSpeed = function (id) {
         if (/hand/i.test(m[4] || '')) return [{ op: 'regrowth', targets: [spec] }].concat(ring);
         return [Object.assign({ op: 'reanimate', targets: [spec] }, m[5] ? { tapped: true } : {}, /your graveyard/i.test(m[3]) ? {} : { mine: true })].concat(ring);
       } },
+    /* Brought Back: "Choose up to two target permanent cards in your graveyard that were put there from the battlefield
+       this turn. Return them to the battlefield tapped." */
+    { re: /^Choose up to (two|three) target (creature|permanent) cards in your graveyard that were put there from the battlefield this turn\. Return them to the battlefield( tapped)?\.?$/i,
+      make: (m) => [Object.assign({ op: 'reanimate', targets: Array.from({ length: num(m[1]) }, () => ({ type: m[2].toLowerCase(), filter: m[2].toLowerCase(),
+        zone: 'graveyard', fromBfThisTurn: true, controller: 'you', upTo: true, distinct: true })) }, m[3] ? { tapped: true } : {})] },
     /* Captain N'ghathrod: "choose target artifact or creature card in an opponent's graveyard that was
        put there from their library this turn. Put it onto the battlefield under your control." (fromLibThisTurn) */
     { re: /^Choose target ([a-z ]+?) card in an opponent'?s graveyard that was put there from their library this turn\. Put it onto the battlefield under your control\.?$/i,
@@ -28600,6 +28623,10 @@ MTG.setGameSpeed = function (id) {
         if ((pre.keywords || []).some(k => !kwKnown(k))) return null;
         return [{ op: 'fightPair', pre, targets: [targetSpec('target creature you control'), targetSpec("target creature you don't control")] }];
       } },
+    /* Ancient Animus: "Put a +1/+1 counter on target creature you control if it's legendary. Then it fights target
+       creature an opponent controls." — the counter, then the fight (fightPair) */
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on target creature you control if (it'?s [a-z]+)\. Then it fights (target creature (?:an opponent controls|you don'?t control))\.$/i,
+      make: (m) => { const cond = condOf(m[2]); return cond ? [{ op: 'fightPair', pre: { cond, counter: m[1].toLowerCase() }, targets: [targetSpec('target creature you control'), targetSpec(m[3])] }] : null; } },
     /* Delay: "Counter target spell. If the spell is countered this way, exile it with three time counters on it
        instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." */
     { re: /^Counter target spell\. If the spell is countered this way, exile it with (two|three|four|five) time counters on it instead of putting it into its owner'?s graveyard\. If it doesn'?t have suspend, it gains suspend\.$/i,
@@ -29691,6 +29718,11 @@ MTG.setGameSpeed = function (id) {
        beginning of that player's next declare attackers step." — the attacker (warpReturn, without Noctis's "can't be blocked") */
     { re: /^Exile it\. Return it to the battlefield under its owner'?s control tapped and attacking at the beginning of that player'?s next declare attackers step\.?$/i,
       make: () => [{ op: 'exile', scope: 'triggerObject' }, { op: 'warpReturn', plain: true }] },
+    /* Star Athlete: "choose up to one target nonland permanent. Its controller may sacrifice it. If they don't, this
+       creature deals 5 damage to that player." — the permanent's controller picks (unlessPays sacTarget) */
+    { re: /^[Cc]hoose (up to one )?target ([a-z ]+?)\. Its controller may sacrifice it\. If they don'?t, (?:CARDNAME|this creature) deals (\d+) damage to that player\.?$/,
+      make: (m) => { const t = targetSpec(m[2]); return t && !t.unknown ? [{ op: 'unlessPays', who: 'targetController', cost: { sacTarget: true },
+        targets: [Object.assign(t, m[1] ? { upTo: true } : {})], then: [{ op: 'damage', n: +m[3], toAffectedController: true, text: 'CARDNAME deals ' + m[3] + ' damage to you.' }] }] : null; } },
     /* The Doctor's Childhood Barn: "for each opponent, choose up to one target nonland permanent that opponent controls. Untap
        those permanents. They phase out. They can't phase in for as long as CARDNAME remains face up. When a player
        planeswalks, those permanents phase in." */
@@ -33557,6 +33589,8 @@ MTG.setGameSpeed = function (id) {
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
     // River Kelpie: "Whenever a player casts a spell from a graveyard" — anyone's, from any graveyard
     { re: /^Whenever a player casts a spell from a graveyard,? /i, event: 'anyCastSpell', extra: { fromGraveyardOnly: true } },
+    // Possibility Storm: "Whenever a player casts a spell from their hand" (fromHandOnly)
+    { re: /^Whenever a player casts a spell from their hand,? /i, event: 'anyCastSpell', extra: { fromHandOnly: true } },
     // Melek, Izzet Paragon: "Whenever you cast an instant or sorcery spell from your library" (castFromLibraryOnly)
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your library,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ castFromLibraryOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
@@ -46291,7 +46325,7 @@ MTG.setGameSpeed = function (id) {
       this._lastPut = null; this._lastSearched = null; this._putThisWay = null; this._revealedHand = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null; this._drawnThisWay = 0;
       this._exchangeGot = null;
-      this._exileUntil = null; this._exiledChosen = null;
+      this._exileUntil = null; this._exiledChosen = null; this._exiledSpell = null;
       this._chosenCard = null; this._attachedAnyTo = null;
       this.passedInSuccession.clear();
       this.emit('sfx', 'resolve');
@@ -59822,7 +59856,7 @@ MTG.setGameSpeed = function (id) {
        and the whole battlefield is worked out layer by layer. */
     _changesWhatItIs(e) {
       return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes || e.addSupertypes ||
-        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith || e.removeTypes));
+        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith || e.removeTypes || e.loseCreatureTypes));
     }
     /** Duplicant: the last creature card exiled with this permanent, still in exile — or null. */
     _lastExiledCreatureWith(src) {
@@ -60220,7 +60254,7 @@ MTG.setGameSpeed = function (id) {
       const parts = [];
       const split = (ef, base) => {
         if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType || ef.addSupertypes ||
-          ef.creatureTypesFromExiledWith || ef.removeTypes) parts.push(Object.assign({ layer: 4 }, base));
+          ef.creatureTypesFromExiledWith || ef.removeTypes || ef.loseCreatureTypes) parts.push(Object.assign({ layer: 4 }, base));
         if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
         if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
       };
@@ -60291,6 +60325,10 @@ MTG.setGameSpeed = function (id) {
           // On Serra's Wings: "is legendary"
           if (e.addSupertypes) for (const t of e.addSupertypes) if (!s.supertypes.includes(t)) s.supertypes.push(t);
           if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
+          /* Amoeboid Changeling: "Target creature loses all creature types" — changeling's every type with them, it being
+             a characteristic-defining ability applied first in this layer (CR 613.3); "all creature types" given after
+             counts again (noCtTs, read by characteristics) */
+          if (e.loseCreatureTypes) { s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)); s.noCtTs = Math.max(s.noCtTs == null ? -Infinity : s.noCtTs, p.ts); }
           /* Duplicant: "the creature types of the last creature card exiled with it. It's still a Shapeshifter." — while
              there is one (creatureTypesFromExiledWith) */
           if (e.creatureTypesFromExiledWith && p.src) {
@@ -60400,6 +60438,11 @@ MTG.setGameSpeed = function (id) {
       out.isVehicle = out.subtypes.includes('Vehicle');
       out.isSaga = out.subtypes.includes('Saga');
       out.typeLine = out.supertypes.concat(out.types).join(' ') + (out.subtypes.length ? ' — ' + out.subtypes.join(' ') : '');
+      // (Amoeboid Changeling: no creature types — its changeling no longer makes it every type: noCreatureTypesTs)
+      if (s.noCtTs != null) {
+        out.noCreatureTypesTs = s.noCtTs;
+        if (out.keywordSet && out.keywordSet.has('changeling')) { out.keywordSet = new Set(out.keywordSet); out.keywordSet.delete('changeling'); out.has = (kw) => out.keywordSet.has(String(kw).toLowerCase()); }
+      }
       if (s.lost || s.rulesLost) {
         /* Everything it printed is gone. What was handed to it after the
            effect that took its abilities is still there (CR 613.7). */
@@ -62007,7 +62050,8 @@ MTG.setGameSpeed = function (id) {
            block") is not an ability of its own, and survives Humility. */
         if (x.flag) flags.add(x.flag);
         if (x.ts < loseTs) continue;
-        if (x.grant) for (const k of x.grant) kw.add(String(k).toLowerCase());
+        // (Velis Vel's "all creature types" given before Amoeboid Changeling took them all: gone — noCreatureTypesTs)
+        if (x.grant) for (const k of x.grant) if (!(a.noCreatureTypesTs != null && x.ts < a.noCreatureTypesTs && String(k).toLowerCase() === 'changeling')) kw.add(String(k).toLowerCase());
         if (x.lose) for (const k of x.lose) kw.delete(String(k).toLowerCase());
         if (x.grantMana) grantMana.push(...x.grantMana);
       }
@@ -72575,10 +72619,26 @@ MTG.setGameSpeed = function (id) {
           const payer = e.who === 'you' ? me
             : tdObj ? this.player(tdObj.controller)
             : e.who === 'triggerPlayer' ? (triggerPlayer() || this.opponentsOf(ctx.controller)[0])
+            // Star Athlete: "Its controller may sacrifice it" — the target's controller; none chosen, nothing happens (targetController)
+            : e.who === 'targetController' ? (firstObj() && firstObj().zone === 'battlefield' ? this.player(firstObj().controller) : null)
             // Erratic Portal: "unless its controller pays" — the targeted creature's controller, yours included
             : e.who === 'spellController' ? (onStack() || this.player(ctx.spellController) || (firstObj() && this.player(firstObj().controller)) || firstPlayer() || this.opponentsOf(ctx.controller)[0])
             : (firstPlayer() || onStack() || triggerPlayer() || this.opponentsOf(ctx.controller)[0]);
-          if (!payer) { this._spliceNext(e.then); break; }
+          if (!payer) { if (e.who !== 'targetController') this._spliceNext(e.then); break; }
+          /* Star Athlete: "Its controller may sacrifice it. If they don't, this creature deals 5 damage to that player." —
+             that permanent, or the damage to whoever controls it (sacTarget) */
+          if (e.cost && e.cost.sacTarget) {
+            const t0 = firstObj();
+            this._noteLastAffected(targets);
+            const dmg = ((e.then || [])[0] || {}).op === 'damage' ? n(e.then[0].n) : 0;
+            const yes = this._canSacrifice(t0) ? this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessSacTarget', objId: t0.id, amount: dmg,
+              yesLabel: `Sacrifice ${t0.name}`, noLabel: "Don't",
+              prompt: `Sacrifice ${t0.name}? If you don't: ${whole((e.then || []).map(x => x && x.text).filter(Boolean).join(' ').replace(/CARDNAME/g, src ? src.name : 'it') || 'it happens', 80)}` }, 'usact') : false;
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes && t0.zone === 'battlefield' && t0.controller === payer.id) this._sacrificeNow(payer.id, [t0], null);
+            else this._spliceNext(e.then);
+            break;
+          }
           /* Mogis: "…unless they sacrifice a creature of their choice" (Torment
              of Scarabs: "…or discards a card") — a permanent (or a card)
              picked is the price paid; none picked, and it happens */
@@ -79536,11 +79596,14 @@ MTG.setGameSpeed = function (id) {
           const td0 = ctx.triggerData || {};
           const below = e.lesserMv ? (td0.objectId && this.obj(td0.objectId) ? n({ triggerSpellMv: true }) : null) : null;
           if (e.lesserMv && below == null) break;
+          // Possibility Storm: "until they exile a card that shares a card type with it" — the spell just exiled (untilSharesSpellType)
+          const spellTypes = e.untilSharesSpellType ? ((this._exiledSpell || {}).types || []) : null;
+          if (spellTypes && !spellTypes.length) break;
           for (const pl of who) {
             const lib = this.zones[pl.id].library;
             let total = 0;
             // (Ulamog, the Defiler: "the top half of their library" — counted once, before any card goes: exileHalfLibrary)
-            const want = e.untilNonland || e.untilWords || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
+            const want = e.untilNonland || e.untilWords || e.untilSharesSpellType || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
             for (let i = 0; i < most && lib.length; i++) {
               if (i >= want) break;
               const c = lib[0];
@@ -79560,10 +79623,13 @@ MTG.setGameSpeed = function (id) {
               // Gríma, Saruman's Footman: "until they exile an instant or sorcery card"
               if (e.untilWords && this._cardFitsWords(c, e.untilWords) && (below == null || ((c.card && c.card.cmc) || 0) < below)) { hits.push(c.id); break; }
               if (e.totalMv != null && total >= e.totalMv) break;
+              if (spellTypes && (ca.types || []).some(x => spellTypes.includes(String(x).toLowerCase()))) { hits.push(c.id); break; }
             }
           }
           // what "that card" is, and what "the rest" are, for the sentences after (exileUntil)
           if (e.untilNonland || e.untilWords) this._exileUntil = { ids: out.slice(), hits };
+          // (Possibility Storm: "all cards exiled with this enchantment" — the spell it exiled first among them)
+          if (spellTypes) this._exileUntil = { ids: [(this._exiledSpell || {}).id].filter(id => id && (this.obj(id) || {}).zone === 'exile').concat(out), hits };
           this._lastExiledList = out;
           if (out.length) this._lastExiled = out[out.length - 1];
           this.logEvent('exile', `${out.length} card${out.length === 1 ? ' is' : 's are'} exiled from the top of ${who.length > 1 ? 'each library' : 'the library'}.`);
@@ -79685,6 +79751,8 @@ MTG.setGameSpeed = function (id) {
         case 'castFree': {
           // Planetarium of Wan Shi Tong: "Do this only once each turn." — used up by a cast (oncePerTurn)
           if (e.oncePerTurn && src && src._castFreeTurn === this.turn) break;
+          // Possibility Storm: "That player may cast that card" — the player the trigger is about casts it (by triggerPlayer)
+          const casterId = (e.by === 'triggerPlayer' && (triggerPlayer() || {}).id) || ctx.controller;
           const r = this.resolving;
           const slot = r ? r.index + ':freePool' : null;
           r && (r.marks = r.marks || {});
@@ -79805,7 +79873,7 @@ MTG.setGameSpeed = function (id) {
             if ((e.from === 'triggerObj' || e.from === 'selfFromGrave' || (e.from === 'targets' && !e.anyMana)) && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
-            const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: casterId,
               prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : e.discardCost ? `Cast ${c.name} by discarding a card rather than paying its mana cost?`
                 : e.altMana ? `Cast ${c.name} by paying ${e.altMana} rather than paying its mana cost?`
                 : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
@@ -79813,7 +79881,7 @@ MTG.setGameSpeed = function (id) {
             const want = yes === null ? true : !!yes;
             if (!want) { if (r) r.marks[slot + 'done' + k] = true; continue; }
             // a spell cast as this resolves still chooses its targets (Goblin Dark-Dwellers' Shock)
-            const tg = this._askSpellTargets(ctx.controller, c, 'fct' + k);
+            const tg = this._askSpellTargets(casterId, c, 'fct' + k);
             if (tg === SUSPEND) return SUSPEND;
             if (tg === null) { if (r) r.marks[slot + 'done' + k] = true; continue; }
             // The Infamous Cruelclaw: the card discarded is the cost, paid as it is cast
@@ -79832,7 +79900,7 @@ MTG.setGameSpeed = function (id) {
             const otherHand = c.zone === 'hand' && c.owner !== ctx.controller;
             if (otherHand) c.handCastBy = ctx.controller;
             let ok;
-            try { ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true })); }
+            try { ok = this.castSpell(casterId, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true })); }
             finally { if (otherHand) delete c.handCastBy; }
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
@@ -80472,6 +80540,11 @@ MTG.setGameSpeed = function (id) {
         case 'exileTriggerSpell': {
           const d = ctx.triggerData || {};
           const item = d.stackId && this.stack.find(s => s.id === d.stackId);
+          /* Possibility Storm: "a card that shares a card type with it" — its types as it was on the stack, or as it last
+             was had it already left (_exiledSpell) */
+          const was = (item && item.obj) || (d.objectId && this.obj(d.objectId));
+          this._exiledSpell = was ? { id: item && item.obj && !item.isCopy ? item.obj.id : null,
+            types: ((was.analysis() || {}).types || []).map(x => String(x).toLowerCase()) } : null;
           if (!item || item.kind !== 'spell' || !item.obj) break;
           this.stack = this.stack.filter(x => x !== item);
           if (item.isCopy) { item.obj.zone = null; break; }
@@ -97841,6 +97914,8 @@ MTG.setGameSpeed = function (id) {
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
+    // Combustion Man, Star Athlete: "… unless its controller …" — as harmful as what happens if they don't
+    if (e.op === 'unlessPays' && (e.targets || []).length) return (e.then || []).some(isHarmful);
     if (e.op === 'counters' || e.op === 'countersDivided') return /-1\/-1|stun|shield/.test(e.kind || '') && !/shield/.test(e.kind || '');
     return HARMFUL.has(e.op);
   }
@@ -99861,6 +99936,11 @@ MTG.setGameSpeed = function (id) {
       if (ch.purpose === 'unlessDamage') {
         const t = ch.objId ? g.obj(ch.objId) : null;
         return this.me.life - (ch.amount || 0) > 10 && (!t || this.permanentValue(t) >= (ch.amount || 0) * 0.5);
+      }
+      // Star Athlete: give up the permanent only when it is worth little next to the damage, or the damage would be too much
+      if (ch.purpose === 'unlessSacTarget') {
+        const t = ch.objId ? g.obj(ch.objId) : null;
+        return this.me.life - (ch.amount || 0) <= 5 || (!!t && this.permanentValue(t) < (ch.amount || 0) * 0.5);
       }
       // Livio, Oathsworn Sentinel: into exile with an aegis counter only for our own Livio (it brings it back)
       if (ch.purpose === 'mayExileCounter') { const s0 = ch.sourceId ? g.obj(ch.sourceId) : null; return !!s0 && s0.controller === this.pid; }
