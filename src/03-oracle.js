@@ -5527,6 +5527,9 @@
        what it has now. */
     { re: /^Double (target [a-z ]+?)'s? power( and toughness)? until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'doublePT', toughness: !!m[2], targets: [t] } : null; } },
+    // Tifa's Limit Break: "Triple target creature's power and toughness until end of turn" — +2X/+2Y (times: 3)
+    { re: /^Triple (target [a-z ]+?)'s? power( and toughness)? until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'doublePT', toughness: !!m[2], times: 3, targets: [t] } : null; } },
     { re: /^Double the power( and toughness)? of (target [a-z ]+?) until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'doublePT', toughness: !!m[1], targets: [t] } : null; } },
     { re: /^Double the power( and toughness)? of each ((?:other )?creature you control) until end of turn\.?$/i,
@@ -5884,6 +5887,10 @@
     // Isle of Vesuva: "Whenever a nontoken creature enters, its controller creates a token that's a copy of that creature."
     { re: /^Its controller creates a token that'?s a copy of that creature\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'triggerObject', grant: [], toSourceController: true }) },
+    /* Fractured Identity: "Exile target nonland permanent. Each player other than its controller creates a token that's
+       a copy of it." — the permanent just exiled, its controller as it left (othersOfController) */
+    { re: /^Each player other than its controller creates a token that'?s a copy of it\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', nowOnly: true, grant: [], othersOfController: true }) },
     // Orzhova, Inys Haen: "each player returns all creature (land) cards from their graveyard to the battlefield [tapped]"
     { re: /^Each player returns all (creature|land|artifact|enchantment|permanent) cards from their graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'massReanimate' }, /creature/i.test(m[1]) ? {} : { filter: m[1].toLowerCase() }, m[2] ? { tapped: true } : {}) },
@@ -9104,6 +9111,9 @@
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
     { re: /^(?:If it'?s (white|blue|black|red|green), you may cast it|You may cast (white|blue|black|red|green) spells from among them) this turn\.?$/i,
       make: (m) => ({ op: 'mayPlayExiled', castOnly: true, duration: 'eot', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[(m[1] || m[2]).toLowerCase()] }) },
+    // Rundvelt Hordemaster: "If it's a Goblin creature card, you may cast that card until the end of your next turn." (words)
+    { re: /^If it'?s an? ([A-Za-z]+ (?:creature|artifact|enchantment|instant|sorcery|planeswalker)) card, you may cast (?:that card|it) (this turn|until end of turn|until the end of your next turn)\.?$/i,
+      make: (m) => ({ op: 'mayPlayExiled', castOnly: true, words: m[1].toLowerCase(), duration: /next/i.test(m[2]) ? 'next' : 'eot' }) },
     // Hedge Shredder: "put them onto the battlefield tapped" — the cards the trigger was about
     { re: /^Put them onto the battlefield( tapped)?(?: under your control)?\.?$/i, make: (m) => ({ op: 'batchToBattlefield', tapped: !!m[1], filter: 'land' }) },
     /* Disa the Restless: "create a Tarmogoyf token" — a green Lhurgoyf, as big as the card types among cards in all
@@ -13438,6 +13448,17 @@
         { op: 'reflexive', ifSacrificed: true, whenText: m[0].replace(/^[^.]+\. /, ''), effects: [
           { op: 'tap', targets: [Object.assign(targetSpec('target ' + m[2].toLowerCase()), { distinct: true, multi: { count: 'triggerAmount', exact: false } })] },
           { op: 'draw', n: 'triggerAmount', who: 'you' }] }] },
+    /* Swashbuckler Extraordinaire: "you may sacrifice one or more Treasures. When you do, up to that many target
+       creatures gain double strike until end of turn." — the same reflexive trigger, "that many" its amount */
+    { re: /^(?:You may )?sacrifice one or more ([A-Z][a-z]+)s\. When you do, up to that many target ([a-z]+)s gain ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences('Target ' + m[2].toLowerCase() + ' gains ' + m[3] + ' until end of turn.'));
+        const g0 = rest.auto && rest.effects.length === 1 && rest.effects[0].op === 'grantKeyword' && (rest.effects[0].targets || []).length === 1 ? rest.effects[0] : null;
+        if (!g0) return null;
+        g0.targets = [Object.assign({}, g0.targets[0], { distinct: true, multi: { count: 'triggerAmount', exact: false } })];
+        return [{ op: 'sacrificeAnyNumber', filter: m[1].toLowerCase() },
+          { op: 'reflexive', ifSacrificed: true, whenText: m[0].replace(/^[^.]+\. /, ''), effects: [g0] }];
+      } },
     /* Kylox, Visionary Inventor: "sacrifice any number of other creatures, then exile the top X cards of your library,
        where X is their total power. You may cast any number of instant and/or sorcery spells from among the exiled
        cards without paying their mana costs." (lastSacPower) */
@@ -18908,7 +18929,8 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + " becomes tapped, if it isn'?t being declared as an attacker,? ", 'i'),
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]), extra: { notAsAttacker: true } },
     // Magda: "Whenever a Dwarf you control becomes tapped"
-    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes tapped,? ', 'i'),
+    // (Deeproot Pilgrimage: "Whenever one or more nontoken Merfolk you control become tapped" — one trigger for the lot)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes? tapped,? ', 'i'),
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' blocks?(?:,| )', 'i'),
       event: 'permBlocks', filt: (m) => subjectFilter(m[1]) },

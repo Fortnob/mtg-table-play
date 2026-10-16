@@ -1895,7 +1895,16 @@
       // Scapeshift: every land; anything else (Pitiless Carnage): only tokens
       const g = this.game, items = s.items || [];
       if (items.every(x => { const o = g.obj(x.id); return o && (o.analysis() || {}).isLand; })) return { picks: items.map(x => x.id) };
-      return { picks: items.filter(x => { const o = g.obj(x.id); return o && o.isToken; }).map(x => x.id) };
+      const toks = items.filter(x => { const o = g.obj(x.id); return o && o.isToken; }).map(x => x.id);
+      /* Swashbuckler Extraordinaire: "When you do, up to that many target creatures gain double strike" — one for
+         each attacker of ours that lacks it, no more */
+      const rx = ((g.resolving && g.resolving.effects) || []).find(x => x && x.op === 'reflexive' && x.ifSacrificed);
+      const kw = rx && (rx.effects || []).length === 1 && rx.effects[0].op === 'grantKeyword' ? (rx.effects[0].keywords || [])[0] : null;
+      if (kw) {
+        const want = ((g.combat && g.combat.attackers) || []).map(id => g.obj(id)).filter(o => o && o.controller === this.pid && !g.hasKw(o, kw.toLowerCase())).length;
+        return { picks: toks.slice(0, want) };
+      }
+      return { picks: toks };
     },
     /* Abdel Adrian, Gorion's Ward: what comes back to enter again when Abdel goes (an enters ability), each
        for a 1/1 Soldier meanwhile; a token gone for good only where it is worth less than the Soldier */

@@ -29365,6 +29365,8 @@
             const ex = (this._resExiled || []).slice(-1)[0] || (!e.orTrigger && !e.nowOnly && this._lastExiled);
             source = ex ? this.obj(ex) : null;
           }
+          // (Fractured Identity: "a copy of it" — the permanent targeted, where its exile was replaced too: othersOfController)
+          if (!source && e.othersOfController) { const t0 = (ctx.resolvedTargets || []).find(t => t.kind === 'object'); source = t0 ? this.obj(t0.id) : null; }
           // Hashaton, Scarab's Fist: "a copy of that card" — the card discarded, where it went
           if (!source && e.orTrigger) {
             const td = ctx.triggerData || {};
@@ -29483,8 +29485,12 @@
           // (Saw in Half: "its controller" — as it left the battlefield, _leftController)
           const srcCtl = source.zone === 'battlefield' ? source.controller : (source._leftController || source.controller);
           const maker = e.toSourceController && this.player(srcCtl) ? srcCtl : ctx.controller;
-          const made = this._copyTokenCount(maker, cnt, card.type_line, { method: '_copyTokenOne', args: [maker, card, faceUp, how] });
-          for (let i = 0; i < made; i++) this._copyTokenOne(maker, card, faceUp, how, i, made);
+          // Fractured Identity: "Each player other than its controller creates a token" — each still in the game (othersOfController)
+          const makers = e.othersOfController ? this.players.filter(q => !q.hasLost && q.id !== srcCtl).map(q => q.id) : [maker];
+          for (const mk of makers) {
+            const made = this._copyTokenCount(mk, cnt, card.type_line, { method: '_copyTokenOne', args: [mk, card, faceUp, how] });
+            for (let i = 0; i < made; i++) this._copyTokenOne(mk, card, faceUp, how, i, made);
+          }
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
           break;
@@ -39738,11 +39744,12 @@
           break;
         }
         /* "Double target creature's power and toughness": it gets +X/+X,
-           X being what it has now (CR 701.10e). */
+           X being what it has now (CR 701.10e); Tifa's Limit Break "Triple …": +2X/+2Y (times: 3) */
         case 'doublePT':
           applyToScope(e, (o) => {
             if (!this.characteristics(o).isCreature) return;
-            const p = Math.max(0, this.powerOf(o)), t = e.toughness ? Math.max(0, this.toughnessOf(o)) : 0;
+            const k = (e.times || 2) - 1;
+            const p = k * Math.max(0, this.powerOf(o)), t = e.toughness ? k * Math.max(0, this.toughnessOf(o)) : 0;
             o.effects.push({ p, t, until: 'eot' });
             o._chr = null;
           });

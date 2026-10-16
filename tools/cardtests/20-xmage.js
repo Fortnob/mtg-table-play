@@ -78522,4 +78522,132 @@ module.exports = (test) => {
     const lib = T.zone('A', 'library');
     t.ok(lib.slice(-6).includes(angel), 'the rest on the bottom');
   });
+
+  test('Cards: Swashbuckler Extraordinaire — you attack: sacrifice Treasures, up to that many creatures gain double strike', (mk, t) => {
+    t.auto('Swashbuckler Extraordinaire');
+    const T = mk();
+    const g = T.g;
+    const sw = T.bf('A', 'Swashbuckler Extraordinaire');
+    g._createNamedToken('A', { token: 'Treasure', n: 2 });
+    const [t1, t2] = T.bfOf('A').filter(x => x.isToken && x.name === 'Treasure');
+    const bear = T.bf('A', 'Grizzly Bears'), ogre = T.bf('A', 'Gray Ogre');
+    let tq = null;
+    T.answer('declareAttackers', () => [{ attackerId: sw.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }, { attackerId: ogre.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => ({ picks: [t1.id, t2.id] }));
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: ogre.id }] }; });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.ok(!g.battlefield.includes(t1) && !g.battlefield.includes(t2), 'both Treasures sacrificed');
+    t.eq(tq && tq.count, 2, 'up to two targets');
+    t.ok(g.hasKw(bear, 'double strike') && g.hasKw(ogre, 'double strike'), 'the two chosen gain double strike');
+    t.no(g.hasKw(sw, 'double strike'), 'not the third');
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20 - 2 - 4 - 4, 'double strike damage dealt');
+    // none sacrificed: no reflexive trigger
+    T.nextTurn('A');
+    g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const n0 = T.asked.length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('choose', { picks: [] });
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.no(T.asked.slice(n0).some(ch => ch.type === 'pickTarget'), 'none sacrificed: no targets');
+    t.no(g.hasKw(bear, 'double strike'), 'no double strike');
+    // a bot: one Treasure for each attacker that lacks double strike, no more
+    T.nextTurn('A');
+    g._createNamedToken('A', { token: 'Treasure', n: 2 });
+    let botPicks = null;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('choose', (ch) => { botPicks = T.MTG.bots.answerChoose(g, 'A', ch); return botPicks; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(botPicks && botPicks.picks.length, 1, 'the bot sacrifices one Treasure for its one attacker');
+    t.ok(g.hasKw(bear, 'double strike'), 'which gains double strike');
+  });
+
+  test('Cards: Fractured Identity — exile a nonland permanent, every other player gets a token copy of it', (mk, t) => {
+    t.auto('Fractured Identity');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const ring = T.bf('B', 'Sol Ring');
+    T.mana('A', 'WU3');
+    T.cast('A', T.hand('A', 'Fractured Identity'), { targets: [ring] });
+    t.zone(ring, 'exile', 'the Sol Ring exiled');
+    const copies = (pid) => g.battlefield.filter(o => o.controller === pid && o.name === 'Sol Ring' && o.isToken).length;
+    t.eq(copies('A'), 1, 'the caster gets one');
+    t.eq(copies('C'), 1, 'the other opponent gets one');
+    t.eq(copies('B'), 0, 'its controller gets none');
+    // your own permanent: the opponents get the copies
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'WU3');
+    T.cast('A', T.hand('A', 'Fractured Identity'), { targets: [bear] });
+    const bears = (pid) => g.battlefield.filter(o => o.controller === pid && o.name === 'Grizzly Bears' && o.isToken).length;
+    t.eq(bears('A'), 0, 'not the caster, its controller');
+    t.eq(bears('B') + bears('C'), 2, 'each opponent gets a Bears');
+  });
+
+  test('Cards: Deeproot Pilgrimage — one or more nontoken Merfolk become tapped: one Merfolk token', (mk, t) => {
+    t.auto('Deeproot Pilgrimage');
+    const T = mk();
+    const g = T.g;
+    T.bf('A', 'Deeproot Pilgrimage');
+    const m1 = T.bf('A', 'Merfolk of the Pearl Trident'), m2 = T.bf('A', 'Merfolk of the Pearl Trident');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const toks = () => g.battlefield.filter(o => o.controller === 'A' && o.isToken && /Merfolk/.test(o.card.type_line || ''));
+    T.answer('declareAttackers', () => [{ attackerId: m1.id, defenderId: 'B' }, { attackerId: m2.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(toks().length, 1, 'two Merfolk tapped at once: one token');
+    t.ok(g.hasKw(toks()[0], 'hexproof'), 'with hexproof');
+    T.nextTurn('A');
+    // a non-Merfolk and the Merfolk token tapping: nothing
+    const tok = toks()[0];
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: tok.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(toks().length, 1, 'a token Merfolk or a Bears tapping makes none');
+  });
+
+  test('Cards: Rundvelt Hordemaster — a Goblin dies: exile the top card, a Goblin creature card castable through your next turn', (mk, t) => {
+    t.auto('Rundvelt Hordemaster');
+    const T = mk();
+    const g = T.g;
+    const rh = T.bf('A', 'Rundvelt Hordemaster');
+    const gob = T.bf('A', 'Raging Goblin');
+    t.eq(g.powerOf(gob), 2, 'other Goblins get +1/+1');
+    const piker = T.top('A', 'Goblin Piker');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [gob] });
+    t.zone(piker, 'exile', 'the top card exiled');
+    t.eq(piker.impulseBy, 'A', 'a Goblin creature card: castable');
+    T.nextTurn('B');
+    T.nextTurn('A');
+    T.mana('A', '1R');
+    T.cast('A', piker);
+    t.zone(piker, 'battlefield', 'cast on your next turn');
+    // not a Goblin: exiled, not castable
+    const isl = T.top('A', 'Island');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [rh] });
+    t.zone(isl, 'exile', 'exiled when the Hordemaster itself dies');
+    t.no(isl.impulseBy, 'not a Goblin creature card: not castable');
+  });
+
+  test("Cards: Tifa's Limit Break — tiered: Final Heaven triples power and toughness", (mk, t) => {
+    t.auto("Tifa's Limit Break");
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'GG6');
+    T.cast('A', T.hand('A', "Tifa's Limit Break"), { spree: [2], targets: [bear] });
+    t.eq(g.powerOf(bear), 6, 'tripled power');
+    t.eq(g.toughnessOf(bear), 6, 'tripled toughness');
+    const ogre = T.bf('A', 'Gray Ogre');
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', "Tifa's Limit Break"), { spree: [1], targets: [ogre] });
+    t.eq(g.powerOf(ogre), 4, 'Meteor Strikes: doubled');
+    T.nextTurn('B');
+    t.eq(g.powerOf(bear), 2, 'until end of turn');
+  });
 };
