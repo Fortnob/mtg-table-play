@@ -4842,8 +4842,9 @@
       make: (m) => ({ op: 'sacrificeChoice', n: 1, fraction: 2, roundUp: /up/i.test(m[4]), who: /^that player/i.test(m[1]) ? 'triggerPlayer' : 'you',
         filter: ((m[2] || '') + singularType(m[3].toLowerCase())).toLowerCase() }) },
     // Legate Lanius, Caesar's Ace: "each opponent sacrifices a tenth of the creatures they control of their choice, rounded up" (fraction)
-    { re: /^Each (opponent|player) sacrifices (a third|a quarter|a tenth) of the (creatures|nonland permanents|permanents) they control of their choice, rounded (up|down)\.?$/i,
-      make: (m) => ({ op: 'sacrificeChoice', n: 1, fraction: { 'a third': 3, 'a quarter': 4, 'a tenth': 10 }[m[2].toLowerCase()], roundUp: /up/i.test(m[4]),
+    // (Vona's Hunger: "each opponent sacrifices half the creatures they control of their choice, rounded up")
+    { re: /^Each (opponent|player) sacrifices (a third of|a quarter of|a tenth of|half) the (creatures|nonland permanents|permanents) they control of their choice, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: 1, fraction: { 'a third of': 3, 'a quarter of': 4, 'a tenth of': 10, half: 2 }[m[2].toLowerCase()], roundUp: /up/i.test(m[4]),
         who: /opponent/i.test(m[1]) ? 'opponents' : 'each', filter: singularType(m[3].toLowerCase()) }) },
     // Lord Xander, the Collector: "target opponent sacrifices half the nonland permanents they control of their choice, rounded down"
     { re: /^Target opponent sacrifices half the (nonland permanents|creatures|permanents) they control of their choice, rounded down\.?$/i,
@@ -6444,6 +6445,11 @@
        chosen just before (chosenType) */
     { re: /^Put (a|an|one|two|three) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on each creature you control of that type\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), scope: 'yourMatching', filter: 'creature', chosenType: true }) },
+    /* Selfless Safewright: "choose a creature type. Other permanents you control of that type gain hexproof and
+       indestructible until end of turn." — the type chosen just before (chosenType) */
+    { re: /^Other (permanents|creatures) you control of that type gain ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => { const kws = keywordList(m[2]); return kws.length && kws.every(kwKnown) ? { op: 'grantKeyword', duration: 'eot',
+        keywords: kws.map(k => k.charAt(0).toUpperCase() + k.slice(1)), scope: { who: 'you', what: singularType(m[1].toLowerCase()), other: true, chosenType: true } } : null; } },
     /* Brokers Ascendancy: "put a +1/+1 counter on each creature you control
        and a loyalty counter on each planeswalker you control" — two kinds,
        on two kinds of permanent */
@@ -10941,6 +10947,8 @@
     if ((m = p.match(/^the number of ([a-z]+) cards in all graveyards$/i))) return done({ cardsInAllGraveyards: m[1].toLowerCase() });
     // Balor: "the number of cards in their hand" — the player the trigger is about
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
+    // Molten Psyche: "the number of cards that player has drawn this turn" — each opponent's own (triggerPlayerDrawn)
+    if (/^the number of cards (?:that player|they) (?:has|have) drawn this turn$/i.test(p)) return done({ triggerPlayerDrawn: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
@@ -11936,6 +11944,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* The Irencrag: "you may have The Irencrag become a legendary Equipment artifact named Everflame, Heroes' Legacy. If
+       you do, it gains equip {3} and "Equipped creature gets +3/+3" and loses all other abilities." — for good (becomes
+       permanent, setName, loseAll, grantTexts) */
+    { re: /^You may have CARDNAME become a legendary Equipment artifact named ([A-Z][^."]+?)\. If you do, it gains equip (\{[^}]+\}) and "([^"]+)" and loses all other abilities\.?$/i,
+      make: (m) => [{ op: 'may', then: [{ op: 'becomes', duration: 'permanent', scope: 'self', eff: { setName: m[1], setTypes: ['Artifact'], addSupertypes: ['Legendary'],
+        addSubtypes: ['Equipment'], loseAll: true, grantTexts: ['Equip ' + m[2], m[3].replace(/\.?$/, '.')] } }] }] },
     /* Mardu Siegebreaker: "for each opponent, create a tapped token that's a copy of the exiled card attacking that
        opponent. At the beginning of your next end step, sacrifice those tokens." — the card it holds in exile (exiledBy) */
     { re: /^For each opponent, create a tapped token that'?s a copy of the exiled card attacking that opponent\. At the beginning of your next end step, sacrifice those tokens\.?$/i,
@@ -24810,6 +24824,9 @@
       // Firebending Student, Fire Lord Zuko: "Firebending X, where X is this creature's power."
       { re: /^Firebending X, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'firebendingX', n: k } : null; }, auto: true },
+      // Avenger of the Fallen: "Mobilize X, where X is the number of creature cards in your graveyard." — counted as it attacks (mobilizeX)
+      { re: /^Mobilize X, where X is (.+?)\.?$/i,
+        make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'mobilizeX', n: k } : null; }, auto: true },
       // Ulamog, the Defiler: "CARDNAME has annihilator X, where X is the number of +1/+1 counters on it." (annihilatorX)
       { re: /^(?:CARDNAME|This creature) has annihilator X, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'annihilatorX', n: k } : null; }, auto: true },

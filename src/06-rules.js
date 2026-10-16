@@ -3014,6 +3014,15 @@
       }
       // instant / sorcery: run its effects, then finish once they are done
       this.logEvent('resolve', `${item.name} resolves.`);
+      /* Ascend on an instant or sorcery (CR 702.131a): "If you control ten or more permanents and you don't have the city's
+         blessing, you get the city's blessing for the rest of the game." — first, as it resolves (Vona's Hunger) */
+      if (a && (a.abilities || []).some(ab => (ab.effects || []).some(e => e && e.op === 'ascend'))) {
+        const asc = this.player(item.controller);
+        if (asc && !asc.cityBlessing && this.battlefield.filter(x => x.controller === asc.id && !x.phasedOut).length >= 10) {
+          asc.cityBlessing = true;
+          this.logEvent('rules', `${asc.name} has the city's blessing.`);
+        }
+      }
       item._lastAimed = null;
       let effects = item.effects || (a ? this._cardSpellEffects(a) : []);
       // cipher: the last thing the card does is offer to encode itself (CR 702.99a)
@@ -9465,6 +9474,9 @@
         // (Infantry Shield: "mobilize X, where X is its power" — the only X a keyword is handed with)
         if (m && m[1] === kw && !(a.keywordSet && a.keywordSet.has(w))) v += m[2] === 'x' ? Math.max(0, this.powerOf(o)) : +m[2];
       }
+      // Avenger of the Fallen: "Mobilize X, where X is the number of creature cards in your graveyard." (mobilizeX)
+      const mx = kw === 'mobilize' && o.zone === 'battlefield' ? this._staticOp(o, 'mobilizeX') : null;
+      if (mx && mx.n) v += Math.max(0, Number(this._countValue(mx.n, o.controller, o)) || 0);
       return v;
     }
 
@@ -15923,7 +15935,8 @@
               const sk = JSON.stringify(ef.scope || null);
               if (!scopeKeys.includes(sk)) scopeKeys.push(sk);
               const gi = scopeKeys.indexOf(sk);
-              list.push({ ef, src, ts, group: gi ? group + ':' + gi : group, layer: ef.layer || 6 });
+              // (The Irencrag: a static handed to it after it lost everything else still counts — grantTs)
+              list.push(Object.assign({ ef, src, ts, group: gi ? group + ':' + gi : group, layer: ef.layer || 6 }, ab.granted && ab.grantTs != null ? { grantTs: ab.grantTs } : {}));
               continue;
             }
             // the older, narrower shapes say the same thing
@@ -16001,7 +16014,8 @@
         const locked = lb.groupSets.get(entry.group);
         if (locked) return locked.has(o.id);
         const ss = lb.st.get(entry.src.id);
-        if (ss && (ss.lost || ss.rulesLost)) return false;
+        // (handed to it after it lost everything else: still its own — grantTs)
+        if (ss && (ss.rulesLost || (ss.lost && !(entry.grantTs != null && entry.grantTs > ss.loseTs)))) return false;
       }
       return this._contApplies(entry, o, oa);
     }
@@ -16443,7 +16457,8 @@
       const locked = p.group && groupSets.get(p.group);
       if (locked) return { exists: true, ids: Array.from(locked) };
       const ss = st.get(p.src.id);
-      if (ss && (ss.lost || ss.rulesLost)) return { exists: false, ids: [] };
+      const gTs = p.entry && p.entry.grantTs;
+      if (ss && (ss.rulesLost || (ss.lost && !(gTs != null && gTs > ss.loseTs)))) return { exists: false, ids: [] };
       const ids = [];
       for (const [id, s] of st) {
         if (this._contApplies(p.entry, s.o, this._stateView(s))) ids.push(id);
@@ -23029,6 +23044,8 @@
         // Balor: "the number of cards in their hand"
         // (Search Warrant: in a spell, "that player" is the one it targets)
         if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer() || firstPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
+        // Molten Psyche: "the number of cards that player has drawn this turn" (triggerPlayerDrawn)
+        if (v && typeof v === 'object' && v.triggerPlayerDrawn) { const p = triggerPlayer() || firstPlayer(); return (p ? p.drawnThisTurn || 0 : 0) * (v.mult || 1) + (v.plus || 0); }
         // domain: basic land types among lands you control
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
@@ -23799,7 +23816,8 @@
                counted for each opponent in turn */
             const perPlayer = e.n && typeof e.n === 'object' && e.n.scope && e.n.scope.thatPlayer;
             // Stormbreath Dragon: "equal to the number of cards in that player's hand", each in turn
-            const perHand = e.n && typeof e.n === 'object' && e.n.triggerPlayerHand;
+            // (Molten Psyche: "equal to the number of cards that player has drawn this turn" — triggerPlayerDrawn)
+            const perHand = e.n && typeof e.n === 'object' && (e.n.triggerPlayerHand || e.n.triggerPlayerDrawn);
             if (/opponent/.test(e.each.replace(/(?:creatures?|planeswalkers?) your opponents control/, ''))) for (const p of this.opponentsOf(ctx.controller)) {
               let k = cnt;
               if (perPlayer) { const was = this._thatPlayer; this._thatPlayer = p.id; k = n(e.n); this._thatPlayer = was; }
@@ -39928,9 +39946,13 @@
                ability it is handed in the same breath stays */
             const handed = one.loseAll && one.grantText ? { grantText: one.grantText, until } : null;
             if (handed) delete one.grantText;
+            // (The Irencrag: "it gains equip {3} and "Equipped creature gets +3/+3"" — several handed, each after: grantTexts)
+            const handedAll = (one.grantTexts || []).map(t => ({ grantText: t, until }));
+            delete one.grantTexts;
             // (Sylvan Awakening: until the controller's next turn)
             o.effects.push(Object.assign(one, { until }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}, whileHere ? { whileFrom: src.id } : {}));
             if (handed) o.effects.push(Object.assign(handed, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
+            for (const h of handedAll) o.effects.push(Object.assign(h, { ts: this._stampNew() }, e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {}));
             o._chr = null;
           });
           // Purelace: a spell on the stack changes colour too

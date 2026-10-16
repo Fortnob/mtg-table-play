@@ -76029,4 +76029,107 @@ module.exports = (test) => {
     U.cast('A', U.hand('A', 'Desecrate Reality'));
     t.zone(g2, 'graveyard', 'two colorless mana: nothing back');
   });
+  test('Cards: Selfless Safewright — a creature type chosen as it enters; your other permanents of that type gain hexproof and indestructible', (mk, t) => {
+    t.auto('Selfless Safewright');
+    const T = mk();
+    const elf = T.bf('A', 'Llanowar Elves'), bear = T.bf('A', 'Grizzly Bears'), theirs = T.bf('B', 'Llanowar Elves');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [ch.options.find(o => o.label === 'Elf').i] }; });
+    const ss = T.bf('A', 'Selfless Safewright', { etb: true }); T.resolve();
+    t.ok(asked && asked.purpose === 'creatureType', 'a creature type chosen');
+    t.ok(T.g.hasKw(elf, 'hexproof') && T.g.hasKw(elf, 'indestructible'), 'your Elves: hexproof and indestructible');
+    t.no(T.g.hasKw(bear, 'hexproof'), 'not the Bears');
+    t.no(T.g.hasKw(ss, 'indestructible'), 'not itself (other)');
+    t.no(T.g.hasKw(theirs, 'hexproof'), "not B's Elves");
+    T.nextTurn('B');
+    t.no(T.g.hasKw(elf, 'hexproof'), 'until end of turn');
+  });
+
+  test("Cards: Vona's Hunger — each opponent sacrifices a creature; with the city's blessing, half their creatures, rounded up", (mk, t) => {
+    t.auto("Vona's Hunger");
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', "Vona's Hunger"));
+    t.eq(T.bfOf('B').length, 2, 'one sacrificed');
+    const U = mk();
+    for (let i = 0; i < 3; i++) U.bf('B', 'Grizzly Bears');
+    for (let i = 0; i < 10; i++) U.bf('A', 'Swamp');
+    U.mana('A', 'B2');
+    U.cast('A', U.hand('A', "Vona's Hunger"));
+    t.ok(U.player('A').cityBlessing, "A has the city's blessing");
+    t.eq(U.bfOf('B').length, 1, 'half of three, rounded up: two sacrificed');
+  });
+
+  test('Cards: Avenger of the Fallen — mobilize X, X the creature cards in your graveyard as it attacks', (mk, t) => {
+    t.auto('Avenger of the Fallen');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const av = T.bf('A', 'Avenger of the Fallen');
+    T.grave('A', 'Grizzly Bears'); T.grave('A', 'Hill Giant'); T.grave('A', 'Llanowar Elves'); T.grave('A', 'Swamp'); T.grave('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: av.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    const war = T.bfOf('A').filter(o => o.isToken && o.name.includes('Warrior'));
+    t.eq(war.length, 3, 'three creature cards in your graveyard: three Warriors (not the land, not B\'s)');
+    t.ok(war.every(o => o.tapped && o.attacking === 'B'), 'tapped and attacking');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'sacrificed at the next end step');
+    // nothing in the graveyard: nothing
+    const U = mk({ library: Array(20).fill('Swamp') });
+    const a2 = U.bf('A', 'Avenger of the Fallen');
+    U.answer('declareAttackers', () => [{ attackerId: a2.id, defenderId: 'B' }]);
+    U.toMain('A', 'declareAttackers'); U.resolve();
+    t.eq(U.bfOf('A').filter(o => o.isToken).length, 0, 'mobilize 0');
+  });
+
+  test('Cards: Molten Psyche — hands shuffled away and drawn again; metalcraft: damage to each opponent for the cards they drew this turn', (mk, t) => {
+    t.auto('Molten Psyche');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Mountain') });
+    for (let i = 0; i < 3; i++) T.bf('A', 'Ornithopter');
+    for (let i = 0; i < 4; i++) T.hand('B', 'Mountain');
+    T.hand('C', 'Mountain');
+    T.mana('A', 'RR1');
+    T.cast('A', T.hand('A', 'Molten Psyche'));
+    t.eq(T.zone('B', 'hand').length, 4, 'B draws four again');
+    t.eq(T.life('B'), 16, 'four drawn: 4 damage');
+    t.eq(T.life('C'), 19, 'C: one');
+    t.eq(T.life('A'), 20, 'not A');
+    // two artifacts: no damage
+    const U = mk({ library: Array(20).fill('Mountain') });
+    U.bf('A', 'Ornithopter'); U.bf('A', 'Ornithopter');
+    U.hand('B', 'Mountain'); U.hand('B', 'Mountain');
+    U.mana('A', 'RR1');
+    U.cast('A', U.hand('A', 'Molten Psyche'));
+    t.eq(U.zone('B', 'hand').length, 2);
+    t.eq(U.life('B'), 20, 'no metalcraft: no damage');
+  });
+
+  test("Cards: The Irencrag — as a legendary creature of yours enters, it may become Everflame, Heroes' Legacy: equip {3}, +3/+3, nothing else", (mk, t) => {
+    t.auto('The Irencrag');
+    const T = mk();
+    const ic = T.bf('A', 'The Irencrag');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(ic.name, 'The Irencrag', 'a nonlegendary creature: nothing');
+    let asked = null;
+    T.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    const isa = T.bf('A', 'Isamaru, Hound of Konda', { etb: true }); T.resolve();
+    t.ok(asked, 'you may');
+    t.eq(ic.name, "Everflame, Heroes' Legacy", 'named Everflame');
+    const a = ic.analysis();
+    t.ok((a.subtypes || []).includes('Equipment') && (a.supertypes || []).includes('Legendary') && (a.types || []).includes('Artifact'), 'a legendary Equipment artifact');
+    t.eq((a.manaAbilities || []).length, 0, 'its mana ability gone');
+    t.no((a.abilities || []).some(x => x.kind === 'triggered'), 'its trigger gone');
+    const eq = (a.abilities || []).findIndex(x => /^Equip/i.test(x.text || ''));
+    t.ok(eq >= 0, 'equip');
+    T.mana('A', '3');
+    T.activate('A', ic, eq, { targets: [isa] });
+    t.eq(ic.attachedTo, isa.id, 'attached');
+    t.eq(T.g.powerOf(isa), 5, '+3/+3'); t.eq(T.g.toughnessOf(isa), 5);
+    // declined: still The Irencrag
+    const U = mk();
+    const i2 = U.bf('A', 'The Irencrag');
+    U.answer('confirm', { yes: false });
+    U.bf('A', 'Isamaru, Hound of Konda', { etb: true }); U.resolve();
+    t.eq(i2.name, 'The Irencrag', 'declined');
+    t.eq((i2.analysis().manaAbilities || []).length, 1, 'still taps for mana');
+  });
 };
