@@ -5651,6 +5651,12 @@
     // Valor's Reach: "untap up to two target creatures your team controls" — a team of one, outside Two-Headed Giant
     { re: /^Untap up to (two|three) target creatures (?:you control|your team controls)\.?$/i,
       make: (m) => ({ op: 'untap', targets: Array.from({ length: num(m[1]) }, () => ({ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you', upTo: true })) }) },
+    /* Glen Elendra: "exchange control of target creature you control that dealt combat damage to a player this combat and
+       target creature that player controls" (hitPlayerThisCombat; the second a creature of a player the first hit: hitByPrev) */
+    { re: /^Exchange control of target creature you control that dealt combat damage to a player this combat and target creature that player controls\.?$/i,
+      make: () => ({ op: 'exchangeControl', targets: [
+        { type: 'creature', filter: 'creature you control that dealt combat damage to a player this combat', zone: 'battlefield', controller: 'you', hitPlayerThisCombat: true },
+        { type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'opponent', ctlHitByYours: true, hitByPrev: true }] }) },
     // Glen Elendra: "gain control of target creature you own"
     { re: /^Gain control of target creature you own\.?$/i,
       make: () => ({ op: 'gainControl', until: null, targets: [{ type: 'creature', filter: 'creature you own', zone: 'battlefield', owner: 'you' }] }) },
@@ -5678,6 +5684,21 @@
     { re: /^Each player who last chose green anchor chooses red waterfall, and vice versa\.?$/i, make: () => ({ op: 'planar', what: 'stream', mode: 'swap' }) },
     // Bad Wolf Bay: "cards can't enter from exile this turn"
     { re: /^Cards can'?t enter from exile this turn\.?$/i, make: () => ({ op: 'planar', what: 'noEnterFromExile' }) },
+    // Mondassian Colony Ship: "it gets +1/+1 until end of turn for each other creature its controller controls that shares a creature type with it"
+    { re: /^It gets \+1\/\+1 until end of turn for each other creature its controller controls that shares a creature type with it\.?$/i,
+      make: () => ({ op: 'planar', what: 'kinPump', n: 1 }) },
+    /* Enigma Ridges: "each player who controls fewer lands than the player who controls the most lands searches their library
+       for a number of basic land cards less than or equal to the difference, reveals them, puts them into their hand, then shuffles" */
+    { re: /^Each player who controls fewer lands than the player who controls the most lands searches their library for a number of basic land cards less than or equal to the difference, reveals them, puts them into their hand, then shuffles\.?$/i,
+      make: () => ({ op: 'planar', what: 'landCatchUp' }) },
+    // Reverse the Sands, The Doctor's Tomb: "redistribute any number of players' life totals"
+    { re: /^Redistribute any number of players'? life totals\.?$/i, make: () => ({ op: 'redistributeLife' }) },
+    // The Dining Car: "activated abilities of artifact tokens you control cost {2} less to activate this turn" (abilityCostModTurn)
+    { re: /^Activated abilities of ([a-z ]+? you control) cost \{(\d+)\} (less|more) to activate this turn\.?$/i,
+      make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'abilityCostModTurn', scope, amount: (+m[2]) * (/less/i.test(m[3]) ? -1 : 1) } : null; } },
+    // Aplan Mortarium's Alien Angels: "this token isn't a creature until end of turn" (removeTypes, layer 4)
+    { re: /^(?:This creature|CARDNAME|It) isn'?t a creature until end of turn\.?$/i,
+      make: () => ({ op: 'becomes', duration: 'eot', eff: { removeTypes: ['Creature'] }, scope: 'self' }) },
     // Finally! Left-Handed Magic Cards: "draw a card from the bottom of your library" (fromBottom)
     { re: /^Draw (a card|two cards|three cards) from the bottom of your library\.?$/i,
       make: (m) => ({ op: 'draw', n: /^a /i.test(m[1]) ? 1 : num(m[1].split(' ')[0]), who: 'you', fromBottom: true }) },
@@ -8154,13 +8175,16 @@
        Return to Action: "gets +1/+0 and gains lifelink and '…'"; Gruesome
        Slaughter: "colorless creatures you control gain '…'" — keywords and a
        pump riding along, to a target or a group */
-    { re: /^(?:Until end of turn, )?((?:any number of |up to (?:one|two) )?target [a-z ,]+?|[A-Za-z ,'-]+? you control|those creatures)(?: each)?(?: gets? ([+-]\d+)\/([+-]\d+) and)? gains? ([a-z ,]+? and )?"([^"]+)"( until end of turn)?\.?$/i,
+    // (Kerblam! Warehouse: "until your next turn, noncreature artifacts you control gain '…'" — nextTurn)
+    { re: /^(?:Until end of turn, |Until your next turn, )?((?:any number of |up to (?:one|two) )?target [a-z ,]+?|[A-Za-z ,'-]+? you control|those creatures)(?: each)?(?: gets? ([+-]\d+)\/([+-]\d+) and)? gains? ([a-z ,]+? and )?"([^"]+)"( until end of turn)?\.?$/i,
       make: (m) => {
-        if (!/^Until end of turn/i.test(m[0]) && !m[6]) return null;
+        const nextTurn = /^Until your next turn/i.test(m[0]);
+        if (!/^Until end of turn/i.test(m[0]) && !m[6] && !nextTurn) return null;
+        if (nextTurn && (m[6] || m[2])) return null;
         if (!m[4] && !m[2] && !/you control$|^those|^any number|^up to/i.test(m[1])) return null;   // the plain shape is the rule below
         if (!grantableText(m[5])) return null;
         const who = m[1];
-        const g = { op: 'grantAbility', ability: m[5], duration: 'eot' };
+        const g = { op: 'grantAbility', ability: m[5], duration: nextTurn ? 'nextTurn' : 'eot' };
         let scope = null;
         const upTo = who.match(/^(any number of|up to (one|two)) /i);
         if (/target /i.test(who)) {
@@ -8187,7 +8211,7 @@
         if (m[4]) {
           const kws = keywordList(m[4].replace(/,?\s*and\s*$/i, ''));
           if (!kws.length || !kws.every(k => kwKnown(k))) return null;
-          list.push({ op: 'grantKeyword', keywords: kws, duration: 'eot', scope: typeof scope === 'object' ? Object.assign({}, scope) : scope });
+          list.push({ op: 'grantKeyword', keywords: kws, duration: nextTurn ? 'nextTurn' : 'eot', scope: typeof scope === 'object' ? Object.assign({}, scope) : scope });
         }
         if (m[2]) list.push({ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', scope: typeof scope === 'object' ? Object.assign({}, scope) : scope });
         return list.length === 1 ? g : list;
@@ -11186,6 +11210,10 @@
     if (spec.notEnchanted && ctx && ctx.fits && ctx.fits(obj, 'enchanted')) return false;
     // Besieged Viking Village: "that attacked this turn" (attackedThisTurn)
     if (spec.attackedThisTurn && !(ctx && ctx.turn != null && obj.attackedTurn === ctx.turn)) return false;
+    // Glen Elendra: "creature you control that dealt combat damage to a player this combat" (hitPlayerThisCombat)
+    if (spec.hitPlayerThisCombat && !(ctx && ctx.hitThisCombat && ctx.hitThisCombat(obj).length)) return false;
+    // … "and target creature that player controls": its controller one a creature of yours hit this combat (ctlHitByYours)
+    if (spec.ctlHitByYours && !(ctx && ctx.hitByYoursThisCombat && ctx.hitByYoursThisCombat(me).includes(obj.controller))) return false;
     // Halvar, God of Battle: "Aura or Equipment attached to a creature you control" (attachedToYourCreature)
     if (spec.attachedToYourCreature) {
       const h = ctx && ctx.hostOf ? ctx.hostOf(obj) : null;
@@ -14101,6 +14129,14 @@
       make: () => [{ op: 'chooseColor' },
         { op: 'counters', kind: '+1/+1', n: { devotionChosen: true, mult: 1 }, targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }], scope: null },
         { op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true, notTarget: true }] },
+    // Mondassian Colony Ship, Cyber Conversion: "turn target creature face down. It becomes (It's) a 2/2 Cyberman artifact creature."
+    { re: /^Turn target creature face down\. It(?: becomes| is|'s) a 2\/2 ([a-z]+) artifact creature\.?$/i,
+      make: (m) => [{ op: 'turnFaceDown', as: 'Artifact Creature — ' + m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }] },
+    /* The Moonbase: "for each opponent, choose up to one target creature card in that player's graveyard. Put those cards
+       onto the battlefield face down under your control. They're 2/2 Cyberman artifact creatures." */
+    { re: /^For each opponent, choose up to one target creature card in that player'?s graveyard\. Put those cards onto the battlefield face down under your control\. They'?re 2\/2 ([A-Z][a-z]+) artifact creatures\.?$/i,
+      make: (m) => [{ op: 'putFaceDownAs', as: 'Artifact Creature — ' + m[1].charAt(0).toUpperCase() + m[1].slice(1),
+        perOpponentFrom: { type: 'creature', filter: 'creature card', zone: 'graveyard', upTo: true } }] },
     // Glimmervoid Basin: "choose target creature. Each player except that creature's controller creates a token that's a copy of that creature."
     { re: /^Choose target creature\. Each player except that creature'?s controller creates a token that'?s a copy of that creature\.?$/i,
       make: () => [{ op: 'planar', what: 'copyForOthers', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }] },

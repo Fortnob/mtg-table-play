@@ -960,6 +960,41 @@
           const r = this._planeswalk(pid, { ctx });
           return r === SUSPEND ? r : null;
         }
+        /* Mondassian Colony Ship: "it gets +1/+1 until end of turn for each other creature its controller controls that shares
+           a creature type with it" — the attacker the trigger is about, counted as it resolves */
+        case 'kinPump': {
+          const o = this.obj((ctx.triggerData || {}).objectId);
+          if (!o || o.zone !== 'battlefield') return null;
+          const k = this.battlefield.filter(x => x !== o && !x.phasedOut && x.controller === o.controller &&
+            (this.characteristics(x) || {}).isCreature && this._shareCreatureType(o, x)).length;
+          if (k > 0) {
+            o.effects.push({ p: k * (e.n || 1), t: k * (e.n || 1), until: 'eot' });
+            o._chr = null;
+            this.bumpBoard();
+            this.logEvent('rules', `${o.name} gets +${k * (e.n || 1)}/+${k * (e.n || 1)} until end of turn.`);
+          }
+          return null;
+        }
+        /* Enigma Ridges: "each player who controls fewer lands than the player who controls the most lands searches their
+           library for a number of basic land cards less than or equal to the difference, reveals them, puts them into their
+           hand, then shuffles" — the counts as it resolves, each in turn order from you */
+        case 'landCatchUp': {
+          const order = this.turnOrder.length ? this.turnOrder : this.players.map(q => q.id);
+          const live = order.map(id => this.player(id)).filter(q => q && !q.hasLost);
+          const lands = (q) => this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (x.analysis() || {}).isLand).length;
+          const counts = new Map(live.map(q => [q.id, lands(q)]));
+          const most = Math.max(0, ...counts.values());
+          const at = Math.max(0, live.findIndex(q => q.id === pid));
+          const list = [];
+          for (let k = 0; k < live.length; k++) {
+            const q = live[(at + k) % live.length];
+            const diff = most - counts.get(q.id);
+            if (diff > 0) list.push({ op: 'tutor', n: diff, upTo: true, filter: 'basic land', to: 'hand', reveal: true, who: 'player', pid: q.id,
+              prompt: `Search your library for up to ${MTG.oracle.nounCount(diff, 'basic land card')}.` });
+          }
+          this._spliceNext(list);
+          return null;
+        }
         /* The Pit: "each player creates their choice of a 3/3 white Angel creature token with flying or a 6/6 black Demon
            creature token with …" — chosen in turn order from you, then all made together (e.tokens: the createToken ops) */
         case 'eachTokenChoice': {

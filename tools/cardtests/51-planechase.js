@@ -1926,4 +1926,137 @@ module.exports = (test) => {
     t.no(offered.includes(mine.id), 'only creatures they control');
     t.eq((Number(b1.counters['+1/+1']) || 0) + '/' + (Number(b2.counters['+1/+1']) || 0), '1/2', 'three counters, split as B said');
   });
+
+  test('Planes: Glen Elendra — at end of combat, a creature that hit a player is exchanged for one of theirs', (mk, t) => {
+    t.auto('Glen Elendra');
+    const T = onPlane(mk, 'Glen Elendra');
+    const bear = T.bf('A', 'Grizzly Bears'), elf = T.bf('A', 'Llanowar Elves');
+    const giant = T.bf('B', 'Hill Giant'), lions = T.bf('B', 'Savannah Lions');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = ch.options.map(l => l.map(x => x.id)); return { targets: [{ kind: 'object', id: bear.id }, { kind: 'object', id: giant.id }] }; });
+    T.toMain('A', 'end'); T.resolve();
+    t.ok(offered && !offered[0].includes(elf.id), 'the Elves dealt no combat damage');
+    t.ok(offered && !offered.flat().includes(elf.id), 'and are no second target either');
+    t.eq(bear.controller, 'B', 'B gets the Bears');
+    t.eq(giant.controller, 'A', 'A gets the Giant');
+    t.eq(lions.controller, 'B', 'the Lions stay');
+  });
+
+  test('Planes: Mondassian Colony Ship — an attacker gets +1/+1 for each other creature sharing a type; chaos: turned face down a 2/2 Cyberman', (mk, t) => {
+    t.auto('Mondassian Colony Ship');
+    t.auto('Cyber Conversion');
+    const T = onPlane(mk, 'Mondassian Colony Ship');
+    const b1 = T.bf('A', 'Grizzly Bears'); T.bf('A', 'Grizzly Bears'); T.bf('A', 'Hill Giant');
+    const giant = T.bf('B', 'Hill Giant'), lions = T.bf('B', 'Savannah Lions');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    chaos(T);
+    t.ok(giant.faceDown, 'the Giant is face down');
+    t.eq(T.g.powerOf(giant) + '/' + T.g.toughnessOf(giant), '2/2', 'a 2/2');
+    t.ok(T.g._cardFitsWords(giant, 'artifact creature'), 'an artifact creature');
+    t.ok(T.g._hasCreatureType(giant, 'Cyberman'), 'a Cyberman');
+    t.eq(lions.faceDown || false, false, 'the Lions untouched');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'combatDamage');
+    t.eq(T.g.powerOf(b1), 3, 'one other Bear: +1/+1');
+  });
+
+  test('Planes: The Moonbase — chaos: a creature card from each opponent\'s graveyard onto the battlefield face down, a 2/2 Cyberman', (mk, t) => {
+    t.auto('The Moonbase');
+    const T = onPlane(mk, 'The Moonbase');
+    const g1 = T.grave('B', 'Hill Giant'), g2 = T.grave('B', 'Craw Wurm'), mine = T.grave('A', 'Grizzly Bears');
+    T.answer('choose', (ch) => { t.ok(ch.items.some(x => x.id === g2.id) && !ch.items.some(x => x.id === mine.id), 'B\'s creature cards only'); return { picks: [g2.id] }; });
+    chaos(T);
+    t.zone(g2, 'battlefield', 'the Wurm is put onto the battlefield');
+    t.eq(g2.controller, 'A', 'under A\'s control');
+    t.ok(g2.faceDown, 'face down');
+    t.eq(T.g.powerOf(g2), 2, 'a 2/2');
+    t.ok(T.g._cardFitsWords(g2, 'artifact creature') && T.g._hasCreatureType(g2, 'Cyberman'), 'a Cyberman artifact creature');
+    t.zone(g1, 'graveyard', 'one only');
+  });
+
+  test('Planes: Enigma Ridges — each player with fewer lands searches for basic lands up to the difference', (mk, t) => {
+    t.auto('Enigma Ridges');
+    const T = onPlane(mk, 'Gavony');
+    T.bf('A', 'Forest');
+    for (let i = 0; i < 3; i++) T.bf('B', 'Mountain');
+    const hA = T.zone('A', 'hand').length, hB = T.zone('B', 'hand').length;
+    walkTo(T, 'Enigma Ridges');
+    t.eq(T.zone('A', 'hand').length, hA + 2, 'A finds two basic lands');
+    t.ok(T.zone('A', 'hand').slice(hA).every(o => (o.analysis() || {}).isLand), 'lands');
+    t.eq(T.zone('B', 'hand').length, hB, 'B has the most: nothing');
+  });
+
+  test('Planes: Aplan Mortarium — chaos: two Alien Angels that stop being creatures when an opponent casts a creature spell', (mk, t) => {
+    t.auto('Aplan Mortarium');
+    const T = onPlane(mk, 'Aplan Mortarium');
+    chaos(T);
+    const ang = tokensOf(T, 'A').filter(o => /Alien Angel/.test(o.analysis().typeLine || '') || T.g._hasCreatureType(o, 'Angel'));
+    t.eq(ang.length, 2, 'two tokens');
+    t.ok(T.g.hasKw(ang[0], 'first strike') && T.g.hasKw(ang[0], 'vigilance'), 'first strike, vigilance');
+    t.ok(T.g._cardFitsWords(ang[0], 'artifact creature'), 'artifact creatures');
+    T.nextTurn('B');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.no((T.g.characteristics(ang[0]) || {}).isCreature, 'not a creature this turn');
+    t.ok(T.g._cardFitsWords(ang[0], 'artifact'), 'still an artifact');
+    t.no(T.g._hasCreatureType(ang[0], 'Angel'), 'nor an Angel');
+    T.nextTurn('A');
+    t.ok((T.g.characteristics(ang[0]) || {}).isCreature, 'a creature again');
+  });
+
+  test('Planes: Kerblam! Warehouse — chaos: your noncreature artifacts gain a coin-flip damage ability until your next turn', (mk, t) => {
+    t.auto('Kerblam! Warehouse');
+    const T = onPlane(mk, 'Kerblam! Warehouse');
+    const stone = T.bf('A', 'Mind Stone'), myr = T.bf('A', 'Palladium Myr');
+    const has = (o) => (o.analysis().abilities || []).some(ab => ab.kind === 'activated' && /Flip a coin/i.test(ab.text || ''));
+    chaos(T);
+    t.ok(has(stone), 'Mind Stone has it');
+    t.no(has(myr), 'not the artifact creature');
+    T.nextTurn('B');
+    t.ok(has(stone), 'still on B\'s turn');
+    T.nextTurn('A');
+    t.no(has(stone), 'gone on A\'s next turn');
+  });
+
+  test('Planes: The Dining Car — chaos: abilities of your artifact tokens cost {2} less this turn', (mk, t) => {
+    t.auto('The Dining Car');
+    const T = onPlane(mk, 'Gavony');
+    walkTo(T, 'The Dining Car');
+    const food = tokensOf(T, 'A', 'Food')[0];
+    t.ok(food && tokensOf(T, 'B', 'Food').length === 1, 'a Food each');
+    T.mana('A', '1');
+    chaos(T);
+    const life = T.life('A');
+    const i = food.analysis().manaAbilities.length + food.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => x.kind === 'activated');
+    T.activate('A', food, i);
+    t.eq(T.life('A'), life + 3, 'the Food for nothing');
+    // B's Food on B's turn: full price
+    T.nextTurn('B');
+    const bf = tokensOf(T, 'B', 'Food')[0];
+    t.no(T.g.activateAbility('B', bf.id, i, {}), 'B can\'t eat for free');
+  });
+
+  test('Planes: The Doctor\'s Tomb — chaos: redistribute life totals', (mk, t) => {
+    t.auto('The Doctor\'s Tomb');
+    t.auto('Reverse the Sands');
+    const T = onPlane(mk, 'The Doctor\'s Tomb');
+    T.player('A').life = 5; T.player('B').life = 15;
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'redistributePlayers'); return { picks: [0, 1] }; });
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'redistributeLife', 'which total for A'); return { picks: [ch.options.findIndex(o => o.life === 15)] }; });
+    chaos(T);
+    t.eq(T.life('A'), 15, 'A has 15'); t.eq(T.life('B'), 5, 'B has 5');
+    // a bot gives itself the higher one
+    const bots = T.MTG.bots;
+    const ps = { playerId: 'A', purpose: 'redistributePlayers', kind: 'options', min: 0, max: 2, optional: true,
+      options: [{ i: 0, label: 'A', pid: 'A', life: 15 }, { i: 1, label: 'B', pid: 'B', life: 30 }] };
+    t.eq(JSON.stringify(bots.answerChoose(T.g, 'A', ps).picks), '[0,1]', 'a bot with less life redistributes');
+    ps.options[1].life = 10;
+    t.eq(bots.answerChoose(T.g, 'A', ps).picks.length, 0, 'not with more');
+    const ls = { playerId: 'A', purpose: 'redistributeLife', kind: 'options', min: 1, max: 1, forPid: 'A',
+      options: [{ i: 0, label: 'A (15)', life: 15 }, { i: 1, label: 'B (30)', life: 30 }] };
+    t.eq(bots.answerChoose(T.g, 'A', ls).picks[0], 1, 'the higher total for itself');
+  });
 };

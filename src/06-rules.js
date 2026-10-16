@@ -12150,6 +12150,15 @@
           }
         }
       }
+      // The Dining Car: "activated abilities of artifact tokens you control cost {2} less to activate this turn" (turnAbilityMods)
+      for (const q of this.players) {
+        for (const m of (q.turnAbilityMods || [])) {
+          if (m.turn !== this.turn || o.zone !== 'battlefield' || !m.scope) continue;
+          if (m.scope.who !== 'all' && o.controller !== q.id) continue;
+          if (!this._scopeHit(m.scope, o, oa, q.id, null)) continue;
+          d += Number(m.amount) || 0;
+        }
+      }
       if (!d) return mana;
       if (d > 0) return this._addGeneric(mana, d);
       // "can't reduce the mana in that cost to less than one mana"
@@ -14690,6 +14699,10 @@
           if (got > 0 && as.source) {
             if (!as.source._hitPlayers || as.source._hitPlayers.turn !== this.turn) as.source._hitPlayers = { turn: this.turn, ids: [] };
             if (!as.source._hitPlayers.ids.includes(p.id)) as.source._hitPlayers.ids.push(p.id);
+            // Glen Elendra: "that dealt combat damage to a player this combat" — this combat's (_hitPlayersCombat)
+            const ck = this.turn + ':' + (this.combatsThisTurn || 1);
+            if (!as.source._hitPlayersCombat || as.source._hitPlayersCombat.key !== ck) as.source._hitPlayersCombat = { key: ck, ids: [] };
+            if (!as.source._hitPlayersCombat.ids.includes(p.id)) as.source._hitPlayersCombat.ids.push(p.id);
           }
         } else {
           const t = this.obj(as.targetId);
@@ -15518,7 +15531,7 @@
        and the whole battlefield is worked out layer by layer. */
     _changesWhatItIs(e) {
       return !!(e && (e.addTypes || e.setTypes || e.addSubtypes || e.setSubtypes || e.setCreatureTypes || e.addSupertypes ||
-        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith));
+        e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll || e.creatureTypesFromExiledWith || e.removeTypes));
     }
     /** Duplicant: the last creature card exiled with this permanent, still in exile — or null. */
     _lastExiledCreatureWith(src) {
@@ -15916,7 +15929,7 @@
       const parts = [];
       const split = (ef, base) => {
         if (ef.addTypes || ef.setTypes || ef.addSubtypes || ef.setSubtypes || ef.setCreatureTypes || ef.addChosenType || ef.chosenLandType || ef.addSupertypes ||
-          ef.creatureTypesFromExiledWith) parts.push(Object.assign({ layer: 4 }, base));
+          ef.creatureTypesFromExiledWith || ef.removeTypes) parts.push(Object.assign({ layer: 4 }, base));
         if (ef.setColors || ef.addColors) parts.push(Object.assign({ layer: 5 }, base));
         if (ef.loseAll) parts.push(Object.assign({ layer: 6 }, base));
       };
@@ -15978,6 +15991,11 @@
         if (p.layer === 4) {
           if (e.setTypes) { s.types = e.setTypes.slice(); this._trimSubtypes(s); }
           if (e.addTypes) for (const t of e.addTypes) if (!s.types.includes(t)) s.types.push(t);
+          // Aplan Mortarium's Alien Angels: "this token isn't a creature until end of turn" — and no creature types with it (CR 205.1b)
+          if (e.removeTypes) {
+            s.types = s.types.filter(t => !e.removeTypes.includes(t));
+            if (e.removeTypes.includes('Creature')) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t));
+          }
           // On Serra's Wings: "is legendary"
           if (e.addSupertypes) for (const t of e.addSupertypes) if (!s.supertypes.includes(t)) s.supertypes.push(t);
           if (e.setCreatureTypes) s.subtypes = s.subtypes.filter(t => !this._isCreatureType(t)).concat(e.setCreatureTypes);
@@ -20451,6 +20469,11 @@
       return same.every(l => l.length) ? same : null;
     }
 
+    /** The players this creature dealt combat damage to this combat (Glen Elendra). */
+    _hitThisCombat(o) {
+      const h = o && o._hitPlayersCombat;
+      return h && h.key === this.turn + ':' + (this.combatsThisTurn || 1) ? h.ids.slice() : [];
+    }
     /** Who chooses this trigger's targets when it isn't its controller (an effect's aimBy), or null. */
     _aimerOf(item) {
       const td = (item && item.triggerData) || {};
@@ -20785,6 +20808,11 @@
         if ((f.targets || []).some(sp => sp && sp.differentControllers)) {
           const seen = new Set();
           f._tslot.forEach((i, j) => { const t = ts[j]; if (t.kind !== 'object') return; const c = (this.obj(t.id) || {}).controller; if (seen.has(c)) dropped.add(i); else seen.add(c); });
+        }
+        // Glen Elendra: "… and target creature that player controls" — a player the first one dealt combat damage to this combat (hitByPrev)
+        if ((f.targets || []).some((sp, i) => i > 0 && sp && sp.hitByPrev) && ts.length === f.targets.length) {
+          f._tslot.forEach((i, j) => { if (j > 0 && f.targets[j] && f.targets[j].hitByPrev &&
+            (ts[j].kind !== 'object' || ts[j - 1].kind !== 'object' || !this._hitThisCombat(this.obj(ts[j - 1].id)).includes((this.obj(ts[j].id) || {}).controller))) dropped.add(i); });
         }
         if ((f.targets || []).some((sp, i) => i > 0 && sp && sp.sameControllerAsPrev) && ts.length === f.targets.length) {
           f._tslot.forEach((i, j) => { if (j > 0 && f.targets[j] && f.targets[j].sameControllerAsPrev &&
@@ -24031,7 +24059,9 @@
             // Quicksmith Spy: "for as long as you control this creature"
             const lasting = e.duration === 'whileControl' && src ? { whileFrom: src.id, whileControl: ctx.controller }
               // Emrakul, the Exigent Doom: "until this card is cast from exile" (untilCastFromExile)
-              : e.duration === 'untilCastFromExile' && src && src.zone === 'exile' ? { untilCastOf: src.id } : {};
+              : e.duration === 'untilCastFromExile' && src && src.zone === 'exile' ? { untilCastOf: src.id }
+              // Kerblam! Warehouse: "until your next turn" (as becomes' nextTurn)
+              : e.duration === 'nextTurn' ? { untilTurnOf: ctx.controller } : {};
             o.effects.push(Object.assign(e.abilities ? { grantAbilities: e.abilities, until: e.duration === 'eot' ? 'eot' : null }
               : { grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null }, lasting));
             o._chr = null;
@@ -26902,6 +26932,42 @@
           const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
             : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
           who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
+          break;
+        }
+        /* Reverse the Sands, The Doctor's Tomb: "Redistribute any number of players' life totals. (Each of those players
+           gets one life total back.)" — which players, then who gets which total, all chosen as it resolves; each gains
+           or loses the difference (CR 119.5) */
+        case 'redistributeLife': {
+          const live = this.players.filter(p => !p.hasLost);
+          if (live.length < 2) break;
+          const opt = (p) => ({ i: live.indexOf(p), label: `${p.name} (${p.life} life)`, pid: p.id, life: p.life });
+          const gotP = this._choose({ playerId: me.id, purpose: 'redistributePlayers', kind: 'options', min: 0, max: live.length, optional: true,
+            options: live.map(opt), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose any number of players whose life totals you redistribute.` }, 'rdP');
+          if (gotP === SUSPEND) return SUSPEND;
+          const chosen = ((gotP && gotP.picks) || []).map(i => live[i]).filter(Boolean);
+          if (chosen.length < 2) { this.logEvent('life', `${me.name} redistributes no life totals.`); break; }
+          // each of them in turn takes one of the totals left (the last the one that remains)
+          const pool = chosen.map(p => ({ from: p, life: p.life }));
+          const give = new Map();
+          for (let k = 0; k < chosen.length; k++) {
+            const p = chosen[k];
+            const left = pool.filter(x => !x.taken);
+            let pick = left[0];
+            if (left.length > 1 && new Set(left.map(x => x.life)).size > 1) {
+              const got = this._choose({ playerId: me.id, purpose: 'redistributeLife', kind: 'options', min: 1, max: 1, forPid: p.id,
+                options: left.map((x, j) => ({ i: j, label: `${x.from.name}'s life total (${x.life})`, life: x.life })),
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}which life total does ${p.name} get?` }, 'rdL' + k);
+              if (got === SUSPEND) return SUSPEND;
+              pick = left[(got && got.picks && got.picks[0]) || 0] || left[0];
+            }
+            pick.taken = true;
+            give.set(p.id, pick.life);
+          }
+          for (const p of chosen) {
+            const to = give.get(p.id);
+            if (to !== p.life) this.changeLife(p, to - p.life);
+          }
+          this.logEvent('life', `Life totals redistributed: ${chosen.map(p => `${p.name} ${p.life}`).join(', ')}.`);
           break;
         }
         /* Magus of the Mirror: "Exchange life totals with target opponent." Each
@@ -33722,6 +33788,45 @@
           if (!sp || sp.zone !== 'stack') break;
           sp._stackKw = [...new Set((sp._stackKw || []).concat(e.keywords || []))];
           this.logEvent('rules', `${sp.name} gains ${(e.keywords || []).join(' and ')}.`);
+          break;
+        }
+        /* Mondassian Colony Ship, Cyber Conversion: "Turn target creature face down. It's a 2/2 Cyberman artifact creature." —
+           the same permanent, face down as that (e.as); a double-faced one can't be turned face down and stays as it is */
+        case 'turnFaceDown': {
+          for (const t of targets) {
+            const o = t && t.kind === 'object' && this.obj(t.id);
+            if (!o || o.zone !== 'battlefield' || o.faceDown) continue;
+            if (o.card && Array.isArray(o.card.card_faces) && /^(?:transform|modal_dfc|meld|double_faced_token|reversible_card)$/.test(o.card.layout || '')) {
+              this.logEvent('rules', `${o.name} is double-faced and can't be turned face down.`);
+              continue;
+            }
+            const was = o.name;
+            o.faceDown = true; o.faceDownLand = e.as || null; o._chr = null;
+            this.logEvent('rules', `${was} is turned face down${e.as ? ` — a 2/2 ${String(e.as).replace(/^.*—\s*/, '')} ${String(e.as).split('—')[0].trim().toLowerCase()}` : ''}.`);
+          }
+          this.bumpBoard();
+          break;
+        }
+        /* The Moonbase: "Put those cards onto the battlefield face down under your control. They're 2/2 Cyberman artifact
+           creatures." — the target cards, from wherever they were chosen (e.as their face-down type line) */
+        case 'putFaceDownAs': {
+          for (const t of targets) {
+            const o = t && t.kind === 'object' && this.obj(t.id);
+            if (!o || o.zone === 'battlefield' || o.zone === 'stack' || (t.zone && o.zone !== t.zone)) continue;
+            o.faceDown = true; o.faceDownLand = e.as || null;
+            this.moveObject(o, 'battlefield', { controller: ctx.controller });
+            if (o.zone !== 'battlefield') { o.faceDown = false; o.faceDownLand = null; continue; }
+            o.faceDown = true; o.faceDownLand = e.as || null; o._chr = null;
+            this.logEvent('rules', `${me.name} puts a card onto the battlefield face down.`);
+          }
+          this.bumpBoard();
+          break;
+        }
+        // The Dining Car: "activated abilities of artifact tokens you control cost {2} less to activate this turn"
+        case 'abilityCostModTurn': {
+          me.turnAbilityMods = (me.turnAbilityMods || []).filter(m => m.turn === this.turn);
+          me.turnAbilityMods.push({ turn: this.turn, scope: JSON.parse(JSON.stringify(e.scope || {})), amount: Number(e.amount) || 0 });
+          this.logEvent('rules', `${me.name}: ${String(e.text || 'activated abilities cost less this turn').replace(/\.$/, '')}.`);
           break;
         }
         // Jund: "it gains devour 5" — the creature spell the trigger is about devours as it enters (_devourOnEnter)
@@ -42235,6 +42340,10 @@
         noAbilities: (o) => this._hasNoAbilities(o),
         // (Viper, Cruel Conspirator: "attacking alone" — attacking, and no other creature is: attackingAlone)
         attackingAlone: (o) => !!o.attacking && !this.battlefield.some(x => x !== o && !x.phasedOut && x.attacking),
+        // (Glen Elendra: the players this creature dealt combat damage to this combat — hitPlayerThisCombat)
+        hitThisCombat: (o) => this._hitThisCombat(o),
+        // (… and "target creature that player controls": a player some creature of this one's dealt combat damage to this combat)
+        hitByYoursThisCombat: (pid) => this.battlefield.filter(x => x.controller === pid).flatMap(x => this._hitThisCombat(x)),
       };
       return this.__specCtx;
     }

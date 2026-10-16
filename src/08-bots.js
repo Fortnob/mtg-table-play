@@ -2372,6 +2372,19 @@
     devour(s) { return { picks: (s.items || []).filter(x => { const o = this.game.obj(x.id); return o && o.isToken; }).map(x => x.id) }; },
     // (Jund: devour handed to the spell, asked as it enters — the same)
     devourEnter(s) { return this.devour(s); },
+    /* Reverse the Sands, The Doctor's Tomb: our total for the highest an opponent has, when that is more; theirs
+       for ours */
+    redistributePlayers(s) {
+      const opts = s.options || [];
+      const mine = opts.find(o => o.pid === this.pid);
+      if (!mine) return { picks: [] };
+      const best = opts.filter(o => o.pid !== this.pid && this.game.opponentsOf(this.pid).some(q => q.id === o.pid)).sort((a, b) => b.life - a.life)[0];
+      return { picks: best && best.life > mine.life ? [mine.i, best.i] : [] };
+    },
+    redistributeLife(s) {
+      const opts = (s.options || []).slice().sort((a, b) => (s.forPid === this.pid ? b.life - a.life : a.life - b.life));
+      return { picks: opts.length ? [opts[0].i] : [] };
+    },
     /* The Pit: "their choice of a 3/3 white Angel … or a 6/6 black Demon …" — the bigger one, unless it asks a
        creature or life of us each turn and we have little to give */
     tokenChoice(s) {
