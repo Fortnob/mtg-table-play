@@ -15378,6 +15378,11 @@
      * each event (CR 614.5), which is what `seen` is for.
      */
     _replace(ev) {
+      // Solemnity: counters that can't be put there aren't, whatever would add to them (_countersBarredOn, _playerCountersBarred)
+      if (ev.kind === 'counters' && Number(ev.n) > 0 && (ev.object ? this._countersBarredOn(ev.object) : ev.player ? this._playerCountersBarred() : false)) {
+        ev.cancelled = true;
+        return ev;
+      }
       const seen = ev._seen || (ev._seen = new Set());
       let guard = 0;
       let again = true;
@@ -18788,6 +18793,8 @@
     }
 
     addPoison(p, n, by) {
+      // (Solemnity: "Players can't get counters." — noPlayerCounters)
+      if (n > 0 && by !== undefined && this._playerCountersBarred()) return;
       // Melira, Sylvok Outcast: "You can't get poison counters." (noPoison; not a count changed by hand)
       if (n > 0 && by !== undefined && this._anyStaticOf(p.id, 'noPoison')) return;
       // poison counters someone puts (an effect, infect damage) can be replaced
@@ -18810,6 +18817,8 @@
     addCounters(o, kind, n, opts) {
       n = Math.trunc(Number(n)) || 0;
       if (!n) return;
+      // (Solemnity: moved or put without replacements, still not put — noCountersOnTypes)
+      if (n > 0 && this._countersBarredOn(o)) return;
       // who puts them (Hapatra: "Whenever you put"): the effect's controller, a wither source's, or its own
       const putter = (opts && opts.by) || this._putBy || o.controller;
       /* a lore counter put on a Saga reads its next chapter, however it is put (CR 714.2c)
@@ -26754,6 +26763,26 @@
           this.logEvent('control', `${me.name} gains control of every ${e.what || 'creature'}${e.minPower != null ? ` with power ${e.minPower} or greater` : e.maxPower != null ? ` with power ${e.maxPower} or less` : ''} until end of turn.`);
           break;
         }
+        /* Reins of Power: both sides' creatures untapped, and each side's taken by the other until end of turn, all at
+           once; then haste for all of them (swapCreatureControl) */
+        case 'swapCreatureControl': {
+          const opp = firstPlayer();
+          if (!opp || opp.hasLost || opp.id === ctx.controller) break;
+          const isC = (x) => !x.phasedOut && (this.characteristics(x) || {}).isCreature;
+          const mine = this.battlefield.filter(x => isC(x) && x.controller === ctx.controller);
+          const theirs = this.battlefield.filter(x => isC(x) && x.controller === opp.id);
+          const all = mine.concat(theirs);
+          for (const x of all) this._markUntapped(x);
+          const ts = this._stampNew();
+          for (const x of mine) x.effects.push({ control: opp.id, until: 'eot', ts });
+          for (const x of theirs) x.effects.push({ control: ctx.controller, until: 'eot', ts });
+          this._refreshControl();
+          if (e.haste) for (const x of all) x.effects.push({ keywords: ['Haste'], until: 'eot' });
+          this._lastGroup = all.map(x => x.id);
+          this.bumpBoard();
+          this.logEvent('control', `${me.name} and ${opp.name} exchange control of their creatures until end of turn.`);
+          break;
+        }
         // Humble Defector: "Target opponent gains control of this creature."
         case 'giveSelf': {
           const to = firstPlayer();
@@ -26836,11 +26865,14 @@
           break;
         }
         case 'exileHandDraw': {
-          const hand = this.zones[ctx.controller].hand.slice();
+          // (Elder Brain: "that player's hand, then they draw" — the player attacked: who triggerPlayer)
+          const who = e.who === 'triggerPlayer' ? triggerPlayer() : me;
+          if (!who || who.hasLost) break;
+          const hand = this.zones[who.id].hand.slice();
           for (const c of hand) this.moveObject(c, 'exile');
           this._lastExiledList = hand.map(c => c.id);
-          this.logEvent('exile', `${me.name} exiles their hand (${hand.length}).`);
-          if (hand.length) this._drawCards(me, hand.length);
+          this.logEvent('exile', `${who.id === me.id ? me.name + ' exiles their' : me.name + ' exiles ' + who.name + "'s"} hand (${hand.length}).`);
+          if (hand.length) this._drawCards(who, hand.length);
           break;
         }
         // Expansion Algorithm: "Proliferate X times" — that many, one after another
@@ -26878,11 +26910,14 @@
             }
             // (All Will Be One: a counter put on a player this way too — playerCountersPut)
             const onPlayer = (p, k) => this._playerCountersPut(p, k, 1, ctx.controller);
+            // (Solemnity: "Players can't get counters." — no player's counters proliferated)
+            if (!this._playerCountersBarred()) {
             for (const p of this.players) if (p.poison > 0 && p.id !== ctx.controller && !this._anyStaticOf(p.id, 'noPoison')) { p.poison++; n2++; onPlayer(p, 'poison'); }
             // your own energy and experience, and opponents' rad counters
             if ((me.energy || 0) > 0) { me.energy++; n2++; onPlayer(me, 'energy'); }
             if ((me.experience || 0) > 0) { me.experience++; n2++; onPlayer(me, 'experience'); }
             for (const p of this.opponentsOf(ctx.controller)) if ((p.rad || 0) > 0) { p.rad++; n2++; onPlayer(p, 'rad'); }
+            }
             this._fire('youProliferate', ctx.controller, { playerId: ctx.controller });
           }
           this.logEvent('proliferate', `Proliferate adds ${n2} counter${n2 === 1 ? '' : 's'}.`);
@@ -29656,7 +29691,11 @@
         // Kwain, Will of the Jeskai: each player may; every answer first, then it happens
         case 'eachMay': {
           // (Willie Lumpkin, Postman: "that player may draw a card" — the one the trigger is about: who triggerPlayer)
-          const order = e.who === 'triggerPlayer' ? [triggerPlayer()].filter(q => q && !q.hasLost) : this.players.filter(q => !q.hasLost);
+          // (Heartwood Storyteller: "each of that player's opponents" — triggerPlayerOpponents, in turn order)
+          const tpO = e.who === 'triggerPlayerOpponents' ? triggerPlayer() : null;
+          const order = e.who === 'triggerPlayer' ? [triggerPlayer()].filter(q => q && !q.hasLost)
+            : e.who === 'triggerPlayerOpponents' ? (tpO ? this._turnOrderFrom(tpO.id).filter(q => q && !q.hasLost && this.opponentsOf(tpO.id).includes(q)) : [])
+            : this.players.filter(q => !q.hasLost);
           const yes = [];
           for (const q of order) {
             const what = (e.discardHand ? 'discard your hand and ' : '') + `draw ${e.draw === 1 ? 'a card' : (e.draw || 1) + ' cards'}` +
@@ -30466,6 +30505,36 @@
             this.logEvent('counters', `${m} ${k} counter${m === 1 ? '' : 's'} move${m === 1 ? 's' : ''} from ${from.name} to ${to.name}.`);
           }
           from._chr = null; this.bumpBoard();
+          break;
+        }
+        /* Slippery Bogbonder: "move any number of counters from among creatures you control onto that creature" — each
+           kind on each of your other creatures, how many asked; all moved together afterwards (moveCountersFromYours) */
+        case 'moveCountersFromYours': {
+          const to = firstObj();
+          if (!to || to.zone !== 'battlefield') break;
+          const froms = this.battlefield.filter(x => x !== to && !x.phasedOut && x.controller === ctx.controller && (this.characteristics(x) || {}).isCreature &&
+            Object.keys(x.counters || {}).some(k => Number(x.counters[k]) > 0));
+          const moves = [];
+          let qi = 0;
+          for (const from of froms) {
+            for (const k of Object.keys(from.counters).filter(k => Number(from.counters[k]) > 0)) {
+              const have = Number(from.counters[k]) || 0;
+              const got = this._choose({ playerId: ctx.controller, purpose: 'moveCounters', kind: 'number', number: { min: 0, max: have }, counterKind: k, toId: to.id,
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}move how many ${k} counters from ${from.name} to ${to.name}?` }, 'mcy:' + qi++);
+              if (got === SUSPEND) return SUSPEND;
+              const m = Math.min(have, Math.max(0, (got && got.number) || 0));
+              if (m > 0) moves.push([from, k, m]);
+            }
+          }
+          for (const [from, k, m] of moves) {
+            if (from.zone !== 'battlefield' || to.zone !== 'battlefield') continue;
+            const left = (Number(from.counters[k]) || 0) - m;
+            if (left > 0 || k === 'loyalty') from.counters[k] = Math.max(0, left); else delete from.counters[k];
+            from._chr = null;
+            this.addCounters(to, k, m, { noReplace: true });
+            this.logEvent('counters', `${m} ${k} counter${m === 1 ? '' : 's'} move${m === 1 ? 's' : ''} from ${from.name} to ${to.name}.`);
+          }
+          this.bumpBoard();
           break;
         }
         // (a limit on X, settled as the spell was cast)
@@ -38035,6 +38104,7 @@
             : e.who === 'each' ? this.players.filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean)
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : [me];
           for (const p of who) {
+            if (this._playerCountersBarred()) break;      // (Solemnity)
             p.rad = (p.rad || 0) + Math.max(0, n(e.n)); this.logEvent('counters', `${p.name} gets ${n(e.n)} rad counter${n(e.n) === 1 ? '' : 's'} (${p.rad}).`);
             if (n(e.n) > 0) this._playerCountersPut(p, 'rad', n(e.n), ctx.controller);
           }
@@ -38042,6 +38112,7 @@
         }
         // experience counters
         case 'experience': {
+          if (this._playerCountersBarred()) break;      // (Solemnity)
           me.experience = (me.experience || 0) + Math.max(0, n(e.n));
           this.logEvent('counters', `${me.name} gets an experience counter (${me.experience}).`);
           if (n(e.n) > 0) this._playerCountersPut(me, 'experience', n(e.n), ctx.controller);
@@ -40448,6 +40519,14 @@
 
     /** Has this player protection from everything right now (The One Ring, Teferi's Protection)? */
     _protected(p) { return !!(p && p.protection && this._protectionLive(p.protection)); }
+    /** Solemnity: "Players can't get counters." — anyone's, for every player (noPlayerCounters) */
+    _playerCountersBarred() { return this.battlefield.some(s => !s.phasedOut && this._staticOp(s, 'noPlayerCounters')); }
+    /** Solemnity: "Counters can't be put on artifacts, creatures, enchantments, or lands." — a permanent of one of those types (noCountersOnTypes) */
+    _countersBarredOn(o) {
+      if (!o || o.zone !== 'battlefield') return false;
+      const types = this._cardTypesOf(o);
+      return this.battlefield.some(s => { if (s.phasedOut) return false; const e = this._staticOp(s, 'noCountersOnTypes'); return !!e && (e.types || []).some(t => types.includes(t)); });
+    }
     /** Noble Heritage: has this player protection from that player (protFrom), until their own next turn? */
     _protFromPlayer(pid, fromPid) {
       const p = this.player(pid);

@@ -2102,7 +2102,13 @@
       return best ? { picks: [best.id] } : null;
     },
     /* Resourceful Defense: counters go where they were asked to go */
-    moveCounters(s) { return { number: (s.number && s.number.max) || 0 }; },
+    /* (Slippery Bogbonder: where they go said — a harmful kind not onto our own creature, a good one not onto theirs:
+       counterKind, toId) */
+    moveCounters(s) {
+      const to = s.toId && this.game.obj(s.toId);
+      if (to && s.counterKind && /^(?:-1\/-1|stun|time|doom|age|fade|decay|blight|ice|rust|bounty|hit)$/.test(s.counterKind) === (to.controller === this.pid)) return { number: 0 };
+      return { number: (s.number && s.number.max) || 0 };
+    },
     /* Esper Terra: as many lore counters as it may — the copied Saga's chapters, now */
     loreUpTo(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Patriarch's Bidding: the type with the most creature cards in our own graveyard */

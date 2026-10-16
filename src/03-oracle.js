@@ -4173,6 +4173,11 @@
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
     // Hex Magic: "Exile all the cards from your hand, then draw that many cards."
     { re: /^Exile (?:all the cards from |all cards from )?your hand, then draw that many cards\.?$/i, make: () => ({ op: 'exileHandDraw' }) },
+    // Elder Brain: "exile all cards from that player's hand, then they draw that many cards" — the player attacked (who triggerPlayer)
+    { re: /^Exile all (?:the )?cards from that player'?s hand, then they draw that many cards\.?$/i, make: () => ({ op: 'exileHandDraw', who: 'triggerPlayer' }) },
+    // (Elder Brain: "You may play lands and cast spells from among the exiled cards for as long as they remain exiled.")
+    { re: /^You may play lands and cast spells from among the exiled cards for as long as they remain exiled\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled' }) },
     // Herigast, Erupting Nullkite: "you may exile your hand. If you do, draw three cards." — an empty hand too (its ruling)
     { re: /^Exile your hand\.?$/i, make: () => ({ op: 'exileHand' }) },
     // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
@@ -5388,6 +5393,10 @@
         return { op: 'moveCountersAny', all: /^all$/i.test(m[1]), kind: m[2] ? '+1/+1' : null,
           targets: [a, Object.assign({}, b, { distinct: true }, m[5] ? { sameControllerAsPrev: true } : {})] };
       } },
+    /* Slippery Bogbonder: "Then move any number of counters from among creatures you control onto that creature." — the
+       creature just targeted; how many of each kind from each, asked as it resolves (moveCountersFromYours) */
+    { re: /^(?:Then )?move any number of counters from among creatures you control onto that creature\.?$/i,
+      make: () => ({ op: 'moveCountersFromYours', scope: 'lastTarget' }) },
     /* Goldberry, River-Daughter: "Move a counter of each kind not on Goldberry from another target permanent you
        control onto Goldberry." — one of each kind it doesn't have yet (eachKindNew) */
     { re: /^Move a counter of each kind not on CARDNAME from (another target [a-z ]+?) onto CARDNAME\.?$/i,
@@ -13225,6 +13234,13 @@
        Otherwise, draw a card." */
     { re: /^Scry (\d+), then reveal the top card of your library\. If it'?s a land card, put it onto the battlefield( tapped)?\. Otherwise, draw a card\.$/i,
       make: (m) => [{ op: 'scry', n: +m[1] }, { op: 'topLandOrDraw', tapped: !!m[2] }] },
+    // Heartwood Storyteller: "each of that player's opponents may draw a card" — the caster's opponents, each their own choice
+    { re: /^Each of that player'?s opponents may draw a card\.?$/i, make: () => [{ op: 'eachMay', draw: 1, who: 'triggerPlayerOpponents' }] },
+    /* Reins of Power: "Untap all creatures you control and all creatures target opponent controls. You and that opponent
+       each gain control of all creatures the other controls until end of turn. Those creatures gain haste until end of
+       turn." (swapCreatureControl) */
+    { re: /^Untap all creatures you control and all creatures target opponent controls\. You and that opponent each gain control of all creatures the other controls until end of turn\. Those creatures gain haste until end of turn\.?$/i,
+      make: () => [{ op: 'swapCreatureControl', haste: true, targets: [{ type: 'player', opponent: true }] }] },
     // Kwain: "Each player may draw a card, then each player who drew a card this way gains 1 life."
     { re: /^Each player may draw a card, then each player who drew a card this way gains (\d+) life\.$/i,
       make: (m) => [{ op: 'eachMay', draw: 1, gain: +m[1] }] },
@@ -25314,6 +25330,11 @@
       // Darksteel Angel, Blightbeetle: "Creatures you control can't have -1/-1 counters put on them."
       { re: /^(Creatures you control|Creatures your opponents control|Creatures) can'?t have ([+-]\d\/[+-]\d) counters put on them\.?$/i,
         make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'noCountersOfKind', scope: sc, kind: m[2] } : null; }, auto: true },
+      // Solemnity: "Players can't get counters." (noPlayerCounters)
+      { re: /^Players can'?t get counters\.?$/i, eff: { op: 'noPlayerCounters' }, auto: true },
+      // Solemnity: "Counters can't be put on artifacts, creatures, enchantments, or lands." — permanents of those types (noCountersOnTypes)
+      { re: /^Counters can'?t be put on ((?:artifacts|creatures|enchantments|lands|planeswalkers|battles)(?:, (?:artifacts|creatures|enchantments|lands|planeswalkers|battles))*,? (?:or|and) (?:artifacts|creatures|enchantments|lands|planeswalkers|battles))\.?$/i,
+        make: (m) => ({ op: 'noCountersOnTypes', types: m[1].split(/,? (?:or|and) |, /).map(w => ({ artifacts: 'Artifact', creatures: 'Creature', enchantments: 'Enchantment', lands: 'Land', planeswalkers: 'Planeswalker', battles: 'Battle' })[w.toLowerCase()]) }), auto: true },
       // Duelist of the Mind: "CARDNAME's power is equal to the number of cards you've drawn this turn."
       { re: /^(?:CARDNAME|This creature)'?s power is equal to (the number of cards you'?ve drawn this turn|the amount of life you(?:'ve)? gained this turn)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && k.playerStat ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: null, keepToughness: true } } : null; }, auto: true },
