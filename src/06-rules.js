@@ -1939,8 +1939,10 @@
           amount += Math.max(1, ...(e.choices || [[1]]).map(ch => ch.length));
         } else if (e.op === 'addManaPer') {
           // (Nardole: "for each counter on Nardole", every kind)
+          // (Metalworker: "for each card revealed this way" — at most every card it could reveal: revealedMax)
           const k = (e.per && e.per.countersOnSelf === '*') ? (o ? Object.values(o.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0)
             : (e.per && e.per.countersOnSelf) ? ((o && Number(o.counters[e.per.countersOnSelf])) || 0)
+            : (e.per && e.per.revealedCount) ? this._revealableForMana(ab, o, pid).length * (e.per.mult || 1)
             : this.countPermanents(pid, e.per || {}) * ((e.per && e.per.mult) || 1);
           if (k > 0) { produces.add(e.symbol || 'C'); amount += k; }
         } else if (e.op === 'addManaAmong') {
@@ -1969,6 +1971,12 @@
       return { produces, any, amount: Math.max(amount, (produces.size || any) ? 1 : 0) };
     }
 
+    /** Metalworker: the cards in hand a mana ability's "Reveal any number of artifact cards in your hand" could show (forMana). */
+    _revealableForMana(ab, o, pid) {
+      const rv = ((ab && ab.effects) || []).find(x => x && x.op === 'revealAnyFromHand' && x.forMana);
+      if (!rv) return [];
+      return ((this.zones[pid] || {}).hand || []).filter(c => c !== o && this._cardFitsWords(c, rv.filter || 'card'));
+    }
     /** The colours "one mana of any color" may be right now: all five, or only those of the commander's identity,
         or the ones the card allows (Omnath, Locus of All: allowedColors). The addManaAny op and the choice offered
         to a person both read it here. */
@@ -2024,6 +2032,15 @@
         const mana = (chosenTo.symbols || []).map(s => '{' + s + '}').join('');
         out.push({ key: keyOf, mana, label: 'You' });
         for (const p of this._turnOrderFrom(pid)) if (p.id !== pid && !p.hasLost) out.push({ key: keyOf + '>' + p.id, mana, to: p.id, label: p.name });
+        return out.length > 1 ? out : [];
+      }
+      /* Metalworker: "Reveal any number of artifact cards in your hand. Add {C}{C} for each card revealed this way." —
+         how many, as the mana it adds ('CCCC': two cards), up to ten (forMana) */
+      const rvm = effects.find(e => e.op === 'revealAnyFromHand' && e.forMana);
+      if (rvm) {
+        const n = Math.min(this._revealableForMana(ab, o, pid).length, Math.floor(20 / rvm.forMana));
+        const c = letter(rvm.symbol || 'C');
+        for (let k = n; k >= 1; k--) out.push({ key: c.repeat(k * rvm.forMana), mana: sym(c, k * rvm.forMana), label: 'Reveal ' + MTG.oracle.nounCount(k, 'card') });
         return out.length > 1 ? out : [];
       }
       // "Add two mana in any combination of {U}, {B}, and/or {R}" (Relic of Sauron): one effect a mana — each
@@ -2093,7 +2110,7 @@
     _legalManaChoice(pid, o, ab, want) {
       if (want == null || want === '') return undefined;
       // (Victory Chimes: 'C>B' — the mana, then the player who adds it)
-      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}(?:>[^>\s]{1,80})?$/.test(want)) return undefined;
+      if (typeof want !== 'string' || !/^[WUBRGC]{1,20}(?:>[^>\s]{1,80})?$/.test(want)) return undefined;
       const opts = this.manaChoicesFor(pid, o, ab);
       if (!opts.length) return want;
       if (opts.some(x => x.key === want)) return want;
@@ -2107,7 +2124,7 @@
       if (o.zone !== 'battlefield' || o.controller !== playerId) return null;
       const list = this.manaAbilitiesOf(o);
       if (!list.length) return null;
-      const CHOOSY = /^(addManaAny|addManaAmong|addManaChoice|addManaX|addManaDevotion|addManaChosen|chooseColor|ifCond|sequence)$/;
+      const CHOOSY = /^(addManaAny|addManaAmong|addManaChoice|addManaX|addManaDevotion|addManaChosen|chooseColor|ifCond|sequence|revealAnyFromHand)$/;
       const out = [];
       list.forEach((ab, i) => {
         if (!(ab.effects || []).some(e => e && (CHOOSY.test(e.op) || (e.op === 'addMana' && e.who === 'chosen')))) return;
@@ -5054,6 +5071,15 @@
       if (chb && ta.length) return true;
       return ta.some(t => tb.some(u => u.toLowerCase() === t.toLowerCase()));
     }
+    /** Prowl (CR 702.76a): did a creature of this player's with any of this card's creature types deal a player combat damage this turn? */
+    _prowlOpen(pid, o) {
+      const p = this.player(pid);
+      if (!p || p.prowlTurn !== this.turn || !o) return false;
+      const a = o.analysis() || {};
+      // (a changeling got through: every type — the card needs one of its own)
+      if (p.prowlAll && ((a.keywordSet && a.keywordSet.has('changeling')) || (a.subtypes || []).some(t => this._isCreatureType(t)))) return true;
+      return (p.prowlTypes || []).some(t => this._hasCreatureType(o, t));
+    }
     /* Orvar, the All-Form: "one or more other permanents you control" among a spell's targets — on the battlefield,
        controlled by this one's controller, not this one */
     _spellTargetsYourOther(targets, o) {
@@ -6145,6 +6171,8 @@
             if (ef.maxMvCounters && ((o.card && o.card.cmc) || 0) > (Number((src.counters || {})[ef.maxMvCounters]) || 0)) continue;
             // Banon, the Returners' Leader: "cards … that were put there from anywhere other than the battlefield this turn"
             if (ef.notFromBfThisTurn && o._gyNotBfTurn !== this.turn) continue;
+            // Augur of Autumn, The Reality Chip, a Class's level (Fortune Teller's Talent): only while the condition holds
+            if (ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
             // Errant and Giada: "spells with flash or flying"
             if (ef.keywordAny && !ef.keywordAny.some(k => (((o.analysis() || {}).keywordSet) || EMPTY_SET).has(k))) continue;
             // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
@@ -6160,8 +6188,6 @@
             if (ef.oncePerTurn || ef.exileAfter || ef.oncePerKind || ef.finalityCast || ef.gainsText) return Object.assign({}, ef, { srcId: src.id });
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
-            // Augur of Autumn, The Reality Chip: only while the condition holds
-            if (ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
             /* Falco Spara, Pactweaver: "by removing a counter from a creature you control in addition to paying their
                other costs" — only with a counter to remove, and a leave with no such cost is used first */
             if (ef.removeCounterCost) { if (!costly && this._counterCostPairs(playerId).length) costly = ef; continue; }
@@ -6244,6 +6270,20 @@
           const g = this._staticOp(src, 'grantCastKeyword');
           if (!g || g.keyword !== 'freerunning' || !g.cost || (g.filter && !this._cardFitsWords(o, g.filter))) continue;
           if (!out.some(u => u.via === 'freerunning' && u.cost === g.cost)) out.push({ kind: 'cast', via: 'freerunning', cost: g.cost, label: 'Freerunning ' + g.cost });
+        }
+      }
+      /* Hunting Velociraptor: "Dinosaur spells you cast have prowl {2}{R}." — once a creature of yours sharing a creature
+         type with it got through this turn (grantCastKeyword prowl) */
+      if (o.zone === 'hand' && o.owner === playerId && !a.isLand && this._prowlOpen(playerId, o)) {
+        for (const src of this.battlefield) {
+          if (src.controller !== playerId || src.phasedOut) continue;
+          for (const ab of ((src.analysis() || {}).abilities || [])) {
+            if (ab.kind !== 'static') continue;
+            for (const g of (ab.effects || [])) {
+              if (!g || g.op !== 'grantCastKeyword' || g.keyword !== 'prowl' || !g.cost || (g.filter && !this._cardFitsWords(o, g.filter))) continue;
+              if (!out.some(u => u.via === 'prowl' && u.cost === g.cost)) out.push({ kind: 'cast', via: 'prowl', cost: g.cost, label: 'Prowl ' + g.cost });
+            }
+          }
         }
       }
       // The Fugitive Doctor: flashback for the cost it gave, this turn (flashbackGrant)
@@ -6381,6 +6421,10 @@
         // Surge: the other cost, once you have cast another spell this turn (CR 702.117)
         if (o.zone === 'hand' && arg && k === 'surge' && ((this.player(playerId) || {}).spellsCastThisTurn || 0) >= 1) {
           out.push({ kind: 'cast', via: 'surge', cost: arg, label: 'Surge ' + arg });
+        }
+        // Prowl: the other cost, once a creature of yours sharing a creature type with it dealt a player combat damage this turn (CR 702.76)
+        if (o.zone === 'hand' && arg && k === 'prowl' && this._prowlOpen(playerId, o) && !out.some(u => u.via === 'prowl' && u.cost === arg)) {
+          out.push({ kind: 'cast', via: 'prowl', cost: arg, label: 'Prowl ' + arg });
         }
         // Spectacle: the other cost, once an opponent has lost life this turn (CR 702.137)
         if (o.zone === 'hand' && arg && k === 'spectacle' && this.opponentsOf(playerId).some(q => (q.lifeLostThisTurn || 0) > 0)) {
@@ -8446,6 +8490,7 @@
       let emergeSac = null;
       o._webSlinging = false;
       o._surged = false;
+      o._prowled = false;
       if (opts.via) {
         via = this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via);
         if (via && (via.via === 'evoke' || via.via === 'dash')) o._via = via.via;
@@ -8460,6 +8505,8 @@
         if (via && via.via === 'prototype') o.prototyped = true;
         // Surge: "if its surge cost was paid"
         if (via && via.via === 'surge') o._surged = true;
+        // Prowl: "if its prowl cost was paid"
+        if (via && via.via === 'prowl') o._prowled = true;
         // Chainer: that was the one
         if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
         // Maralen, Fae Ascendant: "Once each turn" — used up
@@ -15070,6 +15117,14 @@
             const owner = this.player(as.source.controller);
             if (owner) owner.freerunningTurn = this.turn;
           }
+          /* Prowl asks which creature types got through this turn: each creature that dealt a player combat damage, under
+             its controller, with the types it had as it dealt it — a changeling every one (CR 702.76a) */
+          { const pl = this.player(as.source.controller);
+            if (pl) {
+              if (pl.prowlTurn !== this.turn) { pl.prowlTurn = this.turn; pl.prowlTypes = []; pl.prowlAll = false; }
+              if (this.hasKw(as.source, 'changeling')) pl.prowlAll = true;
+              for (const t of ((sa && sa.subtypes) || [])) if (this._isCreatureType(t) && !pl.prowlTypes.includes(t)) pl.prowlTypes.push(t);
+            } }
           /* The Ring, level 4: the Ring-bearer getting through costs every
              opponent three life. */
           if (this._isRingBearer(as.source) && (this.player(as.source.controller) || {}).ringLevel >= 4) {
@@ -16796,6 +16851,7 @@
         }
         case 'boughtBack': return !!(ctx && ctx.boughtBack);
         case 'surgePaid': return !!(ctx && ((ctx.obj && ctx.obj._surged) || ctx.via === 'surge'));
+        case 'prowlPaid': return !!(ctx && ((ctx.obj && ctx.obj._prowled) || ctx.via === 'prowl'));
         case 'altPaid': return !!(ctx && /^alt/.test(String(ctx.via || '')));
         case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
         // Poison the Cup: "If this spell was foretold" — cast from exile for its foretell cost
@@ -26097,7 +26153,17 @@
             // Wild Magic Surge: "a permanent card that shares a card type with that permanent" — the target, as it last was (sharesTypeWithTarget)
             const tgtTypes = e.sharesTypeWithTarget ? ((firstObj() || {}).analysis ? (firstObj().analysis().types || []) : []).map(x => String(x).toLowerCase()) : null;
             if (tgtTypes && !tgtTypes.length) continue;
+            /* Heirloom Blade: "a creature card that shares a creature type with it" — the creature the trigger is about (or
+               else the target), as it last was on the battlefield (sharesCreatureTypeWithIt) */
+            let kin = null;
+            if (e.sharesCreatureTypeWithIt) {
+              const x = ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || firstObj();
+              const was = x && (x.zone !== 'battlefield' && x._lkiAnalysis ? x._lkiAnalysis : x.analysis());
+              if (!was) continue;
+              kin = Object.assign(Object.create(x), { analysis: () => was });
+            }
             for (let i = 0; i < lib.length && found.length < want; i++) {
+              if (kin && !this._shareCreatureType(kin, lib[i])) continue;
               if (sacMv != null && !(((lib[i].card && lib[i].card.cmc) || 0) < sacMv)) continue;
               // Plargg, Dean of Chaos: "with mana value 3 or less" (maxMv)
               if (e.maxMv != null && ((lib[i].card && lib[i].card.cmc) || 0) > e.maxMv) continue;
@@ -38014,6 +38080,17 @@
           const pool = this.zones[me.id].hand.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card'));
           this._revealedCount = 0;
           if (!pool.length) break;
+          /* Metalworker: a mana ability can't stop to ask — how many came with the tap (manaChoice, forMana mana a
+             card), all of them when nobody said; the ones already shown to everybody first, as they give nothing away */
+          if (e.forMana) {
+            const want = typeof ctx.manaChoice === 'string' && /^[WUBRGC]+$/.test(ctx.manaChoice) && ctx.manaChoice.length >= e.forMana ? Math.floor(ctx.manaChoice.length / e.forMana) : pool.length;
+            const shownAlready = (c) => (this.players.every(q => q.id === me.id || this._knows(c, q.id)) ? 0 : 1);
+            const picks = pool.slice().sort((x, y) => shownAlready(x) - shownAlready(y)).slice(0, Math.max(0, Math.min(pool.length, want)));
+            this._revealedCount = picks.length;
+            this._know(picks, '*');
+            if (picks.length) this.logEvent('reveal', `${me.name} reveals ${picks.length} card${picks.length === 1 ? '' : 's'}: ${picks.map(c => c.name).join(', ')}.`);
+            break;
+          }
           const got = this._choose({ playerId: me.id, purpose: 'revealAny', kind: 'objects', zone: 'hand',
             items: this._chooseItems(pool), min: 0, max: pool.length,
             prompt: `${ctx.name ? ctx.name + ': ' : ''}reveal any number of ${e.filter || ''} cards from your hand.` }, 'revAny');

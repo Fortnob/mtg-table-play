@@ -127,6 +127,8 @@
     'Spectacle',
     // for less, once you have cast another spell this turn
     'Surge',
+    // for less, once a creature of yours sharing a creature type with it dealt a player combat damage this turn
+    'Prowl',
     // cast for more, and a land of yours wakes up as a creature
     'Awaken',
     // a creature sacrificed, and its mana value off the cost
@@ -621,6 +623,8 @@
       if (e.op === 'nextCreatureCounter') return true;
       // Vexing Puzzlebox: "{T}: Add one mana of any color. Roll a d20." — a roll with nothing printed under it (its ruling: a mana ability)
       if (e.op === 'rollDie') return !(e.table || []).length && !e.perTreasureSpent;
+      // Metalworker: "Reveal any number of artifact cards in your hand." — how many goes with the tap (forMana)
+      if (e.op === 'revealAnyFromHand') return !!e.forMana;
       /* Magus Lucea Kane: "When you next cast a spell with {X} in its mana cost or activate an ability with {X} in its
          activation cost this turn, copy that spell or ability." — a trigger for later, set up with the mana */
       if (e.op === 'getEmblem') return !!(e.thisTurn && e.once);
@@ -1196,11 +1200,15 @@
     // Wild Magic Surge: "a permanent card that shares a card type with that permanent" — the one destroyed (sharesTypeWithTarget)
     const shares = / card that shares a card type with that permanent(?=[,.])/i.test(t);
     if (shares) t = t.replace(/ card that shares a card type with that permanent(?=[,.])/i, ' card');
+    // Heirloom Blade: "a creature card that shares a creature type with it" — the creature the trigger is about, as it last was (sharesCreatureTypeWithIt)
+    const sharesCt = / card that shares a creature type with it(?=[,.])/i.test(t);
+    if (sharesCt) t = t.replace(/ card that shares a creature type with it(?=[,.])/i, ' card');
     const m = t.match(/until (?:you|they) reveal (an?|one|two|three|four|five|X) ([a-z ,]+?) cards?(?:, where X is (.+?))?(,|\.) ([\s\S]+)$/i);
     if (!m) return null;
     const e = { op: 'revealUntil', who, filter: m[2].replace(/,? or /g, ' or ').trim().toLowerCase() };
     if (lesser) e.mvBelowSacrificed = true;
     if (shares) e.sharesTypeWithTarget = true;
+    if (sharesCt) e.sharesCreatureTypeWithIt = true;
     if (/^X$/i.test(m[1])) { if (m[3]) { const k = amountOf(m[3]); if (!k) return null; e.n = k; } else e.n = 'X'; }
     else e.n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
     if (who === 'target') e.targets = [{ type: 'player', opponent: /opponent/.test(w) }];
@@ -14680,6 +14688,19 @@
         return k == null ? null : [{ op: 'exileTop', who: 'you', untilNonland: true },
           { op: 'castFree', from: 'thatCard', upTo: 1, maxMv: k, elseHand: true }];
       } },
+    /* Metalworker: "{T}: Reveal any number of artifact cards in your hand. Add {C}{C} for each card revealed this way." —
+       a mana ability (CR 605.1a): how many, chosen with the tap (manaChoicesFor), all of them when nobody says (forMana) */
+    { re: /^Reveal any number of ([a-z]+) cards in your hand\. Add ((\{[WUBRGC]\})\3*) for each card revealed this way\.?$/i,
+      make: (m) => {
+        const k = MANA.parse(m[2]).length;
+        return [{ op: 'revealAnyFromHand', filter: m[1].toLowerCase(), forMana: k, symbol: MANA.parse(m[3])[0] },
+          { op: 'addManaPer', symbol: MANA.parse(m[3])[0], per: { revealedCount: true, mult: k } }];
+      } },
+    /* Breaching Dragonstorm: "exile cards from the top of your library until you exile a nonland card. You may cast it
+       without paying its mana cost if that spell's mana value is 8 or less. If you don't, put that card into your hand." */
+    { re: /^exile cards from the top of your library until you exile a nonland card\. You may cast it without paying its mana cost if that spell'?s mana value is (\d+) or less\. If you don'?t, put that card into your hand\.?$/i,
+      make: (m) => [{ op: 'exileTop', who: 'you', untilNonland: true },
+        { op: 'castFree', from: 'thatCard', upTo: 1, maxMv: +m[1], elseHand: true }] },
     /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
        opponent controls. The token has enchant creature and "Whenever enchanted creature attacks, …"" (createAuraToken); The Rani: "… attached to another target creature. That token has …" */
     { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to ((?:another )?target creature(?: an opponent controls| you control)?)\. (?:The|That) token has enchant creature and "(.+)"\.?$/i,
@@ -17229,6 +17250,8 @@
       (m) => ({ kind: 'triggerPlayerMost', stat: /hand/i.test(m[1]) ? 'hand' : /lands/i.test(m[1]) ? 'lands' : 'life' })],
     // Crush of Tentacles, Reckless Bushwhacker: "if this spell's surge cost was paid", "if its surge cost was paid"
     [/^(?:this spell'?s|its) surge cost was paid$/i, () => ({ kind: 'surgePaid' })],
+    // Morsel Theft, Notorious Throng: "if its prowl cost was paid", "if this spell's prowl cost was paid"
+    [/^(?:this spell'?s|its) prowl cost was paid$/i, () => ({ kind: 'prowlPaid' })],
     // Chainer, Nightmare Adept: "if you didn't cast it from your hand" — the permanent the trigger is about
     [/^you didn'?t cast it from your hand$/i, () => ({ kind: 'triggerObjNotCastFromHand' })],
     // Alex Wilder, Runaway: "if you cast it from anywhere other than your hand" — cast, and not from the hand
@@ -17471,6 +17494,8 @@
     [/^you didn'?t activate a loyalty ability(?: of a planeswalker)? this turn$/i, () => ({ kind: 'not', cond: { kind: 'loyaltyActivatedThisTurn' } })],
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
+    // Fortune Teller's Talent: "As long as you've cast a spell this turn"
+    [/^you'?ve cast a spell this turn$/i, () => ({ kind: 'spellsCast', n: 1 })],
     // paid for on the way down
     // (Josu Vess, Lich Knight: "if he was kicked" — kickedPronoun)
     [/^(?:CARDNAME|this spell|it|he|she|they) (?:was|were) kicked$/i, () => ({ kind: 'kicked', n: 1 })],
@@ -20969,6 +20994,9 @@
           else if (ab.kind === 'activated' || ab.kind === 'mana') ab.levelCond = cond;
           else for (const e of (ab.effects || [])) {
             if (e.op === 'continuous') e.cond = e.cond ? [].concat(e.cond, cond) : cond;
+            /* Fortune Teller's Talent: a level's other standing lines ("you may play cards from the top of your library",
+               "cost {2} less") wait for the level too — "enters tapped unless" lines keep cond for their own test */
+            else if (ab.kind === 'static' && e.op && e.op !== 'manual' && !/^etbTapped/.test(e.op)) e.cond = e.cond ? [].concat(e.cond, cond) : cond;
           }
         }
         /* And a level can only be bought when you are on the one before. */
@@ -24332,6 +24360,9 @@
       // Ezio Auditore da Firenze: "Assassin spells you cast have freerunning {B}{B}." (grantCastKeyword freerunning)
       { re: /^([A-Z][a-z]+ )spells you cast have freerunning ((?:\{[^}]+\})+)\.?$/,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'freerunning', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },
+      // Hunting Velociraptor: "Dinosaur spells you cast have prowl {2}{R}." (grantCastKeyword prowl)
+      { re: /^([A-Z][a-z]+ )spells you cast have prowl ((?:\{[^}]+\})+)\.?$/,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'prowl', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
       // Peri Brown: "The first historic spell you cast each turn has convoke." (firstEachTurn)
@@ -26050,11 +26081,12 @@
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },
       /* Augur of Autumn, The Reality Chip: "As long as …, you may (play lands and) cast … spells from the top
          of your library." — the same leave, while the condition holds */
-      { re: /^As long as (.+?), you may (play lands and cast spells|cast ((?:[a-z]+ )*?)spells) from the top of your library\.?$/i,
+      // (Fortune Teller's Talent: "As long as you've cast a spell this turn, you may play cards from the top of your library.")
+      { re: /^As long as (.+?), you may (play lands and cast spells|play cards|cast ((?:[a-z]+ )*?)spells) from the top of your library\.?$/i,
         make: (m) => {
           const c = condOf(m[1].replace(/\bCARDNAME\b/g, 'CARDNAME'));
           if (!c) return null;
-          return /^play lands/i.test(m[2]) ? { op: 'playFrom', zone: 'top', what: 'any', cond: c }
+          return /^play /i.test(m[2]) ? { op: 'playFrom', zone: 'top', what: 'any', cond: c }
             : { op: 'playFrom', zone: 'top', what: 'spell', filter: (m[3] || '').trim() || null, cond: c };
         }, auto: true },
       { re: /^You may choose not to untap (?:CARDNAME|this creature|this artifact|this land) during your untap step\.?$/i,

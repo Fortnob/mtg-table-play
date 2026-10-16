@@ -5027,7 +5027,7 @@
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
           // a mana ability's colour (or bundle of mana), chosen at the table as it was activated
-          manaChoice: typeof intent.choice === 'string' && /^[WUBRGC]{1,6}$/.test(intent.choice) ? intent.choice : undefined,
+          manaChoice: typeof intent.choice === 'string' && /^[WUBRGC]{1,20}$/.test(intent.choice) ? intent.choice : undefined,
           // "in any combination of two colours": how much of the second
           // or, "in any combination of colors", a colour letter for each
           manaSplit: Array.isArray(intent.manaSplit) ? intent.manaSplit.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c))
@@ -5037,7 +5037,7 @@
           discardIds: Array.isArray(intent.discardIds) ? intent.discardIds.slice(0, 20).map(String) : undefined }); break;
         case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0,
           // the colour (or bundle of mana) chosen at the table: a mana ability can't stop to ask
-          typeof intent.choice === 'string' && /^[WUBRGC]{1,6}$/.test(intent.choice) ? intent.choice : undefined,
+          typeof intent.choice === 'string' && /^[WUBRGC]{1,20}$/.test(intent.choice) ? intent.choice : undefined,
           // "in any combination of colors": a colour letter for each, chosen at the table
           Array.isArray(intent.split) ? intent.split.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c)) : undefined); break;
         /* each attacker: what it attacks, its band, and (enlist) the creature tapped for its enlist or null — the engine

@@ -75088,4 +75088,181 @@ module.exports = (test) => {
     U.toMain('A', 'declareAttackers'); U.resolve();
     t.eq(U.g.powerOf(dr), 5 + 3, '+3/+0');
   });
+
+  test("Cards: Fortune Teller's Talent — level 2: play cards from the top once you've cast a spell this turn; level 3: {2} less from anywhere but the hand", (mk, t) => {
+    t.auto("Fortune Teller's Talent");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const tal = T.bf('A', "Fortune Teller's Talent");
+    const a = tal.analysis();
+    const acts = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const lv = (n) => acts.findIndex(x => (x.effects || []).some(e => e.op === 'classLevel' && e.to === n));
+    const top1 = T.top('A', 'Grizzly Bears');
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    T.mana('A', '1G');
+    t.no(g.castSpell('A', top1.id, { auto: true }), 'level 1: not from the top, a spell cast or not');
+    T.nextTurn('B'); T.nextTurn('A');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.mana('A', 'U3');
+    T.activate('A', tal, lv(2));
+    T.mana('A', '1G');
+    t.no(g.castSpell('A', bear.id, { auto: true }), 'level 2: no spell cast yet this turn');
+    T.cast('A', T.hand('A', 'Ornithopter'));
+    T.cast('A', bear);
+    t.zone(bear, 'battlefield', 'level 2: the Bears cast from the top after a spell');
+    const land = T.top('A', 'Forest');
+    T.playLand('A', land);
+    t.zone(land, 'battlefield', 'and a land played from the top ("play cards")');
+    const ogre = T.top('A', 'Gray Ogre');
+    const ogre2 = T.hand('A', 'Gray Ogre');
+    t.eq(g.castCost(ogre, null, 'A'), '{2}{R}', 'level 2: no discount yet');
+    T.mana('A', 'U2');
+    T.activate('A', tal, lv(3));
+    t.eq(g.castCost(ogre, null, 'A'), '{R}', 'level 3: {2} less from the top of the library');
+    t.eq(g.castCost(ogre2, null, 'A'), '{2}{R}', 'from the hand: full price');
+  });
+
+  test('Cards: Breaching Dragonstorm — dig to a nonland card: free if mana value 8 or less, else into the hand; a Dragon entering returns it', (mk, t) => {
+    t.auto('Breaching Dragonstorm');
+    const T = mk({ library: Array(20).fill('Island') });
+    const bear = T.top('A', 'Grizzly Bears');
+    const forest = T.top('A', 'Forest');
+    const ds = T.bf('A', 'Breaching Dragonstorm', { etb: true });
+    T.resolve();
+    t.zone(forest, 'exile', 'the Forest exiled on the way');
+    t.zone(bear, 'battlefield', 'the Bears (mana value 2) cast for free');
+    const T2 = mk({ library: Array(20).fill('Island') });
+    const big = T2.top('A', 'Blightsteel Colossus');
+    T2.bf('A', 'Breaching Dragonstorm', { etb: true });
+    T2.resolve();
+    t.zone(big, 'hand', 'mana value 12: into the hand');
+    const T3 = mk({ library: Array(20).fill('Island') });
+    const ogre = T3.top('A', 'Gray Ogre');
+    T3.answer('confirm', (ch) => { t.ok(/Cast Gray Ogre without paying/.test(ch.prompt), ch.prompt); return { yes: false }; });
+    T3.bf('A', 'Breaching Dragonstorm', { etb: true });
+    T3.resolve();
+    t.zone(ogre, 'hand', "you don't cast it: into the hand");
+    // a Dragon you control enters: back to its owner's hand
+    T.bf('A', 'Shivan Dragon', { etb: true });
+    T.resolve();
+    t.zone(ds, 'hand', 'a Dragon entered: returned to the hand');
+    const ds2 = T.bf('A', 'Breaching Dragonstorm');
+    T.bf('B', 'Shivan Dragon', { etb: true });
+    T.resolve();
+    t.zone(ds2, 'battlefield', "an opponent's Dragon: stays");
+  });
+
+  test('Cards: Heirloom Blade — equipped creature dies: dig to a creature card sharing a creature type with it, into the hand, the rest to the bottom', (mk, t) => {
+    t.auto('Heirloom Blade');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const blade = T.bf('A', 'Heirloom Blade');
+    blade.attachedTo = bear.id; bear.attachments = [blade.id]; g.bumpBoard();
+    t.eq(g.powerOf(bear), 5, '+3/+1');
+    const kin = T.top('A', 'Runeclaw Bear');
+    const ogre = T.top('A', 'Gray Ogre');
+    const forest = T.top('A', 'Forest');
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'the Bears died');
+    t.zone(kin, 'hand', 'Runeclaw Bear (a Bear) into the hand');
+    const lib = T.zone('A', 'library');
+    t.ok(ogre.zone === 'library' && forest.zone === 'library' && lib.indexOf(ogre) >= lib.length - 2 && lib.indexOf(forest) >= lib.length - 2, 'the Ogre and the Forest on the bottom');
+    // declined: nothing revealed
+    const T2 = mk({ library: Array(20).fill('Island') });
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    const bl2 = T2.bf('A', 'Heirloom Blade');
+    bl2.attachedTo = b2.id; b2.attachments = [bl2.id]; T2.g.bumpBoard();
+    const k2 = T2.top('A', 'Runeclaw Bear');
+    T2.answer('confirm', { yes: false });
+    T2.mana('A', 'BB1');
+    T2.cast('A', T2.hand('A', 'Murder'), { targets: [b2] });
+    t.zone(k2, 'library', 'you may: declined, nothing revealed');
+  });
+
+  test('Cards: Hunting Velociraptor — Dinosaur spells have prowl {2}{R} once a Dinosaur of yours dealt a player combat damage this turn', (mk, t) => {
+    t.auto('Hunting Velociraptor');
+    const post = (T) => { for (let i = 0; i < 100 && !(T.g.step === 'main' && T.g.phase.id === 'postcombat'); i++) { T.settle(); T.g.passPriority(T.g.priorityPlayer.id, true); } };
+    const T = mk({ library: Array(20).fill('Island') });
+    const raptor = T.bf('A', 'Hunting Velociraptor');
+    const maw = T.hand('A', 'Colossal Dreadmaw');
+    const ogre = T.hand('A', 'Gray Ogre');
+    const prowl = (o) => T.g.altUsesFor('A', o.id).filter(u => u.via === 'prowl');
+    t.eq(prowl(maw).length, 0, 'no damage yet: no prowl');
+    T.answer('declareAttackers', () => [{ attackerId: raptor.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    post(T);
+    t.eq(T.life('B'), 17, 'the Velociraptor got through');
+    t.eq(prowl(maw).map(u => u.cost).join(), '{2}{R}', 'a Dinosaur: prowl {2}{R}');
+    t.eq(prowl(ogre).length, 0, 'not an Ogre');
+    // a bot sees the cheaper way in
+    for (const n of ['Mountain', 'Mountain', 'Mountain', 'Mountain', 'Forest', 'Forest']) T.bf('A', n);
+    const bot = new MTG.bots.BotPlayer(T.g, 'A', 8);
+    const opt = bot.castOptions('main2').find(x => x.o === maw);
+    t.eq(opt && opt.via, 'prowl', 'a bot casts the Dreadmaw by prowl');
+    for (const m of T.bfOf('A').filter(x => x.name === 'Mountain' || x.name === 'Forest')) T.g.moveObject(m, 'graveyard');
+    T.mana('A', 'R2');
+    T.cast('A', maw, { via: 'prowl' });
+    t.zone(maw, 'battlefield', 'the Dreadmaw cast for {2}{R}');
+    // a non-Dinosaur got through: no prowl
+    const U = mk({ library: Array(20).fill('Island') });
+    U.bf('A', 'Hunting Velociraptor');
+    const bear = U.bf('A', 'Grizzly Bears');
+    const maw2 = U.hand('A', 'Colossal Dreadmaw');
+    U.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    U.toMain('A', 'declareAttackers'); U.resolve();
+    post(U);
+    t.eq(U.life('B'), 18, 'the Bears got through');
+    t.eq(U.g.altUsesFor('A', maw2.id).filter(u => u.via === 'prowl').length, 0, 'a Bear is no Dinosaur: no prowl');
+  });
+
+  test('Cards: prowl — Latchkey Faerie for its prowl cost after a Rogue got through, and "if its prowl cost was paid"', (mk, t) => {
+    t.auto('Latchkey Faerie');
+    const T = mk({ library: Array(20).fill('Island') });
+    const rogue = T.bf('A', 'Latchkey Faerie');
+    const lf = T.hand('A', 'Latchkey Faerie');
+    t.eq(T.g.altUsesFor('A', lf.id).filter(u => u.via === 'prowl').length, 0, 'no prowl yet');
+    T.answer('declareAttackers', () => [{ attackerId: rogue.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareAttackers'); T.resolve();
+    for (let i = 0; i < 100 && !(T.g.step === 'main' && T.g.phase.id === 'postcombat'); i++) { T.settle(); T.g.passPriority(T.g.priorityPlayer.id, true); }
+    const hand0 = T.zone('A', 'hand').length;
+    T.mana('A', 'U2');
+    T.cast('A', lf, { via: 'prowl' });
+    t.zone(lf, 'battlefield', 'cast for {2}{U}');
+    t.eq(T.zone('A', 'hand').length, hand0, 'prowl cost paid: a card drawn (the Faerie left the hand, a card came in)');
+  });
+
+  test('Cards: Metalworker — a mana ability: reveal any number of artifact cards in hand, {C}{C} each; how many chosen with the tap', (mk, t) => {
+    t.auto('Metalworker');
+    const T = mk();
+    const g = T.g;
+    const mw = T.bf('A', 'Metalworker');
+    const a1 = T.hand('A', 'Ornithopter'), a2 = T.hand('A', 'Juggernaut'), a3 = T.hand('A', 'Sol Ring');
+    T.hand('A', 'Grizzly Bears');
+    t.eq(g.manaAbilitiesOf(mw).length, 1, 'a mana ability');
+    const opts = g.manaChoicesFor('A', mw, g.manaAbilitiesOf(mw)[0]);
+    t.eq(opts.map(x => x.key).join(' '), 'CCCCCC CCCC CC', 'three artifact cards: reveal three, two or one');
+    t.ok(/Reveal 2 cards/.test(opts[1].label), opts[1].label);
+    // Juggernaut shown already: revealed first when only one is
+    g._setKnown(a2, '*');
+    t.ok(g.tapForMana('A', mw.id, 0, 'CC'), g.lastError);
+    t.eq(g.player('A').pool.total ? g.player('A').pool.total() : g.player('A').pool.snapshot().C, 2, '{C}{C}');
+    t.ok(g._knows(a2, 'B') && !g._knows(a1, 'B') && !g._knows(a3, 'B'), 'the card already shown is the one revealed');
+    t.eq(g.stack.length, 0, 'no stack: a mana ability');
+    // no choice sent (the auto-payer, a bot): every artifact card
+    const U = mk();
+    const m2 = U.bf('A', 'Metalworker');
+    U.hand('A', 'Ornithopter'); U.hand('A', 'Juggernaut');
+    t.ok(U.g.tapForMana('A', m2.id, 0), U.g.lastError);
+    t.eq(U.g.player('A').pool.snapshot().C, 4, 'two artifacts: {C}{C}{C}{C}');
+    // paying a spell with it
+    const V = mk();
+    V.bf('A', 'Metalworker');
+    V.hand('A', 'Ornithopter'); V.hand('A', 'Sol Ring');
+    const giant = V.hand('A', 'Hill Giant');
+    V.mana('A', 'R');
+    V.cast('A', giant);
+    t.zone(giant, 'battlefield', 'the Hill Giant paid with Metalworker');
+  });
 };

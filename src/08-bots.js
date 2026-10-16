@@ -4437,6 +4437,12 @@
             if (most && use.alt.oppGainTo === most.id && !out.some(x => x.o.id === o.id && !x.via)) consider(o, use);
             continue;
           }
+          // (prowl — Hunting Velociraptor's {2}{R} for a Dinosaur: the way in when it is the cheaper one)
+          if (use.kind === 'cast' && use.via === 'prowl') {
+            const plain = out.findIndex(x => x.o.id === o.id && !x.via);
+            if (plain < 0 || MTG.mana.cmc(use.cost || '') < out[plain].cost) { if (plain >= 0) out.splice(plain, 1); consider(o, use); }
+            continue;
+          }
           if (use.kind !== 'cast' || !/^(morph|evoke|dash|blitz|warp|bestow|spectacle)$/.test(use.via)) continue;
           if (out.some(x => x.o.id === o.id && !x.via)) continue;
           consider(o, use);
