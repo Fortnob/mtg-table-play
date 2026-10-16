@@ -20132,6 +20132,13 @@
             const target = this.obj(id);
             if (!target || target.zone !== 'battlefield') continue;
             const linger = Object.assign({}, effect);
+            // The continuous layer-7 mana-value setting becomes a fixed value once
+            // Titania's Song is gone; per-object effects cannot keep its static-layer query.
+            if (linger.setPtFromMv) {
+              const mv = Number((target.card || {}).cmc) || 0;
+              linger.setPt = { p: mv, t: mv };
+              delete linger.setPtFromMv;
+            }
             delete linger.op; delete linger.layer; delete linger.scope; delete linger.persistOnLeavingEot;
             linger.until = 'eot';
             target.effects.push(linger);
