@@ -24,4 +24,17 @@ module.exports = (test) => {
     T.settle();
     t.eq(o.counters['+1/+1'], 3, 'and back on the battlefield');
   });
+
+  test('Zone counters: a clone copies no counters (CR 707.2), only what the copied card enters with', (mk, t) => {
+    const T = mk();
+    const big = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(big, '+1/+1', 2);
+    const clone = T.hand('A', 'Clone');
+    T.mana('A', 'U3');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Grizzly Bears').id] }));
+    T.cast('A', clone);
+    t.eq(clone.name, 'Grizzly Bears', 'a copy');
+    t.eq(Number((clone.counters || {})['+1/+1']) || 0, 0, 'none of its +1/+1 counters');
+    t.eq(T.g.powerOf(clone), 2, 'a 2/2');
+  });
 };
