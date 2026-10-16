@@ -72436,4 +72436,104 @@ module.exports = (test) => {
     t.zone(gc, 'graveyard', 'bloodrushed');
     t.eq(T.g.powerOf(bear), 6, '+4/+4');
   });
+  /* Library of Leng as a replacement (CR 614, 701.8): the card goes on top as it is discarded, never into the graveyard */
+  test('Cards: Library of Leng — the card never touches the graveyard: Syr Konrad sees nothing, Megrim still sees a discard', (mk, t) => {
+    t.auto('Library of Leng');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Library of Leng');
+    T.bf('B', 'Megrim');
+    T.bf('A', 'Syr Konrad, the Grim');
+    const bears = T.hand('A', 'Grizzly Bears'), giant = T.hand('A', 'Hill Giant');
+    T.nextTurn('B');
+    let seenAt = null;
+    T.answer('confirm', (ch) => { seenAt = seenAt || ch.objId && T.g.obj(ch.objId).zone; return { yes: true }; });
+    T.answer('confirm', () => ({ yes: true }));
+    const lifeA = T.life('A'), lifeB = T.life('B');
+    T.mana('B', '2B');
+    T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.eq(seenAt, 'hand', 'asked while the card is still in hand');
+    t.eq(T.zone('A', 'library').slice(0, 2).map(o => o.name).sort().join(), 'Grizzly Bears,Hill Giant', 'both on top');
+    t.no(T.zone('A', 'graveyard').some(o => o === bears || o === giant), 'never in the graveyard');
+    t.eq(T.life('B'), lifeB, 'Syr Konrad: no creature card went to (or left) a graveyard');
+    t.eq(T.life('A'), lifeA - 4, 'Megrim: two discards all the same');
+    // said no: into the graveyard, and Syr Konrad sees that one
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Library of Leng'); T2.bf('A', 'Syr Konrad, the Grim');
+    const b2 = T2.hand('A', 'Grizzly Bears');
+    T2.nextTurn('B');
+    T2.answer('confirm', () => ({ yes: false }));
+    const lb = T2.life('B');
+    T2.mana('B', '2B');
+    T2.cast('B', T2.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.zone(b2, 'graveyard');
+    t.eq(T2.life('B'), lb - 1, 'Syr Konrad: once, for the card into the graveyard');
+  });
+
+  test('Cards: Library of Leng — a discard chosen by its player asks next, and the spell goes on after (Frantic Search); a cost or no Leng asks nothing', (mk, t) => {
+    t.auto('Library of Leng');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Library of Leng');
+    const lands = [T.bf('A', 'Island', { tapped: true }), T.bf('A', 'Island', { tapped: true }), T.bf('A', 'Island', { tapped: true })];
+    const keep = T.hand('A', 'Hill Giant'), toss = T.hand('A', 'Grizzly Bears');
+    T.top('A', 'Plains'); T.top('A', 'Swamp');
+    const order = [];
+    T.answer('discard', (ch) => { order.push('discard'); return { cardIds: [toss.id, T.zone('A', 'hand').find(o => o.name === 'Swamp').id] }; });
+    T.answer('confirm', (ch) => { order.push('leng:' + T.g.obj(ch.objId).name + ':' + T.g.obj(ch.objId).zone); return { yes: ch.objId === toss.id }; });
+    T.answer('confirm', (ch) => { order.push('leng:' + T.g.obj(ch.objId).name + ':' + T.g.obj(ch.objId).zone); return { yes: ch.objId === toss.id }; });
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Frantic Search'));
+    t.eq(order.join(' '), 'discard leng:Grizzly Bears:hand leng:Swamp:hand', 'the discard, then where each goes, asked while still in hand');
+    t.eq(T.zone('A', 'library')[0], toss, 'the Bears on top');
+    t.ok(T.zone('A', 'graveyard').some(o => o.name === 'Swamp'), 'the Swamp in the graveyard');
+    t.zone(keep, 'hand');
+    t.ok(lands.every(l => !l.tapped), 'lands untapped');
+    // cycling is a cost: no question
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Library of Leng'); T2.bf('A', 'Island');
+    const sb = T2.hand('A', 'Lonely Sandbar');
+    t.ok(T2.g.cycleCard('A', sb.id, { auto: true }), 'cycled');
+    T2.settle();
+    t.zone(sb, 'graveyard', 'cycled into the graveyard');
+    t.eq(T2.asked.filter(c => c.purpose === 'discardToTop').length, 0, 'not asked for a cost');
+    // no Library of Leng: no question
+    const T3 = mk({ library: Array(30).fill('Island') });
+    T3.hand('A', 'Grizzly Bears');
+    T3.nextTurn('B');
+    T3.mana('B', '2B');
+    T3.cast('B', T3.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.eq(T3.asked.filter(c => c.purpose === 'discardToTop' || c.purpose === 'discardInstead').length, 0, 'nothing to ask');
+  });
+
+  test('Cards: Library of Leng — Wheel of Fortune: the cards put on top are drawn again; Obstinate Baloth chooses between its way and Leng\'s', (mk, t) => {
+    t.auto('Library of Leng');
+    const T = mk({ library: Array(30).fill('Island') });
+    T.bf('A', 'Library of Leng');
+    const a1 = T.hand('A', 'Grizzly Bears'), a2 = T.hand('A', 'Hill Giant');
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('confirm', () => ({ yes: true }));
+    T.mana('A', '2R');
+    T.cast('A', T.hand('A', 'Wheel of Fortune'));
+    t.zone(a1, 'hand', 'the Bears drawn again');
+    t.zone(a2, 'hand', 'the Giant drawn again');
+    t.eq(T.zone('A', 'hand').length, 7, 'seven cards');
+    // Obstinate Baloth, discarded by an opponent with Leng about: onto the battlefield, or on top — asked
+    const T2 = mk({ library: Array(30).fill('Island') });
+    T2.bf('A', 'Library of Leng');
+    const bal = T2.hand('A', 'Obstinate Baloth');
+    T2.nextTurn('B');
+    let q = null;
+    T2.answer('choose', (ch) => { q = ch; return { picks: [ch.options.findIndex(o => o.key === 'library')] }; });
+    T2.mana('B', '2B');
+    T2.cast('B', T2.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.ok(q && q.purpose === 'discardInstead' && q.options.length === 2, 'two ways, no graveyard among them');
+    t.eq(T2.zone('A', 'library')[0], bal, 'on top, as chosen');
+    // alone, the Baloth enters with no question
+    const T3 = mk({ library: Array(30).fill('Island') });
+    const bal3 = T3.hand('A', 'Obstinate Baloth');
+    T3.nextTurn('B');
+    T3.mana('B', '2B');
+    T3.cast('B', T3.hand('B', 'Mind Rot'), { targets: ['A'] });
+    t.zone(bal3, 'battlefield');
+    t.eq(T3.asked.filter(c => c.purpose === 'discardInstead' || c.purpose === 'discardToTop').length, 0, 'not asked');
+  });
 };

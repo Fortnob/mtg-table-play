@@ -351,7 +351,7 @@
      for a player, the deck it sat down with (not game state, and large). */
   const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis|_zone$)/;
   const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn|_bot)$/;
-  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring|_sacGate)$/;
+  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring|_sacGate|_inEffect|_discardSeq)$/;
   const NOT_PLAIN = Symbol('not plain data');
   /** A copy of plain data (numbers, strings, arrays, plain objects; a card is shared), or NOT_PLAIN. */
   function _plainData(v, depth) {
@@ -7067,36 +7067,178 @@
         // Tinybones, Trinket Thief: who discarded (discardsBy)
         (h.discardsBy = h.discardsBy || {})[playerId] = ((h.discardsBy || {})[playerId] || 0) + 1;
       }
-      /* Obstinate Baloth: "If a spell or ability an opponent controls causes
-         you to discard this card, put it onto the battlefield instead" — the
-         cause is whatever is resolving (discardToBattlefield) */
+      // (where a replacement sent it instead — Obstinate Baloth, Library of Leng — was decided as it was discarded: _discardWays)
       const cause = this.resolving && this.resolving.ctx && this.resolving.ctx.controller;
-      const toBf = o.zone === 'graveyard' && cause != null && cause !== playerId && this._staticOp(o, 'discardToBattlefield');
-      if (toBf) {
-        this.moveObject(o, 'battlefield', { controller: o.owner });
-        // Dodecapod: "with two +1/+1 counters on it"
-        if (toBf.counters) this.addCounters(o, '+1/+1', toBf.counters);
-        this.logEvent('rules', `${o.name} is put onto the battlefield instead of into the graveyard.`);
-      }
-      /* Library of Leng: "If an effect causes you to discard a card, discard it, but you may put it on top of your library
-         instead of into your graveyard." — a discard as something resolves (not a cost, not the cleanup's); asked once
-         it is discarded, and put on top if it is still that card in the graveyard (discardMayTop) */
-      if (o.zone === 'graveyard' && this.resolving) {
-        const leng = this.battlefield.find(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'discardMayTop'));
-        if (leng) {
-          o._lengSeq = this._lengSeq = (this._lengSeq || 0) + 1;
-          this.queueChoice({ type: 'confirm', playerId, purpose: 'discardToTop', objId: o.id, seq: o._lengSeq, sourceId: leng.id, sourceName: leng.name,
-            prompt: `${leng.name}: put ${o.name} on top of your library instead of into your graveyard?` });
-        }
-      }
+      // (wherever it went, it was discarded: its own "when … discard this card")
+      const away = o.zone !== 'hand';
       // Orvar, Psychic Purge: "When a spell or ability an opponent controls causes you to discard this card" ("that player": the cause)
-      if (o.zone === 'graveyard' && cause != null && cause !== playerId) this._fire('discardedByOpponent', playerId, { source: o, object: o, playerId, player: cause });
+      if (away && cause != null && cause !== playerId) this._fire('discardedByOpponent', playerId, { source: o, object: o, playerId, player: cause });
       // Titanbones, Towering Heart: "When you discard this card" — whoever made you
-      if (o.zone === 'graveyard') this._fire('discardedSelf', playerId, { source: o, object: o, playerId });
+      if (away) this._fire('discardedSelf', playerId, { source: o, object: o, playerId });
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
       this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });
       this._fire('anyDiscard', null, { object: o, playerId });
+    }
+
+    /* ---------- a discard replaced (CR 614.1a, 701.8) ----------
+       "… instead of into your graveyard": where a card an effect makes its player discard goes instead, decided as it
+       is discarded. It never touches the graveyard, so nothing that watches the graveyard sees it; it is still
+       discarded, so the discard triggers fire (_afterDiscard). Only a discard as something resolves: a cost (cycling,
+       "Discard a card:") and the cleanup step's discard are not made by an effect. Each way is one row of
+       DISCARD_INSTEAD below — another "instead of into your graveyard" is another row. */
+    /** The ways this card, being discarded from pid's hand, may go instead of the graveyard: { to, may, srcId, srcName, counters }. */
+    _discardWays(pid, o) {
+      const r = this.resolving;
+      if (!r || !o || o.zone !== 'hand') return [];
+      const cause = r.ctx && r.ctx.controller;
+      const DISCARD_INSTEAD = [
+        /* Obstinate Baloth, Wilt-Leaf Liege: "If a spell or ability an opponent controls causes you to discard this card,
+           put it onto the battlefield instead of putting it into your graveyard." — the card's own (discardToBattlefield;
+           Dodecapod: "with two +1/+1 counters on it" — counters) */
+        { op: 'discardToBattlefield', own: true, to: 'battlefield', may: false, when: () => cause != null && cause !== pid },
+        /* Library of Leng: "If an effect causes you to discard a card, discard it, but you may put it on top of your
+           library instead of into your graveyard." — a permanent of the discarding player's (discardMayTop) */
+        { op: 'discardMayTop', to: 'library', may: true },
+      ];
+      const ways = [];
+      for (const row of DISCARD_INSTEAD) {
+        if (row.when && !row.when()) continue;
+        const src = row.own ? (this._staticOp(o, row.op) ? o : null)
+          : this.battlefield.find(x => x.controller === pid && !x.phasedOut && this._staticOp(x, row.op));
+        if (!src || ways.some(w => w.to === row.to)) continue;
+        const e = this._staticOp(src, row.op) || {};
+        ways.push({ to: row.to, may: row.may, srcId: src.id, srcName: src.name, counters: e.counters || 0 });
+      }
+      return ways;
+    }
+    /** What may be chosen for this card: the ways, with the graveyard among them while every way is a "may" (CR 616.1). */
+    _discardOptions(ways) {
+      return ways.some(w => !w.may) ? ways.filter(w => !w.may).concat(ways.filter(w => w.may)) : [{ to: 'graveyard' }].concat(ways);
+    }
+    /** The question for a card with a choice of ways: a yes or no for one "may", otherwise a choice among them. */
+    _discardQuestion(pid, o, ways) {
+      const opts = this._discardOptions(ways);
+      if (opts.length === 2 && opts[0].to === 'graveyard') {
+        const w = opts[1];
+        return { type: 'confirm', playerId: pid, purpose: 'discardToTop', objId: o.id, sourceId: w.srcId, sourceName: w.srcName,
+          prompt: `${w.srcName}: put ${o.name} on top of your library instead of into your graveyard?` };
+      }
+      const say = { graveyard: 'Into your graveyard', library: 'On top of your library', battlefield: 'Onto the battlefield' };
+      return { kind: 'options', playerId: pid, purpose: 'discardInstead', objId: o.id, sourceId: o.id, sourceName: o.name, min: 1, max: 1,
+        options: opts.map(w => ({ label: say[w.to] + (w.srcName && w.srcId !== o.id ? ` (${w.srcName})` : ''), key: w.to })),
+        prompt: `${o.name} is discarded: where does it go instead of into your graveyard?` };
+    }
+    /** The way an answer chose (null: the graveyard). */
+    _discardChosen(ways, ch, ans) {
+      const opts = this._discardOptions(ways);
+      if (ch.type === 'confirm') return ans ? opts[1] : null;
+      const w = opts[((ans && ans.picks) || [])[0] || 0];
+      return w && w.to !== 'graveyard' ? w : null;
+    }
+    /**
+     * These cards discarded together from pid's hand by the effect resolving: each to the graveyard, or where its player
+     * chose instead (_discardWays). Asked first, card by card (SUSPEND while one waits: the effect runs again with the
+     * answers, `slot` naming them), then every card moves. Returns the cards discarded, wherever they went; the caller
+     * says so and calls _afterDiscard, as for a plain discard.
+     */
+    _discardThese(pid, cards, slot) {
+      const plan = this._discardPlan(pid, cards, slot);
+      return plan === SUSPEND ? SUSPEND : this._discardMove(pid, plan);
+    }
+    /** The way a card goes when its player has no choice in it: a way that must be taken, or null (the graveyard). */
+    _discardSettledWay(pid, c) {
+      const ways = this._discardWays(pid, c);
+      const opts = this._discardOptions(ways);
+      return ways.length && opts.length === 1 ? opts[0] : null;
+    }
+    /** _discardThese's questions, and its plan: [{ c, way }], or SUSPEND. */
+    _discardPlan(pid, cards, slot) {
+      const plan = [];
+      for (const c of cards) {
+        if (!c || c.zone !== 'hand') continue;
+        const ways = this._discardWays(pid, c);
+        const opts = this._discardOptions(ways);
+        let way = null;
+        if (ways.length && opts.length === 1) way = opts[0];
+        else if (ways.length) {
+          const ch = this._discardQuestion(pid, c, ways);
+          const ans = ch.type === 'confirm' ? this._ask(ch, 'dx' + slot + ':' + c.id) : this._choose(ch, 'dx' + slot + ':' + c.id);
+          if (ans === SUSPEND) return SUSPEND;
+          way = this._discardChosen(ways, ch, ans);
+        }
+        plan.push({ c, way });
+      }
+      return plan;
+    }
+    /** Each card where its plan says (way null: the graveyard). */
+    _discardMove(pid, plan) {
+      const p = this.player(pid);
+      for (const { c, way } of plan) {
+        if (!way || way.to === 'graveyard') { this.moveObject(c, 'graveyard'); continue; }
+        if (way.to === 'library') {
+          this.moveObject(c, 'library');
+          this._know([c], '*');
+          this.logEvent('rules', `${way.srcName}: ${p ? p.name : 'Somebody'} puts ${c.name} on top of their library instead of into their graveyard.`);
+        } else if (way.to === 'battlefield') {
+          this.moveObject(c, 'battlefield', { controller: c.owner });
+          if (way.counters && c.zone === 'battlefield') this.addCounters(c, '+1/+1', way.counters);
+          this.logEvent('rules', `${c.name} is put onto the battlefield instead of into the graveyard.`);
+        }
+      }
+      return plan.map(x => x.c);
+    }
+    /**
+     * A discard answered (the discard question, a card picked from a hand) as an effect resolves, where some card has a
+     * way to go instead: its player is asked, card by card, before anything moves, and the rest of the resolution waits
+     * (_discardWait, _heldUp). `then`: what the answer records once they have moved ({ kind: 'answer', stackId }: the
+     * discard question's). True when it waits.
+     */
+    _discardWaitFor(pid, cards, then) {
+      if (!this.resolving || this._discardWait) return false;
+      const ask = cards.filter(c => c && c.zone === 'hand' && this._discardWays(pid, c).length && this._discardOptions(this._discardWays(pid, c)).length > 1);
+      if (!ask.length) return false;
+      const w = this._discardWait = { pid, ids: cards.map(c => c.id), ways: {}, chosen: {}, at: null, then: then || null, resume: false };
+      for (const c of ask) w.ways[c.id] = this._discardWays(pid, c);
+      this._discardWaitNext();
+      return true;
+    }
+    _discardWaitNext() {
+      const w = this._discardWait;
+      if (!w) return;
+      for (const id of w.ids) {
+        const ways = w.ways[id];
+        if (!ways || Object.prototype.hasOwnProperty.call(w.chosen, id)) continue;
+        const c = this.obj(id);
+        const opts = this._discardOptions(ways);
+        if (!c || c.zone !== 'hand' || opts.length === 1) { w.chosen[id] = opts.length === 1 ? opts[0] : null; continue; }
+        w.at = id;
+        const ch = this._discardQuestion(w.pid, c, ways);
+        this.queueChoice(Object.assign(ch.type === 'confirm' ? ch : MTG.choice.normalize(ch), { discardWait: true }));
+        return;
+      }
+      this._discardWaitDone();
+    }
+    /** The answer for the card the wait asked about; then the next card, or the cards moved and the resolution on. */
+    _discardWaitAnswer(ch, ans) {
+      const w = this._discardWait;
+      if (!w || ch.objId !== w.at) return;
+      w.chosen[w.at] = this._discardChosen(w.ways[w.at] || [], ch, ans);
+      this._discardWaitNext();
+    }
+    _discardWaitDone() {
+      const w = this._discardWait;
+      if (!w) return;
+      this._discardWait = null;
+      const cards = w.ids.map(id => this.obj(id)).filter(c => c && c.zone === 'hand');
+      const p = this.player(w.pid);
+      const gone = this._discardMove(w.pid, cards.map(c => ({ c, way: w.chosen[c.id] || null })));
+      const item = w.then && w.then.stackId ? this.stack.find(s => s.id === w.then.stackId) : null;
+      if (item) item.discarded = (item.discarded || []).concat(gone.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
+      this._lastDiscarded = gone.map(o => o.id);
+      this.logEvent('discard', `${p ? p.name : 'Somebody'} discards ${gone.length ? gone.map(o => o.name).join(', ') : 'nothing'}.`);
+      for (const o of gone) this._afterDiscard(w.pid, o);
+      if (w.resume && this.resolving) this._pumpResolution();
     }
 
     /**
@@ -9103,7 +9245,7 @@
       } else xs = ((got && got.ids) || []).map(id => pool.find(x => x.id === id)).filter(Boolean);
       if (xs.length !== need) return false;
       if (w.blight) this._blightOn(xs[0], w.blight, pid);
-      else if (w.discard) this._discardNow(pid, xs); else this._sacrificeNow(pid, xs, null);
+      else if (w.discard) this._discardNow(pid, xs, null, { cost: true }); else this._sacrificeNow(pid, xs, null);
       return true;
     }
 
@@ -11562,7 +11704,7 @@
               prompt: `Discard ${need === 1 ? 'a card' : need + ' cards'}${dn ? ' with different names' : ''} to pay the cost.` }, dn ? { differentNames: true } : {}));
           }
         }
-        if (pick) this._discardNow(pid, pick, item);
+        if (pick) this._discardNow(pid, pick, item, { cost: true });
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && cost.spellExile) {
         const pool = this._exileCostPool(pid, cost.exile, self);
@@ -11774,14 +11916,26 @@
       // one at a time, so "whenever you sacrifice an artifact" can see what went
       for (const x of list) if (x) this._fire('youSacrifice', pid, { count: 1, object: x, objController: pid, source: x });
     }
-    /** Discard these as a cost. */
-    _discardNow(pid, list, item) {
+    /**
+     * Discard these, as a cost (opts.cost) or as an effect resolving does. An effect's discard goes where its player
+     * chooses instead of the graveyard, if they may (Library of Leng: _discardWays): asked as the effect runs (SUSPEND
+     * while it waits — the caller returns it), or, for a discard answered, before the cards move (_discardWaitFor).
+     */
+    _discardNow(pid, list, item, opts) {
+      const cards = (list || []).filter(c => c && c.zone === 'hand');
+      const effect = !!this.resolving && !(opts && opts.cost);
+      let plan;
+      if (effect && this._inEffect) {
+        // (the questions keyed by how many discards this effect has made so far: the same each time it runs again)
+        plan = this._discardPlan(pid, cards, 'n' + (this._discardSeq = (this._discardSeq || 0) + 1));
+        if (plan === SUSPEND) return SUSPEND;
+      } else if (effect && this._discardWaitFor(pid, cards, { kind: 'discardNow', stackId: (item && item.id) || null })) return;
+      else plan = cards.map(c => ({ c, way: effect ? this._discardSettledWay(pid, c) : null }));
       const gone = [];
-      for (const c of list) {
-        if (!c || c.zone !== 'hand') continue;
-        gone.push({ id: c.id, name: c.name, mv: (c.card && c.card.cmc) || 0 });
-        this.moveObject(c, 'graveyard');
-        this._afterDiscard(pid, c);
+      for (const x of plan) {
+        gone.push({ id: x.c.id, name: x.c.name, mv: (x.c.card && x.c.card.cmc) || 0 });
+        this._discardMove(pid, [x]);
+        this._afterDiscard(pid, x.c);
       }
       if (!gone.length) return;
       if (item) item.discarded = (item.discarded || []).concat(gone);
@@ -20644,6 +20798,8 @@
            the same moment. */
         const outerMoment = this._moveEpoch == null;
         if (outerMoment) this._moveEpoch = (this._epochSeq = (this._epochSeq || 0) + 1);
+        // (an effect running here may stop to ask, and runs again from its top: _discardNow's questions — _inEffect)
+        this._inEffect = true; this._discardSeq = 0;
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
@@ -20651,7 +20807,7 @@
           r.effects.splice(r.index, 1, { op: 'manual', text: e.text || JSON.stringify(e) });
           continue;
         }
-        finally { this._putBy = null; this._curAs = null; this._curTp = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
+        finally { this._inEffect = false; this._putBy = null; this._curAs = null; this._curTp = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
           const grew = poolsBefore && poolsBefore.find(x => MANA.COLORS.concat('C').some(c => (Number(x.q.pool[c]) || 0) > (Number(x.before[c]) || 0)));
           if (grew) this._lastAddedMana = { pid: grew.q.id, before: grew.before, target: true };
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
@@ -20666,7 +20822,8 @@
     /** Is a draw or a making waiting on a player (_drawWait, _tokenWait)? Then the resolution goes on once it is done. */
     _heldUp() {
       let held = false;
-      for (const w of [this._drawWait, this._tokenWait]) if (w) { w.resume = true; held = true; }
+      // (Library of Leng: a discard waiting to hear where its cards go — _discardWait)
+      for (const w of [this._drawWait, this._tokenWait, this._discardWait]) if (w) { w.resume = true; held = true; }
       return held;
     }
 
@@ -20737,7 +20894,12 @@
       }
       // nothing to decide: answered on the spot, and said (_settledAnswer) — after an answer remembered, which is the player's own
       const settled = this._settledAnswer(choice);
-      if (settled) return (r.answers[key] = this._applySettled(choice, settled));
+      if (settled) {
+        const was = this._discardWait;
+        r.answers[key] = this._applySettled(choice, settled);
+        // (a discard that now waits to hear where its cards go: the effect waits with it, its answer kept — _discardWait)
+        return !was && this._discardWait ? SUSPEND : r.answers[key];
+      }
       /* Whoever is asked should be able to see what is asking: the card the
          effect belongs to travels with the question, unless it says otherwise. */
       const src = r.ctx && r.ctx.obj;
@@ -22478,25 +22640,34 @@
           for (const p of who) {
             if (!p || p.hasLost) continue;
             // each player discards once, however many times this resumes
-            if (this._doneHere('d' + p.id)) continue;
+            const rd = this.resolving, dk = rd ? rd.index + ':d' + p.id : null;
+            if (rd && rd.marks && rd.marks[dk]) continue;
             const hand = this.zones[p.id].hand;
             /* "Discard a card at random" is nobody's choice, and "discard
                your hand" leaves nothing to choose. */
             if (e.random || cnt >= hand.length) {
-              const pool = hand.slice();
-              const gone = [];
-              // (counted before the loop: the pool shrinks as cards come out of it)
-              const many = Math.min(cnt, pool.length);
-              for (let i = 0; i < many; i++) {
-                const k = e.random ? Math.floor(this.rng.next() * pool.length) : 0;
-                gone.push(pool.splice(k, 1)[0]);
+              // (the cards picked once, kept while Library of Leng asks where they go: dkPick)
+              let gone = rd && rd.marks && rd.marks[dk + 'pick'] ? rd.marks[dk + 'pick'].map(id => this.obj(id)).filter(Boolean) : null;
+              if (!gone) {
+                const pool = hand.slice();
+                gone = [];
+                // (counted before the loop: the pool shrinks as cards come out of it)
+                const many = Math.min(cnt, pool.length);
+                for (let i = 0; i < many; i++) {
+                  const k = e.random ? Math.floor(this.rng.next() * pool.length) : 0;
+                  gone.push(pool.splice(k, 1)[0]);
+                }
+                if (rd) { rd.marks = rd.marks || {}; rd.marks[dk + 'pick'] = gone.map(c => c.id); }
               }
-              for (const c of gone) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+              if (this._discardThese(p.id, gone, 'd' + p.id) === SUSPEND) return SUSPEND;
+              this._doneHere('d' + p.id);
+              for (const c of gone) this._afterDiscard(p.id, c);
               // (Lord Windgrace: "If a land card is discarded this way" — the one card in hand, discarded with no question)
               this._lastDiscarded = gone.map(c => c.id);
               if (gone.length) this.logEvent('discard', `${p.name} discards ${gone.map(c => c.name).join(', ')}${e.random ? ' at random' : ''}.`);
               continue;
             }
+            this._doneHere('d' + p.id);
             const got = this._ask({ type: 'discard', playerId: p.id, count: Math.min(cnt, hand.length),
               prompt: `Discard ${cnt === 1 ? 'a card' : cnt + ' cards'}.` }, 'd' + p.id);
             if (got === SUSPEND) return SUSPEND;
@@ -22561,11 +22732,15 @@
               if (picked === SUSPEND) return SUSPEND;
               one = (picked || []).map(id => this.obj(id)).find(o => o && pool.includes(o)) || null;
             }
-            if (one) { this.moveObject(one, 'graveyard'); this._afterDiscard(p.id, one); this.logEvent('discard', `${p.name} discards ${one.name}.`); this._doneHere('dut' + p.id); continue; }
+            if (one) {
+              if (this._discardThese(p.id, [one], 'dut1' + p.id) === SUSPEND) return SUSPEND;
+              this._afterDiscard(p.id, one); this.logEvent('discard', `${p.name} discards ${one.name}.`); this._doneHere('dut' + p.id); continue;
+            }
             const cnt = Math.min(n(e.n), hand.length);
             if (cnt && cnt >= hand.length) {
               const gone = hand.slice();
-              for (const c of gone) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+              if (this._discardThese(p.id, gone, 'dutAll' + p.id) === SUSPEND) return SUSPEND;
+              for (const c of gone) this._afterDiscard(p.id, c);
               this.logEvent('discard', `${p.name} discards ${gone.map(c => c.name).join(', ')}.`);
             } else if (cnt) {
               // (the discard itself is made as the answer comes in)
@@ -24251,10 +24426,10 @@
             if (picked.length === Math.min(count, hand.length)) toss = picked;
           }
           let grew = 0;
+          if (this._discardThese(who.id, toss, slot + 'x') === SUSPEND) return SUSPEND;
           for (const c of toss) {
             const ca = c.analysis();
             if (ca && !ca.isLand) grew++;
-            this.moveObject(c, 'graveyard');
             this._afterDiscard(who.id, c);
           }
           if (x && grew && x.zone === 'battlefield') this.addCounters(x, '+1/+1', grew);
@@ -24279,10 +24454,19 @@
             const c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && hand.includes(x));
             if (c) picks.push({ p, c });
           }
-          if (this._doneHere('rumDone')) break;
+          const rr0 = this.resolving;
+          if (rr0 && rr0.marks && rr0.marks[rr0.index + ':rumDone']) break;
+          // (asked of each first, where their card goes instead — Library of Leng — then all of them go together)
+          const plans = [];
           for (const { p, c } of picks) {
-            this.moveObject(c, 'graveyard');
-            this.logEvent('discard', `${p.name} discards ${c.name}.`);
+            const pl = this._discardPlan(p.id, [c], 'rum' + p.id);
+            if (pl === SUSPEND) return SUSPEND;
+            plans.push({ p, pl });
+          }
+          this._doneHere('rumDone');
+          for (const { p, pl } of plans) {
+            this._discardMove(p.id, pl);
+            for (const x of pl) this.logEvent('discard', `${p.name} discards ${x.c.name}.`);
           }
           for (const { p, c } of picks) this._afterDiscard(p.id, c);
           this._lastDiscarded = picks.map(x => x.c.id);
@@ -24311,7 +24495,7 @@
             if (picked) toss = picked;
           }
           const ta = toss.analysis();
-          this.moveObject(toss, 'graveyard');
+          if (this._discardThese(who.id, [toss], slot + 'x') === SUSPEND) return SUSPEND;
           this._afterDiscard(who.id, toss);
           this._lastDiscarded = [toss.id];
           this.logEvent('discard', `${who.name} recruits and discards ${toss.name}.`);
@@ -25361,7 +25545,7 @@
             if (paid.counters[kind] <= 0) delete paid.counters[kind];
             paid._chr = null; this.bumpBoard();
             this.logEvent('counters', `A ${kind} counter is removed from ${paid.name}.`);
-          } else if (paid && e.how === 'discard') this._discardNow(ctx.controller, [paid]);
+          } else if (paid && e.how === 'discard') this._discardNow(ctx.controller, [paid], null, { cost: true });
           else if (paid && e.how === 'return') { this.moveObject(paid, 'hand'); this.logEvent('rules', `${me.name} returns ${paid.name} to hand.`); }
           else if (paid) this._sacrificeNow(ctx.controller, [paid], ctx);   // (it tells the table: oneSacrificeEach)
           else {
@@ -25620,7 +25804,7 @@
               items: this._chooseItems(hand), min: 1, max: 1, prompt: 'Discard a card.' }, 'syph' + q.id);
             if (got === SUSPEND) return SUSPEND;
             const c = got && got.picks.length ? this.obj(got.picks[0]) : hand[0];
-            if (c && c.zone === 'hand') { this._discardNow(q.id, [c]); k++; }
+            if (c && c.zone === 'hand') { if (this._discardNow(q.id, [c]) === SUSPEND) return SUSPEND; k++; }
           }
           if (k) this._drawCards(me, k);
           break;
@@ -26523,7 +26707,9 @@
           }
           break;
         case 'discardHand': {
-          for (const c of this.zones[ctx.controller].hand.slice()) { this.moveObject(c, 'graveyard'); this._afterDiscard(ctx.controller, c); }
+          const gone = this.zones[ctx.controller].hand.slice();
+          if (this._discardThese(ctx.controller, gone, 'dh') === SUSPEND) return SUSPEND;
+          for (const c of gone) this._afterDiscard(ctx.controller, c);
           this.logEvent('discard', `${me.name} discards their hand.`);
           break;
         }
@@ -26537,8 +26723,16 @@
             : e.who === 'you' ? [me] : e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players.filter(p => !p.hasLost);
           const counts = live.map(p => this.zones[p.id].hand.length);
           const most = counts.length ? Math.max(...counts) : 0;
+          // (where each card goes instead — Library of Leng — asked of everybody before any card moves)
+          const plans = [];
           for (const p of live) {
-            for (const c of this.zones[p.id].hand.slice()) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+            const pl = this._discardPlan(p.id, this.zones[p.id].hand.slice(), 'wh' + p.id);
+            if (pl === SUSPEND) return SUSPEND;
+            plans.push({ p, pl });
+          }
+          for (const { p, pl } of plans) {
+            this._discardMove(p.id, pl);
+            for (const x of pl) this._afterDiscard(p.id, x.c);
           }
           live.forEach((p, i) => {
             const k = (e.n === 'mostDiscarded' ? most : e.n === 'sameDiscarded' ? counts[i] : e.n === 'sameMinusOne' ? Math.max(0, counts[i] - 1) : (n(e.n) || 7)) + (e.plus || 0);
@@ -27123,7 +27317,7 @@
           // (a sacrifice and a discard like any other: Tergrid sees what went — sacOrDiscardAny)
           if (pay.sacrifice) this._sacrificeNow(ctx.controller, chosen);
           // (Lukka, Wayward Bonder: "If a creature card was discarded this way" — didThisWay)
-          else { this._discardNow(ctx.controller, chosen); this._lastDiscarded = chosen.map(o => o.id); }
+          else { if (this._discardNow(ctx.controller, chosen) === SUSPEND) return SUSPEND; this._lastDiscarded = chosen.map(o => o.id); }
           this._spliceNext(e.then);
           break;
         }
@@ -27168,7 +27362,7 @@
             }
             for (const { q, x, perm } of pay) {
               if (perm && x.zone === 'battlefield' && x.controller === q.id) this._sacrificeNow(q.id, [x], null);
-              else if (!perm && x.zone === 'hand' && x.owner === q.id) this._discardNow(q.id, [x]);
+              else if (!perm && x.zone === 'hand' && x.owner === q.id) this._discardNow(q.id, [x], null, { cost: true });
               else hit.push(q);
             }
             const list = [];
@@ -27208,7 +27402,7 @@
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x)) this._sacrificeNow(payer.id, [x], null);
-            else if (x && x.zone === 'hand' && x.owner === payer.id && e.cost.orDiscard) this._discardNow(payer.id, [x]);
+            else if (x && x.zone === 'hand' && x.owner === payer.id && e.cost.orDiscard) this._discardNow(payer.id, [x], null, { cost: true });
             else this._spliceNext(e.then);
             break;
           }
@@ -27221,7 +27415,7 @@
             if (yes === SUSPEND) return SUSPEND;
             if (yes) {
               const now = this.zones[payer.id].hand.slice();
-              if (now.length) this._discardNow(payer.id, now);
+              if (now.length) this._discardNow(payer.id, now, null, { cost: true });
               else this.logEvent('discard', `${payer.name} discards their hand of no cards.`);
             } else this._spliceNext(e.then);
             break;
@@ -27243,7 +27437,7 @@
               if (xs.length === need) pay.push({ q, xs }); else hit.push(q);
             }
             for (const { q, xs } of pay) {
-              if (xs.every(x => x.zone === 'hand' && x.owner === q.id)) this._discardNow(q.id, xs); else hit.push(q);
+              if (xs.every(x => x.zone === 'hand' && x.owner === q.id)) this._discardNow(q.id, xs, null, { cost: true }); else hit.push(q);
             }
             const list = [];
             for (const q of hit) for (const f of e.then || []) list.push(Object.assign(JSON.parse(JSON.stringify(f)), f.who === 'opponents' ? { who: 'you', _as: q.id } : {}));
@@ -27260,7 +27454,7 @@
               prompt: e.prompt || `Discard a card? If you don't: ${whole(e.text || 'it happens', 80)}` }, 'disc');
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
-            if (x && x.zone === 'hand' && x.owner === payer.id) this._discardNow(payer.id, [x]);
+            if (x && x.zone === 'hand' && x.owner === payer.id) this._discardNow(payer.id, [x], null, { cost: true });
             else this._spliceNext(e.then);
             break;
           }
@@ -28163,7 +28357,7 @@
               if (got === SUSPEND) return SUSPEND;
               const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
               if (x && e.cost === 'sacLand' && x.zone === 'battlefield') { this._sacrificeNow(who.id, [x]); paid = true; }
-              else if (x && e.cost === 'discard' && x.zone === 'hand') { this._discardNow(who.id, [x]); paid = true; }
+              else if (x && e.cost === 'discard' && x.zone === 'hand') { this._discardNow(who.id, [x], null, { cost: true }); paid = true; }
             } else if (!paid) paid = this.payMana(who.id, e.cost, { auto: true });
             st.decided = true;
             st.who = who.id;
@@ -28317,7 +28511,11 @@
             if (got) yes.push(q);
           }
           for (const q of yes) {
-            if (e.discardHand) this._discardNow(q.id, this.zones[q.id].hand.slice());
+            // (each one's discard and draw once, however many times this runs again for the next one's Library of Leng)
+            const rq = this.resolving, qk = rq ? rq.index + ':emd' + q.id : null;
+            if (rq && rq.marks && rq.marks[qk]) continue;
+            if (e.discardHand && this._discardNow(q.id, this.zones[q.id].hand.slice()) === SUSPEND) return SUSPEND;
+            if (rq) { rq.marks = rq.marks || {}; rq.marks[qk] = true; }
             this._drawCards(q, e.draw || 1);
             if (e.gain) this.changeLife(q, e.gain);
             /* The Second Doctor: "Each opponent who does can't attack you or permanents you control during their
@@ -28410,7 +28608,7 @@
             if (got === SUSPEND) return SUSPEND;
             picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'hand' && x.owner === ctx.controller);
           }
-          if (picks.length) this._discardNow(ctx.controller, picks);
+          if (picks.length && this._discardNow(ctx.controller, picks) === SUSPEND) return SUSPEND;
           const k = picks.length + (e.plus || 0);
           if (k > 0) this._drawCards(me, k);
           // Neheb, Dreadhorde Champion: "and add that much {R}", kept until end of turn
@@ -28436,8 +28634,8 @@
             if (got === SUSPEND) return SUSPEND;
             picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x) && x.zone === 'hand');
           }
+          if (picks.length && this._discardNow(ctx.controller, picks) === SUSPEND) return SUSPEND;
           if (r0) { r0.marks = r0.marks || {}; r0.marks[slot] = true; }
-          if (picks.length) this._discardNow(ctx.controller, picks);
           this._lastDiscarded = picks.map(x => x.id);
           break;
         }
@@ -32641,7 +32839,8 @@
           if (!lands.length) { this.moveObject(src, 'graveyard'); this.logEvent('rules', `${src.name} has no land to discard and goes to the graveyard.`); break; }
           if (me.isBot || lands.length === 1) {
             const c = this._cheapestFirst(lands)[0];
-            this.moveObject(c, 'graveyard'); this._afterDiscard(ctx.controller, c);
+            if (this._discardThese(ctx.controller, [c], 'mox') === SUSPEND) return SUSPEND;
+            this._afterDiscard(ctx.controller, c);
             this.logEvent('discard', `${me.name} discards ${c.name} for ${src.name}.`);
             break;
           }
@@ -34677,7 +34876,10 @@
                 items: this._chooseItems(hand), min: 1, max: 1, prefer: 'worst', prompt: 'Discard a card.' }, slot + 'd' + st.step);
               if (got === SUSPEND) return SUSPEND;
               const c = this.obj(((got && got.picks) || [])[0]) || hand[0];
-              if (c && c.zone === 'hand') { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); this.logEvent('discard', `${p.name} discards ${c.name}.`); }
+              if (c && c.zone === 'hand') {
+                if (this._discardThese(p.id, [c], slot + 'dx' + st.step) === SUSPEND) return SUSPEND;
+                this._afterDiscard(p.id, c); this.logEvent('discard', `${p.name} discards ${c.name}.`);
+              }
             } else if (e.damage) {
               this.dealDamageToPlayer(p, e.life, src, false);
             } else {
@@ -35499,7 +35701,8 @@
             if (!hand.length) continue;
             if (k >= hand.length) {
               const gone = hand.slice();
-              for (const c of gone) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+              if (this._discardThese(p.id, gone, 'ldsa' + p.id) === SUSPEND) { this.resolving.marks[this.resolving.index + ':ldsd' + p.id] = false; return SUSPEND; }
+              for (const c of gone) this._afterDiscard(p.id, c);
               this.logEvent('discard', `${p.name} discards ${gone.map(c => c.name).join(', ')}.`);
               continue;
             }
@@ -36695,19 +36898,27 @@
           const p = firstPlayer(); const nm = this._chosenNameNow;
           if (!p || !nm) break;
           let seen = this.zones[p.id].hand;
+          // (revealed once, however many times this runs again while Library of Leng asks: dnSeen)
+          const rn = this.resolving, rk = rn ? rn.index + ':dnSeen' : null;
+          const again = !!(rn && rn.marks && rn.marks[rk]);
           // Nebuchadnezzar: "reveals X cards at random from their hand … discards all cards with that name revealed this way"
           if (e.random != null) {
-            const pool = seen.slice(), k = Math.min(pool.length, Math.max(0, n(e.random)));
-            seen = [];
-            while (seen.length < k) seen.push(pool.splice(this.rng.int(pool.length), 1)[0]);
-            this._know(seen, '*');
-            this.logEvent('reveal', `${p.name} reveals ${seen.length ? seen.map(c => c.name).join(', ') : 'no cards'} at random from their hand.`);
-          } else {
+            if (again) seen = rn.marks[rk].map(id => this.obj(id)).filter(c => c && c.zone === 'hand');
+            else {
+              const pool = seen.slice(), k = Math.min(pool.length, Math.max(0, n(e.random)));
+              seen = [];
+              while (seen.length < k) seen.push(pool.splice(this.rng.int(pool.length), 1)[0]);
+              this._know(seen, '*');
+              this.logEvent('reveal', `${p.name} reveals ${seen.length ? seen.map(c => c.name).join(', ') : 'no cards'} at random from their hand.`);
+            }
+          } else if (!again) {
             this._knowHand(p.id, '*');
             this.logEvent('reveal', `${p.name} reveals their hand.`);
           }
+          if (rn && !again) { rn.marks = rn.marks || {}; rn.marks[rk] = seen.map(c => c.id); }
           const hits = seen.filter(c => c.card && this._sameCardName(c.card.name, nm));
-          for (const c of hits) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+          if (this._discardThese(p.id, hits, 'neb') === SUSPEND) return SUSPEND;
+          for (const c of hits) this._afterDiscard(p.id, c);
           this.logEvent('discard', `${p.name} discards ${hits.length} card${hits.length === 1 ? '' : 's'} named ${nm}.`);
           break;
         }
@@ -36717,8 +36928,9 @@
           if (!p || p.hasLost) break;
           const mv = n(e.mv);
           this._knowHand(p.id, '*');
-          this.logEvent('reveal', `${p.name} reveals their hand.`);
-          this._discardNow(p.id, this.zones[p.id].hand.filter(c => ((c.card && c.card.cmc) || 0) === mv), this.resolving);
+          // (said once, however many times this runs again while Library of Leng asks)
+          if (!this._doneHere('handShown')) this.logEvent('reveal', `${p.name} reveals their hand.`);
+          if (this._discardNow(p.id, this.zones[p.id].hand.filter(c => ((c.card && c.card.cmc) || 0) === mv), this.resolving) === SUSPEND) return SUSPEND;
           break;
         }
         // Crosis, the Purger; Persecute: "reveals their hand and discards all cards of that color" (discardColor)
@@ -36727,8 +36939,9 @@
           const col = ctx.chosenColor || (src && src.chosenColor);
           if (!p || !col) break;
           this._knowHand(p.id, '*');
-          this.logEvent('reveal', `${p.name} reveals their hand.`);
-          this._discardNow(p.id, this.zones[p.id].hand.filter(c => ((c.analysis() || {}).colors || []).includes(col)), this.resolving);
+          // (said once, however many times this runs again while Library of Leng asks)
+          if (!this._doneHere('handShown')) this.logEvent('reveal', `${p.name} reveals their hand.`);
+          if (this._discardNow(p.id, this.zones[p.id].hand.filter(c => ((c.analysis() || {}).colors || []).includes(col)), this.resolving) === SUSPEND) return SUSPEND;
           break;
         }
         // Cranial Extraction: every card with that name, from graveyard, hand and library
@@ -37088,7 +37301,7 @@
           }
           const list = picked.map(id => this.obj(id)).filter(c => c && c.zone === 'hand' && c.owner === me.id);
           if (!list.length) break;
-          this._discardNow(me.id, list);
+          if (this._discardNow(me.id, list) === SUSPEND) return SUSPEND;
           this._drawCards(me, list.length);
           break;
         }
@@ -37134,7 +37347,7 @@
             this._drawCards(me, 1);
             break;
           }
-          this.moveObject(c, 'graveyard');
+          if (this._discardThese(ctx.controller, [c], 'rum1') === SUSPEND) return SUSPEND;
           this._afterDiscard(ctx.controller, c);
           this.logEvent('discard', `${me.name} discards ${c.name}.`);
           this._drawCards(me, 1);
@@ -40154,6 +40367,8 @@
       if (this._drawWait && this._drawWait.pid === p.id) this._drawResume();
       // Jinnie Fay, Esix: their tokens will not be made — what waited behind them goes on (_tokenWait)
       if (this._tokenWait && this._tokenWait.controller === p.id) { const w = this._tokenWait; this._tokenWait = null; this._tokenGoOn(w); }
+      // Library of Leng: where their discarded cards go will not be answered — the graveyard, and the resolution on (_discardWait)
+      if (this._discardWait && this._discardWait.pid === p.id) this._discardWaitDone();
       // Planechase: their planar cards leave with them, and a face-up one gone sends the planar controller on (CR 901.10)
       if (this.config.planechase) this._planarPlayerLeaves(p);
       this.emit('player:lost', p);
@@ -40573,6 +40788,14 @@
             return true;
           }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
+          // a card being discarded with more than one way to go instead of the graveyard, for a discard answered (_discardWait)
+          if (ch.purpose === 'discardInstead' && ch.discardWait) {
+            this.pendingChoice = null;
+            this._discardWaitAnswer(ch, { picks: got.picks });
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
           // Susan Foreman: the planar card kept on top, then the planeswalk it was asked for (src/06f-planechase.js)
           if (ch.purpose === 'planarTop' && ch.resumeKey == null) { this._planarTopAnswered(ch, got.picks[0]); break; }
@@ -40775,7 +40998,12 @@
             if (ch.purpose === 'beholdCost') { this._beholdOne(playerId, o, !!ch.exile, this.obj(ch.sourceId)); continue; }
             if (ch.purpose === 'landFromHand') { this.moveObject(o, 'battlefield', { controller: playerId }); this.logEvent('land', `${this.player(playerId).name} puts ${o.name} onto the battlefield.`); }
             else if (ch.purpose === 'exileFromHand') { const fromZ = o.zone === 'graveyard' ? 'graveyard' : 'hand'; this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s ${fromZ}.`); }
-            else if (ch.purpose === 'discardFromHand') { this.moveObject(o, 'graveyard'); this.logEvent('discard', `${this.player(o.owner).name} discards ${o.name}.`); this._afterDiscard(o.owner, o); }
+            else if (ch.purpose === 'discardFromHand') {
+              // (Library of Leng: where it goes instead is asked of its owner first — _discardWaitFor)
+              if (o.zone === 'hand' && this._discardWaitFor(o.owner, [o], { kind: 'fromHand' })) continue;
+              this._discardMove(o.owner, [{ c: o, way: o.zone === 'hand' ? this._discardSettledWay(o.owner, o) : null }]);
+              this.logEvent('discard', `${this.player(o.owner).name} discards ${o.name}.`); this._afterDiscard(o.owner, o);
+            }
           }
           break;
         }
@@ -40821,14 +41049,15 @@
             if (o && o.zone === 'battlefield' && data && data.yes) this.addCounters(o, '+1/+1', 1, { noReplace: true });
             break;
           }
-          // Library of Leng: the card just discarded, on top of its owner's library instead (discardMayTop)
+          /* Library of Leng: where a card being discarded goes — for a discard answered, waiting on it (_discardWait); for
+             an effect that discards, the effect has the answer (_discardThese) */
           if (ch.purpose === 'discardToTop') {
-            const o = this.obj(ch.objId);
-            if (!o || !(data && data.yes) || o.zone !== 'graveyard' || o._lengSeq !== ch.seq) break;
-            this.moveObject(o, 'library');
-            this._know([o], '*');
-            this.logEvent('rules', `${ch.sourceName || 'Library of Leng'}: ${this.player(playerId).name} puts ${o.name} on top of their library instead of into their graveyard.`);
-            break;
+            if (!ch.discardWait) break;
+            this.pendingChoice = null;
+            this._discardWaitAnswer(ch, !!(data && data.yes));
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
           }
           if (ch.purpose === 'madness') {
             const o = this.obj(ch.objId);
@@ -42286,7 +42515,9 @@
       if (!ch.optional && pick.length < want) {
         for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o) && !(dn && pick.some(x => x.name === o.name))) pick.push(o); }
       }
-      for (const o of pick) { this.moveObject(o, 'graveyard'); tossed.push(o); }
+      // (an effect's discard, not the cleanup's: where each card goes instead is asked first — _discardWaitFor)
+      if (ch.type === 'discard' && this._discardWaitFor(playerId, pick, { kind: 'answer', stackId: ch.stackId || null })) return;
+      for (const o of pick) { this._discardMove(playerId, [{ c: o, way: ch.type === 'discard' ? this._discardSettledWay(playerId, o) : null }]); tossed.push(o); }
       const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
       if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
       this._lastDiscarded = tossed.map(o => o.id);

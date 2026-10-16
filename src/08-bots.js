@@ -1577,6 +1577,15 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* A card being discarded with more than one way to go instead of the graveyard (Obstinate Baloth with Library of
+       Leng): onto the battlefield first, then the top of the library as a Library of Leng question would be answered */
+    discardInstead(s) {
+      const keys = (s.options || []).map(o => o.key);
+      const k = keys.indexOf('battlefield') >= 0 ? keys.indexOf('battlefield')
+        : keys.indexOf('library') >= 0 && this.confirmChoice({ type: 'confirm', purpose: 'discardToTop', objId: s.objId, playerId: this.pid }) ? keys.indexOf('library')
+        : keys.indexOf('graveyard');
+      return { picks: [Math.max(0, k)] };
+    },
     /* Word of Command: X for the spell its owner is made to cast — as much as their lands pay for, their mana wasted
        (commandX); and which of their lands pay — those the engine would tap, listed first (commandLands) */
     commandX(s) { return { picks: [], number: s.number.max }; },
