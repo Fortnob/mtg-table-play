@@ -5091,6 +5091,9 @@
     { re: /^Collect evidence (\d+)\.?$/i, make: (m) => ({ op: 'mayPay', pay: { evidence: +m[1] }, then: [], noAsk: true }) },
     // Corpseberry Cultivator: "you may forage" with nothing after it
     { re: /^Forage\.?$/i, make: () => ({ op: 'mayPay', pay: { forage: true }, then: [], noAsk: true }) },
+    // Orcrist, Goblin-cleaver: "choose a creature type. Create a Treasure token for each creature you control of that type." (chosenType)
+    { re: /^Create an? (Treasure|Food|Clue|Blood|Map|Gold) token for each creature you control of that type\.?$/,
+      make: (m) => ({ op: 'createNamedToken', token: m[1], n: { scope: { who: 'you', chosenType: true, what: 'creature' }, mult: 1 } }) },
     // Banner of Kinship: "This artifact enters with a fellowship counter on it for each creature you control of the chosen type."
     { re: /^(?:This artifact|This creature|CARDNAME) enters with an? ([a-z]+) counter on it for each (creature you control of the chosen type)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, scope: 'self' } : null; } },
@@ -25664,6 +25667,9 @@
       // Zilortha, Apex of Ikoria: "For each non-Human creature you control, you may have that creature assign …" (asUnblocked)
       { re: /^For each (non-[A-Z][a-z]+) creature you control, you may have that creature assign its combat damage as though it weren'?t blocked\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' creatures you control'); return sc ? { op: 'continuous', layer: 6, scope: sc, flag: 'asUnblocked' } : null; }, auto: true },
+      // Indomitable Might: "Enchanted creature's controller may have it assign its combat damage as though it weren't blocked." (asUnblocked)
+      { re: /^(?:Enchanted|Equipped) creature'?s controller may have it assign its combat damage as though it weren'?t blocked\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, flag: 'asUnblocked' }, auto: true },
       // Wolverine, Claws Out: "You may have Wolverine assign his combat damage as though he weren't blocked." (asUnblocked)
       { re: /^You may have CARDNAME assign (?:his|her) combat damage as though (?:he|she) weren'?t blocked\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true }, flag: 'asUnblocked' }, auto: true },
@@ -26950,6 +26956,9 @@
          creature spell this way, it gains haste until end of turn." (spellMinPower, haste) */
       { re: /^You may cast creature spells with power (\d+) or greater from the top of your library\.(?: If you cast a creature spell this way, it gains haste until end of turn\.)?$/i,
         make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', spellMinPower: +m[1] }, /haste/i.test(m[0]) ? { haste: true } : {}), auto: true },
+      // Assemble the Players: "Once each turn, you may cast a creature spell with power 2 or less from the top of your library." (spellMaxPower)
+      { re: /^Once each turn, you may cast a creature spell with power (\d+) or less from the top of your library\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', oncePerTurn: true, spellMaxPower: +m[1] }), auto: true },
       // Johann, Apprentice Sorcerer: "Once each turn, you may cast an instant or sorcery spell from the top of your library." (oncePerTurn)
       { re: /^Once each turn, you may cast an? ([a-z]+(?: or [a-z]+)?) spell from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: m[1].toLowerCase(), oncePerTurn: true }), auto: true },

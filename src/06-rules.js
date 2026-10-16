@@ -6302,6 +6302,8 @@
             if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
             // Thundermane Dragon: "creature spells with power 4 or greater" (spellMinPower)
             if (ef.spellMinPower != null && kind !== 'land' && !((parseInt((o.analysis() || {}).power, 10) || 0) >= ef.spellMinPower)) continue;
+            // Assemble the Players: "a creature spell with power 2 or less" (spellMaxPower)
+            if (ef.spellMaxPower != null && kind !== 'land' && !((parseInt((o.analysis() || {}).power, 10) || 0) <= ef.spellMaxPower)) continue;
             // Muldrotha, the Gravetide: the permanent types this card could still be played as this turn
             if (ef.perType) {
               const freeTypes = this._playFromTypesLeft(src, o, kind);
