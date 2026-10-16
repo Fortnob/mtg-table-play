@@ -591,7 +591,7 @@
         kind: 'spell', auto: true,
         text: "Destroy all artifacts you don't control, then exile the top X cards of your library, where X is the number of artifacts that were put into graveyards from the battlefield this turn. You may put a creature card exiled this way onto the battlefield. It gains haste. Return it to your hand at the beginning of the next end step.",
         effects: [
-          { op: 'destroyAll', what: 'artifact', scope: { who: 'opponents', what: 'artifact' } },
+          { op: 'destroyAll', what: 'artifact', notYou: true },
           { op: 'impulse', n: { artifactsDiedThisTurn: true } },
           { op: 'takeFromExiled', n: 1, filter: 'creature', to: 'battlefield', optional: true,
             prompt: 'You may put a creature card exiled this way onto the battlefield.',
@@ -640,9 +640,9 @@
     "titania's song": {
       abilities: [{
         kind: 'static', auto: true,
-        text: 'Each noncreature artifact loses all abilities and becomes an artifact creature with power and toughness each equal to its mana value.',
+        text: 'Each noncreature artifact loses all abilities and becomes an artifact creature with power and toughness each equal to its mana value. If this enchantment leaves the battlefield, this effect continues until end of turn.',
         effects: [{ op: 'continuous', layer: 4, scope: { who: 'all', what: 'artifact', notType: ['creature'] },
-          addTypes: ['Creature'], loseAll: true, setPtFromMv: true }],
+          addTypes: ['Creature'], loseAll: true, setPtFromMv: true, persistOnLeavingEot: true }],
       }],
     },
     "structural assault": {
@@ -724,7 +724,7 @@
           { label: 'Target creature you control explores twice', auto: true,
             effects: [
               { op: 'explore', ofTarget: true, targets: [{ type: 'creature', controller: 'you' }] },
-              { op: 'explore', ofTarget: true },
+              { op: 'explore', ofTarget: true, targets: [{ type: 'creature', controller: 'you' }] },
             ] },
         ] }],
       }],
