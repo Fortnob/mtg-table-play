@@ -201,7 +201,8 @@
     // Indoraptor, the Perfect Hybrid: "Bloodthirst X"
     /^(Bloodthirst) X$/i,
     // simple flags, matched as whole comma-separated clauses
-    /^(Increment|Undaunted|Paradigm|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
+    // (Oscorp Industries: a land's "Mayhem", no cost — played from the graveyard the turn it was discarded)
+    /^(Increment|Undaunted|Paradigm|Mayhem|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway|Amplify)\s+\d+$/i,
     // parameterised keywords with a cost
@@ -1807,6 +1808,9 @@
       make: () => ({ op: 'addManaAmong', from: 'selfColors', amount: 1 }) },
     { re: /^Add one mana of any of the exiled card'?s colors\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'exiledCard', amount: 1 }) },
+    // Pit of Offerings: "Add one mana of any of the exiled cards' colors." — the cards exiled with it (exiledCards)
+    { re: /^Add one mana of any of the exiled cards'? colors\.?$/i,
+      make: () => ({ op: 'addManaAmong', from: 'exiledCards', amount: 1 }) },
     { re: /^For each color among permanents you control, add one mana of that color\.?$/i,
       make: () => ({ op: 'addManaEachColor' }) },
     { re: /^Add X mana of any one color, where X is (?:CARDNAME'?s?|this creature'?s|its) power\.?$/i,
@@ -4669,7 +4673,8 @@
       make: (m) => { const t = tgt(m[4]); return t && kwKnown(U.titleCase(m[3])) ? { op: 'sequence', list: [{ op: 'counters', kind: m[2], n: num(m[1]), targets: [t] },
         { op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
     // Rise from the Grave: "That creature is a black Zombie in addition to its other colors and types." — for good (not the turn)
-    { re: /^(?:That creature|It) is an? (white|blue|black|red|green) ([A-Z][a-z]+) in addition to its other colors and types\.?$/,
+    // (Necromantic Selection: "It's a black Zombie in addition to its other colors and types.")
+    { re: /^(?:(?:That creature|It) is|It'?s) an? (white|blue|black|red|green) ([A-Z][a-z]+) in addition to its other colors and types\.?$/,
       make: (m) => ({ op: 'sequence', list: [{ op: 'addTypes', subtypes: [m[2]], scope: 'lastTarget' },
         { op: 'becomes', duration: 'permanent', eff: { addColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
     // Chainer, Dementia Master: "That creature is black and is a Nightmare in addition to its other creature types." — for good
@@ -9119,6 +9124,10 @@
     // Starfall Invocation: "return a creature card put into your graveyard this way to the battlefield under your control"
     { re: /^[Rr]eturn an? ([a-z]+) card put into your graveyard this way to the battlefield under your control\.?$/,
       make: (m) => ({ op: 'returnSwept', filter: m[1].toLowerCase() }) },
+    /* Necromantic Selection: "Destroy all creatures, then return a creature card put into a graveyard this way to the
+       battlefield under your control." — anyone's (returnSwept anyGraveyard) */
+    { re: /^Destroy all creatures, then return an? ([a-z]+) card put into a graveyard this way to the battlefield under your control\.?$/i,
+      make: (m) => [{ op: 'destroyAll', what: 'creature' }, { op: 'returnSwept', filter: m[1].toLowerCase(), anyGraveyard: true }] },
     /* Drakuseth: "CARDNAME deals 4 damage to any target and 3 damage to each
        of up to two other targets." — one amount for each target, in order */
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to any target and (\d+) damage to each of up to (two|three) other targets\.?$/i,
@@ -12691,6 +12700,9 @@
         const a = targetSpec(m[1]), b = targetSpec(m[2]);
         return a && !a.unknown && b && !b.unknown ? [{ op: 'moveCountersAny', all: true, kind: '+1/+1', gainMoved: true, targets: [a, b] }] : null;
       } },
+    // Selective Obliteration: "Each player chooses a color. Then exile each permanent unless it's colorless or it's only the color its controller chose."
+    { re: /^Each player chooses a colou?r\. Then exile each permanent unless it'?s colou?rless or it'?s only the colou?r its controller chose\.?$/i,
+      make: () => [{ op: 'eachChoosesColorExile' }] },
     /* Lonis, Cryptozoologist: "Target opponent reveals the top X cards of their library. You may put a nonland
        permanent card with mana value X or less from among them onto the battlefield under your control. That player
        puts the rest on the bottom of their library in a random order." (lookAt libOf target) */
@@ -16574,6 +16586,8 @@
     [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
     // Lost Monarch of Ifnir: "if a player was dealt combat damage by a Zombie this turn" (playerHitByType)
     [/^(a player|an opponent) was dealt combat damage by an? ([A-Z][a-z]+) this turn$/, (m) => ({ kind: 'playerHitByType', type: m[2].toLowerCase(), opponent: /opponent/.test(m[1]) })],
+    // Blitzball: "if an opponent was dealt combat damage by a legendary creature this turn" (playerHitByType legendary)
+    [/^(a player|an opponent) was dealt combat damage by a legendary creature this turn$/, (m) => ({ kind: 'playerHitByType', type: 'legendary', opponent: /opponent/.test(m[1]) })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is tapped$/i, () => ({ kind: 'selfTapped' })],
     // Isperia the Inscrutable: "a card with the chosen name is revealed this way" — in the hand just revealed (chosenNameRevealed)
@@ -18229,6 +18243,8 @@
     { re: /^When(?:ever)? a player casts an? ([a-z]+ )?spell that'?s ((?:white|blue|black|red|green), (?:white|blue|black|red|green),? or (?:white|blue|black|red|green)), /i,
       event: 'anyCastSpell', filt: (m) => spellFilter(m[2].toLowerCase() + ' ' + (m[1] || '')) },
 
+    // Oscorp Industries: "When this land enters from a graveyard," — before "this land enters" below
+    { re: /^When(?:ever)? this land enters from (?:your|a) graveyard,? /i, event: 'etb', self: true, extra: { fromGraveyardEnter: true } },
     /* --- one ability, two ways to set it off --- */
     { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role))\s+enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
@@ -18297,7 +18313,7 @@
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
     { re: /^When(?:ever)? a player casts their first spell during each of your turns(?:,| )/i, event: 'anyCastSpell', extra: { firstSpellOfCaster: true, yourTurnOnly: true } },
     // Phyrexian Dragon Engine: "When this creature enters from your graveyard"
-    { re: /^When(?:ever)? (?:this creature|CARDNAME) enters from your graveyard,? /i, event: 'etb', self: true, extra: { fromGraveyardEnter: true } },
+    { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) enters from (?:your|a) graveyard,? /i, event: 'etb', self: true, extra: { fromGraveyardEnter: true } },
     /* Firebender Ascension: "Whenever a creature you control attacking causes a triggered ability of that creature to
        trigger" — that ability on the stack (stackId), or a keyword's done at once (kwCopy) (yourAttackerTriggers) */
     { re: /^Whenever a creature you control attacking causes a triggered ability of that creature to trigger,? /i, event: 'yourAttackerTriggers' },

@@ -2068,6 +2068,19 @@
       if (!best || (was && (g.characteristics(was) || {}).isCreature && pw(was) >= pw(best))) return { picks: [] };
       return { picks: [best.id] };
     },
+    /* Selective Obliteration: the colour whose mono-coloured permanents of ours are worth the most */
+    obliterateColor(s) {
+      const g = this.game;
+      let best = 0, bestV = -1;
+      (s.options || []).forEach((o, i) => {
+        const v = g.battlefield.filter(x => x.controller === this.pid && !x.phasedOut).reduce((acc, x) => {
+          const cols = (x.analysis() || {}).colors || [];
+          return acc + (cols.length === 1 && cols[0] === o.color ? 1 + (g._cardValue(x) || 0) : 0);
+        }, 0);
+        if (v > bestV) { best = i; bestV = v; }
+      });
+      return { picks: [best] };
+    },
     /* Lord of the Void: the best of the creature cards it exiled */
     exiledToBattlefield(s) {
       const g = this.game;

@@ -73525,4 +73525,121 @@ module.exports = (test) => {
     t.no(d.T.bfOf('B').some(o => o.name === 'Hill Giant' && o.isToken), 'Twincast copies nothing');
     t.eq(a.T.manualLines().length + b.T.manualLines().length, 0);
   });
+  test('Cards: Necromantic Selection — every creature destroyed, then one of them from any graveyard returns under your control as a black Zombie; the spell exiled', (mk, t) => {
+    t.auto('Necromantic Selection');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), wurm = T.bf('B', 'Craw Wurm');
+    const old = T.grave('B', 'Serra Angel');            // not put there this way
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [wurm.id] }; });
+    T.mana('A', '4BBB');
+    const ns = T.hand('A', 'Necromantic Selection');
+    T.cast('A', ns);
+    t.ok(q && q.purpose === 'returnSwept', 'asked which');
+    const offered = q.items.map(x => x.id);
+    t.ok(offered.includes(giant.id) && offered.includes(bear.id) && offered.includes(wurm.id), 'any of the creatures destroyed');
+    t.no(offered.includes(old.id), 'not one already there');
+    t.zone(bear, 'graveyard'); t.zone(giant, 'graveyard');
+    t.zone(wurm, 'battlefield'); t.eq(wurm.controller, 'A', 'under your control');
+    t.ok(T.g._hasCreatureType(wurm, 'Zombie'), 'a Zombie');
+    t.ok(wurm.analysis().colors.includes('B'), 'black');
+    t.ok(wurm.analysis().colors.includes('G'), 'and still green');
+    t.zone(ns, 'exile');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Blitzball — {T}, sacrifice: draw two, only once a legendary creature dealt an opponent combat damage this turn', (mk, t) => {
+    t.auto('Blitzball');
+    const run = (attacker) => {
+      const T = mk({ library: Array(20).fill('Island') });
+      const ball = T.bf('A', 'Blitzball');
+      const c = T.bf('A', attacker);
+      t.no(T.g.activateAbility('A', ball.id, 1, { auto: true, targets: [] }), 'not before combat');
+      T.answer('declareAttackers', () => [{ attackerId: c.id, defenderId: 'B' }]);
+      toMain2(T);
+      const h = T.zone('A', 'hand').length;
+      const ok = T.g.activateAbility('A', ball.id, 1, { auto: true, targets: [] });
+      T.resolve();
+      return { ok, drew: T.zone('A', 'hand').length - h, T };
+    };
+    const yes = run('Isamaru, Hound of Konda');
+    t.ok(yes.ok, 'a legendary creature hit: allowed');
+    t.eq(yes.drew, 2, 'two cards');
+    const no = run('Grizzly Bears');
+    t.no(no.ok, 'a nonlegendary creature: not allowed');
+    t.eq(yes.T.manualLines().length, 0);
+  });
+  test('Cards: Selective Obliteration — each player chooses a color; every permanent exiled unless colorless or only its controller\'s color', (mk, t) => {
+    t.auto('Selective Obliteration');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'), ring = T.bf('A', 'Sol Ring'), dragon = T.bf('A', 'Shivan Dragon'), gm = T.bf('A', 'Boros Guildmage');
+    const elf = T.bf('B', 'Llanowar Elves'), angel = T.bf('B', 'Serra Angel'), land = T.bf('B', 'Plains');
+    const asked = [];
+    T.answer('choose', (ch) => { asked.push(ch.playerId); return { picks: [ch.options.findIndex(o => o.color === (ch.playerId === 'A' ? 'R' : 'W'))] }; });
+    T.answer('choose', (ch) => { asked.push(ch.playerId); return { picks: [ch.options.findIndex(o => o.color === (ch.playerId === 'A' ? 'R' : 'W'))] }; });
+    T.mana('A', '3CC');
+    T.cast('A', T.hand('A', 'Selective Obliteration'));
+    t.eq(asked.join(','), 'A,B', 'each player chooses, the active player first');
+    t.zone(dragon, 'battlefield', 'only red: stays'); t.zone(ring, 'battlefield', 'colorless: stays');
+    t.zone(bear, 'exile'); t.zone(gm, 'exile', 'red and white: not only red');
+    t.zone(angel, 'battlefield'); t.zone(elf, 'exile'); t.zone(land, 'battlefield');
+    // a bot keeps the colour it has most of
+    const T2 = mk({ library: Array(20).fill('Wastes') });
+    T2.toMain('A');
+    const e1 = T2.bf('B', 'Llanowar Elves'), e2 = T2.bf('B', 'Craw Wurm'), s1 = T2.bf('B', 'Serra Angel');
+    T2.player('B').isBot = true;
+    const bot = new T2.MTG.bots.BotPlayer(T2.g, 'B', 8);
+    T2.answer('choose', () => ({ picks: [0] }));
+    T2.answer('choose', (ch) => { bot.doChoice(ch); return null; });
+    T2.mana('A', '3CC');
+    try { T2.cast('A', T2.hand('A', 'Selective Obliteration')); } catch (e) { /* the bot answered */ }
+    T2.resolve();
+    t.zone(e1, 'battlefield'); t.zone(e2, 'battlefield'); t.zone(s1, 'exile');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Oscorp Industries — mayhem: played from the graveyard the turn it was discarded, and then you lose 2 life; from the hand, no loss', (mk, t) => {
+    t.auto('Oscorp Industries');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const old = T.grave('A', 'Oscorp Industries');
+    t.no(T.g.playableNow('A').some(x => x.kind === 'land' && x.objId === old.id), 'not offered: not discarded this turn');
+    t.no(T.g.playLand('A', old.id), 'refused');
+    const os = T.hand('A', 'Oscorp Industries');
+    T.g._discardNow('A', [os], null, {});
+    t.zone(os, 'graveyard');
+    t.ok(T.g.playableNow('A').some(x => x.kind === 'land' && x.objId === os.id), 'offered from the graveyard');
+    t.ok(T.g.playLand('A', os.id), 'played from the graveyard');
+    T.resolve();
+    t.zone(os, 'battlefield'); t.ok(os.tapped, 'enters tapped');
+    t.eq(T.life('A'), 18, 'entered from a graveyard: 2 life');
+    // from the hand, next turn: no loss
+    T.nextTurn('A');
+    const os2 = T.hand('A', 'Oscorp Industries');
+    t.ok(T.g.playLand('A', os2.id));
+    T.resolve();
+    t.eq(T.life('A'), 18, 'from the hand: no loss');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Cards: Pit of Offerings — exiles up to three cards from graveyards as it enters; then taps for any of their colors', (mk, t) => {
+    t.auto('Pit of Offerings');
+    const T = mk({ library: Array(20).fill('Wastes') });
+    T.toMain('A');
+    const bolt = T.grave('B', 'Lightning Bolt'), cs = T.grave('B', 'Counterspell'), isl = T.grave('B', 'Island'), gg = T.grave('A', 'Giant Growth');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bolt.id }, { kind: 'object', id: cs.id }, { kind: 'object', id: isl.id }] }));
+    const pit = T.bf('A', 'Pit of Offerings', { etb: true });
+    T.resolve();
+    t.zone(bolt, 'exile'); t.zone(cs, 'exile'); t.zone(isl, 'exile'); t.zone(gg, 'graveyard');
+    t.ok(pit.tapped, 'enters tapped');
+    pit.tapped = false;
+    const ma = (pit.analysis().manaAbilities || []).find(x => (x.effects || []).some(e => e.op === 'addManaAmong'));
+    const cols = T.g._manaAmong(ma.effects[0], pit, 'A').sort().join('');
+    t.eq(cols, 'RU', 'red and blue: the exiled cards\' colors');
+    const shock = T.hand('A', 'Shock');
+    T.cast('A', shock, { targets: ['B'] });
+    t.eq(T.life('B'), 18, 'Shock paid with red from the Pit');
+    pit.tapped = false;
+    { const gg2 = T.hand('A', 'Giant Growth'), bear = T.bf('A', 'Grizzly Bears'); t.no(T.g.castSpell('A', gg2.id, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'no green: Giant Growth can\'t be paid'); }
+    t.eq(T.manualLines().length, 0);
+  });
 };

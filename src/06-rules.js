@@ -2153,6 +2153,15 @@
         for (const c of ((x && x.card.colors) || [])) out.add(c);
         return Array.from(out);
       }
+      // Pit of Offerings: "any of the exiled cards' colors" — the cards exiled with it (exiledCards)
+      if (from === 'exiledCards') {
+        if (!o) return [];
+        for (const q of this.players) for (const x of ((this.zones[q.id] || {}).exile || [])) {
+          if (x.exiledWithId !== o.id) continue;
+          for (const c of ((x.analysis() || {}).colors || (x.card && x.card.colors) || [])) out.add(c);
+        }
+        return Array.from(out);
+      }
       const pool = from === 'opponentLands' ? this.battlefield.filter(x => x.controller !== pid)
         : from === 'yourLands' ? this.battlefield.filter(x => x.controller === pid && x !== o)
         : from === 'yourLegends' ? this.battlefield.filter(x => x.controller === pid)
@@ -6033,6 +6042,10 @@
       // Kethis, the Hidden Hand: a card that gained "You may play this card from your graveyard" this turn (gravePlayBy)
       // (Kaldring, the Rimestaff: "If you do, it enters tapped." — gravePlayTapped)
       if (o && o.zone === 'graveyard' && o.owner === playerId && o.gravePlayBy === playerId && o.gravePlayTurn === this.turn) return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'any' }, o.gravePlayTapped === this.turn ? { enterTappedAny: true } : {});
+      /* Oscorp Industries: "Mayhem (You may play this card from your graveyard if you discarded it this turn.)" — a land's
+         mayhem, with no cost: played as a land, the turn it was discarded */
+      if (kind === 'land' && o && o.zone === 'graveyard' && o.owner === playerId && o.discardedTurn === this.turn &&
+        ((o.analysis() || {}).keywords || []).some(k => k && /^mayhem$/i.test(k.keyword || '') && !k.arg)) return { op: 'playFrom', zone: 'graveyard', what: 'land', mayhem: true };
       const z = this.zones[playerId];
       // Windriddle Palaces (a plane): "You may play lands and cast spells from the top of any player's library." (playTopAny)
       if (o && o.zone === 'library' && ((this.zones[o.owner] || {}).library || [])[0] === o && this._playTopAny(playerId))
@@ -14977,7 +14990,9 @@
               if (!hp.combatHitThisTurn.by.some(x => x.id === as.source.id)) {
                 const sa = as.source.analysis() || {};
                 const every = this.hasKw(as.source, 'changeling');
-                hp.combatHitThisTurn.by.push({ id: as.source.id, types: every ? ['*'] : (sa.subtypes || []).map(x => String(x).toLowerCase()) });
+                // (Blitzball: "by a legendary creature" — legendary)
+                hp.combatHitThisTurn.by.push({ id: as.source.id, types: every ? ['*'] : (sa.subtypes || []).map(x => String(x).toLowerCase()),
+                  legendary: (sa.supertypes || []).includes('Legendary') });
               }
             } }
           this._fire('combatDamageToPlayer', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId });
@@ -26148,13 +26163,19 @@
         // Starfall Invocation: one of the cards that sweep put into your graveyard
         case 'returnSwept': {
           const pool = (this._lastSwept || []).map(id => this.obj(id))
-            .filter(c => c && c.zone === 'graveyard' && c.owner === ctx.controller && this._cardFitsWords(c, e.filter || 'card'));
+            // (Necromantic Selection: "put into a graveyard this way" — anyone's: anyGraveyard)
+            .filter(c => c && c.zone === 'graveyard' && (e.anyGraveyard || c.owner === ctx.controller) && this._cardFitsWords(c, e.filter || 'card'));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'returnSwept', kind: 'objects', zone: 'graveyard',
-            items: this._chooseItems(pool), min: 1, max: 1, prompt: `Return ${this._aCard(e.filter, 'card')} to the battlefield.` }, 'ret');
+            items: this._chooseItems(pool), min: 1, max: 1, prompt: `Return ${this._aCard(e.filter, 'card')} to the battlefield${e.anyGraveyard ? ' under your control' : ''}.` }, 'ret');
           if (got === SUSPEND) return SUSPEND;
           const c = got && got.picks.length ? this.obj(got.picks[0]) : null;
-          if (c && pool.includes(c)) { this.moveObject(c, 'battlefield', { controller: ctx.controller }); this.logEvent('reanimate', `${me.name} returns ${c.name}.`); }
+          if (c && pool.includes(c)) {
+            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            this.logEvent('reanimate', `${me.name} returns ${c.name}.`);
+            // (Necromantic Selection: "It's a black Zombie …" — the card returned is "it" for the sentence after)
+            if (c.zone === 'battlefield' && !(ctx.resolvedTargets || ctx.targets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
+          }
           break;
         }
         // Drakuseth: a different amount to each target, each target once
@@ -30693,6 +30714,35 @@
         case 'castBanUntil': {
           for (const q of this.players) (q.castBanUntil = q.castBanUntil || []).push({ by: ctx.controller, set: this.turn, types: (e.types || []).slice() });
           this.logEvent('rules', `Players can't cast ${(e.types || []).join(' or ')} spells until the end of ${me.name}'s next turn.`);
+          break;
+        }
+        /* Selective Obliteration: "Each player chooses a color. Then exile each permanent unless it's colorless or it's only
+           the color its controller chose." — chosen in turn order from the active player, then everything else exiled at
+           once (eachChoosesColorExile) */
+        case 'eachChoosesColorExile': {
+          const COLS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green']];
+          const L = this.turnOrder.length || 1;
+          const seatOf = (p) => { const i = this.turnOrder.indexOf(p.id); return i < 0 ? L : (i - this.activeIndex + L) % L; };
+          const chosen = {};
+          for (const p of this.players.filter(q => !q.hasLost).sort((x, y) => seatOf(x) - seatOf(y))) {
+            const got = this._choose({ playerId: p.id, purpose: 'obliterateColor', kind: 'options', min: 1, max: 1, compact: true,
+              options: COLS.map((c, i) => ({ i, label: c[1], color: c[0] })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a colour. Each permanent you control that isn't colourless or only that colour will be exiled.` }, 'eccx' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            const c = COLS[((got && got.picks) || [])[0] || 0] || COLS[0];
+            chosen[p.id] = c[0];
+            this.logEvent('rules', `${p.name} chooses ${c[1].toLowerCase()}.`);
+          }
+          const doomed = this.battlefield.filter(o => {
+            if (o.phasedOut) return false;
+            const cols = (o.analysis() || {}).colors || [];
+            return cols.length && !(cols.length === 1 && cols[0] === chosen[o.controller]);
+          });
+          this._leavingTogether = doomed;
+          for (const o of doomed) if (o.zone === 'battlefield') this.moveObject(o, 'exile');
+          this._leavingTogether = null;
+          this.logEvent('wipe', `Exiles ${doomed.length} permanent${doomed.length === 1 ? '' : 's'}.`);
+          if (doomed.length) this.emit('sfx', doomed.length >= 3 ? 'wipe' : 'destroy', { size: doomed.length });
           break;
         }
         case 'keepRest': {
@@ -42891,6 +42941,7 @@
       const h = (this.player(pid) || {}).combatHitThisTurn;
       if (!h || h.turn !== this.turn) return 0;
       const t = String(type || '').toLowerCase();
+      if (t === 'legendary') return (h.by || []).filter(x => x.legendary).length;
       return (h.by || []).filter(x => (x.types || []).includes('*') || (x.types || []).includes(t)).length;
     }
     _specCtx() {
