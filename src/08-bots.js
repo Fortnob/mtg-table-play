@@ -3658,7 +3658,11 @@
     _priorityMove(myTurn, move) {
       const g = this.game;
       // a look ahead at instant speed has already decided: act on it, or let the moment pass
-      if (move && move.pass) return !myTurn && g.step === 'end' && !g.stack.length && this.activateSomething('theirEnd');
+      if (move && move.pass) {
+        if (!myTurn && g.step === 'end' && !g.stack.length && this.activateSomething('theirEnd')) return true;
+        const w = this._handWindow(myTurn);
+        return !!w && this.useFromHand(w);
+      }
       if (move && move.instant) {
         const x = move.instant;
         if (this._castInstant(x, { targets: x.targets, auto: true })) { this._did(x.kind === 'counter' ? 'counter' : 'cast', x.o, x.text || null); return true; }
@@ -3670,6 +3674,8 @@
       if (myTurn && g.isMain) {
         const main1 = g.phaseIndex === 1;
         if (this.playLandIfUseful()) return true;
+        // no land to play, and a landcycler to go and get one with
+        if (main1 && this.useFromHand('landDrop')) return true;
         // Planechase: the free roll of the planar die first, before the turn's mana is spent (rollPlanar)
         if (main1 && this.rollPlanar(true)) return true;
         if (move && move.cast && this.castChoice(move.cast, this.availableMana(true))) return true;
@@ -3681,6 +3687,7 @@
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
         if (!(move && move.hold) && this.useCompanion(main1)) return true;
         if (!(move && move.hold) && this.foretellSpare(main1)) return true;
+        if (!(move && move.hold) && this.useFromHand(main1 ? 'main1' : 'main2')) return true;
         // (and in the second main phase, with mana left over, a roll more when the planes make it worth paying for)
         if (!(move && move.hold) && !main1 && this.rollPlanar(false)) return true;
         return false;
@@ -3689,6 +3696,8 @@
       if (g.step === 'declareBlockers' && g.combat && g.combat.attackers.length) {
         if (this.combatTrick()) return true;
       }
+      // forecast in our upkeep, ninjutsu and bloodrush once blockers are declared
+      if (myTurn && this._handWindow(true) && this.useFromHand(this._handWindow(true))) return true;
       if (!myTurn) {
         // attackers are in: is one of them worth killing before blocks?
         if (g.step === 'declareAttackers' && g.combat && g.combat.attackers.length &&
@@ -3703,9 +3712,19 @@
             if (this.castFlash('end')) return true;
           }
           if (this.activateSomething('theirEnd')) return true;
+          if (this.useFromHand('theirEnd')) return true;
         }
       }
       return false;
+    }
+    /** The moments outside our main phases for abilities from the hand (useFromHand), with nothing on the stack. */
+    _handWindow(myTurn) {
+      const g = this.game;
+      if (g.stack.length) return null;
+      if (myTurn && g.step === 'upkeep') return 'upkeep';
+      if (myTurn && g.step === 'declareBlockers' && g.combat && g.combat.attackers.length) return 'blockers';
+      if (!myTurn && g.step === 'end') return 'theirEnd';
+      return null;
     }
 
     /**
@@ -3816,6 +3835,163 @@
       // (face down: which card it was is nobody else's business)
       this._did('foretell', null, 'foretells a card');
       return true;
+    }
+
+    /**
+     * Abilities used from the hand: cycling and typecycling, channel (bloodrush and reinforce go through its door),
+     * forecast, "Reveal this card from your hand", and ninjutsu and its kin. Each is weighed against keeping the
+     * card: a land is cycled once there are lands enough, a card that won't be cast for turns for a fresh one, a
+     * landcycler fetches a land when short of them, channel is used when what it does beats the card kept, forecast
+     * every upkeep it is worth its price, and a Ninja swaps for an unblocked attacker when it is worth more there.
+     * Paid from untapped sources only, never a Treasure. `window`: 'upkeep' and 'blockers' (our own), 'landDrop' (a
+     * first main phase with a land drop and no land), 'main1', 'main2', 'theirEnd'. Each use is tried once a step, so
+     * a refusal can't loop.
+     */
+    useFromHand(window) {
+      const g = this.game;
+      if (!g.cycleCard || (this.cfg.skill < 0.1 && this.rand() < 0.5)) return false;
+      const memoKey = g.turn + ':' + g.phaseIndex + ':' + g.step;
+      if (this._turnMemo.key !== memoKey) this._turnMemo = { key: memoKey, tried: new Set() };
+      const tried = this._turnMemo.tried;
+      const sources = this.manaSources();
+      const ctx = this._handCtx();
+      const cands = [];
+      const zones = g.zones[this.pid];
+      for (const o of zones.hand.concat(zones.command.filter(x => x.isCommander))) {
+        const a = o.analysis();
+        if (!a) continue;
+        for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
+          const key = 'hand:' + o.id + ':' + use.label;
+          if (tried.has(key)) continue;
+          // (mana only, nothing else to pay: Street Wraith's life, Shigeki's {X} are left to people)
+          if (!/^(?:\{[^}X]+\})*$/.test(use.cost || '') || (use.cost && !g.couldPay(this.pid, use.cost, sources))) continue;
+          let c = null;
+          if (use.kind === 'cycle' && !use.mana && o.zone === 'hand') c = this._handUseWorth(o, a, use, window, ctx);
+          else if (use.kind === 'cast' && /^(?:ninjutsu|returnAttacker|sneak)$/.test(use.via) && window === 'blockers') c = this._ninjutsuWorth(o, a, use);
+          if (c && c.v > 0.3) cands.push(Object.assign(c, { o, use, key }));
+        }
+      }
+      cands.sort((x, y) => y.v - x.v);
+      for (const c of cands) {
+        tried.add(c.key);
+        const ok = c.use.kind === 'cycle'
+          ? g.cycleCard(this.pid, c.o.id, { auto: true, channel: !!c.use.channel, targets: c.targets || [] })
+          : g.castSpell(this.pid, c.o.id, { auto: true, via: c.use.via, targets: c.targets || [] });
+        if (ok) { this._did(c.use.kind === 'cycle' ? 'cycle' : 'activate', c.o, c.use.label); return true; }
+      }
+      return false;
+    }
+    /** What the hand and the board say about lands, for useFromHand. */
+    _handCtx() {
+      const lands = this.landsInPlay();
+      const hand = this.hand();
+      const handLands = hand.filter(o => (o.analysis() || {}).isLand).length;
+      // as many lands as the dearest card in hand wants, and four at least
+      const need = Math.max(4, ...hand.concat(this.game.zones[this.pid].command).map(o => { const a = o.analysis() || {}; return a.isLand ? 0 : (a.mv || 0); }));
+      return { lands, handLands, need };
+    }
+    /** The card kept in hand, in the same terms as what using it from there brings. */
+    _keepWorth(o, a, ctx) {
+      if (a.isLand) {
+        const have = ctx.lands + ctx.handLands;
+        return have <= ctx.need ? 5 : have <= ctx.need + 1 ? 1.5 : 0.3;
+      }
+      return Math.max(0.2, this.rating(o) - Math.max(0, (a.mv || 0) - ctx.lands - 1) * 0.6);
+    }
+    _handUseWorth(o, a, use, window, ctx) {
+      const g = this.game;
+      const FRESH = 2;                                  // a card off the top, sight unseen
+      const price = MTG.mana.cmc(use.cost || '') * 0.2;
+      const keep = this._keepWorth(o, a, ctx);
+      const instantInHand = this.hand().some(x => x !== o && ((x.analysis() || {}).isInstant || (x.analysis() || {}).keywordSet && x.analysis().keywordSet.has('flash')));
+      if (!use.channel) {
+        // cycling, at the end of their turn, or with what the second main phase left over when no instant wants the mana
+        const fetch = use.fetch;
+        const landFetch = fetch && /\b(?:land|plains|island|swamp|mountain|forest|desert)\b/i.test(fetch);
+        const shortOfLands = ctx.lands + ctx.handLands < ctx.need;
+        const timely = window === 'theirEnd' || (window === 'main2' && !instantInHand) ||
+          (window === 'landDrop' && landFetch && shortOfLands && !ctx.handLands && g.canPlayLand(this.pid));
+        if (!timely) return null;
+        let gain = FRESH;
+        if (fetch) {
+          const lib = g.zones[this.pid].library;
+          const fits = (c) => (fetch === 'basic land' ? !!(c.analysis() || {}).isBasicLand : g._cardFitsWords(c, fetch));
+          if (!lib.some(fits)) return null;
+          gain = landFetch ? (shortOfLands ? 3.5 : ctx.lands + ctx.handLands <= ctx.need + 1 ? 1 : 0.2) : FRESH + 0.5;
+        }
+        // "When you cycle this card" (Krosan Tusker): what that does too
+        for (const ab of a.abilities || []) {
+          if (ab.kind === 'triggered' && ab.event === 'cycleSelf' && ab.auto) gain += Math.max(0, this._effectsHere(flatEffects(ab.effects || [])));
+        }
+        return { v: gain - keep - price };
+      }
+      // forecast in our upkeep; channel, bloodrush and the rest when what they do beats the card kept
+      const ch = use.forecast ? a.forecast : a.channel;
+      if (!ch) return null;
+      // (Ghor-Clan Rampager: "gets +4/+4 and gains trample" is one sequence — its parts, not the wrapper)
+      const open = (list) => flatEffects(list).flatMap(e => (e.op === 'sequence' ? open(e.list || []) : [e]));
+      const flat = open(ch.effects || []);
+      if (!flat.length || flat.some(e => e.op === 'manual')) return null;
+      if (use.forecast ? window !== 'upkeep' : (window === 'upkeep' || window === 'landDrop')) return null;
+      // (Talon Gates' kin: "Put this card from your hand onto the battlefield" — as good as the card, in a main phase)
+      if (ch.keep && !ch.reveal) return /^main/.test(window) ? { v: 0.5 + this.rating(o) * 0.6 - price * 1.25 } : null;
+      // bloodrush (Ghor-Clan Rampager): a pump for an attacker of ours, worth what it does to this combat
+      const pump = flat.find(e => e.op === 'pump' && nval(e.p, 0) > 0 && (e.targets || []).length);
+      if (pump) {
+        if (window !== 'blockers') return null;
+        const best = this._pumpGain(nval(pump.p, 0), nval(pump.t, 0));
+        if (!best || best.gain < 1) return null;
+        return { v: best.gain - keep - price * 1.25, targets: [{ kind: 'object', id: best.o.id }] };
+      }
+      const targets = this.chooseTargetsForEffects(ch.effects || [], o);
+      if (targets === null) return null;
+      const what = this._effectsHere(flat);
+      if (what <= 0) return null;
+      // forecast and "Reveal this card" keep the card; the rest give it up
+      const lose = use.forecast || ch.keep ? 0 : keep;
+      return { v: what - lose - price * 1.25, targets };
+    }
+    /** The creature of ours a +dp/+dt now does most for, and how much: lethal through an unblocked attacker, or a
+        fight won or survived (as combatTrick weighs one); a little extra damage otherwise. */
+    _pumpGain(dp, dt) {
+      const g = this.game;
+      const unblocked = g._unblockedAttackers(this.pid);
+      const dealt = {};
+      for (const u of unblocked) dealt[u.attacking] = (dealt[u.attacking] || 0) + g.powerOf(u);
+      let best = null;
+      for (const mine of this.myCreatures()) {
+        if (!mine.attacking && !mine.blocking) continue;
+        let gain = 0;
+        if (unblocked.includes(mine)) {
+          const def = g.player(mine.attacking);
+          const sum = dealt[mine.attacking] || 0;
+          gain = def && !def.hasLost && sum < def.life && sum + dp >= def.life ? 50 : dp * 0.25;
+        } else {
+          for (const other of this._fightsOf(mine)) {
+            const before = this._duel(mine, other, 0, 0), after = this._duel(mine, other, dp, dt);
+            if (before.iDie && !after.iDie) gain += this.threatValue(mine);
+            if (!before.theyDie && after.theyDie) gain += this.threatValue(other);
+          }
+        }
+        if (!best || gain > best.gain) best = { o: mine, gain };
+      }
+      return best;
+    }
+    /** Ninjutsu (and Zareth San's and sneak's way in): the Ninja for the unblocked attacker it sends home. */
+    _ninjutsuWorth(o, a, use) {
+      const g = this.game;
+      if (use.via === 'sneak' && !a.isCreature) return null;
+      const list = g._unblockedAttackers(this.pid, use.via === 'returnAttacker' && a.returnAttacker ? a.returnAttacker.type : null);
+      if (!list.length) return null;
+      const back = g._cheapestFirst(list)[0];
+      const hits = (a.abilities || []).some(ab => ab.kind === 'triggered' && /^combatDamage/.test(ab.event || ''));
+      const power = parseInt(a.power, 10) || 0;
+      // (the one sent home comes back for its mana another turn)
+      const v = (hits ? 2 : 0) + (power - g.powerOf(back)) * 0.35 + this.rating(o) * 0.2 -
+        MTG.mana.cmc(use.cost || '') * 0.15 - ((back.card && back.card.cmc) || 0) * 0.2;
+      const targets = use.via === 'sneak' ? this.chooseTargets(o, a) : [];
+      if (targets === null) return null;
+      return { v, targets };
     }
 
     /* ---- lands ---- */

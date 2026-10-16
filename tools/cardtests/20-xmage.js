@@ -72296,4 +72296,144 @@ module.exports = (test) => {
     T.nextTurn('A');
     t.ok((g.altUsesFor('A', study.id) || []).some(u => u.via === 'grantLifeOnce'), 'again on your next turn');
   });
+
+  /* Bots and abilities used from the hand (useFromHand): cycling, typecycling, channel, forecast, ninjutsu */
+  const handBot = (T) => { T.player('A').isBot = true; return new T.MTG.bots.BotPlayer(T.g, 'A', 8); };
+  const toTheirEnd = (T) => { T.toMain('B', 'end'); T.g.passPriority('B'); };
+
+  test('Cards: Lonely Sandbar — a flooded bot cycles it at the end of the opponent\'s turn; one short of lands keeps it', (mk, t) => {
+    t.auto('Lonely Sandbar');
+    const T = mk({ library: Array(20).fill('Island') });
+    for (let i = 0; i < 6; i++) T.bf('A', 'Island');
+    const sb = T.hand('A', 'Lonely Sandbar');
+    const bot = handBot(T);
+    toTheirEnd(T);
+    t.eq(T.g.priorityPlayer && T.g.priorityPlayer.id, 'A', 'A has priority in B\'s end step');
+    const h0 = T.zone('A', 'hand').length;
+    t.ok(bot.doPriority(), 'acted');
+    t.zone(sb, 'graveyard', 'cycled');
+    t.eq(T.zone('A', 'hand').length, h0, 'and drew one for it');
+    t.ok(bot.lastAction && bot.lastAction.kind === 'cycle', 'said it cycled');
+    // two lands: the Sandbar is a land drop it wants
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.bf('A', 'Island'); T2.bf('A', 'Island');
+    const sb2 = T2.hand('A', 'Lonely Sandbar');
+    const bot2 = handBot(T2);
+    toTheirEnd(T2);
+    t.no(bot2.doPriority(), 'passed');
+    t.zone(sb2, 'hand', 'kept');
+  });
+
+  test('Cards: Lórien Revealed — a bot short of lands with none in hand islandcycles it, then plays the Island', (mk, t) => {
+    t.auto('Lórien Revealed');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Island'); T.bf('A', 'Island');
+    const lr = T.hand('A', 'Lórien Revealed');
+    const bot = handBot(T);
+    t.ok(bot.doPriority(), 'acted');
+    T.resolve();
+    t.zone(lr, 'graveyard', 'islandcycled');
+    t.ok(T.zone('A', 'hand').some(o => o.name === 'Island'), 'an Island fetched');
+    t.ok(bot.doPriority(), 'acted again');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Island').length, 3, 'and played it');
+    // with seven lands it is a card to cast, not a land to fetch
+    const T2 = mk({ library: Array(20).fill('Island') });
+    for (let i = 0; i < 7; i++) T2.bf('A', 'Island');
+    T2.bf('A', 'Island', { tapped: true });
+    const lr2 = T2.hand('A', 'Lórien Revealed');
+    const bot2 = handBot(T2);
+    t.ok(bot2.doPriority(), 'acted');
+    t.eq(bot2.lastAction && bot2.lastAction.kind, 'cast', 'cast, not cycled');
+    t.zone(lr2, 'stack');
+  });
+
+  test('Cards: Boseiju, Who Endures — a bot with lands enough channels it at an opponent\'s artifact; short of lands it keeps the land', (mk, t) => {
+    t.auto('Boseiju, Who Endures');
+    const T = mk({ library: Array(20).fill('Forest') });
+    for (let i = 0; i < 6; i++) T.bf('A', 'Forest');
+    const bo = T.hand('A', 'Boseiju, Who Endures');
+    const vault = T.bf('B', 'Coat of Arms');
+    const bot = handBot(T);
+    toTheirEnd(T);
+    t.ok(bot.doPriority(), 'acted');
+    T.resolve();
+    t.zone(bo, 'graveyard', 'channeled');
+    t.zone(vault, 'graveyard', 'Coat of Arms destroyed');
+    // two Forests: Boseiju stays a land
+    const T2 = mk({ library: Array(20).fill('Forest') });
+    T2.bf('A', 'Forest'); T2.bf('A', 'Forest');
+    const bo2 = T2.hand('A', 'Boseiju, Who Endures');
+    T2.bf('B', 'Coat of Arms');
+    const bot2 = handBot(T2);
+    toTheirEnd(T2);
+    t.no(bot2.doPriority(), 'passed');
+    t.zone(bo2, 'hand', 'kept');
+    // nothing to point it at: kept
+    const T3 = mk({ library: Array(20).fill('Forest') });
+    for (let i = 0; i < 6; i++) T3.bf('A', 'Forest');
+    const bo3 = T3.hand('A', 'Boseiju, Who Endures');
+    const bot3 = handBot(T3);
+    toTheirEnd(T3);
+    t.no(bot3.doPriority(), 'nothing to destroy: passed');
+    t.zone(bo3, 'hand');
+  });
+
+  test('Cards: Pride of the Clouds — a bot forecasts it in its upkeep and keeps the card', (mk, t) => {
+    t.auto('Pride of the Clouds');
+    const T = mk({ library: Array(20).fill('Plains') });
+    for (const n of ['Plains', 'Island', 'Plains', 'Island']) T.bf('A', n);
+    const pride = T.hand('A', 'Pride of the Clouds');
+    const bot = handBot(T);
+    T.nextTurn('B');
+    T.toMain('A', 'upkeep');
+    t.ok(bot.doPriority(), 'forecast');
+    T.resolve();
+    t.zone(pride, 'hand', 'still in hand');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Bird').length, 1, 'a Bird');
+    t.no(bot.doPriority() && T.g.stack.length, 'once a turn');
+  });
+
+  test('Cards: Ninja of the Deep Hours — a bot swaps it in for an unblocked Bears, not for a Craw Wurm', (mk, t) => {
+    t.auto('Ninja of the Deep Hours');
+    const T = mk();
+    T.bf('A', 'Island'); T.bf('A', 'Island');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const ninja = T.hand('A', 'Ninja of the Deep Hours');
+    const bot = handBot(T);
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(bot.doPriority(), 'acted');
+    T.resolve();
+    t.zone(bear, 'hand', 'the Bears went home');
+    t.ok(ninja.zone === 'battlefield' && ninja.attacking === 'B', 'the Ninja attacks');
+    const T2 = mk();
+    T2.bf('A', 'Island'); T2.bf('A', 'Island');
+    const wurm = T2.bf('A', 'Craw Wurm');
+    const n2 = T2.hand('A', 'Ninja of the Deep Hours');
+    const bot2 = handBot(T2);
+    T2.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    T2.toMain('A', 'declareBlockers');
+    t.no(bot2.doPriority(), 'passed');
+    t.zone(n2, 'hand');
+  });
+
+  test('Cards: Ghor-Clan Rampager — a bot bloodrushes its unblocked attacker for lethal, not outside combat', (mk, t) => {
+    t.auto('Ghor-Clan Rampager');
+    const T = mk();
+    T.bf('A', 'Mountain'); T.bf('A', 'Forest');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const gc = T.hand('A', 'Ghor-Clan Rampager');
+    T.player('B').life = 6;
+    const bot = handBot(T);
+    toTheirEnd(T);
+    t.no(bot.doPriority(), 'no pump at the end of their turn');
+    t.zone(gc, 'hand');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(bot.doPriority(), 'acted');
+    T.resolve();
+    t.zone(gc, 'graveyard', 'bloodrushed');
+    t.eq(T.g.powerOf(bear), 6, '+4/+4');
+  });
 };

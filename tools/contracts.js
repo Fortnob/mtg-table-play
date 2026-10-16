@@ -860,7 +860,8 @@ const CALLS = {
   keepHand: (pid, bottom) => ({ kind: 'keep', bottom: bottom || [] }),
   playLand: (pid, objId) => ({ kind: 'playLand', objId }),
   castSpell: (pid, objId, opts) => Object.assign({ kind: 'cast', objId }, strip(opts)),
-  cycleCard: (pid, objId) => ({ kind: 'cycle', objId }),
+  // (a bot's channel, with its targets: useFromHand)
+  cycleCard: (pid, objId, opts) => Object.assign({ kind: 'cycle', objId }, strip(opts)),
   plotCard: (pid, objId) => ({ kind: 'plot', objId }),
   suspendCard: (pid, objId) => ({ kind: 'suspend', objId }),
   transmuteCard: (pid, objId) => ({ kind: 'transmute', objId }),
