@@ -13975,7 +13975,7 @@ MTG.setGameSpeed = function (id) {
         effects: [
           { op: 'lookAt', n: 6, keep: 0 },
           { op: 'takeFromLooked', n: 2, filter: 'creature', maxMv: 3, to: 'battlefield', optional: true },
-          { op: 'restToBottom', random: false },
+          { op: 'restToBottom', random: false, order: true },
         ] }],
     },
     "topography tracker": {
@@ -13997,7 +13997,7 @@ MTG.setGameSpeed = function (id) {
             then: [
               { op: 'lookAt', n: 5, keep: 0 },
               { op: 'takeFromLooked', n: 1, filter: 'creature', sharesTypeWithAttached: true, to: 'battlefield', optional: true },
-              { op: 'restToBottom', random: false },
+              { op: 'restToBottom', random: false, order: true },
             ] }] },
       ],
     },
@@ -14027,6 +14027,47 @@ MTG.setGameSpeed = function (id) {
           { label: 'Target creature you control explores, then it explores again', auto: true,
             effects: [{ op: 'explore', repeat: 2, targets: [{ type: 'creature', controller: 'you' }] }] },
         ] }] }],
+    },
+    "ichor elixir": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'If you would roll one or more planar dice, instead roll that many planar dice plus one and ignore one. Planar dice are not used in this game.',
+        effects: [{ op: 'noop' }] }],
+    },
+    "curse of inertia": {
+      abilities: [
+        { kind: 'static', auto: true, text: 'Enchant player.', effects: [{ op: 'enchant', filter: 'player' }] },
+        { kind: 'triggered', event: 'anyPlayerAttacks', enchantedAttacked: true, auto: true,
+          text: 'Whenever a player attacks enchanted player with one or more creatures, that attacking player may tap or untap target permanent of their choice.',
+          effects: [{ op: 'may', who: 'triggerPlayer', prompt: 'Tap or untap a permanent?',
+            then: [{ op: 'tapOrUntap', aimBy: 'triggerPlayer', who: 'triggerPlayer', targets: [{ type: 'permanent' }] }] }] },
+      ],
+    },
+    "stalking leonin": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true,
+          text: 'When this creature enters, secretly choose an opponent.',
+          effects: [{ op: 'secretChooseOpponent' }] },
+        { kind: 'activated', auto: true, only: { once: true },
+          text: "Reveal the player you chose: Exile target creature that's attacking you if it's controlled by the chosen player. Activate only once.",
+          cost: { revealChosenOpponent: true },
+          effects: [{ op: 'exile', targets: [{ type: 'creature', attacking: true, attackingYou: true, chosenOpponentController: true }] }] },
+      ],
+    },
+    "aethermage's touch": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Reveal the top four cards of your library. You may put a creature card from among them onto the battlefield. It gains "At the beginning of your end step, return this creature to its owner\'s hand." Then put the rest of the cards revealed this way on the bottom of your library in any order.',
+        effects: [
+          { op: 'lookAt', n: 4, keep: 0, reveal: true },
+          { op: 'takeFromLooked', n: 1, filter: 'creature', to: 'battlefield', optional: true, rest: 'keep' },
+          { op: 'grantAbility', ability: "At the beginning of your end step, return this creature to its owner's hand.", duration: 'permanent', scope: 'takenOntoBf' },
+          { op: 'restToBottom', order: true },
+        ] }],
+    },
+    "arbiter of knollridge": {
+      keepKeywords: true,
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: "When this creature enters, each player's life total becomes the highest life total among all players.",
+        effects: [{ op: 'setLife', who: 'each', n: { highestLife: true } }] }],
     },
     "restore": {
       abilities: [{ kind: 'spell', auto: true,
@@ -22692,7 +22733,7 @@ MTG.setGameSpeed = function (id) {
     /* ===== the sentences that come up most often across the whole card pool ===== */
     // (Winota, Joiner of Forces: "Put the rest of the cards on the bottom …")
     { re: /^Put the rest(?: of the cards| of those cards)? on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
-      make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
+      make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]), order: /any order/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
     /* Dihada, Binder of Wills: "Put any number of legendary cards from among them into your hand and the rest into
        your graveyard." */
@@ -55827,6 +55868,8 @@ MTG.setGameSpeed = function (id) {
     }
     _thingCostBlocked(pid, cost, self, opts) {
       if (!cost) return null;
+      if (cost.revealChosenOpponent && !(self && self.secretChosenOpponent))
+        return 'No opponent was secretly chosen.';
       // Bullseye, Death Dealer: "Sacrifice an artifact or discard a nonland card" — blocked only when neither can be paid (choice)
       if (cost.choice) {
         const whys = cost.choice.map((_, k) => this._thingCostBlocked(pid, this._costWithChoice(cost, k), self, opts));
@@ -56633,6 +56676,13 @@ MTG.setGameSpeed = function (id) {
       if (cost.revealHand) {
         this._knowHand(playerId, '*');
         this.logEvent('reveal', `${p.name} reveals their hand: ${this.zones[playerId].hand.map(c => c.name).join(', ') || 'no cards'}.`);
+      }
+      if (cost.revealChosenOpponent) {
+        const chosen = this.player(o.secretChosenOpponent);
+        if (chosen) {
+          o.secretChosenOpponentRevealed = true;
+          this.logEvent('reveal', `${p.name} reveals their chosen opponent: ${chosen.name}.`);
+        }
       }
       // Devoted Druid: "Put a -1/-1 counter on this creature" as the price
       if (cost.putCounters) this.addCounters(o, cost.putCounters.kind, cost.putCounters.n || 1, { noReplace: true });
@@ -65309,7 +65359,10 @@ MTG.setGameSpeed = function (id) {
     _aimerOf(item) {
       const td = (item && item.triggerData) || {};
       let who = null;
-      const walk = (list) => { for (const f of (list || [])) { if (!f || who) continue; if (f.aimBy === 'triggerObjController') who = td.objController || null; walk(f.then); walk(f.list); } };
+      const walk = (list) => { for (const f of (list || [])) { if (!f || who) continue;
+        if (f.aimBy === 'triggerObjController') who = td.objController || null;
+        else if (f.aimBy === 'triggerPlayer') who = td.playerId || td.player || null;
+        walk(f.then); walk(f.list); } };
       walk(item && item.effects);
       const p = who && this.player(who);
       return p && !p.hasLost ? p.id : null;
@@ -68505,12 +68558,14 @@ MTG.setGameSpeed = function (id) {
           /* Hidden Strings: "You may tap or untap target permanent, then you may tap or untap another target permanent" —
              each target in turn (each), and either may be left as it is (optional) */
           const list = e.each ? targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)) : [firstObj()];
+          const chooser = e.who === 'triggerPlayer' ? triggerPlayer() : me;
+          if (!chooser || chooser.hasLost) break;
           for (let k = 0; k < list.length; k++) {
             const x = list[k];
             if (!x || x.zone !== 'battlefield') continue;
             let tapIt = !x.tapped;
-            if (!me.isBot) {
-              const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
+            if (!chooser.isBot) {
+              const got = this._choose({ playerId: chooser.id, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
                 options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }].concat(e.optional ? [{ i: 2, label: 'Leave it' }] : []),
                 prompt: `${ctx.name || 'Effect'}: ${e.optional ? 'you may ' : ''}tap or untap ${x.name}${e.optional ? '.' : '?'}` }, 'tou' + (k || ''));
               if (got === SUSPEND) return SUSPEND;
@@ -68518,7 +68573,7 @@ MTG.setGameSpeed = function (id) {
               if (pick === 2) continue;
               tapIt = pick === 0;
             } else {
-              tapIt = x.controller !== ctx.controller;
+              tapIt = x.controller !== chooser.id;
               // (a bot leaves alone what is already the way it wants it)
               if (e.optional && !!x.tapped === tapIt) continue;
             }
@@ -69774,6 +69829,22 @@ MTG.setGameSpeed = function (id) {
           ctx.chosenPlayers = before.concat(pick.id);
           this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
           this._spliceNext(e.then || []);
+          break;
+        }
+        case 'secretChooseOpponent': {
+          const pool = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'secretChooseOpponent', kind: 'players',
+            items: this._choosePlayers(pool), min: 1, max: 1,
+            prompt: `${ctx.name || (src && src.name) || 'Effect'}: secretly choose an opponent.` }, 'sco');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = got && got.picks.length ? this.player(got.picks[0]) : null;
+          if (!pick || !pool.includes(pick)) break;
+          if (src && src.zone === 'battlefield') {
+            src.secretChosenOpponent = pick.id;
+            src.secretChosenOpponentRevealed = false;
+          }
+          this.logEvent('rules', `${me.name} secretly chooses an opponent.`);
           break;
         }
         /* "Choose an opponent." Not a target: a generic question about
@@ -72279,9 +72350,11 @@ MTG.setGameSpeed = function (id) {
              (CR 119.5); The Endstone: half the starting life total */
           const start = (this.config && this.config.startingLife) || 20;
           // Biorhythm: each player's own count, all worked out before any life changes (eachControls)
-          // (Repay in Kind: the lowest life total among all players — eachControls)
-          const lowest = Math.min(...this.players.filter(p => !p.hasLost).map(p => p.life));
-          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
+          // (Repay in Kind and Arbiter of Knollridge: life totals across all players)
+          const liveLife = this.players.filter(p => !p.hasLost).map(p => p.life);
+          const lowest = Math.min(...liveLife);
+          const highest = Math.max(...liveLife);
+          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.highestLife ? highest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
             : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
           who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
           break;
@@ -78649,6 +78722,15 @@ MTG.setGameSpeed = function (id) {
 
         case 'restToBottom': case 'restToGraveyard': case 'restToHand': {
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
+          const bottomOrder = (cards) => {
+            if (!e.order || cards.length < 2) return cards;
+            const got = this._ask({ type: 'arrange', playerId: ctx.controller,
+              cards: cards.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: `Put the remaining ${cards.length} cards on the bottom of your library in any order.` }, 'rtb');
+            if (got === SUSPEND) return SUSPEND;
+            const picked = ((got && got.top) || []).map(id => cards.find(o => o.id === id)).filter(Boolean);
+            return picked.concat(cards.filter(o => !picked.includes(o)));
+          };
           // Nine-Fingers Keene: "put the rest into your hand" (restToHand)
           if (e.op === 'restToHand') {
             for (const o of pool) this.moveObject(o, 'hand');
@@ -78662,7 +78744,9 @@ MTG.setGameSpeed = function (id) {
           // Sanwell, Avenger Ace: the cards just exiled that weren't cast, to the bottom (ofExiled)
           if (e.op === 'restToBottom' && e.ofExiled) {
             const rest = (this._lastExiledList || []).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
-            for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
+            let order = e.random ? this.rng.shuffle(rest.slice()) : rest;
+            if (e.order) { order = bottomOrder(rest); if (order === SUSPEND) return SUSPEND; }
+            for (const o of order) this.moveObject(o, 'library', { toBottom: true });
             if (rest.length) this.logEvent('rules', `${rest.length} exiled card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
             break;
           }
@@ -78672,13 +78756,16 @@ MTG.setGameSpeed = function (id) {
             const rest = this._exileUntil.ids.filter(id => !hit.includes(id)).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
             this._exileUntil = null;
             if (!rest.length) break;
-            for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
+            let order = e.random ? this.rng.shuffle(rest.slice()) : rest;
+            if (e.order) { order = bottomOrder(rest); if (order === SUSPEND) return SUSPEND; }
+            for (const o of order) this.moveObject(o, 'library', { toBottom: true });
             this.logEvent('rules', `${rest.length} exiled card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
             break;
           }
           if (!pool.length) break;
           const z = this.zones[ctx.controller].library;
-          const order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          let order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          if (e.op === 'restToBottom' && e.order) { order = bottomOrder(pool); if (order === SUSPEND) return SUSPEND; }
           for (const o of order) {
             this._removeFromZone(o);
             if (e.op === 'restToGraveyard') { o.zone = 'library'; this.moveObject(o, 'graveyard'); }
@@ -88838,6 +88925,11 @@ MTG.setGameSpeed = function (id) {
      */
     _legalTargetsFor(spec, controllerId, sourceId) {
       spec = spec || {};
+      if (spec.chosenOpponentController) {
+        const source = sourceId && this.obj(sourceId);
+        if (!source || !source.secretChosenOpponent) return [];
+        return this._legalTargetsFor(Object.assign({}, spec, { chosenOpponentController: false, controllerId: source.secretChosenOpponent }), controllerId, sourceId);
+      }
       // Regicide, Custodi Peacekeeper: the colours or the number noted during the draft
       if (spec.notedColors || spec.notedMaxPower) return this._legalTargetsFor(this._notedSpec(spec, controllerId), controllerId, sourceId);
       // "target creature defending player controls" chosen while its source attacks (Ancient Hellkite)
@@ -89022,6 +89114,7 @@ MTG.setGameSpeed = function (id) {
       for (const o of pool) {
         const a = o.analysis();
         if (!a || o.phasedOut) continue;
+        if (spec.attackingYou && o.attacking !== controllerId) continue;
         if (!MTG.oracle.matchesSpec(spec, o, a, controllerId, this._specCtx())) continue;
         if (spec.mvAtMostCtlGy && ((o.card && o.card.cmc) || 0) > ((this.zones[o.controller] || {}).graveyard || []).length) continue;
         // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
@@ -90422,6 +90515,10 @@ MTG.setGameSpeed = function (id) {
           if (o.chosenColor) c.color = o.chosenColor;
           if (o.chosenName) c.name = o.chosenName;
           if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
+          if (o.secretChosenOpponent && (o.secretChosenOpponentRevealed || o.controller === playerId)) {
+            const pl = this.player(o.secretChosenOpponent);
+            c.player = pl ? pl.name : String(o.secretChosenOpponent);
+          }
           // (Sower of Discord: the two chosen players)
           if ((o.chosenPlayers || []).length) c.player = o.chosenPlayers.map(id => (this.player(id) || {}).name || String(id)).join(' and ');
           if (o.chosenNumber != null) c.number = o.chosenNumber;
