@@ -8446,7 +8446,7 @@
     /* ===== the sentences that come up most often across the whole card pool ===== */
     // (Winota, Joiner of Forces: "Put the rest of the cards on the bottom …")
     { re: /^Put the rest(?: of the cards| of those cards)? on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
-      make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
+      make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]), order: /any order/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
     /* Dihada, Binder of Wills: "Put any number of legendary cards from among them into your hand and the rest into
        your graveyard." */

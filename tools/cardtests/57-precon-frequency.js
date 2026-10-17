@@ -173,4 +173,98 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.ok(copies.every(o => o.zone === 'exile'), 'exiles both tokens at the beginning of the next end step');
   });
+
+  test('Precon automation: Ichor Elixir makes two colorless mana and ignores its unavailable planar-die effect', (mk, t) => {
+    t.auto('Ichor Elixir');
+    const T = mk();
+    const elixir = T.bf('A', 'Ichor Elixir');
+    t.ok(T.g.tapForMana('A', elixir.id, 0), 'the mana ability can be activated');
+    t.eq(T.player('A').pool.total(), 2, 'adds two colorless mana');
+  });
+
+  test('Precon automation: Curse of Inertia triggers only for its enchanted player and lets the attacker choose', (mk, t) => {
+    t.auto('Curse of Inertia');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    const curse = T.bf('A', 'Curse of Inertia');
+    curse.attachedTo = 'B';
+    const attacker = T.bf('C', 'Grizzly Bears');
+    const target = T.bf('C', 'Island', { tapped: true });
+    let targetChooser = null, mayChooser = null, actionChooser = null;
+    T.answer('pickTarget', ch => { targetChooser = ch.playerId; return { targets: [{ kind: 'object', id: target.id }] }; });
+    T.answer('confirm', ch => { mayChooser = ch.playerId; return { yes: true }; });
+    T.answer('choose', ch => {
+      if (ch.purpose === 'tapOrUntap') { actionChooser = ch.playerId; return { picks: [1] }; }
+      return { picks: [0] };
+    });
+
+    attacker.attacking = 'A';
+    T.g._fire('anyPlayerAttacks', null, { attackers: [attacker], playerId: 'C' });
+    T.resolve();
+    t.no(T.g.stack.length, 'attacking a player other than the one enchanted does not trigger');
+
+    attacker.attacking = 'B';
+    T.g._fire('anyPlayerAttacks', null, { attackers: [attacker], playerId: 'C' });
+    T.resolve();
+    t.eq(targetChooser, 'C', 'the attacking player chooses the target');
+    t.eq(mayChooser, 'C', 'the attacking player decides whether to use the ability');
+    t.eq(actionChooser, 'C', 'the attacking player chooses whether to tap or untap');
+    t.no(target.tapped, 'the chosen permanent is untapped');
+  });
+
+  test('Precon automation: Stalking Leonin secretly chooses an opponent and exiles their attacking creature once', (mk, t) => {
+    t.auto('Stalking Leonin');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.answer('choose', { picks: ['B'] });
+    const lion = T.put('A', 'Stalking Leonin', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(lion.secretChosenOpponent, 'B', 'the secret choice is stored on the creature');
+    t.no(T.g.log.some(l => /secretly chooses.*\\bB\\b/i.test(l.text)), 'the opponent is not named in public history');
+    const bAttacker = T.bf('B', 'Grizzly Bears');
+    const cAttacker = T.bf('C', 'Hill Giant');
+    bAttacker.attacking = 'A';
+    cAttacker.attacking = 'A';
+    const ability = lion.analysis().abilities.find(a => a.kind === 'activated');
+    const spec = ability.effects[0].targets[0];
+    t.ok(T.g._legalTargetsFor(spec, 'A', lion.id).some(o => o.id === bAttacker.id), 'the chosen opponent’s attacker is legal');
+    t.no(T.g._legalTargetsFor(spec, 'A', lion.id).some(o => o.id === cAttacker.id), 'another opponent’s attacker is illegal');
+    T.activate('A', lion, 0, { targets: [bAttacker] });
+    t.zone(bAttacker, 'exile', 'the chosen opponent’s attacker is exiled');
+    t.ok(lion.secretChosenOpponentRevealed, 'activating reveals the chosen opponent');
+    t.no(T.g.activateAbility('A', lion.id, 0, { auto: true, targets: [{ kind: 'object', id: cAttacker.id }] }),
+      'the ability cannot be activated again');
+  });
+
+  test("Precon automation: Aethermage's Touch returns the chosen creature at end step and orders the rest", (mk, t) => {
+    t.auto("Aethermage's Touch");
+    const T = mk();
+    T.toMain('A');
+    const island = T.top('A', 'Island');
+    const forest = T.top('A', 'Forest');
+    const mountain = T.top('A', 'Mountain');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.answer('pickCard', ch => ({ cardIds: [bear.id] }));
+    T.answer('arrange', ch => ({ top: [mountain.id, island.id, forest.id] }));
+    const spell = T.hand('A', "Aethermage's Touch");
+    T.mana('A', '3WU');
+    T.cast('A', spell);
+    t.zone(bear, 'battlefield', 'a creature card is put onto the battlefield');
+    t.eq(T.g.zones.A.library.slice(-3).map(o => o.id).join(','), [mountain.id, island.id, forest.id].join(','),
+      'the player-selected order is used for the remaining cards');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(bear, 'hand', 'the granted end-step ability returns it to its owner’s hand');
+  });
+
+  test('Precon automation: Arbiter of Knollridge sets every life total to the previous highest', (mk, t) => {
+    t.auto('Arbiter of Knollridge');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.player('A').life = 12;
+    T.player('B').life = 40;
+    T.player('C').life = 17;
+    T.put('A', 'Arbiter of Knollridge', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.life('A'), 40, 'the low life total becomes 40');
+    t.eq(T.life('B'), 40, 'the highest life total remains 40');
+    t.eq(T.life('C'), 40, 'the middle life total becomes 40');
+  });
 };

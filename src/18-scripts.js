@@ -663,7 +663,7 @@
         effects: [
           { op: 'lookAt', n: 6, keep: 0 },
           { op: 'takeFromLooked', n: 2, filter: 'creature', maxMv: 3, to: 'battlefield', optional: true },
-          { op: 'restToBottom', random: false },
+          { op: 'restToBottom', random: false, order: true },
         ] }],
     },
     "topography tracker": {
@@ -685,7 +685,7 @@
             then: [
               { op: 'lookAt', n: 5, keep: 0 },
               { op: 'takeFromLooked', n: 1, filter: 'creature', sharesTypeWithAttached: true, to: 'battlefield', optional: true },
-              { op: 'restToBottom', random: false },
+              { op: 'restToBottom', random: false, order: true },
             ] }] },
       ],
     },
@@ -715,6 +715,47 @@
           { label: 'Target creature you control explores, then it explores again', auto: true,
             effects: [{ op: 'explore', repeat: 2, targets: [{ type: 'creature', controller: 'you' }] }] },
         ] }] }],
+    },
+    "ichor elixir": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'If you would roll one or more planar dice, instead roll that many planar dice plus one and ignore one. Planar dice are not used in this game.',
+        effects: [{ op: 'noop' }] }],
+    },
+    "curse of inertia": {
+      abilities: [
+        { kind: 'static', auto: true, text: 'Enchant player.', effects: [{ op: 'enchant', filter: 'player' }] },
+        { kind: 'triggered', event: 'anyPlayerAttacks', enchantedAttacked: true, auto: true,
+          text: 'Whenever a player attacks enchanted player with one or more creatures, that attacking player may tap or untap target permanent of their choice.',
+          effects: [{ op: 'may', who: 'triggerPlayer', prompt: 'Tap or untap a permanent?',
+            then: [{ op: 'tapOrUntap', aimBy: 'triggerPlayer', who: 'triggerPlayer', targets: [{ type: 'permanent' }] }] }] },
+      ],
+    },
+    "stalking leonin": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true,
+          text: 'When this creature enters, secretly choose an opponent.',
+          effects: [{ op: 'secretChooseOpponent' }] },
+        { kind: 'activated', auto: true, only: { once: true },
+          text: "Reveal the player you chose: Exile target creature that's attacking you if it's controlled by the chosen player. Activate only once.",
+          cost: { revealChosenOpponent: true },
+          effects: [{ op: 'exile', targets: [{ type: 'creature', attacking: true, attackingYou: true, chosenOpponentController: true }] }] },
+      ],
+    },
+    "aethermage's touch": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Reveal the top four cards of your library. You may put a creature card from among them onto the battlefield. It gains "At the beginning of your end step, return this creature to its owner\'s hand." Then put the rest of the cards revealed this way on the bottom of your library in any order.',
+        effects: [
+          { op: 'lookAt', n: 4, keep: 0, reveal: true },
+          { op: 'takeFromLooked', n: 1, filter: 'creature', to: 'battlefield', optional: true, rest: 'keep' },
+          { op: 'grantAbility', ability: "At the beginning of your end step, return this creature to its owner's hand.", duration: 'permanent', scope: 'takenOntoBf' },
+          { op: 'restToBottom', order: true },
+        ] }],
+    },
+    "arbiter of knollridge": {
+      keepKeywords: true,
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: "When this creature enters, each player's life total becomes the highest life total among all players.",
+        effects: [{ op: 'setLife', who: 'each', n: { highestLife: true } }] }],
     },
     "restore": {
       abilities: [{ kind: 'spell', auto: true,

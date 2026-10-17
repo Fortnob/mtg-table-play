@@ -12234,6 +12234,8 @@
     }
     _thingCostBlocked(pid, cost, self, opts) {
       if (!cost) return null;
+      if (cost.revealChosenOpponent && !(self && self.secretChosenOpponent))
+        return 'No opponent was secretly chosen.';
       // Bullseye, Death Dealer: "Sacrifice an artifact or discard a nonland card" — blocked only when neither can be paid (choice)
       if (cost.choice) {
         const whys = cost.choice.map((_, k) => this._thingCostBlocked(pid, this._costWithChoice(cost, k), self, opts));
@@ -13040,6 +13042,13 @@
       if (cost.revealHand) {
         this._knowHand(playerId, '*');
         this.logEvent('reveal', `${p.name} reveals their hand: ${this.zones[playerId].hand.map(c => c.name).join(', ') || 'no cards'}.`);
+      }
+      if (cost.revealChosenOpponent) {
+        const chosen = this.player(o.secretChosenOpponent);
+        if (chosen) {
+          o.secretChosenOpponentRevealed = true;
+          this.logEvent('reveal', `${p.name} reveals their chosen opponent: ${chosen.name}.`);
+        }
       }
       // Devoted Druid: "Put a -1/-1 counter on this creature" as the price
       if (cost.putCounters) this.addCounters(o, cost.putCounters.kind, cost.putCounters.n || 1, { noReplace: true });
@@ -21716,7 +21725,10 @@
     _aimerOf(item) {
       const td = (item && item.triggerData) || {};
       let who = null;
-      const walk = (list) => { for (const f of (list || [])) { if (!f || who) continue; if (f.aimBy === 'triggerObjController') who = td.objController || null; walk(f.then); walk(f.list); } };
+      const walk = (list) => { for (const f of (list || [])) { if (!f || who) continue;
+        if (f.aimBy === 'triggerObjController') who = td.objController || null;
+        else if (f.aimBy === 'triggerPlayer') who = td.playerId || td.player || null;
+        walk(f.then); walk(f.list); } };
       walk(item && item.effects);
       const p = who && this.player(who);
       return p && !p.hasLost ? p.id : null;
@@ -24912,12 +24924,14 @@
           /* Hidden Strings: "You may tap or untap target permanent, then you may tap or untap another target permanent" —
              each target in turn (each), and either may be left as it is (optional) */
           const list = e.each ? targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)) : [firstObj()];
+          const chooser = e.who === 'triggerPlayer' ? triggerPlayer() : me;
+          if (!chooser || chooser.hasLost) break;
           for (let k = 0; k < list.length; k++) {
             const x = list[k];
             if (!x || x.zone !== 'battlefield') continue;
             let tapIt = !x.tapped;
-            if (!me.isBot) {
-              const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
+            if (!chooser.isBot) {
+              const got = this._choose({ playerId: chooser.id, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
                 options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }].concat(e.optional ? [{ i: 2, label: 'Leave it' }] : []),
                 prompt: `${ctx.name || 'Effect'}: ${e.optional ? 'you may ' : ''}tap or untap ${x.name}${e.optional ? '.' : '?'}` }, 'tou' + (k || ''));
               if (got === SUSPEND) return SUSPEND;
@@ -24925,7 +24939,7 @@
               if (pick === 2) continue;
               tapIt = pick === 0;
             } else {
-              tapIt = x.controller !== ctx.controller;
+              tapIt = x.controller !== chooser.id;
               // (a bot leaves alone what is already the way it wants it)
               if (e.optional && !!x.tapped === tapIt) continue;
             }
@@ -26181,6 +26195,22 @@
           ctx.chosenPlayers = before.concat(pick.id);
           this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
           this._spliceNext(e.then || []);
+          break;
+        }
+        case 'secretChooseOpponent': {
+          const pool = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'secretChooseOpponent', kind: 'players',
+            items: this._choosePlayers(pool), min: 1, max: 1,
+            prompt: `${ctx.name || (src && src.name) || 'Effect'}: secretly choose an opponent.` }, 'sco');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = got && got.picks.length ? this.player(got.picks[0]) : null;
+          if (!pick || !pool.includes(pick)) break;
+          if (src && src.zone === 'battlefield') {
+            src.secretChosenOpponent = pick.id;
+            src.secretChosenOpponentRevealed = false;
+          }
+          this.logEvent('rules', `${me.name} secretly chooses an opponent.`);
           break;
         }
         /* "Choose an opponent." Not a target: a generic question about
@@ -28686,9 +28716,11 @@
              (CR 119.5); The Endstone: half the starting life total */
           const start = (this.config && this.config.startingLife) || 20;
           // Biorhythm: each player's own count, all worked out before any life changes (eachControls)
-          // (Repay in Kind: the lowest life total among all players — eachControls)
-          const lowest = Math.min(...this.players.filter(p => !p.hasLost).map(p => p.life));
-          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
+          // (Repay in Kind and Arbiter of Knollridge: life totals across all players)
+          const liveLife = this.players.filter(p => !p.hasLost).map(p => p.life);
+          const lowest = Math.min(...liveLife);
+          const highest = Math.max(...liveLife);
+          const tos = who.map(p => (e.n && typeof e.n === 'object' && e.n.lowestLife ? lowest : e.n && typeof e.n === 'object' && e.n.highestLife ? highest : e.n && typeof e.n === 'object' && e.n.eachControls ? this.countMatching(p.id, e.n.eachControls)
             : e.n && typeof e.n === 'object' && e.n.halfStartingLife ? (e.n.up ? Math.ceil : Math.floor)(start / 2) : n(e.n)));
           who.forEach((p, i) => { const to = tos[i]; if (to !== p.life) this.changeLife(p, to - p.life); this.logEvent('life', `${p.name}'s life becomes ${to}.`); });
           break;
@@ -35056,6 +35088,15 @@
 
         case 'restToBottom': case 'restToGraveyard': case 'restToHand': {
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
+          const bottomOrder = (cards) => {
+            if (!e.order || cards.length < 2) return cards;
+            const got = this._ask({ type: 'arrange', playerId: ctx.controller,
+              cards: cards.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: `Put the remaining ${cards.length} cards on the bottom of your library in any order.` }, 'rtb');
+            if (got === SUSPEND) return SUSPEND;
+            const picked = ((got && got.top) || []).map(id => cards.find(o => o.id === id)).filter(Boolean);
+            return picked.concat(cards.filter(o => !picked.includes(o)));
+          };
           // Nine-Fingers Keene: "put the rest into your hand" (restToHand)
           if (e.op === 'restToHand') {
             for (const o of pool) this.moveObject(o, 'hand');
@@ -35069,7 +35110,9 @@
           // Sanwell, Avenger Ace: the cards just exiled that weren't cast, to the bottom (ofExiled)
           if (e.op === 'restToBottom' && e.ofExiled) {
             const rest = (this._lastExiledList || []).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
-            for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
+            let order = e.random ? this.rng.shuffle(rest.slice()) : rest;
+            if (e.order) { order = bottomOrder(rest); if (order === SUSPEND) return SUSPEND; }
+            for (const o of order) this.moveObject(o, 'library', { toBottom: true });
             if (rest.length) this.logEvent('rules', `${rest.length} exiled card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
             break;
           }
@@ -35079,13 +35122,16 @@
             const rest = this._exileUntil.ids.filter(id => !hit.includes(id)).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
             this._exileUntil = null;
             if (!rest.length) break;
-            for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
+            let order = e.random ? this.rng.shuffle(rest.slice()) : rest;
+            if (e.order) { order = bottomOrder(rest); if (order === SUSPEND) return SUSPEND; }
+            for (const o of order) this.moveObject(o, 'library', { toBottom: true });
             this.logEvent('rules', `${rest.length} exiled card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
             break;
           }
           if (!pool.length) break;
           const z = this.zones[ctx.controller].library;
-          const order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          let order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
+          if (e.op === 'restToBottom' && e.order) { order = bottomOrder(pool); if (order === SUSPEND) return SUSPEND; }
           for (const o of order) {
             this._removeFromZone(o);
             if (e.op === 'restToGraveyard') { o.zone = 'library'; this.moveObject(o, 'graveyard'); }
@@ -45245,6 +45291,11 @@
      */
     _legalTargetsFor(spec, controllerId, sourceId) {
       spec = spec || {};
+      if (spec.chosenOpponentController) {
+        const source = sourceId && this.obj(sourceId);
+        if (!source || !source.secretChosenOpponent) return [];
+        return this._legalTargetsFor(Object.assign({}, spec, { chosenOpponentController: false, controllerId: source.secretChosenOpponent }), controllerId, sourceId);
+      }
       // Regicide, Custodi Peacekeeper: the colours or the number noted during the draft
       if (spec.notedColors || spec.notedMaxPower) return this._legalTargetsFor(this._notedSpec(spec, controllerId), controllerId, sourceId);
       // "target creature defending player controls" chosen while its source attacks (Ancient Hellkite)
@@ -45429,6 +45480,7 @@
       for (const o of pool) {
         const a = o.analysis();
         if (!a || o.phasedOut) continue;
+        if (spec.attackingYou && o.attacking !== controllerId) continue;
         if (!MTG.oracle.matchesSpec(spec, o, a, controllerId, this._specCtx())) continue;
         if (spec.mvAtMostCtlGy && ((o.card && o.card.cmc) || 0) > ((this.zones[o.controller] || {}).graveyard || []).length) continue;
         // Desdemona, Freedom's Edge: "that's an artifact or that has mana value 3 or less" (artifactOrMaxMv)
@@ -46829,6 +46881,10 @@
           if (o.chosenColor) c.color = o.chosenColor;
           if (o.chosenName) c.name = o.chosenName;
           if (o.chosenPlayer) { const pl = this.player(o.chosenPlayer); c.player = pl ? pl.name : String(o.chosenPlayer); }
+          if (o.secretChosenOpponent && (o.secretChosenOpponentRevealed || o.controller === playerId)) {
+            const pl = this.player(o.secretChosenOpponent);
+            c.player = pl ? pl.name : String(o.secretChosenOpponent);
+          }
           // (Sower of Discord: the two chosen players)
           if ((o.chosenPlayers || []).length) c.player = o.chosenPlayers.map(id => (this.player(id) || {}).name || String(id)).join(' and ');
           if (o.chosenNumber != null) c.number = o.chosenNumber;
