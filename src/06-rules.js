@@ -427,6 +427,7 @@
         freeMulligans: 0,              // taken before cards go on the bottom
         rulesEnforcement: 'full',      // 'full' | 'relaxed'
       }, config || {});
+      delete this.config.planechase;
       this.rng = new MTG.RNG(this.config.seed);
       /* a shuffled library is in an order nobody knows (_forgetOrder), and a library touched, even when it
          happens to come out the same way (_keepsSeenOnTop) */
@@ -46275,6 +46276,7 @@
     restore(snap, opts) {
       if (!snap || snap.v !== 1) return false;
       this.config = Object.assign(this.config, snap.config);
+      delete this.config.planechase;
       if (snap.rngState != null) this.rng.s = snap.rngState >>> 0;
       const keepObjs = opts && opts.keep ? this.objects : null;
       const keepPlayers = opts && opts.keep ? new Map(this.players.map(x => [x.id, x])) : null;
@@ -47077,8 +47079,6 @@
           command: this.zones[p.id].command.filter(o => !o.planeUp).map(o => ser(o)),
         })),
         log: this.log.slice(-200),
-        // Planechase: the plane everybody is on, each planar deck's size, the planar die (src/06f-planechase.js)
-        planechase: this.config.planechase ? this._planarView(playerId, ser, decides) : undefined,
       };
       // the seats of the players this one controls, without what the view around them already carries
       const ctl = seat ? [] : this.controlledPlayers(playerId);

@@ -17,8 +17,8 @@
     [/^(companion)\b[: ]*$/i, 'companion'],
     [/^(maybe ?board|considering|acquire)\b[: ]*$/i, 'maybeboard'],
     [/^(tokens?)\b[: ]*$/i, 'tokens'],
-    // a planar deck (Planechase: src/02f-planes.js), kept beside the deck
-    [/^(planes?|planar ?deck|planechase)\b[: ]*$/i, 'planar'],
+    // Ignore planar-deck sections in legacy imports; their cards are not deck cards.
+    [/^(planes?|planar ?deck|planechase)\b[: ]*$/i, 'other'],
     [/^scheme\b[: ]*$/i, 'other'],
     [/^(lands?|creatures?|instants?|sorceries|artifacts?|enchantments?|planeswalkers?|battles?|spells?|ramp|removal|draw|utility|other)\s*\(?\d*\)?[: ]*$/i, null], // category header inside main
   ];
@@ -39,7 +39,7 @@
   function parse(text, opts) {
     opts = opts || {};
     const out = {
-      main: [], sideboard: [], commanders: [], companion: null, maybeboard: [], planar: [],
+      main: [], sideboard: [], commanders: [], companion: null, maybeboard: [],
       name: opts.name || '', notes: [], unparsed: [],
     };
     let section = 'main';
@@ -108,7 +108,6 @@
       else if (bucket === 'companion') out.companion = entry;
       else if (bucket === 'sideboard') out.sideboard.push(entry);
       else if (bucket === 'maybeboard') out.maybeboard.push(entry);
-      else if (bucket === 'planar') out.planar.push(entry);
       else if (bucket === 'tokens' || bucket === 'other') { /* ignore */ }
       else out.main.push(entry);
     }
@@ -147,7 +146,7 @@
     const prefs = opts.useArtPrefs === false ? {} : (MTG.settings.artPreferences || {});
     const buckets = [
       ['main', parsed.main], ['sideboard', parsed.sideboard],
-      ['commanders', parsed.commanders], ['maybeboard', parsed.maybeboard], ['planar', parsed.planar || []],
+      ['commanders', parsed.commanders], ['maybeboard', parsed.maybeboard],
     ];
     if (parsed.companion) buckets.push(['companion', [parsed.companion]]);
 
@@ -163,7 +162,7 @@
 
     const { cards, notFound } = await MTG.scry.collection(identifiers, opts.onProgress);
 
-    const res = { main: [], sideboard: [], commanders: [], maybeboard: [], planar: [], companion: null, missing: [], warnings: [] };
+    const res = { main: [], sideboard: [], commanders: [], maybeboard: [], companion: null, missing: [], warnings: [] };
     const needPref = [];
     const jokes = [];
 
@@ -299,9 +298,6 @@
       commanders: resolved.commanders.map(e => e.card),
       companion: resolved.companion ? resolved.companion.card : null,
       maybeboard: resolved.maybeboard.map(e => ({ card: e.card, qty: e.qty })),
-      // a planar deck listed with it (Planechase): its planes and phenomena, one of each
-      planar: (resolved.planar || []).map(e => e.card).filter(c => MTG.planes.isPlanar(c))
-        .filter((c, i, all) => all.findIndex(x => x.name === c.name) === i),
       source: 'import',
       createdAt: Date.now(),
     };
@@ -337,11 +333,6 @@
     if (deck.sideboard && deck.sideboard.length) {
       parts.push('', 'Sideboard');
       for (const e of deck.sideboard) parts.push(line(e));
-    }
-    // a planar deck goes with it, under a heading of its own (Planechase)
-    if (deck.planar && deck.planar.length) {
-      parts.push('', 'Planar deck');
-      for (const c of deck.planar) parts.push(line({ card: c, qty: 1 }));
     }
     return parts.join('\n');
   }
@@ -403,5 +394,4 @@
 
   MTG.decklist = { parse, resolve, importDeck, nameFromCommanders, seatCommanders, toText, importCube, parseCsv, LINE_RE };
 })(window.MTG);
-
 

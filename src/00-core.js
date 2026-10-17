@@ -614,7 +614,7 @@ const MANA = MTG.mana = {
     if (s === 'Q') return '↺';
     if (s === 'S') return '❄';
     if (s === 'E') return '◆';
-    // Planechase's chaos symbol (planechase.css draws it)
+    // The chaos symbol used by Plane and Phenomenon text.
     if (s === 'CHAOS') return '\u2738';
     if (s.length === 1) return s;
     // hybrid and Phyrexian read as "W/U" and "W/@PHI@" so both halves stay legible
@@ -789,5 +789,4 @@ MTG.setGameSpeed = function (id) {
   MTG.settings.animSpeed = g[2];
   MTG.setSetting('botSpeed', g[3]);
 };
-
 

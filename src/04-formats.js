@@ -177,6 +177,10 @@
     if (tl) return /\bBasic\b/.test(tl.split(/\s+\/\/\s+/)[0]) && /\bLand\b/.test(tl);
     try { const a = MTG.oracle.analyze(card); return !!(a && a.isBasicLand); } catch (e) { return false; }
   }
+  function isPlanarCard(card) {
+    const type = String((card && card.type_line) || '');
+    return !!card && (card.layout === 'planar' || /\b(?:Plane|Phenomenon)\b/.test(type));
+  }
   /** Cards exempt from the singleton / 4-copy rule. */
   function unlimitedAllowed(card) {
     if (isBasicLand(card)) return true;
@@ -357,6 +361,22 @@
     const main = deck.main || [];
     const side = deck.sideboard || [];
     const commanders = deck.commanders || [];
+    for (const e of main.concat(side)) {
+      if (e && isPlanarCard(e.card)) {
+        errors.push(`${e.card.name} is a Plane or Phenomenon card and cannot be used in this game.`);
+        flag(e.card, 'Plane and Phenomenon cards are not playable.');
+      }
+    }
+    for (const c of commanders) {
+      if (isPlanarCard(c)) {
+        errors.push(`${c.name} is a Plane or Phenomenon card and cannot be used in this game.`);
+        flag(c, 'Plane and Phenomenon cards are not playable.');
+      }
+    }
+    if (deck.companion && isPlanarCard(deck.companion)) {
+      errors.push(`${deck.companion.name} is a Plane or Phenomenon card and cannot be used in this game.`);
+      flag(deck.companion, 'Plane and Phenomenon cards are not playable.');
+    }
 
     const mainCount = U.sum(main.map(e => e.qty));
     const sideCount = U.sum(side.map(e => e.qty));
@@ -715,11 +735,6 @@
       hint: 'Off means you play only what you drafted or opened.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,
       hint: 'Best of how many games. One, the default, is a single game.' },
-    /* Planechase (CR 901; src/06f-planechase.js): a planar deck beside each deck, and the planar die. A deck brings
-       its own (the deck builder's Planar deck); one with none, or one the rules don't allow, is made up to ten with
-       planes dealt at random (MTG.planes.complete) */
-    { key: 'planechase', label: 'Planechase', type: 'bool', when: builds,
-      hint: 'Each player brings a planar deck of planes and phenomena, the game travels from plane to plane, and the planar die is rolled. A deck with no planar deck, or one the rules don\u2019t allow, plays with planes dealt at random to make ten.' },
     // one of a few set values (type 'choice'); the clock itself is src/06e-clock.js
     { key: 'clock', label: 'Clock', type: 'choice',
       options: [[0, 'Off'], [10, '10 minutes a player'], [20, '20 minutes a player'], [30, '30 minutes a player']],
@@ -739,7 +754,6 @@
     if (key === 'collector') return false;
     if (key === 'bracket') return 0;
     if (key === 'clock') return 0;
-    if (key === 'planechase') return false;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;
@@ -889,5 +903,3 @@
     isCommander: (id) => !!(FORMATS[id] && FORMATS[id].commander),
   };
 })(window.MTG);
-
-

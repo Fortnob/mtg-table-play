@@ -15,7 +15,7 @@ const CACHE = process.env.MTG_CACHE_DIR ? path.resolve(process.env.MTG_CACHE_DIR
 fs.mkdirSync(CACHE, { recursive: true });
 
 const ENGINE_MODULES = [
-  '00-core.js', '01-audio.js', '02-scryfall.js', '02a-carddb.js', '02e-tokenart.js', '02f-planes.js', '18-scripts.js', '19-cardlib.js', '03-oracle.js',
+  '00-core.js', '01-audio.js', '02-scryfall.js', '02a-carddb.js', '02e-tokenart.js', '18-scripts.js', '19-cardlib.js', '03-oracle.js',
   '04-formats.js', '05-decklist.js', '06-rules.js', '06a-choice.js', '06b-events.js', '06c-replay.js', '06d-sim.js', '06f-planechase.js', '07-draft.js', '07b-sealed.js', '07c-jumpstart.js', '08-bots.js', '15-combos.js', '15a-brackets.js', '15b-themes.js', '16-advisor.js',
 ];
 
@@ -113,10 +113,9 @@ function load(opts) {
   if (MTG.settings) MTG.settings.botSpeed = 0;
   /* Alchemy's conjure makes a card from its name in the middle of a game, so
      the engine needs a way to look one up there and then: from the bulk file. */
-  // (and Imaginary Friends' "other cards … with the same type and mana cost": byCost, MTG.cardsByCost)
-  let byName = null, byCost = null;
+  let byName = null;
   const readBulk = () => {
-    byName = new Map(); byCost = new Map();
+    byName = new Map();
     const zlib = require('zlib');
     const file = path.join(ROOT, 'tools', 'oracle-cards.jsonl.gz');
     if (!fs.existsSync(file)) return;
@@ -127,7 +126,6 @@ function load(opts) {
       const k = String(c.name).toLowerCase();
       if (!byName.has(k)) byName.set(k, c);
       if (c.name.includes(' // ')) { const f = c.name.split(' // ')[0].toLowerCase(); if (!byName.has(f)) byName.set(f, c); }
-      if (c.set_type !== 'funny' && c.mana_cost) { if (!byCost.has(c.mana_cost)) byCost.set(c.mana_cost, []); byCost.get(c.mana_cost).push(c); }
     }
   };
   const slim = (c) => (MTG.scry && MTG.scry.slim ? MTG.scry.slim(c) : c);
@@ -135,12 +133,6 @@ function load(opts) {
     if (!byName) readBulk();
     const c = byName.get(String(name).toLowerCase());
     return c ? slim(c) : null;
-  };
-  const slimByCost = new Map();
-  MTG.cardsByCost = (cost) => {
-    if (!byCost) readBulk();
-    if (!slimByCost.has(cost)) slimByCost.set(cost, (byCost.get(cost) || []).map(slim));
-    return slimByCost.get(cost);
   };
   // the request queue spaces live calls out; cached ones need no gap
   // (the fetch shim does that spacing itself, for live requests only)

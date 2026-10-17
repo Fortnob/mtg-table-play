@@ -8062,128 +8062,6 @@ html[data-play="1"] .friends-chip { display: none; }
 .lesson-result .lr-reward { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
 .lesson-result .lr-note, .lesson-result .lr-progress { font-size: 12.5px; color: var(--ink-3); margin: 0; }
 .lesson-card .guide-mark { font-weight: 800; font-size: 16px; }
-/* ============================================================
-   planechase.css - Planechase: the plane at the table, the planar
-   die and its symbols, the planeswalk, and the deck builder's Planar
-   deck tab (src/12k-ui-planechase.js, src/11d-ui-planar.js)
-   ============================================================ */
-
-/* ---- the symbols ---- */
-.pc-sym { width: 1em; height: 1em; display: inline-block; vertical-align: -0.14em; flex: none; }
-/* {CHAOS} in a card's words (MTG.mana.textHtml): the chaos symbol in place of the letters */
-.pip.pip-chaos { background: none !important; box-shadow: none !important; color: transparent !important; position: relative; }
-.pip.pip-chaos::after { content: ''; position: absolute; inset: 0; background: currentColor; color: #e9e2cf;
-  -webkit-mask: var(--chaos-mask) center / contain no-repeat; mask: var(--chaos-mask) center / contain no-repeat; }
-:root { --chaos-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3.2'/%3E%3Cpath d='M17.2 12H22.4M20 14.1L22.6 12L20 9.9M15.68 15.68L19.35 19.35M15.67 18.6L19.5 19.5L18.6 15.67M12 17.2V22.4M9.9 20L12 22.6L14.1 20M8.32 15.68L4.65 19.35M5.4 15.67L4.5 19.5L8.33 18.6M6.8 12H1.6M4 9.9L1.4 12L4 14.1M8.32 8.32L4.65 4.65M8.33 5.4L4.5 4.5L5.4 8.33M12 6.8V1.6M14.1 4L12 1.4L9.9 4M15.68 8.32L19.35 4.65M18.6 8.33L19.5 4.5L15.67 5.4'/%3E%3C/g%3E%3C/svg%3E"); }
-
-/* ---- the plane, at the top of the right-hand column, the stack under it ---- */
-.plane-host { position: absolute; z-index: 31; right: 16px; top: calc(var(--board-top, 6px) + 44px); width: calc(var(--side-w) - 24px);
-  display: flex; flex-direction: column; gap: 0; color: #eef1f6; pointer-events: auto;
-  border-radius: 12px; border: 1px solid rgba(212,175,71,.32);
-  background: linear-gradient(180deg, rgba(26,22,40,.94), rgba(14,13,22,.94));
-  box-shadow: 0 10px 28px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05); }
-.plane-host[hidden] { display: none; }
-.arena.has-plane .stack-col { top: calc(var(--board-top, 6px) + 44px + var(--plane-h, 0px) + 8px); }
-.pc-bar { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 7px 10px; border: 0; background: none;
-  color: inherit; cursor: pointer; text-align: left; border-radius: 12px 12px 0 0; }
-.pc-bar:focus-visible { outline: 2px solid var(--focus, #63d3ff); outline-offset: -2px; }
-.pc-mark { color: #d8b4ff; font-size: 18px; display: inline-flex; filter: drop-shadow(0 0 6px rgba(190,140,255,.55)); }
-.pc-bar-words { display: grid; min-width: 0; flex: 1; }
-.pc-kicker { font: 600 9.5px/1.2 var(--font); letter-spacing: .14em; text-transform: uppercase; color: rgba(216,180,255,.85); }
-.pc-bar-name { font: 600 14px/1.25 var(--serif, Georgia, serif); color: #f3e6ff; overflow-wrap: anywhere; }
-.pc-bar-who { font: 500 12px/1.3 var(--font); color: #d9cdee; overflow-wrap: anywhere; }
-.pc-chev { width: 8px; height: 8px; border-right: 2px solid rgba(255,255,255,.55); border-bottom: 2px solid rgba(255,255,255,.55);
-  rotate: 45deg; translate: 0 -2px; transition: rotate .2s; flex: none; }
-.plane-host.open .pc-chev { rotate: 225deg; translate: 0 2px; }
-.pc-cards { display: grid; gap: 8px; padding: 0 8px 4px; }
-.pc-card { position: relative; border-radius: 9px; overflow: hidden; cursor: zoom-in;
-  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.08); }
-.pc-card.phenomenon { border-color: rgba(255,170,120,.35); }
-.pc-art { height: 64px; background: #1a1626 center 30% / cover no-repeat; -webkit-mask: linear-gradient(180deg, #000 55%, transparent); mask: linear-gradient(180deg, #000 55%, transparent); }
-.pc-words { padding: 2px 9px 9px; margin-top: -18px; position: relative; }
-.pc-name { margin: 0; font: 700 14px/1.2 var(--serif, Georgia, serif); color: #fff; text-shadow: 0 1px 4px #000; overflow-wrap: anywhere; }
-.pc-type { font: 500 10.5px/1.3 var(--font); color: #b9a8d8; margin: 1px 0 5px; overflow-wrap: anywhere; }
-/* the whole of its words, never cut: the column scrolls before a word is lost */
-.pc-text { font: 400 11.5px/1.42 var(--font); color: #e3e6ee; white-space: pre-line; overflow-wrap: anywhere; }
-.pc-text .pip { font-size: 10px; }
-.pc-counters { margin-top: 6px; font: 600 11px/1.3 var(--font); color: #f3dd96; }
-.pc-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 6px 8px 8px; }
-.pc-who, .pc-whose { flex: 1 1 auto; min-width: 0; font: 500 11px/1.3 var(--font); color: #a9b0c0; overflow-wrap: anywhere; }
-.pc-flag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 99px; font: 600 10.5px/1.2 var(--font);
-  color: #ffd9a8; background: rgba(255,150,60,.14); border: 1px solid rgba(255,170,90,.35); }
-.pc-roll { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 10px 6px 8px; margin-left: auto;
-  border-radius: 10px; border: 1px solid rgba(216,180,255,.35); cursor: pointer;
-  font: 600 12.5px/1.15 var(--font); color: #f1e6ff; background: linear-gradient(180deg, rgba(120,80,190,.45), rgba(70,40,120,.45)); }
-.pc-roll.can { border-color: rgba(216,180,255,.8); box-shadow: 0 0 0 1px rgba(216,180,255,.25), 0 0 16px rgba(170,110,255,.35); }
-.pc-roll.can:hover { filter: brightness(1.15); }
-.pc-roll:disabled { cursor: default; opacity: .55; filter: saturate(.5); }
-.pc-roll:focus-visible { outline: 2px solid var(--focus, #63d3ff); outline-offset: 2px; }
-.pc-roll-die { font-size: 20px; display: inline-flex; color: #e6d3ff; }
-.pc-cost { display: inline-flex; align-items: center; }
-.pc-cost .pip { margin: 0; }
-
-/* a planeswalk: the panel turns over, a glow sweeps it */
-.plane-host.walking { animation: pcTurn 1.15s cubic-bezier(.3,.7,.25,1); }
-.plane-host.walking::after { content: ''; position: absolute; inset: -2px; border-radius: 13px; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 40%, rgba(200,150,255,.55), transparent 70%); animation: pcGlow 1.15s ease-out forwards; }
-@keyframes pcTurn { 0% { transform: perspective(700px) rotateY(0); } 38% { transform: perspective(700px) rotateY(88deg); opacity: .4; }
-  39% { transform: perspective(700px) rotateY(-88deg); } 100% { transform: perspective(700px) rotateY(0); opacity: 1; } }
-@keyframes pcGlow { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
-/* and the word in the middle of the table */
-.pc-walk { position: absolute; z-index: 66; left: 50%; top: 50%; translate: -50% -50%; display: grid; justify-items: center; gap: 4px;
-  padding: 14px 26px 16px; max-width: min(560px, calc(100% - 32px)); text-align: center; pointer-events: none;
-  border-radius: 16px; border: 1px solid rgba(216,180,255,.45);
-  background: radial-gradient(ellipse at 50% 0%, rgba(120,70,200,.5), rgba(14,12,24,.94) 75%);
-  box-shadow: 0 0 60px rgba(150,90,255,.35), 0 18px 40px rgba(0,0,0,.6);
-  animation: pcWalkIn .6s cubic-bezier(.2,.8,.25,1.15) both; }
-.pc-walk.out { animation: pcWalkOut .35s ease-in forwards; }
-.pc-walk-mark { font-size: 30px; color: #e3c8ff; display: inline-flex; filter: drop-shadow(0 0 10px rgba(200,150,255,.8)); animation: pcSpin 1.2s cubic-bezier(.2,.7,.3,1) both; }
-.pc-walk-kicker { font: 600 11px/1.3 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #cdb6f0; overflow-wrap: anywhere; }
-.pc-walk-name { font: 700 22px/1.2 var(--serif, Georgia, serif); color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.8); overflow-wrap: anywhere; }
-@keyframes pcWalkIn { from { opacity: 0; scale: .7; filter: blur(6px); } to { opacity: 1; scale: 1; filter: none; } }
-@keyframes pcWalkOut { to { opacity: 0; scale: 1.06; } }
-@keyframes pcSpin { from { rotate: -200deg; scale: .4; } to { rotate: 0deg; scale: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .plane-host.walking, .plane-host.walking::after, .pc-walk, .pc-walk-mark { animation: none !important; }
-}
-
-/* ---- the planar die, thrown (src/12f-ui-feel.js) ---- */
-.lr-die.planar { color: #2a1746; background: linear-gradient(160deg, #f4ecff, #cdb6f0) !important; }
-.lr-die.planar b { display: grid; place-items: center; width: 70%; height: 70%; }
-.lr-die.planar b .pc-sym { width: 100%; height: 100%; }
-.lr-die.planar .pc-blank { display: block; width: 100%; height: 100%; }
-.lr-die.planar.landed b { color: #2a1746; }
-
-/* ---- a phone: a bar under the opponents, the card opening over the table ---- */
-:root[data-phone] .plane-host { left: auto; right: 8px; width: min(320px, calc(100% - 16px));
-  top: calc(var(--board-top, 6px) + var(--opp-hud-h, 64px) + 10px); }
-:root[data-phone] .plane-host:not(.open) { width: auto; max-width: calc(100% - 16px); flex-direction: row; align-items: center; border-radius: 99px; }
-:root[data-phone] .plane-host:not(.open) .pc-bar { min-height: 36px; padding: 4px 6px 4px 10px; border-radius: 99px; flex: 1 1 auto; min-width: 0; }
-:root[data-phone] .plane-host:not(.open) .pc-kicker { display: none; }
-:root[data-phone] .plane-host:not(.open) .pc-bar-name { font-size: 12.5px; }
-:root[data-phone] .plane-host:not(.open) .pc-foot { padding: 3px 4px 3px 0; flex-wrap: nowrap; }
-:root[data-phone] .plane-host:not(.open) .pc-whose { display: none; }
-:root[data-phone] .plane-host:not(.open) .pc-roll { min-height: 32px; padding: 4px 8px; }
-:root[data-phone] .plane-host.open { z-index: 64; max-height: calc(100% - var(--board-top, 6px) - var(--opp-hud-h, 64px) - 20px); overflow-y: auto; overscroll-behavior: contain; }
-:root[data-phone] .arena.has-plane .stack-col { top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 10px + 44px); }
-:root[data-phone] .pc-walk-name { font-size: 18px; }
-
-/* ---- the deck builder's Planar deck tab ---- */
-.planar-head h3, .planar-add h3 { display: flex; align-items: center; gap: 8px; }
-.planar-head .pill.ok { color: var(--good, #6fe3a0); }
-.planar-problems { margin: 6px 0; padding-left: 18px; color: var(--warn, #ffc94d); }
-.planar-ok { margin: 6px 0; color: var(--good, #6fe3a0); }
-.planar-tools { gap: 8px; margin: 8px 0; }
-.planar-list, .planar-browse { display: grid; gap: 4px; }
-.planar-browse { max-height: min(52vh, 520px); overflow-y: auto; padding-right: 2px; }
-.planar-row .nm-col { display: grid; min-width: 0; flex: 1; }
-/* a plane's name whole, however long (Human—Time Lord Meta-Crisis) */
-.planar-row .nm { white-space: normal; text-overflow: clip; overflow: visible; overflow-wrap: anywhere; }
-.planar-row .planar-type { overflow-wrap: anywhere; }
-.planar-row.in-deck { opacity: .6; }
-.planar-row.is-phenomenon .planar-type { color: #ffb48a; }
-.planar-filter { gap: 8px; align-items: center; margin-bottom: 8px; }
-.planar-search { flex: 1 1 200px; min-width: 0; }
 </style>
 </head>
 <body>
@@ -8818,7 +8696,7 @@ const MANA = MTG.mana = {
     if (s === 'Q') return '↺';
     if (s === 'S') return '❄';
     if (s === 'E') return '◆';
-    // Planechase's chaos symbol (planechase.css draws it)
+    // The chaos symbol used by Plane and Phenomenon text.
     if (s === 'CHAOS') return '\u2738';
     if (s.length === 1) return s;
     // hybrid and Phyrexian read as "W/U" and "W/@PHI@" so both halves stay legible
@@ -8993,7 +8871,6 @@ MTG.setGameSpeed = function (id) {
   MTG.settings.animSpeed = g[2];
   MTG.setSetting('botSpeed', g[3]);
 };
-
 
 /* ===== 01-audio.js ===== */
 /* ============================================================
@@ -13431,269 +13308,6 @@ MTG.setGameSpeed = function (id) {
     offChange(fn) { listeners.delete(fn); },
     _reset() { cache = null; choices = null; looked.clear(); pending.clear(); },
   };
-})(window.MTG);
-/* ===== 02f-planes.js ===== */
-'use strict';
-/* ============================================================
-   02f-planes.js - the plane and phenomenon cards, and planar decks
-
-   Planechase (CR 901, src/06f-planechase.js) is played with a planar deck
-   beside each player's deck: at least ten plane and phenomenon cards, no
-   two with the same name, no more than two phenomena (CR 901.3). The
-   cards are listed here (written by tools/planes.js from Scryfall's bulk
-   file: id|name|set|P for a plane, H for a phenomenon) so a planar deck
-   can be checked, dealt at random or built without a search; each is
-   looked up through the card cache like any other card, and read by the
-   engine from its words.
-
-   A player at a Planechase table with no planar deck, or with one the
-   rules don't allow, plays with one made legal: their own cards kept as
-   far as the rules allow, the rest dealt at random from the planes the
-   game runs by itself (complete).
-   ============================================================ */
-(function (MTG) {
-  const DATA = [
-    /* @@DATA@@ */
-    "ed4f4210-9871-4cec-9b46-100c80f93cd4|Academy at Tolaria West|opca|P",
-    "6caf8b21-1807-442c-a461-c89c7591df70|Agyrem|opca|P",
-    "a1c7f2eb-0654-46f9-ae3d-11efcac837b8|Akoum|opca|P",
-    "ac0615cc-860a-4fed-9e9c-4377ba8ed22a|Amy's Home|who|P",
-    "3cc61f60-2f9d-4f67-8390-62873b4b8ddb|Antarctic Research Base|who|P",
-    "855978a6-c81c-4e5e-a34f-41a54fef0c10|Aplan Mortarium|who|P",
-    "d6dc655e-d8ef-443a-bb3e-46c7ca1555ba|Aretopolis|opca|P",
-    "56c735c0-9346-431b-869f-3accfa193016|Astral Arena|opca|P",
-    "a068875e-9294-403d-a6db-15092b6c42d3|Bad Wolf Bay|who|P",
-    "434a2d09-5776-4168-b863-f3b0a736d19b|Bant|opca|P",
-    "8bb62bd5-79e5-4af0-aafd-c1bd53765c67|Besieged Viking Village|who|P",
-    "9944763b-07b1-447d-b07c-b585ec00e883|Bloodhill Bastion|moc|P",
-    "22e3ec5a-4bd5-452f-873a-3801253754dd|Bowie Base One|who|P",
-    "d8ddc6d0-50cc-4914-a6f2-00fb93d4402a|Caught in a Parallel Universe|who|H",
-    "0cf339cb-04c0-40e8-a64c-b80229a32cec|Celestine Reef|opca|P",
-    "e6632cd1-aa23-46d0-8e72-0850de4873e1|Chaotic Aether|moc|H",
-    "4f82f5b7-b4b9-489a-bbd7-98faaa566515|City of the Daleks|who|P",
-    "ff65643b-e8bb-49d6-8887-13a146ee5174|Cliffside Market|opca|P",
-    "82e09673-c7f0-4377-abbd-b1ea4922d4b3|Coal Hill School|who|P",
-    "13dd9d2c-f1d3-4dbf-8101-e4fab9f42e40|Dalek Intensive Care|who|P",
-    "6d241115-60b8-4fab-9877-4e2d35d638b9|Deceptive Divination|pssc|P",
-    "ca4c429a-ca40-4656-aea5-86eb450e47b7|Edge of Malacol|opca|P",
-    "bec61f7a-cf02-4150-aff9-9465fa14c779|Eloren Wilds|opca|P",
-    "a4400c14-2aed-4018-a3fb-7de2b0456c07|Enigma Ridges|moc|P",
-    "ffdf27d3-80b4-4aa1-b943-d247e502d32c|Esper|moc|P",
-    "56826f4f-2bbe-464a-b023-faa83aa1c392|Fblthp: Completely, Utterly, Totally Lost|pssc|P",
-    "1dde33fa-f748-43c9-9ead-9461332e9e67|Feeding Grounds|opca|P",
-    "b52a233b-cc51-4f3e-94d0-a4b75ecb248e|Fields of Summer|opca|P",
-    "4c2d1022-3aaa-4139-bd11-ddc18a7c9cef|Finally! Left-Handed Magic Cards|pssc|P",
-    "a05478f9-3a9a-4887-a8e7-63550eaa6030|Fixed Point in Time|who|H",
-    "d89133d1-06e7-4b8f-8f42-e0551fd93a5b|Furnace Layer|opca|P",
-    "eb753c00-303d-49f3-ad98-b7772cc4a274|Gardens of Tranquil Repose|who|P",
-    "cb03f60c-d317-4b4c-9747-380abf5fa7ef|Gavony|moc|P",
-    "0c8456bd-d290-43af-b2b9-06823bab65a2|Ghirapur|moc|P",
-    "fdaaef56-0c95-404a-8de5-e8f21e0282d3|Glen Elendra|opca|P",
-    "a075316c-eb94-46a5-98f2-061b1674186f|Glimmervoid Basin|moc|P",
-    "830c7c81-335e-4f0b-81b9-209732408093|Goldmeadow|opca|P",
-    "3dfccef2-4d55-423f-8375-4e349bbf615e|Grand Ossuary|opca|P",
-    "ecbe3339-2cd1-45e2-bac1-8ea995238c30|Grixis|opca|P",
-    "c2cd3e28-cc48-416d-83d2-74208d2f4aa9|Grove of the Dreampods|moc|P",
-    "d0ff1a68-0424-4a9d-b07e-8426a38f86a6|Happy Yargle Day!|pssc|P",
-    "2588d0a3-0e63-4976-8fcc-cd6bc52b61aa|Hedron Fields of Agadeem|moc|P",
-    "61471ab4-749a-40e4-b06b-153edec80daa|Horizon Boughs|opca|P",
-    "8b164271-6438-4135-b7a9-8573c3921052|Hotel of Fears|who|P",
-    "f5def75a-f511-42e8-a652-7de4abfbd968|Human—Time Lord Meta-Crisis|who|H",
-    "f82a89a6-f558-476c-a57d-5a1e5405320a|Imaginary Friends (Plane)|pssc|P",
-    "d44a959c-7a04-4342-8827-882349f786fc|Immersturm|opca|P",
-    "56e4874c-9d3d-4a1c-a027-186a33ce0da7|Interplanar Tunnel|opca|H",
-    "6a9b4ba6-12cb-488c-b9d5-245e094f72c3|Inys Haen|moc|P",
-    "5fa27faa-f72c-4925-8ad5-c984113245bf|Isle of Vesuva|moc|P",
-    "d01d1b4f-5ac5-40b0-b4ad-34ac70aeb488|Izzet Steam Maze|opca|P",
-    "585fde63-4cb5-4235-8c95-2a7a511e7c3f|Jund|moc|P",
-    "4c46b6c1-0c84-4bd3-b317-9b8191ad937e|Kerblam! Warehouse|who|P",
-    "5271d8fd-3657-45a3-8147-00cc1d19425f|Kessig|opca|P",
-    "8d63dc8a-101c-4b12-bf56-06a8a3cea64e|Ketria|moc|P",
-    "f9724517-9e6b-4cb3-a3f7-ea8706f49fe9|Kharasha Foothills|moc|P",
-    "93f386a5-08ce-4f76-944f-f38620a41027|Kilnspire District|opca|P",
-    "86b5e553-c871-4750-a839-82b7581c5a2d|Krosa|moc|P",
-    "b6078774-f681-46dd-a68e-1cefa8261d16|Lair of the Ashen Idol|opca|P",
-    "45091d2b-d872-4beb-af87-7675aaf0c2c8|Lake Silencio|who|P",
-    "7a049235-2fda-48a7-b46e-d150a4893397|Lethe Lake|opca|P",
-    "a10f326e-51eb-44b8-9208-ee9db7e7c328|Li'l Giri Saves the Day|pssc|P",
-    "2a098e3b-00e7-48d5-bc0d-f153e7cc5dfd|Littjara|moc|P",
-    "00832a47-dec8-411e-9708-b3ebbd3a2dfc|Llanowar|opca|P",
-    "ed9d28e4-e317-458f-a5ab-40faedc53826|Math is for Blockers (Plane)|pssc|P",
-    "53f91325-e95a-4b68-9491-4249c2e940b4|Megaflora Jungle|moc|P",
-    "9c155a59-afee-4821-9715-10dafb9f9d9a|Minamo|opca|P",
-    "d7a2b02e-3ff2-4c71-9022-b08472f53664|Mirrored Depths|opca|P",
-    "ba6728e1-12f0-40a7-90f9-520f3572b190|Mondassian Colony Ship|who|P",
-    "54327aa2-319d-4430-a266-03cadeed6146|Morphic Tide|opca|H",
-    "a4d3edeb-4a78-4de3-a167-4565c494ba23|Mount Keralia|opca|P",
-    "46daa243-7c4e-4b0c-8ec2-e70cba8e72c3|Murasa|opca|P",
-    "be4da23c-bc51-4601-8f86-4e6f4eb27e6a|Mutual Epiphany|moc|H",
-    "9935490b-9bc7-48f5-9a11-59a043e346fb|Mycosynthwave|pssc|P",
-    "f63b82f9-ebc4-465c-b25e-5ee710525143|Naar Isle|opca|P",
-    "7ff092bb-e284-4397-a584-6a046145424b|Naktamun|moc|P",
-    "15611e29-6f96-4c5c-a919-c8fe590581b0|Naya|opca|P",
-    "9f4b51ac-3e56-494f-aad7-ff5b0c3ed6ed|Nephalia|opca|P",
-    "e22ac94f-03a7-49ee-a059-fc123708962e|New Argive|moc|P",
-    "5185dfce-d3ad-4509-b356-f6750d7c6a09|New New York|who|P",
-    "20d23638-74fb-481d-a3c4-d7f5fd666211|Norn's Dominion|opca|P",
-    "1a4238ce-2a8f-404f-a893-9bb8b3f26835|Norn's Seedcore|moc|P",
-    "6489955c-1571-41dd-9419-5c071a8b3e30|North Pole Research Base|who|P",
-    "d8da872d-55e0-4596-ba8e-f9ff7b2c0a86|Nyx|moc|P",
-    "2eef332f-d47f-4bc3-b39d-572dce4997b2|Onakke Catacomb|opca|P",
-    "642c9e68-4d5f-4e7f-894b-56dec4081fc7|Ood Sphere|who|P",
-    "12655e0d-bb32-4aff-940a-fe14675629ca|Orochi Colony|moc|P",
-    "be92be0a-e10d-478b-bc09-9cd09bfb269e|Orzhova|opca|P",
-    "35add85f-a70a-497d-9a11-593325a1a4ef|Otaria|opca|P",
-    "fe509cef-83e5-48d9-a9ec-e187ab65b5e0|Paliano|moc|P",
-    "ecab1a2d-a47a-4572-a133-aca40384a908|Panopticon|moc|P",
-    "0518b7a0-3bbb-4802-9faf-3f4256671e9e|Planewide Disaster|moc|H",
-    "a549ee7a-276b-45eb-a2c7-f74c85dc6a0d|Pompeii|who|P",
-    "559007a6-c515-413a-8d3c-8ce1df0742ff|Pools of Becoming|opca|P",
-    "86ff49dd-9845-459e-baaf-f65126ccb648|Prahv|opca|P",
-    "291478b8-a8f6-4449-8cd8-9d70484d3398|Prime Minister's Cabinet Room|who|P",
-    "072c1a59-dbdc-469c-9743-e083e52b0b6d|Quicksilver Sea|opca|P",
-    "de770524-9afc-4971-842a-6ee0b81176fb|Raven's Run|opca|P",
-    "203c69fe-2ca5-45b2-9be8-e0443733c821|Reality Shaping|moc|H",
-    "618dbae8-7e3f-47ba-8f02-292047e86a05|Riptide Island|moc|P",
-    "4c20e1cd-c541-4b44-8e20-adaa45a989a2|Sanctum of Serra|opca|P",
-    "0693024b-7eed-4aa5-a890-66c947db6b73|Sea of Sand|opca|P",
-    "ea1537e5-b1a8-4735-acd4-9df627a8946c|Selesnya Loft Gardens|moc|P",
-    "8ce18193-76d6-4357-80e3-67ab453f47ac|Shiv|opca|P",
-    "b30f88bd-426a-48fb-a921-c7c5831120bd|Singing Towers of Darillium|who|P",
-    "24ad1b98-17ef-4c58-a947-384ef39f1193|Skybreen|opca|P",
-    "a70f7633-0851-4205-a736-3b11d4823f10|Sokenzan|moc|P",
-    "ac3d5e6a-64e6-4888-915f-874109e7830a|Spatial Merging|moc|H",
-    "84933e48-8b10-4ccf-a7e8-140fbb9c0c9b|Spectrox Mines|who|P",
-    "eceba6df-8821-499b-b3c2-4d54c6eab257|Stairs to Infinity|opca|P",
-    "c31b0240-38c7-4f0b-a851-cbfdfee9d193|Stensia|moc|P",
-    "5665c85f-f564-47fe-a123-4e5a70e179d9|Stormcage Containment Facility|who|P",
-    "6a8a8752-6849-4abc-9acb-bafffe685e94|Strixhaven|moc|P",
-    "0ff946f3-a536-4b35-b953-e66667314afa|Stronghold Furnace|moc|P",
-    "0e2d8456-6e3c-42ee-8bd4-215db5fbda98|TARDIS Bay|who|P",
-    "0dadba2e-1d9a-4f04-b9d5-a3edff017662|Takenuma|opca|P",
-    "09feed09-96de-4208-b6b9-cac0ec150e70|Talon Gates|opca|P",
-    "18c94ada-d864-4e94-9d95-e796ab0d0cff|Tazeem|opca|P",
-    "ec65904f-c0dd-45ab-a85a-af4a6a631e11|Tember City|opca|P",
-    "75481e04-ab27-4fdd-b789-4a53ffc92430|Temple of Atropos|who|P",
-    "d2603e7a-1b1b-4f71-81d9-7e84c766312d|Ten Wizards Mountain|moc|P",
-    "a22dfe5f-82cc-4d99-b454-82157ffd6a59|The Aether Flues|moc|P",
-    "de4c566d-85ef-49af-a5cb-bcfa4aaba245|The Caldaia|moc|P",
-    "74560139-0870-4184-887b-72d67c57b6ed|The Cave of Skulls|who|P",
-    "4b6bd680-18c6-46d9-b747-825fb0fee6dd|The Cheetah Planet|who|P",
-    "0b8a0cad-92df-45a1-a3cc-561be2f06778|The Dark Barony|opca|P",
-    "bf6193ea-4906-4097-8e30-431220f9e35c|The Dining Car|who|P",
-    "f4c583ab-ad15-436b-9151-8b4d212cbeda|The Doctor's Childhood Barn|who|P",
-    "2456bb33-6380-4b4d-bf23-7b071fc22be2|The Doctor's Tomb|who|P",
-    "9fdb7dca-017a-49a7-b8de-4a8ccf7ac679|The Drum, Mining Facility|who|P",
-    "501268b6-878b-4725-be1f-a64c90f79b87|The Eon Fog|opca|P",
-    "fe2e52fb-4633-46c1-a48a-cde89d709e07|The Fertile Lands of Saulvinia|moc|P",
-    "decef464-d1d3-4459-a1c4-fbad684d5d02|The Fourth Sphere|opca|P",
-    "03a2c40d-6adb-4ad7-ba8e-3954d33f0e09|The Golden City of Orazca|moc|P",
-    "4afe8c95-efeb-4f7d-834d-fa5b095c9a06|The Great Aerie|moc|P",
-    "04075c37-1c1c-439c-9c54-770185fc0af1|The Great Forest|moc|P",
-    "4ba7ce8f-e11d-4e06-8cb6-668de2a43a4e|The Hippodrome|opca|P",
-    "c3cd9db0-b417-42e8-b3be-00fdc9330014|The Lux Foundation Library|who|P",
-    "6223caca-e993-4834-a673-3eee65b8afe1|The Maelstrom|opca|P",
-    "c343b9dd-edce-46ee-bdd6-f240cf061d59|The Matrix of Time|who|P",
-    "b715df92-e504-4844-9d74-6f4965fd32ee|The Moonbase|who|P",
-    "fd571dc7-b0b0-49a2-938a-d4336efe5e76|The Pit|moc|P",
-    "8aec22c6-4986-45aa-9b6b-8517bbbaed4e|The Pyramid of Mars|who|P",
-    "4a0e558d-cfd7-4ecf-b951-50016e8cc569|The Western Cloud|moc|P",
-    "1fccd76c-cce9-4ae3-84c1-000e54ca4734|The Wilds|moc|P",
-    "4c9dc306-92e9-46e1-a67c-d4f2a65ce339|The Zephyr Maze|opca|P",
-    "ba38fb01-ea16-4a2d-964a-41f7b4d74024|Time Distortion|opca|H",
-    "6d37cf73-e128-4367-b030-313d987fda7a|Towashi|moc|P",
-    "f5f307bf-80ac-46cb-9003-3e70a0703e71|Trail of the Mage-Rings|opca|P",
-    "bd6aa726-9979-42a5-a9ad-5c3f40b599ae|Truga Jungle|moc|P",
-    "70d12cff-ba93-4673-832c-f9261c1501cd|Turri Island|moc|P",
-    "40732207-291c-4cea-be87-dd4dbb8b6259|Two Streams Facility|who|P",
-    "9f7ec46f-1499-4c75-8568-d9266a3d1e69|UNIT Headquarters|who|P",
-    "87a6b20d-93f8-4af4-936c-11606e9efd87|Undercity Reaches|moc|P",
-    "8e3c04ad-a8b5-453a-aff4-dce743b1c693|Unleash the Flux|who|H",
-    "6ef8454d-1aac-4907-91cf-535ea679042c|Unyaro|moc|P",
-    "450ed99e-7fb6-45d3-b043-27ff58fe8dbb|Valor's Reach|moc|P",
-    "621a8224-7ea2-4ca4-be74-e460d05ad12b|Velis Vel|opca|P",
-    "7514322e-a277-43db-80b4-7ee189040d32|We Hope You Like Squirrels|pssc|P",
-    "27f3c16a-34f9-497d-835c-5942e395ded8|Windriddle Palaces|opca|P",
-    "690ee95a-39b9-4e8e-af43-b7a133249a45|sAnS mERcY|pssc|P",
-    /* @@END@@ */
-  ];
-  const MIN = 10, MAX_PHENOMENA = 2;
-
-  let LIST = null;
-  /** Every plane and phenomenon: { id, name, set, phenomenon }. */
-  function list() {
-    if (!LIST) LIST = DATA.map(r => { const [id, name, set, k] = r.split('|'); return { id, name, set, phenomenon: k === 'H' }; });
-    return LIST;
-  }
-  const isPlanar = (c) => !!c && (c.layout === 'planar' || /^(?:Plane|Phenomenon)\b/.test(String(c.type_line || '')));
-  const isPhenomenon = (c) => !!c && /^Phenomenon\b/.test(String(c.type_line || ''));
-  const cardsOf = (deck) => (deck || []).map(e => (e && e.card) || e).filter(Boolean);
-
-  /**
-   * What the rules say of a planar deck (CR 901.3): [] when it may be played, else each thing wrong with it, said
-   * for the deck builder.
-   */
-  function problems(deck) {
-    const cards = cardsOf(deck);
-    const out = [];
-    const notPlanar = cards.filter(c => !isPlanar(c));
-    if (notPlanar.length) out.push(`${notPlanar.map(c => c.name).join(', ')} ${notPlanar.length > 1 ? 'are not planes or phenomena' : 'is not a plane or a phenomenon'}.`);
-    const n = cards.filter(isPlanar).length;
-    if (n < MIN) out.push(`A planar deck needs at least ${MIN} cards (this one has ${n}).`);
-    const seen = new Map();
-    for (const c of cards) seen.set(c.name, (seen.get(c.name) || 0) + 1);
-    const twice = Array.from(seen).filter(([, k]) => k > 1).map(([nm]) => nm);
-    if (twice.length) out.push(`Each card in a planar deck must have a different name: ${twice.join(', ')}.`);
-    const ph = cards.filter(isPhenomenon).length;
-    if (ph > MAX_PHENOMENA) out.push(`No more than ${MAX_PHENOMENA} phenomena (this one has ${ph}).`);
-    return out;
-  }
-
-  let ALL = null;
-  /** Every plane and phenomenon as a card, looked up once (through the card cache). */
-  async function cards() {
-    if (ALL) return ALL;
-    const { cards: got } = await MTG.scry.collection(list().map(x => ({ id: x.id })));
-    ALL = got.filter(Boolean);
-    return ALL;
-  }
-
-  /** The planes the game runs by itself, to deal from: every line of them automated. */
-  function playable(pool) {
-    return pool.filter(c => { try { const a = MTG.oracle.analyze(c); return !!(a && a.fullyAutomated); } catch (e) { return false; } });
-  }
-
-  /**
-   * A legal planar deck from what a player brought (CR 901.3): their planes and phenomena kept, one of each name and
-   * no more than two phenomena, and topped up to ten with planes dealt at random (`rng`: MTG.RNG) from those the game
-   * runs by itself — at most one phenomenon among those dealt. `pool`: the cards to deal from (all of them, looked up,
-   * when left out).
-   */
-  async function complete(deck, rng, pool) {
-    const kept = [];
-    const names = new Set();
-    let ph = 0;
-    for (const c of cardsOf(deck)) {
-      if (!isPlanar(c) || names.has(c.name)) continue;
-      if (isPhenomenon(c)) { if (ph >= MAX_PHENOMENA) continue; ph++; }
-      names.add(c.name);
-      kept.push(c);
-    }
-    if (kept.length >= MIN) return kept;
-    const from = playable(pool || await cards()).filter(c => !names.has(c.name));
-    const order = from.slice();
-    if (rng && rng.shuffle) rng.shuffle(order);
-    let dealtPh = 0;
-    for (const c of order) {
-      if (kept.length >= MIN) break;
-      if (isPhenomenon(c)) { if (ph >= MAX_PHENOMENA || dealtPh >= 1) continue; ph++; dealtPh++; }
-      names.add(c.name);
-      kept.push(c);
-    }
-    return kept;
-  }
-
-  MTG.planes = { list, problems, cards, complete, playable, isPlanar, isPhenomenon, MIN, MAX_PHENOMENA };
 })(window.MTG);
 /* ===== 18-scripts.js ===== */
 /* ============================================================
@@ -42562,6 +42176,10 @@ MTG.setGameSpeed = function (id) {
     if (tl) return /\bBasic\b/.test(tl.split(/\s+\/\/\s+/)[0]) && /\bLand\b/.test(tl);
     try { const a = MTG.oracle.analyze(card); return !!(a && a.isBasicLand); } catch (e) { return false; }
   }
+  function isPlanarCard(card) {
+    const type = String((card && card.type_line) || '');
+    return !!card && (card.layout === 'planar' || /\b(?:Plane|Phenomenon)\b/.test(type));
+  }
   /** Cards exempt from the singleton / 4-copy rule. */
   function unlimitedAllowed(card) {
     if (isBasicLand(card)) return true;
@@ -42742,6 +42360,22 @@ MTG.setGameSpeed = function (id) {
     const main = deck.main || [];
     const side = deck.sideboard || [];
     const commanders = deck.commanders || [];
+    for (const e of main.concat(side)) {
+      if (e && isPlanarCard(e.card)) {
+        errors.push(`${e.card.name} is a Plane or Phenomenon card and cannot be used in this game.`);
+        flag(e.card, 'Plane and Phenomenon cards are not playable.');
+      }
+    }
+    for (const c of commanders) {
+      if (isPlanarCard(c)) {
+        errors.push(`${c.name} is a Plane or Phenomenon card and cannot be used in this game.`);
+        flag(c, 'Plane and Phenomenon cards are not playable.');
+      }
+    }
+    if (deck.companion && isPlanarCard(deck.companion)) {
+      errors.push(`${deck.companion.name} is a Plane or Phenomenon card and cannot be used in this game.`);
+      flag(deck.companion, 'Plane and Phenomenon cards are not playable.');
+    }
 
     const mainCount = U.sum(main.map(e => e.qty));
     const sideCount = U.sum(side.map(e => e.qty));
@@ -43100,11 +42734,6 @@ MTG.setGameSpeed = function (id) {
       hint: 'Off means you play only what you drafted or opened.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,
       hint: 'Best of how many games. One, the default, is a single game.' },
-    /* Planechase (CR 901; src/06f-planechase.js): a planar deck beside each deck, and the planar die. A deck brings
-       its own (the deck builder's Planar deck); one with none, or one the rules don't allow, is made up to ten with
-       planes dealt at random (MTG.planes.complete) */
-    { key: 'planechase', label: 'Planechase', type: 'bool', when: builds,
-      hint: 'Each player brings a planar deck of planes and phenomena, the game travels from plane to plane, and the planar die is rolled. A deck with no planar deck, or one the rules don\u2019t allow, plays with planes dealt at random to make ten.' },
     // one of a few set values (type 'choice'); the clock itself is src/06e-clock.js
     { key: 'clock', label: 'Clock', type: 'choice',
       options: [[0, 'Off'], [10, '10 minutes a player'], [20, '20 minutes a player'], [30, '30 minutes a player']],
@@ -43124,7 +42753,6 @@ MTG.setGameSpeed = function (id) {
     if (key === 'collector') return false;
     if (key === 'bracket') return 0;
     if (key === 'clock') return 0;
-    if (key === 'planechase') return false;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;
@@ -43274,8 +42902,6 @@ MTG.setGameSpeed = function (id) {
     isCommander: (id) => !!(FORMATS[id] && FORMATS[id].commander),
   };
 })(window.MTG);
-
-
 /* ===== 05-decklist.js ===== */
 /* ============================================================
    05-decklist.js - paste a decklist from anywhere, get a deck
@@ -43296,8 +42922,8 @@ MTG.setGameSpeed = function (id) {
     [/^(companion)\b[: ]*$/i, 'companion'],
     [/^(maybe ?board|considering|acquire)\b[: ]*$/i, 'maybeboard'],
     [/^(tokens?)\b[: ]*$/i, 'tokens'],
-    // a planar deck (Planechase: src/02f-planes.js), kept beside the deck
-    [/^(planes?|planar ?deck|planechase)\b[: ]*$/i, 'planar'],
+    // Ignore planar-deck sections in legacy imports; their cards are not deck cards.
+    [/^(planes?|planar ?deck|planechase)\b[: ]*$/i, 'other'],
     [/^scheme\b[: ]*$/i, 'other'],
     [/^(lands?|creatures?|instants?|sorceries|artifacts?|enchantments?|planeswalkers?|battles?|spells?|ramp|removal|draw|utility|other)\s*\(?\d*\)?[: ]*$/i, null], // category header inside main
   ];
@@ -43318,7 +42944,7 @@ MTG.setGameSpeed = function (id) {
   function parse(text, opts) {
     opts = opts || {};
     const out = {
-      main: [], sideboard: [], commanders: [], companion: null, maybeboard: [], planar: [],
+      main: [], sideboard: [], commanders: [], companion: null, maybeboard: [],
       name: opts.name || '', notes: [], unparsed: [],
     };
     let section = 'main';
@@ -43387,7 +43013,6 @@ MTG.setGameSpeed = function (id) {
       else if (bucket === 'companion') out.companion = entry;
       else if (bucket === 'sideboard') out.sideboard.push(entry);
       else if (bucket === 'maybeboard') out.maybeboard.push(entry);
-      else if (bucket === 'planar') out.planar.push(entry);
       else if (bucket === 'tokens' || bucket === 'other') { /* ignore */ }
       else out.main.push(entry);
     }
@@ -43426,7 +43051,7 @@ MTG.setGameSpeed = function (id) {
     const prefs = opts.useArtPrefs === false ? {} : (MTG.settings.artPreferences || {});
     const buckets = [
       ['main', parsed.main], ['sideboard', parsed.sideboard],
-      ['commanders', parsed.commanders], ['maybeboard', parsed.maybeboard], ['planar', parsed.planar || []],
+      ['commanders', parsed.commanders], ['maybeboard', parsed.maybeboard],
     ];
     if (parsed.companion) buckets.push(['companion', [parsed.companion]]);
 
@@ -43442,7 +43067,7 @@ MTG.setGameSpeed = function (id) {
 
     const { cards, notFound } = await MTG.scry.collection(identifiers, opts.onProgress);
 
-    const res = { main: [], sideboard: [], commanders: [], maybeboard: [], planar: [], companion: null, missing: [], warnings: [] };
+    const res = { main: [], sideboard: [], commanders: [], maybeboard: [], companion: null, missing: [], warnings: [] };
     const needPref = [];
     const jokes = [];
 
@@ -43578,9 +43203,6 @@ MTG.setGameSpeed = function (id) {
       commanders: resolved.commanders.map(e => e.card),
       companion: resolved.companion ? resolved.companion.card : null,
       maybeboard: resolved.maybeboard.map(e => ({ card: e.card, qty: e.qty })),
-      // a planar deck listed with it (Planechase): its planes and phenomena, one of each
-      planar: (resolved.planar || []).map(e => e.card).filter(c => MTG.planes.isPlanar(c))
-        .filter((c, i, all) => all.findIndex(x => x.name === c.name) === i),
       source: 'import',
       createdAt: Date.now(),
     };
@@ -43616,11 +43238,6 @@ MTG.setGameSpeed = function (id) {
     if (deck.sideboard && deck.sideboard.length) {
       parts.push('', 'Sideboard');
       for (const e of deck.sideboard) parts.push(line(e));
-    }
-    // a planar deck goes with it, under a heading of its own (Planechase)
-    if (deck.planar && deck.planar.length) {
-      parts.push('', 'Planar deck');
-      for (const c of deck.planar) parts.push(line({ card: c, qty: 1 }));
     }
     return parts.join('\n');
   }
@@ -43682,7 +43299,6 @@ MTG.setGameSpeed = function (id) {
 
   MTG.decklist = { parse, resolve, importDeck, nameFromCommanders, seatCommanders, toText, importCube, parseCsv, LINE_RE };
 })(window.MTG);
-
 
 /* ===== 05a-decklink.js ===== */
 /* ============================================================
@@ -44404,6 +44020,7 @@ MTG.setGameSpeed = function (id) {
         freeMulligans: 0,              // taken before cards go on the bottom
         rulesEnforcement: 'full',      // 'full' | 'relaxed'
       }, config || {});
+      delete this.config.planechase;
       this.rng = new MTG.RNG(this.config.seed);
       /* a shuffled library is in an order nobody knows (_forgetOrder), and a library touched, even when it
          happens to come out the same way (_keepsSeenOnTop) */
@@ -90252,6 +89869,7 @@ MTG.setGameSpeed = function (id) {
     restore(snap, opts) {
       if (!snap || snap.v !== 1) return false;
       this.config = Object.assign(this.config, snap.config);
+      delete this.config.planechase;
       if (snap.rngState != null) this.rng.s = snap.rngState >>> 0;
       const keepObjs = opts && opts.keep ? this.objects : null;
       const keepPlayers = opts && opts.keep ? new Map(this.players.map(x => [x.id, x])) : null;
@@ -91054,8 +90672,6 @@ MTG.setGameSpeed = function (id) {
           command: this.zones[p.id].command.filter(o => !o.planeUp).map(o => ser(o)),
         })),
         log: this.log.slice(-200),
-        // Planechase: the plane everybody is on, each planar deck's size, the planar die (src/06f-planechase.js)
-        planechase: this.config.planechase ? this._planarView(playerId, ser, decides) : undefined,
       };
       // the seats of the players this one controls, without what the view around them already carries
       const ctl = seat ? [] : this.controlledPlayers(playerId);
@@ -125817,8 +125433,6 @@ MTG.setGameSpeed = function (id) {
         side: (deck.sideboard || []).map(e => ({ id: e.card.id, q: e.qty })),
         cmd: (deck.commanders || []).map(c => c.id),
         comp: deck.companion ? deck.companion.id : null,
-        // its planar deck, for a Planechase table (src/02f-planes.js): left out when it has none
-        pl: deck.planar && deck.planar.length ? deck.planar.map(c => c.id) : undefined,
         colors: deck.colors || null,
         source: deck.source || 'manual',
         cover: deck.cover || null,
@@ -125878,7 +125492,7 @@ MTG.setGameSpeed = function (id) {
     async load(id) {
       const slim = MTG.store.get('deck.' + id, null);
       if (!slim) return null;
-      const ids = slim.main.map(e => e.id).concat(slim.side.map(e => e.id), slim.cmd, slim.comp ? [slim.comp] : [], slim.pl || []);
+      const ids = slim.main.map(e => e.id).concat(slim.side.map(e => e.id), slim.cmd, slim.comp ? [slim.comp] : []);
       const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
       const byId = new Map();
       ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
@@ -125895,7 +125509,6 @@ MTG.setGameSpeed = function (id) {
         main: hydrate(slim.main), sideboard: hydrate(slim.side),
         commanders: slim.cmd.map(i => byId.get(i)).filter(Boolean),
         companion: slim.comp ? byId.get(slim.comp) : null,
-        planar: (slim.pl || []).map(i => byId.get(i)).filter(Boolean),
         colors: slim.colors, source: slim.source, cover: slim.cover || null,
       };
     },
@@ -126305,8 +125918,6 @@ Sideboard
       cmd: (deck.commanders || []).map(c => c && c.id),
       comp: deck.companion ? deck.companion.id : null,
       maybe: counts(deck.maybeboard),
-      // (a deck with no planar deck reads as it always has)
-      ...(deck.planar && deck.planar.length ? { planar: deck.planar.map(c => c && c.id).sort() } : {}),
       cover: deck.cover || null,
     });
   };
@@ -126326,8 +125937,6 @@ Sideboard
       main: (deck.main || []).map(e => ({ card: e.card, qty: e.qty })),
       sideboard: (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty })),
       commanders: (deck.commanders || []).slice(),
-      // its planar deck too (Planechase: src/11d-ui-planar.js), so Close can throw its edits away as well
-      planar: (deck.planar || []).slice(),
     });
     /* The deck as it was opened or last saved, to tell whether leaving
        would lose anything. A deck back from a practice game keeps the
@@ -128291,7 +127900,6 @@ Sideboard
   };
 })(window.MTG);
 
-
 /* ===== 11b-ui-playtest.js ===== */
 /* ============================================================
    11b-ui-playtest.js - trying a deck out: what the player sees
@@ -128727,132 +128335,6 @@ Sideboard
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(check, 0));
     else setTimeout(check, 60);
   }
-})(window.MTG);
-/* ===== 11d-ui-planar.js ===== */
-'use strict';
-/* ============================================================
-   11d-ui-planar.js - a deck's planar deck, in the deck builder
-
-   Planechase (src/06f-planechase.js) is played with a planar deck beside
-   each deck: at least ten plane and phenomenon cards, one of each name, no
-   more than two phenomena (CR 901.3). A deck keeps one as `planar` (a list
-   of cards, saved with it: src/11-ui-deck.js), and this tab of the deck
-   builder is where it is made: what it holds, what the rules say of it,
-   and every plane and phenomenon to add from, searched by name or words.
-   It only matters at a table playing Planechase (a house rule), and a deck
-   with none, or one the rules don't allow, is dealt planes at random there
-   to make ten (MTG.planes.complete).
-   ============================================================ */
-(function (MTG) {
-  const { el } = MTG;
-  const UI = MTG.ui;
-  const P = () => MTG.planes;
-
-  function planarPane(host, api) {
-    const deck = () => api.deck();
-    const planar = () => { const d = deck(); return d.planar || (d.planar = []); };
-    let pool = null, loading = null, query = '', kind = 'all';
-    const changed = () => { if (api.changed) api.changed(); else draw(); };
-
-    function load() {
-      if (pool || loading) return loading;
-      loading = P().cards().then(cs => { pool = cs.slice().sort((a, b) => a.name.localeCompare(b.name)); loading = null; draw(); })
-        .catch(() => { pool = []; loading = null; draw(); });
-      return loading;
-    }
-
-    function typeOf(c) { return P().isPhenomenon(c) ? 'Phenomenon' : String(c.type_line || 'Plane'); }
-
-    function row(c, inDeck) {
-      const ph = P().isPhenomenon(c);
-      const have = planar().some(x => x.name === c.name);
-      const phenomena = planar().filter(P().isPhenomenon).length;
-      const full = !inDeck && ph && phenomena >= P().MAX_PHENOMENA;
-      const btn = inDeck
-        ? el('button', { type: 'button', class: 'qty-btn', text: '−', title: `Take ${c.name} out of the planar deck`, 'aria-label': `Take ${c.name} out of the planar deck`,
-          onclick: (ev) => { ev.stopPropagation(); const d = deck(); d.planar = planar().filter(x => x.name !== c.name); MTG.sfx('click'); changed(); } })
-        : el('button', { type: 'button', class: 'qty-btn', text: '+', disabled: have || full, dataset: { why: have ? 'in' : full ? 'phenomena' : '' },
-          title: have ? `${c.name} is in the planar deck` : full ? `No more than ${P().MAX_PHENOMENA} phenomena in a planar deck` : `Put ${c.name} in the planar deck`,
-          'aria-label': `Put ${c.name} in the planar deck`,
-          onclick: (ev) => { ev.stopPropagation(); if (planar().some(x => x.name === c.name)) return; planar().push(c); MTG.sfx('click'); changed(); } });
-      const r = el('div', { class: 'deck-entry strip planar-row' + (ph ? ' is-phenomenon' : '') + (!inDeck && have ? ' in-deck' : ''), title: c.name }, [
-        el('span', { class: 'nm-col' }, [
-          el('span', { class: 'nm', text: c.name }),
-          el('span', { class: 'tiny dim planar-type', text: typeOf(c) }),
-        ]),
-        UI.autoBadge(c),
-        btn,
-      ].filter(Boolean));
-      if (UI.setArt) UI.setArt(r, c);
-      UI.attachPreview(r, c, 0);
-      r.addEventListener('click', () => UI.cardSheet(c));
-      return r;
-    }
-
-    function draw() {
-      if (!host.classList.contains('active')) return;
-      const list = planar();
-      const problems = P().problems(list);
-      const phenomena = list.filter(P().isPhenomenon).length;
-      const head = el('section', { class: 'panel planar-head' }, [
-        el('h3', null, [
-          el('span', { text: 'Planar deck' }),
-          el('span', { class: 'pill' + (list.length && !problems.length ? ' ok' : list.length ? ' warn' : ''),
-            text: `${list.length} card${list.length === 1 ? '' : 's'}` + (phenomena ? ` · ${phenomena} phenomen${phenomena === 1 ? 'on' : 'a'}` : '') }),
-        ]),
-        el('p', { class: 'small muted', text: 'For a table playing Planechase (a house rule): at least ten planes and phenomena, one of each, no more than two phenomena. '
-          + 'A deck with no planar deck, or one the rules don’t allow, is dealt planes at random there to make ten.' }),
-        problems.length && list.length ? el('ul', { class: 'small planar-problems' }, problems.map(t => el('li', { text: t }))) : null,
-        list.length && !problems.length ? el('p', { class: 'small planar-ok', text: 'Ready for a Planechase table.' }) : null,
-        el('div', { class: 'row wrap planar-tools' }, [
-          el('button', { type: 'button', class: 'btn sm', text: list.length >= P().MIN ? 'Deal ten at random' : list.length ? 'Fill up at random' : 'Deal ten at random',
-            title: list.length >= P().MIN ? 'Put ten planes dealt at random in place of these' : 'Make it up to ten with planes the game runs by itself',
-            onclick: async () => {
-              await load();
-              const keep = list.length >= P().MIN ? [] : list;
-              const d = deck();
-              d.planar = await P().complete(keep, new MTG.RNG((Date.now() >>> 0) || 1), pool || undefined);
-              MTG.sfx('click');
-              changed();
-            } }),
-          el('button', { type: 'button', class: 'btn sm', text: 'Clear', disabled: !list.length,
-            onclick: () => { deck().planar = []; changed(); } }),
-        ]),
-        list.length ? el('div', { class: 'planar-list', role: 'list', 'aria-label': 'The planar deck' },
-          list.slice().sort((a, b) => (P().isPhenomenon(a) - P().isPhenomenon(b)) || a.name.localeCompare(b.name)).map(c => row(c, true)))
-          : el('p', { class: 'small dim', text: 'No planes yet: add them from the list below, or deal ten at random.' }),
-      ].filter(Boolean));
-
-      const search = el('input', { type: 'search', class: 'planar-search', placeholder: 'Search planes by name or words', value: query,
-        'aria-label': 'Search planes and phenomena' });
-      search.addEventListener('input', () => { query = search.value; drawList(); });
-      const kinds = el('div', { class: 'seg planar-kinds', role: 'radiogroup', 'aria-label': 'Which cards' },
-        [['all', 'All'], ['plane', 'Planes'], ['phenomenon', 'Phenomena']].map(([k, label]) => el('button', {
-          type: 'button', class: 'seg-btn' + (kind === k ? ' on' : ''), role: 'radio', 'aria-checked': kind === k ? 'true' : 'false', text: label,
-          onclick: () => { kind = k; draw(); } })));
-      const listBox = el('div', { class: 'planar-browse', role: 'list', 'aria-label': 'Planes and phenomena to add' });
-      function drawList() {
-        if (!pool) { listBox.replaceChildren(el('p', { class: 'small dim', text: loading ? 'Looking up the planes…' : '' })); return; }
-        const q = query.trim().toLowerCase();
-        const rows = pool.filter(c => (kind === 'all' || (kind === 'phenomenon') === P().isPhenomenon(c)) &&
-          (!q || c.name.toLowerCase().includes(q) || String(c.oracle_text || '').toLowerCase().includes(q) || String(c.type_line || '').toLowerCase().includes(q)));
-        listBox.replaceChildren(...(rows.length ? rows.map(c => row(c, false)) : [el('p', { class: 'small dim', text: 'Nothing matches that.' })]));
-      }
-      const browse = el('section', { class: 'panel planar-add' }, [
-        el('h3', null, [el('span', { text: 'Planes and phenomena' }), pool ? el('span', { class: 'tiny dim', text: `${pool.length}` }) : null].filter(Boolean)),
-        el('div', { class: 'row wrap planar-filter' }, [search, kinds]),
-        listBox,
-      ]);
-      drawList();
-      host.replaceChildren(head, browse);
-      if (!pool) load();
-    }
-
-    return { show: () => { load(); draw(); }, refresh: draw };
-  }
-
-  UI.deckPanes = UI.deckPanes || [];
-  UI.deckPanes.push({ id: 'planar', label: 'Planar deck', mount: planarPane });
 })(window.MTG);
 /* ===== 12-ui-table.js ===== */
 /* ============================================================
@@ -138558,8 +138040,6 @@ Sideboard
       // "a d20", "two d6", "a d20 and two d6": each die rolled once (the one Wyll adds is shown, not counted)
       const NUM = ['', 'a', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
       const diceWords = (ds) => {
-        // (the planar die is "the planar die", whatever its number of faces: src/12k-ui-planechase.js)
-        if (ds.length && ds.every(e => e.planar)) return ds.length === 1 ? 'the planar die' : ds.length + ' planar dice';
         const by = new Map();
         for (const e of ds) by.set(e.sides, (by.get(e.sides) || 0) + 1);
         const parts = Array.from(by, ([s, n]) => (NUM[n] || String(n)) + ' d' + s);
@@ -138620,22 +138100,16 @@ Sideboard
           const out = di >= 0 && rolls.length > 1;
           if (out) dropped.splice(di, 1);
           const shown = r == null ? '?' : String(r);
-          /* the planar die (Planechase): its faces are the Planeswalker symbol, chaos and four blanks, drawn
-             (UI.planarFace), and it lands on the face the engine rolled (e.planar) */
-          const planar = e.planar && UI.planarFace ? e.planar : null;
-          const face = el('b', { text: planar ? '' : motion ? String(1 + Math.floor(Math.random() * sides)) : shown });
-          if (planar && !motion) face.innerHTML = UI.planarFace(planar);
-          const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : sides === 4 ? ' d4' : '') + (planar ? ' planar' : ''), 'data-sides': String(sides),
+          const face = el('b', { text: motion ? String(1 + Math.floor(Math.random() * sides)) : shown });
+          const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : sides === 4 ? ' d4' : ''), 'data-sides': String(sides),
             style: { animationDelay: delay + 'ms' } }, [face]);
-          const say = el('span', { class: 'lr-say', text: planar ? 'planar die' : 'd' + sides });
+          const say = el('span', { class: 'lr-say', text: 'd' + sides });
           // (room kept under every die for "dropped" when any may be, so nothing moves as they land)
           const wrap = el('div', { class: 'lr-die-wrap' }, [die, say, mayDrop ? el('span', { class: 'lr-drop', text: 'dropped' }) : null].filter(Boolean));
           set._line.appendChild(wrap);
           const land = () => {
-            if (planar) face.innerHTML = UI.planarFace(planar);
-            else face.textContent = shown;
-            die.dataset.result = planar || shown;
-            if (planar) say.textContent = UI.planarFaceWord(planar);
+            face.textContent = shown;
+            die.dataset.result = shown;
             die.style.animationDelay = '0ms';
             die.classList.add('landed');
             if (out) wrap.classList.add('ignored');
@@ -138654,8 +138128,7 @@ Sideboard
               if (k >= 1) { land(); return; }
               let n = 1 + Math.floor(Math.random() * sides);
               if (sides > 1 && String(n) === face.textContent) n = n % sides + 1;
-              if (planar) { const f = ['pw', 'chaos', 'blank'][(n + (face.dataset.f === 'pw' ? 1 : 0)) % 3]; face.dataset.f = f; face.innerHTML = UI.planarFace(f); }
-              else face.textContent = String(n);
+              face.textContent = String(n);
               // 32ms apart at first, a quarter of a second by the end
               wait = Math.max(16, Math.min((1 - k) * this._luckFlip, 32 + 240 * k * k));
               later(tick, wait);
@@ -138663,7 +138136,7 @@ Sideboard
             later(tick, delay);
             landing = Math.max(landing, delay + this._luckFlip + 250);
           } else land();
-          if (!out) results.push(planar ? `planar die: ${UI.planarFaceWord(planar)}` : `d${sides}: ${r == null ? 'rolled in secret' : r}`);
+          if (!out) results.push(`d${sides}: ${r == null ? 'rolled in secret' : r}`);
         }
       }
       if (counted.length > 1) box.appendChild(el('div', { class: 'lr-tally', style: { animationDelay: (motion ? at + 900 : 0) + 'ms' }, text: `${won} of ${counted.length} won` }));
@@ -140365,263 +139838,6 @@ Sideboard
   });
 
   MTG.rematch = { gather, modeOf };
-})(window.MTG);
-/* ===== 12k-ui-planechase.js ===== */
-'use strict';
-/* ============================================================
-   12k-ui-planechase.js - Planechase at the table
-
-   In a Planechase game (src/06f-planechase.js) the plane the game is on
-   is everybody's to read, whole: its name, its type and every word of its
-   text, at the top of the column down the right of the table (where the
-   stack sits under it), with the planar die under it. The player whose
-   turn it is rolls the die from there, its price beside it ({0} the first
-   time each turn, {1} more each time after); anybody else sees whose
-   die it is. On a phone it folds to a bar with the plane's name and the
-   die, and opens to the whole card.
-
-   The die is shown thrown like any other (src/12f-ui-feel.js), landing on
-   the Planeswalker symbol, chaos or a blank (UI.planarFace). A planeswalk
-   is shown on the table: the plane gone and the next one arriving, the
-   way a card turns over, with a word in the middle of the table saying
-   where the game has gone.
-
-   Wrapped round the table rather than written into it: the panel is built
-   with it, painted on every render, and a view's planeswalk events start
-   the show.
-   ============================================================ */
-(function (MTG) {
-  const { el } = MTG;
-  const UI = MTG.ui;
-  const Table = UI.Table;
-  const OPEN_KEY = 'mtg.planeOpen';
-
-  /* ---------------- the symbols ---------------- */
-  /* The Planeswalker symbol: a flame of three strokes. Chaos: eight arrows out of a ring. Drawn in the current
-     colour, so a die, a button and a line of text each colour them their own way. */
-  const PW_SVG = '<svg viewBox="0 0 24 24" class="pc-sym pc-pw" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 1.2c1.5 4.4 1.9 9.4 0 21.6-1.9-12.2-1.5-17.2 0-21.6z"/>' +
-    '<path fill="currentColor" d="M4.2 5.4c2.9 2.4 4 6.3 3.7 11.9-2.1-3.2-3.5-7-3.7-11.9z"/><path fill="currentColor" d="M19.8 5.4c-2.9 2.4-4 6.3-3.7 11.9 2.1-3.2 3.5-7 3.7-11.9z"/></svg>';
-  const CHAOS_SVG = (() => {
-    let spokes = '';
-    for (let k = 0; k < 8; k++) {
-      const a = k * Math.PI / 4;
-      const c = Math.cos(a), s = Math.sin(a);
-      const p = (r) => (12 + r * c).toFixed(2) + ' ' + (12 + r * s).toFixed(2);
-      const tip = (r, d) => (12 + r * c - d * s).toFixed(2) + ' ' + (12 + r * s + d * c).toFixed(2);
-      spokes += `<path d="M${p(5.2)}L${p(10.4)}M${tip(8, 2.1)}L${p(10.6)}L${tip(8, -2.1)}"/>`;
-    }
-    return '<svg viewBox="0 0 24 24" class="pc-sym pc-chaos" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
-      '<circle cx="12" cy="12" r="3.2"/>' + spokes + '</g></svg>';
-  })();
-  const DIE_SVG = '<svg viewBox="0 0 24 24" class="pc-sym pc-die" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
-    '<g transform="translate(6.6 6.6) scale(.45)">' + CHAOS_SVG.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '') + '</g></svg>';
-  /** A planar die face drawn: 'pw' the Planeswalker symbol, 'chaos' the chaos symbol, 'blank' nothing. */
-  UI.planarFace = (f) => (f === 'pw' ? PW_SVG : f === 'chaos' ? CHAOS_SVG : '<span class="pc-blank" aria-hidden="true"></span>');
-  UI.planarFaceWord = (f) => (f === 'pw' ? 'planeswalk' : f === 'chaos' ? 'chaos' : 'blank');
-  UI.CHAOS_SVG = CHAOS_SVG; UI.PW_SVG = PW_SVG;
-
-  /* The sound of a planeswalk: the air rushing, rising, and two bells as the new plane arrives. */
-  if (MTG.audio && MTG.audio.FX) {
-    MTG.audio.FX.planeswalk = function (o) {
-      this.noise({ filter: 'bandpass', freq: 260, sweepTo: 3600, dur: 0.85, attack: 0.25, gain: 0.07, q: 1.1, send: 0.6 });
-      if (this.bell) {
-        this.bell(523, { ratio: 1.5, index: 1.3, dur: 1.0, gain: 0.045, delay: 0.42, send: 0.6, pan: o && o.pan });
-        this.bell(784, { ratio: 1.5, index: 1.1, dur: 0.9, gain: 0.035, delay: 0.58, send: 0.6, pan: o && o.pan });
-      }
-    };
-  }
-
-  const remembered = () => { try { const v = localStorage.getItem(OPEN_KEY); return v == null ? null : v === '1'; } catch (e) { return null; } };
-  const remember = (on) => { try { localStorage.setItem(OPEN_KEY, on ? '1' : '0'); } catch (e) { /* not kept: no matter */ } };
-
-  Object.assign(Table.prototype, {
-    /** Whether the plane's whole card is shown: on a phone it opens and closes; elsewhere it stays open unless folded. */
-    _planeOpen() {
-      if (this._planeOpenNow != null) return this._planeOpenNow;
-      const r = remembered();
-      return r == null ? !MTG.isPhone() : (MTG.isPhone() ? false : r);
-    },
-    _planeToggle(on) {
-      this._planeOpenNow = on == null ? !this._planeOpen() : !!on;
-      if (!MTG.isPhone()) remember(this._planeOpenNow);
-      this._planeKey = null;
-      this.renderPlane();
-    },
-    /** Roll the planar die: paid from the pool when it holds enough, otherwise the game taps for it. */
-    rollPlanarDie() {
-      const pc = this.view && this.view.planechase;
-      if (!pc || !pc.canRoll) return;
-      const me = (this.view.players || []).find(p => p.id === this.meId);
-      const cost = pc.dieCost || 0;
-      const pool = me && me.pool ? Object.values(me.pool).reduce((n, v) => n + (typeof v === 'number' ? v : 0), 0) : 0;
-      // (on a phone the card folds away, so the die and what it sets off are seen)
-      if (MTG.isPhone()) this._planeOpenNow = false;
-      this.send(Object.assign({ kind: 'planarDie' }, cost && pool >= cost && !MTG.settings.autoTapLands ? { fromPool: true } : {}));
-    },
-
-    /** The plane panel: every face-up plane whole, whose it is, and the planar die. */
-    renderPlane() {
-      const host = this.planeHost;
-      if (!host) return;
-      const v = this.view;
-      const pc = v && v.planechase;
-      if (!pc || !(pc.planes || []).length) {
-        if (host.childNodes.length) host.replaceChildren();
-        host.hidden = true;
-        this.arena.classList.remove('has-plane');
-        this.arena.style.removeProperty('--plane-h');
-        this._planeKey = null;
-        return;
-      }
-      const phone = MTG.isPhone();
-      // on a phone the open card is over the table: something going on the stack folds it, to be seen
-      const depth = (v.stack || []).length;
-      if (phone && this._planeOpenNow && depth > (this._pcDepth || 0)) this._planeOpenNow = false;
-      this._pcDepth = depth;
-      const open = this._planeOpen();
-      const key = JSON.stringify([pc.planes.map(p => [p.id, p.card && p.card.id, p.counters, p.controller]), pc.canRoll, pc.dieCost, pc.controller,
-        pc.chaoticAether, open, phone, v.activePlayer === this.meId, this.meId]);
-      if (key === this._planeKey) return;
-      this._planeKey = key;
-      host.hidden = false;
-      this.arena.classList.add('has-plane');
-      host.classList.toggle('open', open);
-      const names = pc.planes.map(p => p.card.name);
-      const who = (pid) => { const p = (v.players || []).find(x => x.id === pid); return !p ? 'Nobody' : pid === this.meId ? 'You' : p.name; };
-      const mine = pc.controller === this.meId;
-
-      /* the bar: folded, the plane's name (both, Spatial Merging) and its kind; open, whose it is this turn (the card
-         under it says the rest). A tap folds or opens it. */
-      const kind = pc.planes.length > 1 ? 'The planes' : pc.planes[0].phenomenon ? 'Phenomenon' : 'The plane';
-      const whose = mine ? 'Yours while it’s your turn' : `${who(pc.controller)}’s this turn`;
-      const bar = el('button', { type: 'button', class: 'pc-bar', 'aria-expanded': open ? 'true' : 'false',
-        title: open ? 'Fold the plane away' : 'Read the plane',
-        'aria-label': `${open ? 'Fold' : 'Read'} the plane: ${names.join(' and ')}`,
-        onclick: () => { this._planeToggle(); MTG.sfx('click'); } }, [
-        el('span', { class: 'pc-mark', html: PW_SVG }),
-        el('span', { class: 'pc-bar-words' }, open ? [
-          el('span', { class: 'pc-kicker', text: 'Planechase · ' + kind.replace(/^The /, '') }),
-          el('span', { class: 'pc-bar-who', text: whose }),
-        ] : [
-          el('span', { class: 'pc-kicker', text: kind }),
-          el('span', { class: 'pc-bar-name', text: names.join(' · ') }),
-        ]),
-        el('span', { class: 'pc-chev', 'aria-hidden': 'true' }),
-      ]);
-
-      const cards = open ? pc.planes.map(p => {
-        const c = p.card || {};
-        const art = UI.artUrl ? UI.artUrl(c) : null;
-        const counters = Object.entries(p.counters || {}).filter(([, n]) => n > 0);
-        const card = el('article', { class: 'pc-card' + (p.phenomenon ? ' phenomenon' : ''), dataset: { id: p.id },
-          'aria-label': `${c.name}. ${c.type_line || ''}. ${String(c.oracle_text || '').replace(/\n/g, ' ')}` }, [
-          art ? el('div', { class: 'pc-art', style: { backgroundImage: `url("${art}")` }, 'aria-hidden': 'true' }) : null,
-          el('div', { class: 'pc-words' }, [
-            el('h3', { class: 'pc-name', text: c.name }),
-            el('div', { class: 'pc-type', text: c.type_line || '' }),
-            el('div', { class: 'pc-text', html: MTG.mana.textHtml(c.oracle_text || '') }),
-            counters.length ? el('div', { class: 'pc-counters', text: counters.map(([k, n]) => `${n} ${k} counter${n === 1 ? '' : 's'}`).join(' · ') }) : null,
-          ].filter(Boolean)),
-        ].filter(Boolean));
-        // a press reads it bigger, the way any card on the table is read
-        card.addEventListener('click', () => { if (UI.cardSheet) UI.cardSheet(c); });
-        return card;
-      }) : [];
-
-      // the die: the active player's to roll, at its price; anybody else sees whose it is
-      const cost = pc.dieCost;
-      const can = !!pc.canRoll;
-      const dieBtn = mine || v.activePlayer === this.meId
-        ? el('button', { type: 'button', class: 'pc-roll' + (can ? ' can' : ''), disabled: !can,
-          title: can ? `Roll the planar die (costs {${cost || 0}}; {1} more each time this turn)`
-            : cost && v.step === 'main' && !(v.stack || []).length && v.priorityPlayer === this.meId ? `Not enough mana: the next roll costs {${cost}}`
-              : 'In your main phase, with the stack empty, you may roll the planar die',
-          'aria-label': `Roll the planar die, costs ${cost || 0}`,
-          onclick: () => { this.rollPlanarDie(); } }, [
-          el('span', { class: 'pc-roll-die', html: DIE_SVG }),
-          el('span', { class: 'pc-roll-words', text: phone && !open ? 'Roll' : 'Roll the planar die' }),
-          el('span', { class: 'pc-cost', html: MTG.mana.html('{' + (cost || 0) + '}') }),
-        ])
-        : el('span', { class: 'pc-whose', text: `${who(v.activePlayer)} may roll the planar die` });
-      const foot = el('div', { class: 'pc-foot' }, [
-        pc.chaoticAether ? el('span', { class: 'pc-flag', title: 'Chaotic Aether: each blank roll of the planar die is a chaos roll until a player planeswalks away from a plane',
-          html: CHAOS_SVG + '<span>Blanks are chaos</span>' }) : null,
-        dieBtn,
-      ].filter(Boolean));
-
-      host.replaceChildren(bar, ...(open ? [el('div', { class: 'pc-cards' }, cards)] : []), foot);
-      // the stack starts under it (table.css: --plane-h)
-      requestAnimationFrame(() => {
-        if (!host.isConnected || host.hidden) return;
-        this.arena.style.setProperty('--plane-h', Math.ceil(host.getBoundingClientRect().height) + 'px');
-      });
-    },
-
-    /** A planeswalk, shown: the plane panel turns over to the new plane, and the middle of the table says where to —
-        after any die still being shown, and one walk after another (two in a moment: a phenomenon, then the next plane). */
-    _planeswalkFx(e) {
-      const run = () => new Promise((done) => {
-        if (this._destroyed || !this.arena || !this.arena.isConnected) { done(); return; }
-        const ms = this._planeswalkShow(e);
-        setTimeout(done, ms);
-      });
-      const luck = MTG.feel && MTG.feel._luckQueue;
-      this._pcQueue = (this._pcQueue || Promise.resolve()).then(() => luck, () => luck).then(run, run);
-    },
-    _planeswalkShow(e) {
-      const host = this.planeHost;
-      if (!host || this._destroyed) return 0;
-      const motion = !(this._motionOff && this._motionOff());
-      const to = (e.to || []).map(x => x.name).filter(Boolean);
-      const from = (e.from || []).map(x => x.name).filter(Boolean);
-      if (!to.length && !from.length) return 0;
-      if (MTG.sfx) MTG.sfx('planeswalk', { pan: e.player && e.player !== this.meId && this.panFor ? this.panFor(e.player) : null });
-      if (motion) {
-        host.classList.remove('walking');
-        void host.offsetWidth;
-        host.classList.add('walking');
-        setTimeout(() => host.classList.remove('walking'), 1300);
-      }
-      const words = e.start ? 'The game begins on' : 'Planeswalk to';
-      const who = (pid) => { const p = ((this.view || {}).players || []).find(x => x.id === pid); return !p ? '' : pid === this.meId ? 'You' : p.name; };
-      const box = el('div', { class: 'pc-walk' + (motion ? '' : ' still'), role: 'status', 'aria-live': 'polite' }, [
-        el('span', { class: 'pc-walk-mark', html: PW_SVG }),
-        el('span', { class: 'pc-walk-kicker', text: e.start ? words : `${who(e.player) ? who(e.player) + ' ' + (e.player === this.meId ? 'planeswalk' : 'planeswalks') : 'Planeswalk'}${from.length ? ' away from ' + from.join(' and ') : ''}` }),
-        to.length ? el('span', { class: 'pc-walk-name', text: (e.start ? '' : 'to ') + to.join(' and ') }) : null,
-      ].filter(Boolean));
-      // (under any question that opens, never over it)
-      this.arena.appendChild(box);
-      setTimeout(() => { box.classList.add('out'); setTimeout(() => box.remove(), 400); }, motion ? 2300 : 1800);
-      return motion ? 2700 : 2200;
-    },
-  });
-
-  /* ---------------- hooks into the table ---------------- */
-  const base = { _build: Table.prototype._build, render: Table.prototype.render, update: Table.prototype.update };
-  Table.prototype._build = function () {
-    const r = base._build.apply(this, arguments);
-    this.planeHost = el('section', { class: 'plane-host', role: 'region', 'aria-label': 'Planechase: the plane and the planar die', hidden: true });
-    this.arena.appendChild(this.planeHost);
-    return r;
-  };
-  Table.prototype.render = function () {
-    const r = base.render.apply(this, arguments);
-    try { this.renderPlane(); } catch (e) { console.error('[planechase]', e); }
-    return r;
-  };
-  Table.prototype.update = function (view) {
-    const r = base.update.apply(this, arguments);
-    // the planeswalks since the last view, each shown once
-    try {
-      const evs = (view && view.events) || [];
-      for (const e of evs) {
-        if (e.type !== 'planeswalk' || (this._pcSeen || 0) >= e.seq) continue;
-        this._pcSeen = e.seq;
-        this._planeswalkFx(e);
-      }
-    } catch (e) { console.error('[planechase]', e); }
-    return r;
-  };
 })(window.MTG);
 /* ===== 13-ui-draft.js ===== */
 /* ============================================================
@@ -142913,36 +142129,6 @@ Sideboard
     }
     if (conjured.size && !MTG.cardLookup) MTG.cardLookup = (name) => conjured.get(U.normName(name)) || null;
   }
-  /* Imaginary Friends (a plane): "Players may cast spells as though they were other cards legal in this game's format with
-     the same type and mana cost." — the cards of each mana cost the decks hold, from the card database when it is there
-     (at once), or fetched in the background as the game starts; the rules read them through MTG.cardsByCost */
-  const byCost = new Map();
-  MTG.cardsByCost = (cost, fmtKey) => {
-    const db = MTG.cardDb;
-    if (db && db.idx) {
-      const k = 'db|' + fmtKey + '|' + cost;
-      if (!byCost.has(k)) { try { byCost.set(k, db.idx.search(`mana=${cost} f:${fmtKey} -t:land`, { max: 400 })); } catch (e) { byCost.set(k, null); } }
-      if (byCost.get(k)) return byCost.get(k);
-    }
-    return byCost.get(fmtKey + '|' + cost) || null;
-  };
-  function prefetchImaginary(planarCards, deckCards, fmtKey) {
-    if (!(planarCards || []).some(c => c && /^Imaginary Friends\b/.test(c.name || ''))) return;
-    if (MTG.cardDb && MTG.cardDb.idx) return;
-    const costs = new Set();
-    for (const c of deckCards) {
-      if (!c || /\bLand\b/.test(c.type_line || '')) continue;
-      for (const f of (c.card_faces && !c.mana_cost ? c.card_faces : [c])) if (f.mana_cost) costs.add(f.mana_cost);
-    }
-    (async () => {
-      for (const cost of costs) {
-        const k = fmtKey + '|' + cost;
-        if (byCost.has(k)) continue;
-        try { byCost.set(k, await MTG.scry.search(`mana=${cost} f:${fmtKey} -t:land`, { max: 400 })); } catch (e) { /* offline: not this cost */ }
-      }
-    })();
-  }
-
   /** A seat's profile picture (a data URL), or null: yours from the settings, the others' as they sent them. */
   App.avatarFor = function (pid) {
     const sess = App.session;
@@ -146487,7 +145673,7 @@ Sideboard
      tables change: the rest are folded away until they are wanted. */
   /** @type {Array<[string, string, string[]]>} id, title, the rule keys it gathers */
   const RULE_GROUPS = [
-    ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage', 'clock', 'planechase']],
+    ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage', 'clock']],
     ['decks', 'Deck building', ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'sideboardMax', 'colorIdentity']],
     ['draft', 'The packs', ['packs', 'packSize', 'basicsFree']],
   ];
@@ -146925,14 +146111,12 @@ Sideboard
       // a drafted deck's conspiracies and the cards it exiled before the game
       consp: (d.conspiracies || []).map(x => ({ id: (x.card || x).id, names: x.names || null, number: x.number == null ? null : x.number })),
       dex: (d.draftExiled || []).map(x => ({ id: x.card.id, with: x.with })),
-      // its planar deck (Planechase)
-      pl: (d.planar || []).map(c => (c.card || c).id),
       art,
     };
   }
   async function fatDeckFromWire(w) {
     const ids = w.main.map(e => e.id).concat(w.side.map(e => e.id), w.cmd, w.comp ? [w.comp] : [],
-      (w.consp || []).map(x => x.id), (w.dex || []).map(x => x.id), (w.pl || []).filter(x => typeof x === 'string').slice(0, 60));
+      (w.consp || []).map(x => x.id), (w.dex || []).map(x => x.id));
     const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
     const byId = new Map(); ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
     return {
@@ -146943,27 +146127,7 @@ Sideboard
       companion: w.comp ? byId.get(w.comp) : null,
       conspiracies: (w.consp || []).map(x => ({ card: byId.get(x.id), names: x.names, number: x.number })).filter(x => x.card),
       draftExiled: (w.dex || []).map(x => ({ card: byId.get(x.id), with: x.with })).filter(x => x.card),
-      // its planar deck, for a Planechase table: planes and phenomena only (src/02f-planes.js)
-      planar: (w.pl || []).map(i => byId.get(i)).filter(c => c && MTG.planes.isPlanar(c)),
     };
-  }
-
-  /**
-   * Planechase: each seat's planar deck for the game (by roster id), its own where the rules allow it and otherwise
-   * made legal with planes dealt at random (MTG.planes.complete), with what the log says about the ones made up.
-   */
-  async function planarDecksFor(roster, seed, busy) {
-    const out = { decks: new Map(), notes: new Map() };
-    let pool = null;
-    try { if (busy) busy.text('Shuffling the planar decks…'); pool = await MTG.planes.cards(); } catch (e) { pool = []; }
-    for (const r of roster) {
-      const own = (r.deck && r.deck.planar) || [];
-      const ok = own.length && !MTG.planes.problems(own).length;
-      const cards = ok ? own.slice() : await MTG.planes.complete(own, new MTG.RNG(((seed >>> 0) ^ parseInt(MTG.util.hash('planar|' + r.id), 36)) >>> 0 || 1), pool);
-      out.decks.set(r.id, cards);
-      if (!ok) out.notes.set(r.id, own.length ? `${r.name}'s planar deck is made legal with planes dealt at random.` : `${r.name} has no planar deck, so plays with one dealt at random.`);
-    }
-    return out;
   }
 
   /* After an online draft, the longest the game waits for someone still building their deck. */
@@ -147458,24 +146622,12 @@ Sideboard
           seed: this.seed,
           rulesEnforcement: this.enforcement,
           firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(this.fmt, this.rules, this.roster.length),
-          // the Planechase house rule (src/06f-planechase.js)
-          planechase: !!this.rules.planechase,
         });
-        // Planechase: each deck's planar deck, made legal (topped up with planes dealt at random) where it isn't
-        const planar = this.rules.planechase ? await planarDecksFor(this.roster, this.seed, busy) : null;
-        // (the cards the planes copy by name, and Imaginary Friends' other cards of each cost)
-        if (planar) {
-          const pcs = [].concat(...planar.decks.values());
-          await prefetchConjured(pcs);
-          prefetchImaginary(pcs, [].concat(...this.roster.filter(r => r.deck).map(r => r.deck.main.map(e => e.card).concat(r.deck.commanders || []))),
-            (this.fmt && this.fmt.scryKey) || 'vintage');
-        }
         for (const r of this.roster) {
           const p = g.addPlayer({ id: r.id, name: r.name, isBot: r.kind === 'bot', botDifficulty: r.difficulty });
           // what the draft cards noted, from the draft itself (src/07-draft.js)
           if (this.draft && r.deck) r.deck.draftNotes = this.draft.notesFor(r.id, r.deck) || r.deck.draftNotes || null;
-          g.loadDeck(p.id, planar ? Object.assign({}, r.deck, { planar: planar.decks.get(r.id) || [] }) : r.deck);
-          if (planar && planar.notes.has(r.id)) g.logEvent('game', planar.notes.get(r.id));
+          g.loadDeck(p.id, r.deck);
         }
         // the printing each player picked is the printing everyone sees
         await applySeatArt(g, this.roster);
@@ -147606,7 +146758,7 @@ Sideboard
         commanderDamage: sess.fmt.commander ? (sess.rules.commanderDamage || null) : null,
         freeMulligans: MTG.formats.freeMulligansFor(sess.fmt, sess.rules, sess.roster.length),
         firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(sess.fmt, sess.rules, sess.roster.length),
-        seed: saved.seed, rulesEnforcement: saved.enforcement, planechase: !!sess.rules.planechase,
+        seed: saved.seed, rulesEnforcement: saved.enforcement,
       });
       if (!g.restore(saved.snap)) throw new Error('That saved game could not be read.');
       g.setAutoPass('me', MTG.autoPassConfig());
@@ -147806,8 +146958,6 @@ Sideboard
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
         // the companion: {3} to put it into your hand, once a game (CR 702.139)
         case 'companion': g.companionToHand(actorId, intent.objId, { auto: true }); break;
-        // Planechase: roll the planar die (CR 901.9), paid by the game or with what was tapped by hand (src/06f-planechase.js)
-        case 'planarDie': g.rollPlanarDie(actorId, { auto: !payByHand(intent), fromPool: payByHand(intent) }); break;
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */
@@ -148354,7 +147504,6 @@ Sideboard
     setTimeout(() => { if (!$('#screen-menu')) App.boot(); }, 0);
   }
 })(window.MTG);
-
 /* ===== 14b-lessons.js ===== */
 /* ============================================================
    14b-lessons.js - the tutorials: short lessons after the first game

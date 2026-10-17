@@ -123,36 +123,6 @@
     }
     if (conjured.size && !MTG.cardLookup) MTG.cardLookup = (name) => conjured.get(U.normName(name)) || null;
   }
-  /* Imaginary Friends (a plane): "Players may cast spells as though they were other cards legal in this game's format with
-     the same type and mana cost." — the cards of each mana cost the decks hold, from the card database when it is there
-     (at once), or fetched in the background as the game starts; the rules read them through MTG.cardsByCost */
-  const byCost = new Map();
-  MTG.cardsByCost = (cost, fmtKey) => {
-    const db = MTG.cardDb;
-    if (db && db.idx) {
-      const k = 'db|' + fmtKey + '|' + cost;
-      if (!byCost.has(k)) { try { byCost.set(k, db.idx.search(`mana=${cost} f:${fmtKey} -t:land`, { max: 400 })); } catch (e) { byCost.set(k, null); } }
-      if (byCost.get(k)) return byCost.get(k);
-    }
-    return byCost.get(fmtKey + '|' + cost) || null;
-  };
-  function prefetchImaginary(planarCards, deckCards, fmtKey) {
-    if (!(planarCards || []).some(c => c && /^Imaginary Friends\b/.test(c.name || ''))) return;
-    if (MTG.cardDb && MTG.cardDb.idx) return;
-    const costs = new Set();
-    for (const c of deckCards) {
-      if (!c || /\bLand\b/.test(c.type_line || '')) continue;
-      for (const f of (c.card_faces && !c.mana_cost ? c.card_faces : [c])) if (f.mana_cost) costs.add(f.mana_cost);
-    }
-    (async () => {
-      for (const cost of costs) {
-        const k = fmtKey + '|' + cost;
-        if (byCost.has(k)) continue;
-        try { byCost.set(k, await MTG.scry.search(`mana=${cost} f:${fmtKey} -t:land`, { max: 400 })); } catch (e) { /* offline: not this cost */ }
-      }
-    })();
-  }
-
   /** A seat's profile picture (a data URL), or null: yours from the settings, the others' as they sent them. */
   App.avatarFor = function (pid) {
     const sess = App.session;
@@ -3697,7 +3667,7 @@
      tables change: the rest are folded away until they are wanted. */
   /** @type {Array<[string, string, string[]]>} id, title, the rule keys it gathers */
   const RULE_GROUPS = [
-    ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage', 'clock', 'planechase']],
+    ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage', 'clock']],
     ['decks', 'Deck building', ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'sideboardMax', 'colorIdentity']],
     ['draft', 'The packs', ['packs', 'packSize', 'basicsFree']],
   ];
@@ -4135,14 +4105,12 @@
       // a drafted deck's conspiracies and the cards it exiled before the game
       consp: (d.conspiracies || []).map(x => ({ id: (x.card || x).id, names: x.names || null, number: x.number == null ? null : x.number })),
       dex: (d.draftExiled || []).map(x => ({ id: x.card.id, with: x.with })),
-      // its planar deck (Planechase)
-      pl: (d.planar || []).map(c => (c.card || c).id),
       art,
     };
   }
   async function fatDeckFromWire(w) {
     const ids = w.main.map(e => e.id).concat(w.side.map(e => e.id), w.cmd, w.comp ? [w.comp] : [],
-      (w.consp || []).map(x => x.id), (w.dex || []).map(x => x.id), (w.pl || []).filter(x => typeof x === 'string').slice(0, 60));
+      (w.consp || []).map(x => x.id), (w.dex || []).map(x => x.id));
     const { cards } = await MTG.scry.collection(ids.map(i => ({ id: i })));
     const byId = new Map(); ids.forEach((i, k) => { if (cards[k]) byId.set(i, cards[k]); });
     return {
@@ -4153,27 +4121,7 @@
       companion: w.comp ? byId.get(w.comp) : null,
       conspiracies: (w.consp || []).map(x => ({ card: byId.get(x.id), names: x.names, number: x.number })).filter(x => x.card),
       draftExiled: (w.dex || []).map(x => ({ card: byId.get(x.id), with: x.with })).filter(x => x.card),
-      // its planar deck, for a Planechase table: planes and phenomena only (src/02f-planes.js)
-      planar: (w.pl || []).map(i => byId.get(i)).filter(c => c && MTG.planes.isPlanar(c)),
     };
-  }
-
-  /**
-   * Planechase: each seat's planar deck for the game (by roster id), its own where the rules allow it and otherwise
-   * made legal with planes dealt at random (MTG.planes.complete), with what the log says about the ones made up.
-   */
-  async function planarDecksFor(roster, seed, busy) {
-    const out = { decks: new Map(), notes: new Map() };
-    let pool = null;
-    try { if (busy) busy.text('Shuffling the planar decks…'); pool = await MTG.planes.cards(); } catch (e) { pool = []; }
-    for (const r of roster) {
-      const own = (r.deck && r.deck.planar) || [];
-      const ok = own.length && !MTG.planes.problems(own).length;
-      const cards = ok ? own.slice() : await MTG.planes.complete(own, new MTG.RNG(((seed >>> 0) ^ parseInt(MTG.util.hash('planar|' + r.id), 36)) >>> 0 || 1), pool);
-      out.decks.set(r.id, cards);
-      if (!ok) out.notes.set(r.id, own.length ? `${r.name}'s planar deck is made legal with planes dealt at random.` : `${r.name} has no planar deck, so plays with one dealt at random.`);
-    }
-    return out;
   }
 
   /* After an online draft, the longest the game waits for someone still building their deck. */
@@ -4668,24 +4616,12 @@
           seed: this.seed,
           rulesEnforcement: this.enforcement,
           firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(this.fmt, this.rules, this.roster.length),
-          // the Planechase house rule (src/06f-planechase.js)
-          planechase: !!this.rules.planechase,
         });
-        // Planechase: each deck's planar deck, made legal (topped up with planes dealt at random) where it isn't
-        const planar = this.rules.planechase ? await planarDecksFor(this.roster, this.seed, busy) : null;
-        // (the cards the planes copy by name, and Imaginary Friends' other cards of each cost)
-        if (planar) {
-          const pcs = [].concat(...planar.decks.values());
-          await prefetchConjured(pcs);
-          prefetchImaginary(pcs, [].concat(...this.roster.filter(r => r.deck).map(r => r.deck.main.map(e => e.card).concat(r.deck.commanders || []))),
-            (this.fmt && this.fmt.scryKey) || 'vintage');
-        }
         for (const r of this.roster) {
           const p = g.addPlayer({ id: r.id, name: r.name, isBot: r.kind === 'bot', botDifficulty: r.difficulty });
           // what the draft cards noted, from the draft itself (src/07-draft.js)
           if (this.draft && r.deck) r.deck.draftNotes = this.draft.notesFor(r.id, r.deck) || r.deck.draftNotes || null;
-          g.loadDeck(p.id, planar ? Object.assign({}, r.deck, { planar: planar.decks.get(r.id) || [] }) : r.deck);
-          if (planar && planar.notes.has(r.id)) g.logEvent('game', planar.notes.get(r.id));
+          g.loadDeck(p.id, r.deck);
         }
         // the printing each player picked is the printing everyone sees
         await applySeatArt(g, this.roster);
@@ -4816,7 +4752,7 @@
         commanderDamage: sess.fmt.commander ? (sess.rules.commanderDamage || null) : null,
         freeMulligans: MTG.formats.freeMulligansFor(sess.fmt, sess.rules, sess.roster.length),
         firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(sess.fmt, sess.rules, sess.roster.length),
-        seed: saved.seed, rulesEnforcement: saved.enforcement, planechase: !!sess.rules.planechase,
+        seed: saved.seed, rulesEnforcement: saved.enforcement,
       });
       if (!g.restore(saved.snap)) throw new Error('That saved game could not be read.');
       g.setAutoPass('me', MTG.autoPassConfig());
@@ -5016,8 +4952,6 @@
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
         // the companion: {3} to put it into your hand, once a game (CR 702.139)
         case 'companion': g.companionToHand(actorId, intent.objId, { auto: true }); break;
-        // Planechase: roll the planar die (CR 901.9), paid by the game or with what was tapped by hand (src/06f-planechase.js)
-        case 'planarDie': g.rollPlanarDie(actorId, { auto: !payByHand(intent), fromPool: payByHand(intent) }); break;
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */
@@ -5564,4 +5498,3 @@
     setTimeout(() => { if (!$('#screen-menu')) App.boot(); }, 0);
   }
 })(window.MTG);
-

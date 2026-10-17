@@ -26,6 +26,23 @@ module.exports = (test) => {
     }
   });
 
+  test('Planechase is removed and legacy planar sections are ignored', (mk, t) => {
+    const formats = F();
+    t.no(formats.FORMAT_ORDER.includes('planechase'), 'Planechase is not a playable format');
+    t.no(formats.houseFields('commander').some(field => field.key === 'planechase'), 'the Planechase toggle is unavailable');
+
+    const T = mk({ planechase: true });
+    t.eq(T.g.config.planechase, undefined, 'legacy configuration cannot enable Planechase');
+
+    const parsed = engine().decklist.parse('Planar deck\n1 Spatial Merging\n\nDeck\n1 Fractured Powerstone');
+    t.eq(parsed.main.map(entry => entry.name).join(), 'Fractured Powerstone', 'legacy planar cards are ignored, ordinary cards remain importable');
+    t.eq(parsed.planar, undefined, 'imports no longer contain a planar deck');
+
+    const phenomenon = Object.assign({}, card('Spatial Merging'), { layout: 'planar', type_line: 'Phenomenon' });
+    const validation = formats.validate({ main: [{ card: phenomenon, qty: 1 }], sideboard: [], commanders: [] }, 'commander');
+    t.ok(validation.errors.some(error => /Plane or Phenomenon card/.test(error)), 'Phenomena cannot be used in a deck');
+  });
+
   test('Formats: Pioneer goes by its own card pool', (mk, t) => {
     const ok = F().validate(deckOf('pioneer', [], [['Lightning Strike', 4], ['Mountain', 56]]), 'pioneer');
     t.ok(ok.ok, 'Lightning Strike is fine: ' + ok.errors.join(' / '));
