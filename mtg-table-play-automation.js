@@ -252,7 +252,7 @@
   const oldMove=Game.prototype.moveObject;
   Game.prototype.moveObject=function(o,toZone,opts){
     opts=opts||{};
-    const from=o&&o.zone,ask=!!(o&&o.isCommander&&MTG.settings.commanderToZone!==false&&
+    const from=o&&o.zone,ask=!!(o&&o.isCommander&&
       ['graveyard','exile','hand','library'].includes(toZone)&&from!==toZone&&!opts.noCommanderChoice);
     if(!ask)return oldMove.call(this,o,toZone,opts);
     const owner=this.player(o.owner);
@@ -401,6 +401,14 @@
     const result=moving.call(this,o,toZone,opts);
     if(leaving)for(const x of artifacts)if(x.zone==='battlefield'){x.effects.push({addTypes:['Creature'],loseAll:true,tablePlayTitaniaSong:true,until:'eot'});x._chr=null;}
     if(leaving&&artifacts.length)this.bumpBoard();return result;
+  };
+
+  // Catch commander replacement choices created by every custom effect branch, including mass-movement effects.
+  const runWithChoicePause=Game.prototype._runEffect;
+  Game.prototype._runEffect=function(e,ctx){
+    const result=runWithChoicePause.call(this,e,ctx);
+    if(this.pendingChoice&&this.pendingChoice.purpose==='commanderMove'&&this.resolving){this._tablePlayCommanderPaused=true;return SUSPEND;}
+    return result;
   };
 
   if(UI&&UI.clearAutoCache)UI.clearAutoCache();
