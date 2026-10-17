@@ -14474,6 +14474,19 @@ MTG.setGameSpeed = function (id) {
         effects: [{ op: 'createToken', n: { creaturesTargetPlayerControls: true }, pt: '5/5',
           subtypes: 'Dragon', colorWords: ['red'], keywords: ['Flying'], targets: [{ type: 'player', opponent: true }] }] }],
     },
+    "loreseeker's stone": {
+      abilities: [{ kind: 'activated', auto: true, cost: { mana: '{3}', tap: true, other: [] },
+        text: '{3}, {T}: Draw three cards. Activate this ability only if you have no cards in hand.',
+        only: { cond: { kind: 'emptyHand' } }, effects: [{ op: 'draw', n: 3, who: 'you' }] }],
+    },
+    "diviner spirit": {
+      abilities: [{ kind: 'triggered', event: 'combatDamageToPlayer', self: true, auto: true,
+        text: 'Whenever this creature deals combat damage to a player, you and that player each draw that many cards.',
+        effects: [
+          { op: 'draw', n: 'triggerAmount', who: 'you' },
+          { op: 'draw', n: 'triggerAmount', who: 'triggerPlayer' },
+        ] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */
@@ -61010,6 +61023,7 @@ MTG.setGameSpeed = function (id) {
       const h = this.turnHistory || {};
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
+        case 'emptyHand': return !!me && !((this.zones[me.id] || {}).hand || []).length;
         // Gathering Place: "if this land entered this turn or if you control a basic land"
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         // Cache Grab: "returned a Squirrel card to your hand this way" — a card this resolution put into the hand
