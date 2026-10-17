@@ -23233,6 +23233,26 @@
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        if (v && typeof v === 'object' && v.playersWithMoreLands) {
+          const lands = (pid) => this.battlefield.filter(o => !o.phasedOut && o.controller === pid && (o.analysis() || {}).isLand).length;
+          const mine = lands(ctx.controller);
+          return this.opponentsOf(ctx.controller).filter(p => lands(p.id) > mine).length;
+        }
+        if (v && typeof v === 'object' && v.opponentsWithFewerCreatures) {
+          const creatures = (pid) => this.battlefield.filter(o => !o.phasedOut && o.controller === pid && (this.characteristics(o) || {}).isCreature).length;
+          const mine = creatures(ctx.controller);
+          return this.opponentsOf(ctx.controller).filter(p => creatures(p.id) < mine).length;
+        }
+        if (v && typeof v === 'object' && v.creaturesInTargetGraveyard) {
+          const target = targets.find(t => t.kind === 'player');
+          const yard = target && this.zones[target.id] && this.zones[target.id].graveyard || [];
+          return yard.filter(o => (o.analysis() || {}).isCreature).length;
+        }
+        if (v && typeof v === 'object' && v.creaturesTargetPlayerControls) {
+          const target = targets.find(t => t.kind === 'player');
+          return target ? this.battlefield.filter(o => o.controller === target.id && !o.phasedOut &&
+            (this.characteristics(o) || {}).isCreature).length : 0;
+        }
         if (v && typeof v === 'object' && v.artifactsToGraveyardThisTurn)
           return ((this.turnHistory || {}).artifactsToGraveyard || 0) * (v.mult || 1);
         // "+1/+0 for each …": nothing times anything is nothing (not the "|| 1" the counts below fall back on)
@@ -24105,6 +24125,12 @@
           else this._drawCards(me, cnt);
           const drewNow = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0) - drewBefore;
           this._drawnThisWay = e._accumDraw ? (this._drawnThisWay || 0) + drewNow : drewNow;
+          break;
+        }
+        case 'drawControllersOfNamedPermanent': {
+          const controllers = new Set(this.battlefield.filter(o => !o.phasedOut &&
+            this._sameCardName(o.name, e.name || '')).map(o => o.controller));
+          for (const p of this.players) if (controllers.has(p.id) && !p.hasLost) this._drawCards(p, n(e.n) || 1);
           break;
         }
         case 'discard': {
@@ -25897,6 +25923,9 @@
           break;
         }
         case 'sacrificeChoice': {
+          const sacStartKey = this.resolving && e.countForNext ? `sacChoiceStart${this.resolving.index}` : null;
+          if (sacStartKey && !Object.prototype.hasOwnProperty.call(this.resolving, sacStartKey))
+            this.resolving[sacStartKey] = (this.resolving._sacBy || []).length;
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'you' ? [me].filter(Boolean)
@@ -25972,6 +26001,7 @@
               if (got === SUSPEND) return SUSPEND;
             } else this.queueChoice(q);
           }
+          if (sacStartKey) this._lastSacCount = (this.resolving._sacBy || []).length - this.resolving[sacStartKey];
           break;
         }
 
@@ -45441,6 +45471,8 @@
         // (Halvar, God of Battle: "attached to a creature you control" — attachedToYourCreature)
         hostOf: (o) => (o && o.attachedTo ? this.obj(o.attachedTo) : null),
         isCreature: (o) => !!(this.characteristics(o) || {}).isCreature,
+        attackingYou: (o, pid) => !!o.attacking &&
+          (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)),
         // (Admiral Beckett Brass: the creatures of a type that dealt that player combat damage this turn — controllerHitBy)
         hitByType: (pid, type) => this._combatHitByType(pid, type),
         // (Bowie Base One, a plane: "the player to your left" — the next in turn order; to your right, the one before)

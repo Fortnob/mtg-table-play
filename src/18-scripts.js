@@ -721,6 +721,61 @@
         text: 'Put target land card from a graveyard onto the battlefield under your control.',
         effects: [{ op: 'reanimate', targets: [{ type: 'land', filter: 'land card', zone: 'graveyard' }] }] }],
     },
+    "soul snare": {
+      abilities: [{ kind: 'activated', auto: true,
+        cost: { mana: '{W}', tap: false, sacSelf: true, other: [] },
+        text: "{W}, Sacrifice this enchantment: Exile target creature that's attacking you or a planeswalker you control.",
+        effects: [{ op: 'exile', targets: [{
+          type: 'permanent', anyOf: ['creature', 'planeswalker'], attackingYouOrYouControlPlaneswalker: true,
+        }] }] }],
+    },
+    "oreskos explorer": {
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: 'When this creature enters, search your library for up to X Plains cards, where X is the number of players who control more lands than you. Reveal those cards, put them into your hand, then shuffle.',
+        effects: [{ op: 'tutor', n: { playersWithMoreLands: true }, filter: 'Plains', to: 'hand', reveal: true, shuffle: true,
+          prompt: 'Search your library for up to that many Plains cards to reveal and put into your hand.' }] }],
+    },
+    "syphon flesh": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Each other player sacrifices a creature of their choice. You create a 2/2 black Zombie creature token for each creature sacrificed this way.',
+        effects: [
+          { op: 'sacrificeChoice', n: 1, who: 'opponents', filter: 'creature', countForNext: true },
+          { op: 'createToken', n: { lastSacCount: true }, pt: '2/2', subtypes: 'Zombie', colorWords: ['black'] },
+        ] }],
+    },
+    "corpse augur": {
+      abilities: [{ kind: 'triggered', event: 'dies', self: true, auto: true,
+        text: "When this creature dies, you draw X cards and you lose X life, where X is the number of creature cards in target player's graveyard.",
+        effects: [
+          { op: 'draw', n: { creaturesInTargetGraveyard: true }, who: 'you', targets: [{ type: 'player' }] },
+          { op: 'loseLife', n: { creaturesInTargetGraveyard: true }, who: 'you' },
+        ] }],
+    },
+    "bonder's ornament": {
+      abilities: [
+        { kind: 'mana', auto: true, cost: { tap: true }, text: '{T}: Add one mana of any color.',
+          effects: [{ op: 'addManaAny', amount: 1 }] },
+        { kind: 'activated', auto: true, cost: { mana: '{4}', tap: true, other: [] },
+          text: "{4}, {T}: Each player who controls a permanent named Bonder's Ornament draws a card.",
+          effects: [{ op: 'drawControllersOfNamedPermanent', name: "Bonder's Ornament", n: 1 }] },
+      ],
+    },
+    "voice of many": {
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: 'When this creature enters, draw a card for each opponent who controls fewer creatures than you.',
+        effects: [{ op: 'draw', n: { opponentsWithFewerCreatures: true }, who: 'you' }] }],
+    },
+    "ancient excavation": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Draw cards equal to the number of cards in your hand, then discard that many cards.',
+        effects: [{ op: 'drawDiscard', n: { cardsInHand: 'you' } }] }],
+    },
+    "death by dragons": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Choose target opponent. You create a 5/5 red Dragon creature token with flying for each creature that player controls.',
+        effects: [{ op: 'createToken', n: { creaturesTargetPlayerControls: true }, pt: '5/5',
+          subtypes: 'Dragon', colorWords: ['red'], keywords: ['Flying'], targets: [{ type: 'player', opponent: true }] }] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */

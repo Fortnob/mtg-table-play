@@ -12041,6 +12041,9 @@
     if (spec.attacking && !obj.attacking) return false;
     if (spec.nonattacking && obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
+    if (spec.attackingYouOrYouControlPlaneswalker &&
+        !((a.isPlaneswalker && obj.controller === me) ||
+          (a.isCreature && ctx && ctx.attackingYou && ctx.attackingYou(obj, me)))) return false;
     // (Echoing Assault: "attacking that player" — the one settled from the trigger: attackingId)
     if (spec.attackingId && obj.attacking !== spec.attackingId) return false;
     // (Viper, Cruel Conspirator: "attacking alone" — no other creature attacking)
@@ -27747,4 +27750,3 @@
     },
   };
 })(window.MTG);
-
