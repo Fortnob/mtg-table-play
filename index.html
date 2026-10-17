@@ -14419,6 +14419,61 @@ MTG.setGameSpeed = function (id) {
         text: 'Put target land card from a graveyard onto the battlefield under your control.',
         effects: [{ op: 'reanimate', targets: [{ type: 'land', filter: 'land card', zone: 'graveyard' }] }] }],
     },
+    "soul snare": {
+      abilities: [{ kind: 'activated', auto: true,
+        cost: { mana: '{W}', tap: false, sacSelf: true, other: [] },
+        text: "{W}, Sacrifice this enchantment: Exile target creature that's attacking you or a planeswalker you control.",
+        effects: [{ op: 'exile', targets: [{
+          type: 'permanent', anyOf: ['creature', 'planeswalker'], attackingYouOrYouControlPlaneswalker: true,
+        }] }] }],
+    },
+    "oreskos explorer": {
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: 'When this creature enters, search your library for up to X Plains cards, where X is the number of players who control more lands than you. Reveal those cards, put them into your hand, then shuffle.',
+        effects: [{ op: 'tutor', n: { playersWithMoreLands: true }, filter: 'Plains', to: 'hand', reveal: true, shuffle: true,
+          prompt: 'Search your library for up to that many Plains cards to reveal and put into your hand.' }] }],
+    },
+    "syphon flesh": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Each other player sacrifices a creature of their choice. You create a 2/2 black Zombie creature token for each creature sacrificed this way.',
+        effects: [
+          { op: 'sacrificeChoice', n: 1, who: 'opponents', filter: 'creature', countForNext: true },
+          { op: 'createToken', n: { lastSacCount: true }, pt: '2/2', subtypes: 'Zombie', colorWords: ['black'] },
+        ] }],
+    },
+    "corpse augur": {
+      abilities: [{ kind: 'triggered', event: 'dies', self: true, auto: true,
+        text: "When this creature dies, you draw X cards and you lose X life, where X is the number of creature cards in target player's graveyard.",
+        effects: [
+          { op: 'draw', n: { creaturesInTargetGraveyard: true }, who: 'you', targets: [{ type: 'player' }] },
+          { op: 'loseLife', n: { creaturesInTargetGraveyard: true }, who: 'you' },
+        ] }],
+    },
+    "bonder's ornament": {
+      abilities: [
+        { kind: 'mana', auto: true, cost: { tap: true }, text: '{T}: Add one mana of any color.',
+          effects: [{ op: 'addManaAny', amount: 1 }] },
+        { kind: 'activated', auto: true, cost: { mana: '{4}', tap: true, other: [] },
+          text: "{4}, {T}: Each player who controls a permanent named Bonder's Ornament draws a card.",
+          effects: [{ op: 'drawControllersOfNamedPermanent', name: "Bonder's Ornament", n: 1 }] },
+      ],
+    },
+    "voice of many": {
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: 'When this creature enters, draw a card for each opponent who controls fewer creatures than you.',
+        effects: [{ op: 'draw', n: { opponentsWithFewerCreatures: true }, who: 'you' }] }],
+    },
+    "ancient excavation": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Draw cards equal to the number of cards in your hand, then discard that many cards.',
+        effects: [{ op: 'drawDiscard', n: { cardsInHand: 'you' } }] }],
+    },
+    "death by dragons": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Choose target opponent. You create a 5/5 red Dragon creature token with flying for each creature that player controls.',
+        effects: [{ op: 'createToken', n: { creaturesTargetPlayerControls: true }, pt: '5/5',
+          subtypes: 'Dragon', colorWords: ['red'], keywords: ['Flying'], targets: [{ type: 'player', opponent: true }] }] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */
@@ -26595,6 +26650,9 @@ MTG.setGameSpeed = function (id) {
     if (spec.attacking && !obj.attacking) return false;
     if (spec.nonattacking && obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
+    if (spec.attackingYouOrYouControlPlaneswalker &&
+        !((a.isPlaneswalker && obj.controller === me) ||
+          (a.isCreature && ctx && ctx.attackingYou && ctx.attackingYou(obj, me)))) return false;
     // (Echoing Assault: "attacking that player" — the one settled from the trigger: attackingId)
     if (spec.attackingId && obj.attacking !== spec.attackingId) return false;
     // (Viper, Cruel Conspirator: "attacking alone" — no other creature attacking)
@@ -42301,7 +42359,6 @@ MTG.setGameSpeed = function (id) {
     },
   };
 })(window.MTG);
-
 /* ===== 04-formats.js ===== */
 /* ============================================================
    04-formats.js - format definitions, legality and deck validation
@@ -67130,6 +67187,26 @@ MTG.setGameSpeed = function (id) {
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        if (v && typeof v === 'object' && v.playersWithMoreLands) {
+          const lands = (pid) => this.battlefield.filter(o => !o.phasedOut && o.controller === pid && (o.analysis() || {}).isLand).length;
+          const mine = lands(ctx.controller);
+          return this.opponentsOf(ctx.controller).filter(p => lands(p.id) > mine).length;
+        }
+        if (v && typeof v === 'object' && v.opponentsWithFewerCreatures) {
+          const creatures = (pid) => this.battlefield.filter(o => !o.phasedOut && o.controller === pid && (this.characteristics(o) || {}).isCreature).length;
+          const mine = creatures(ctx.controller);
+          return this.opponentsOf(ctx.controller).filter(p => creatures(p.id) < mine).length;
+        }
+        if (v && typeof v === 'object' && v.creaturesInTargetGraveyard) {
+          const target = targets.find(t => t.kind === 'player');
+          const yard = target && this.zones[target.id] && this.zones[target.id].graveyard || [];
+          return yard.filter(o => (o.analysis() || {}).isCreature).length;
+        }
+        if (v && typeof v === 'object' && v.creaturesTargetPlayerControls) {
+          const target = targets.find(t => t.kind === 'player');
+          return target ? this.battlefield.filter(o => o.controller === target.id && !o.phasedOut &&
+            (this.characteristics(o) || {}).isCreature).length : 0;
+        }
         if (v && typeof v === 'object' && v.artifactsToGraveyardThisTurn)
           return ((this.turnHistory || {}).artifactsToGraveyard || 0) * (v.mult || 1);
         // "+1/+0 for each …": nothing times anything is nothing (not the "|| 1" the counts below fall back on)
@@ -68002,6 +68079,12 @@ MTG.setGameSpeed = function (id) {
           else this._drawCards(me, cnt);
           const drewNow = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0) - drewBefore;
           this._drawnThisWay = e._accumDraw ? (this._drawnThisWay || 0) + drewNow : drewNow;
+          break;
+        }
+        case 'drawControllersOfNamedPermanent': {
+          const controllers = new Set(this.battlefield.filter(o => !o.phasedOut &&
+            this._sameCardName(o.name, e.name || '')).map(o => o.controller));
+          for (const p of this.players) if (controllers.has(p.id) && !p.hasLost) this._drawCards(p, n(e.n) || 1);
           break;
         }
         case 'discard': {
@@ -69794,6 +69877,9 @@ MTG.setGameSpeed = function (id) {
           break;
         }
         case 'sacrificeChoice': {
+          const sacStartKey = this.resolving && e.countForNext ? `sacChoiceStart${this.resolving.index}` : null;
+          if (sacStartKey && !Object.prototype.hasOwnProperty.call(this.resolving, sacStartKey))
+            this.resolving[sacStartKey] = (this.resolving._sacBy || []).length;
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'you' ? [me].filter(Boolean)
@@ -69869,6 +69955,7 @@ MTG.setGameSpeed = function (id) {
               if (got === SUSPEND) return SUSPEND;
             } else this.queueChoice(q);
           }
+          if (sacStartKey) this._lastSacCount = (this.resolving._sacBy || []).length - this.resolving[sacStartKey];
           break;
         }
 
@@ -89338,6 +89425,8 @@ MTG.setGameSpeed = function (id) {
         // (Halvar, God of Battle: "attached to a creature you control" — attachedToYourCreature)
         hostOf: (o) => (o && o.attachedTo ? this.obj(o.attachedTo) : null),
         isCreature: (o) => !!(this.characteristics(o) || {}).isCreature,
+        attackingYou: (o, pid) => !!o.attacking &&
+          (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)),
         // (Admiral Beckett Brass: the creatures of a type that dealt that player combat damage this turn — controllerHitBy)
         hitByType: (pid, type) => this._combatHitByType(pid, type),
         // (Bowie Base One, a plane: "the player to your left" — the next in turn order; to your right, the one before)
