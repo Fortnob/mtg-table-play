@@ -211,14 +211,14 @@
       if(!st.exiled){
         const z=this.zones[pid],count=Math.max(0,Number((this.turnHistory||{}).artifactsToGraveyard)||0),cards=z?z.library.slice(0,Math.min(count,z.library.length)):[];
         st.exiledIds=cards.map(o=>o.id);for(const o of cards)this.moveObject(o,'exile');st.exiled=true;
-        this.logEvent('exile',(this.player(pid)||{}).name+' exiles '+cards.length+' card(s) with Anzrag\\'s Rampage.');
+        this.logEvent('exile',(this.player(pid)||{}).name+' exiles '+cards.length+' card(s) with Anzrag\'s Rampage.');
       }
       const eligible=(st.exiledIds||[]).map(id=>this.obj(id)).filter(o=>o&&o.zone==='exile'&&(o.analysis()||{}).isCreature);
       if(!st.choiceDone){const got=this._choose({playerId:pid,purpose:'tablePlayAutoAnzragPick',kind:'objects',items:this._chooseItems(eligible),min:0,max:Math.min(1,eligible.length),optional:true,
         prompt:"Anzrag's Rampage: you may put a creature card exiled this way onto the battlefield."},'tablePlayAnzragPick');if(got===SUSPEND)return SUSPEND;st.pick=eligible.find(o=>o.id===((got&&got.picks||[])[0]))||null;st.choiceDone=true;}
       if(st.pick&&st.pick.zone==='exile'){const o=st.pick;this.moveObject(o,'battlefield',{controller:pid});if(o.zone==='battlefield'){
         o.effects.push({keywords:['Haste'],until:'eot'});
-        this.scheduleDelayed({event:'eachEndStep',controller:pid,objId:o.id,sameTurnOk:true,name:'Return '+o.name+' to its owner\\'s hand',effects:[{op:'mtgAutoAnzragReturn'}]});
+        this.scheduleDelayed({event:'eachEndStep',controller:pid,objId:o.id,sameTurnOk:true,name:'Return '+o.name+' to its owner\'s hand',effects:[{op:'mtgAutoAnzragReturn'}]});
       }}return;
     }
     if(e.op==='mtgAutoStructuralAssault'){
