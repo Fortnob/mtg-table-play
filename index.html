@@ -2211,6 +2211,14 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   font-size: max(8px, calc(var(--w, 100px) * .095)); }
 .cv-mark.cv-auto svg { width: 72%; height: 72%; }
 .cv.tapped .cv-mark.cv-auto { left: -16%; bottom: 16%; }
+.cv-cost-delta { right: 2%; top: 14%; display: flex; flex-direction: column; gap: 1px; padding: 2px;
+  border-radius: 4px; background: rgba(12,14,20,.88); box-shadow: 0 1px 4px rgba(0,0,0,.65);
+  font: 800 max(8px, calc(var(--w) * .105))/1 var(--font); }
+.cv-cost-delta > span { display: flex; align-items: center; gap: 1px; }
+.cv-cost-delta > span.down { color: #84e1a1; }
+.cv-cost-delta > span.up { color: #ff9a88; }
+.cv-cost-delta .pip { width: max(10px, calc(var(--w) * .12)); height: max(10px, calc(var(--w) * .12));
+  margin: 0; font-size: max(7px, calc(var(--w) * .075)); }
 .cv-chips { left: -4%; top: 8%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 /* its keywords at a glance (12i-ui-keywords.js): small symbols down the right edge */
 .cv-kws { right: -7%; top: 7%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -14277,6 +14285,140 @@ MTG.setGameSpeed = function (id) {
         text: "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card.",
         effects: [{ op: 'braids' }] }],
     },
+    "anzrag's rampage": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Destroy all artifacts you don’t control, then exile the top X cards of your library, where X is the number of artifacts that were put into graveyards from the battlefield this turn. You may put a creature card exiled this way onto the battlefield. It gains haste. Return it to your hand at the beginning of the next end step.',
+        effects: [
+          { op: 'destroyAll', scope: { who: 'opponents', what: 'artifact' } },
+          { op: 'impulse', n: { artifactsToGraveyardThisTurn: true }, play: false },
+          { op: 'putAmongExiled', filter: 'creature', to: 'battlefield', optional: true },
+          { op: 'grantLast', keywords: ['Haste'] },
+          { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it to its owner’s hand', effects: [{ op: 'returnThatToHand' }] },
+        ] }],
+    },
+    "avoid fate": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Counter target instant or Aura spell that targets a permanent you control.',
+        effects: [{ op: 'counterSpell', targets: [{ type: 'spell', filter: 'instant or aura', targetsPermanentYouControl: true }] }] }],
+    },
+    "party dude": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true,
+          text: 'When this Class enters, each player creates a Food token.',
+          effects: [{ op: 'createNamedToken', token: 'Food', n: 1, who: 'each' }] },
+        { kind: 'activated', auto: true, sorcerySpeed: true, levelCond: { kind: 'levelRange', min: 0, max: 0 },
+          cost: { mana: '{1}{G}', tap: false, other: [] }, text: '{1}{G}: Level 2',
+          effects: [{ op: 'classLevel', to: 2 }] },
+        { kind: 'triggered', event: 'permDies', auto: true, condition: { kind: 'levelRange', min: 1 },
+          objFilter: { who: 'opponent', words: 'artifact' },
+          text: 'Whenever an artifact an opponent controls is put into a graveyard from the battlefield, draw a card.',
+          effects: [{ op: 'draw', n: 1, who: 'you' }] },
+        { kind: 'activated', auto: true, sorcerySpeed: true, levelCond: { kind: 'levelRange', min: 1, max: 1 },
+          cost: { mana: '{4}{G}', tap: false, other: [] }, text: '{4}{G}: Level 3',
+          effects: [{ op: 'classLevel', to: 3 }] },
+        { kind: 'triggered', event: 'anyPlayerAttacks', auto: true, attacksYourOpponents: true,
+          text: 'Whenever one or more of your opponents are attacked, up to one target attacking creature gets +X/+X until end of turn, where X is the number of cards in your hand.',
+          effects: [{ op: 'pump', targets: [{ type: 'creature', attacking: true, upTo: true }],
+            duration: 'eot', p: { cardsInHand: 'you' }, t: { cardsInHand: 'you' } }],
+          condition: { kind: 'levelRange', min: 2 } },
+      ],
+    },
+    "signal the clans": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Search your library for three creature cards and reveal them. If you reveal three cards with different names, choose one of them at random and put that card into your hand. Shuffle the rest into your library.',
+        effects: [{ op: 'tutor', n: 3, filter: 'creature', to: 'hand', reveal: true, randomOneIfDistinctNames: true }] }],
+    },
+    "green slime": {
+      keepKeywords: true,
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: 'When this creature enters, counter target activated or triggered ability from an artifact or enchantment source. If a permanent’s ability is countered this way, destroy that permanent.',
+        effects: [
+          { op: 'counterSpell', targets: [{ type: 'spell', abilities: true, sourceWords: 'artifact or enchantment' }] },
+          { op: 'destroyCounteredSource' },
+        ] }],
+    },
+    "titania's song": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'Each noncreature artifact loses all abilities and becomes an artifact creature with power and toughness each equal to its mana value. If this enchantment leaves the battlefield, this effect continues until end of turn.',
+        effects: [
+          { op: 'titaniaSong' },
+          { op: 'continuous', layer: 4, scope: { who: 'all', what: 'artifact', noncreature: true }, addTypes: ['Creature'] },
+          { op: 'continuous', layer: 6, scope: { who: 'all', what: 'artifact', noncreature: true }, loseAll: true },
+          { op: 'continuous', layer: 7, scope: { who: 'all', what: 'artifact', noncreature: true }, setPt: { mv: true } },
+        ] }],
+    },
+    "structural assault": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Destroy all artifacts, then Structural Assault deals damage to each creature equal to the number of artifacts that were put into graveyards from the battlefield this turn.',
+        effects: [
+          { op: 'destroyAll', what: 'artifact' },
+          { op: 'damage', n: { artifactsToGraveyardThisTurn: true }, each: 'creature' },
+        ] }],
+    },
+    "collected company": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Look at the top six cards of your library. Put up to two creature cards with mana value 3 or less from among them onto the battlefield. Put the rest on the bottom of your library in any order.',
+        effects: [
+          { op: 'lookAt', n: 6, keep: 0 },
+          { op: 'takeFromLooked', n: 2, filter: 'creature', maxMv: 3, to: 'battlefield', optional: true },
+          { op: 'restToBottom', random: false },
+        ] }],
+    },
+    "topography tracker": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true,
+          text: 'When this creature enters, create a Map token.',
+          effects: [{ op: 'createNamedToken', token: 'Map', n: 1 }] },
+        { kind: 'static', auto: true,
+          text: 'If a creature you control would explore, instead it explores, then it explores again.',
+          effects: [{ op: 'doubleExplore' }] },
+      ],
+    },
+    "call to the kindred": {
+      abilities: [
+        { kind: 'static', auto: true, text: 'Enchant creature.', effects: [{ op: 'enchant', filter: 'creature' }] },
+        { kind: 'triggered', event: 'yourUpkeep', auto: true,
+          text: 'At the beginning of your upkeep, you may look at the top five cards of your library. If you do, you may put a creature card that shares a creature type with enchanted creature from among them onto the battlefield, then you put the rest of those cards on the bottom of your library in any order.',
+          effects: [{ op: 'may', prompt: 'Look at the top five cards of your library?',
+            then: [
+              { op: 'lookAt', n: 5, keep: 0 },
+              { op: 'takeFromLooked', n: 1, filter: 'creature', sharesTypeWithAttached: true, to: 'battlefield', optional: true },
+              { op: 'restToBottom', random: false },
+            ] }] },
+      ],
+    },
+    "tide shaper": {
+      keepKeywords: true,
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true, condition: { kind: 'kicked', n: 1 },
+          text: 'When this creature enters, if it was kicked, target land becomes an Island for as long as this creature remains on the battlefield.',
+          effects: [{ op: 'changeLandTypeWhileSource', type: 'Island', targets: [{ type: 'land' }] }] },
+        { kind: 'static', auto: true,
+          text: 'This creature gets +1/+1 as long as an opponent controls an Island.',
+          effects: [{ op: 'continuous', layer: 7, scope: { self: true, what: 'creature' },
+            cond: { kind: 'control', what: 'island', n: 1, who: 'opponents' }, pt: { p: 1, t: 1 } }] },
+      ],
+    },
+    "deeproot historian": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'Merfolk and Druid cards in your graveyard have retrace.',
+        effects: [{ op: 'grantRetrace', words: ['Merfolk card', 'Druid card'] }] }],
+    },
+    "over the edge": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Choose one — Destroy target artifact or enchantment; or target creature you control explores, then it explores again.',
+        effects: [{ op: 'modal', count: 1, repeatable: false, modes: [
+          { label: 'Destroy target artifact or enchantment', auto: true,
+            effects: [{ op: 'destroy', targets: [{ type: 'permanent', anyOf: ['artifact', 'enchantment'] }] }] },
+          { label: 'Target creature you control explores, then it explores again', auto: true,
+            effects: [{ op: 'explore', repeat: 2, targets: [{ type: 'creature', controller: 'you' }] }] },
+        ] }] }],
+    },
+    "restore": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Put target land card from a graveyard onto the battlefield under your control.',
+        effects: [{ op: 'reanimate', targets: [{ type: 'land', filter: 'land card', zone: 'graveyard' }] }] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */
@@ -14296,8 +14438,6 @@ MTG.setGameSpeed = function (id) {
     count() { return Object.keys(SCRIPTS).length; },
   };
 })(window.MTG);
-
-
 /* ===== 19-cardlib.js ===== */
 /* ============================================================
    19-cardlib.js - generated card scripts
@@ -33756,9 +33896,9 @@ MTG.setGameSpeed = function (id) {
     // Jon Irenicus, Shattered One: "Whenever a creature you own but don't control attacks," (owned, who opponent)
     { re: /^Whenever a creature you own but don'?t control attacks,? /i, event: 'permAttacks', filt: () => ({ words: 'creature', owned: true, who: 'opponent' }) },
     { re: /^Whenever a commander you control enters,? /i, event: 'permEnters', filt: () => ({ commander: 'control' }) },
-    /* Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — on its way to the command zone
-       (commanderDies), or into the graveyard when it stays there */
-    { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', also: 'permDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
+    /* Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — the commanderDies event is fired as
+       the creature enters the graveyard, before its owner chooses whether to move it to the command zone. */
+    { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
     { re: /^Whenever your commander attacks,? /i, event: 'permAttacks', filt: () => ({ commander: true }) },
     // Jocasta, Automaton Avenger: "Whenever your commander deals combat damage to a player"
     { re: /^Whenever your commander deals combat damage to a player,? /i, event: 'permCombatDamage', filt: () => ({ commander: true }) },
@@ -42162,7 +42302,6 @@ MTG.setGameSpeed = function (id) {
   };
 })(window.MTG);
 
-
 /* ===== 04-formats.js ===== */
 /* ============================================================
    04-formats.js - format definitions, legality and deck validation
@@ -44828,7 +44967,7 @@ MTG.setGameSpeed = function (id) {
       this.creaturesInLastTurn = (this.turnHistory || {}).creaturesIn || {};
       // O-Kagachi, Vengeful Kami: the players each one attacked during their last turn (attackedLastTurn)
       if (endingTurnOf && this.turn > 1) endingTurnOf.attackedLastTurn = ((((this.turnHistory || {}).attackedPlayersBy) || {})[endingTurnOf.id] || []).slice();
-      this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false };
+      this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false, artifactsToGraveyard: 0 };
       for (const o of this.battlefield) o.noRegenThisTurn = false;
       // one loyalty ability per planeswalker each turn (CR 606.3): a new turn, a new one
       for (const o of this.battlefield) o.activatedLoyaltyThisTurn = false;
@@ -47207,7 +47346,6 @@ MTG.setGameSpeed = function (id) {
       if (!x || x.zone !== 'merged') return;
       x.mergedInto = null;
       let dest = toZone === 'battlefield' || toZone === 'stack' ? 'graveyard' : toZone;
-      if (x.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(dest) && MTG.settings.commanderToZone !== false) dest = 'command';
       this.moveObject(x, dest, { controller: x.owner, toBottom: !!(opts && opts.toBottom) });
       const lib = (this.zones[host.owner] || {}).library || [];
       if (host.zone === 'library' && x.zone === 'library' && lib.length > 1) {
@@ -50680,6 +50818,12 @@ MTG.setGameSpeed = function (id) {
       // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
           this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
+        out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
+      }
+      if (o.zone === 'graveyard' && o.owner === playerId &&
+          this.battlefield.some(x => x.controller === playerId && !x.phasedOut &&
+            ((this._staticOp(x, 'grantRetrace') || {}).words || []).some(w => this._cardFitsWords(o, w))) &&
+          !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
       // Niv-Mizzet, Supreme: "Each instant and sorcery card in your graveyard that's exactly two colors has jump-start." (grantJumpStart)
@@ -58440,6 +58584,24 @@ MTG.setGameSpeed = function (id) {
      * there answers "no" for everything, because nothing is attacking yet.
      */
     couldBlock(blocker, attacker, defenderId) {
+      if (!blocker || !attacker) return false;
+      const attackers = ((this.combat && this.combat.attackers) || []).join(',');
+      const playerState = this.players.map(p => {
+        const z = this.zones[p.id] || {};
+        return `${p.id}:${p.speed || 0}:${(z.graveyard || []).length}:${(z.exile || []).length}`;
+      }).join(',');
+      const epoch = `${this._boardEpoch || 0}|${this.turn}|${this.step}|${attackers}|${playerState}`;
+      if (this._lbBlockabilityMemoEpoch !== epoch) {
+        this._lbBlockabilityMemoEpoch = epoch;
+        this._lbBlockabilityMemo = new Map();
+      }
+      const key = `${blocker.id}|${attacker.id}|${defenderId || ''}|${blocker.tapped ? 1 : 0}|${blocker.phasedOut ? 1 : 0}|${blocker.isToken ? 1 : 0}|${attacker.attacking || ''}`;
+      if (this._lbBlockabilityMemo.has(key)) return this._lbBlockabilityMemo.get(key);
+      const result = this._couldBlock(blocker, attacker, defenderId);
+      this._lbBlockabilityMemo.set(key, result);
+      return result;
+    }
+    _couldBlock(blocker, attacker, defenderId) {
       const ba = blocker.analysis(), aa = attacker.analysis();
       if (!ba || !aa) return false;
       const bc = this.characteristics(blocker);
@@ -59938,7 +60100,14 @@ MTG.setGameSpeed = function (id) {
       }
     }
     /** An effect "for as long as it has a … counter on it" still applies: the counter is still there (whileCounter). */
-    _whileCounterHolds(o, e) { return !e || !e.whileCounter || Number((o.counters || {})[e.whileCounter]) > 0; }
+    _whileCounterHolds(o, e) {
+      if (!e || (e.whileCounter && !(Number((o.counters || {})[e.whileCounter]) > 0))) return !e;
+      if (e.whileSource) {
+        const source = this.obj(e.whileSource);
+        if (!source || source.zone !== 'battlefield' || (e.whileSourceTs != null && source.ts !== e.whileSourceTs)) return false;
+      }
+      return true;
+    }
 
     _refreshControl() {
       let changed = false;
@@ -63316,6 +63485,9 @@ MTG.setGameSpeed = function (id) {
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      const songTs = from === 'battlefield' && toZone !== 'battlefield' && this._staticOp(o, 'titaniaSong') ? this._tsOf(o) : null;
+      const commanderChoiceMove = !!opts.commanderChoice && o.isCommander && toZone === 'command';
+      if (from !== toZone) o._cmdChoiceZone = null;
       // (where everybody could see it go from, face up: _knowAfterMove)
       const inSight = from !== 'hand' && from !== 'library' && !o.faceDown && !(from === 'exile' && o.faceDownExile);
       // Bad Wolf Bay (a plane): "cards can't enter from exile this turn" — they stay in exile
@@ -63490,6 +63662,14 @@ MTG.setGameSpeed = function (id) {
         o._lastColors = ((was || {}).colors || []).slice();
         // Fang, Roku's Companion: "if he wasn't a Spirit" after he has gone — his subtypes as he left
         o._lastSubtypes = ((was || {}).subtypes || []).slice();
+        if (songTs != null) for (const artifact of this.battlefield.slice()) {
+          if (artifact === o) continue;
+          const base = this._baseAnalysis(artifact);
+          if (base && base.isArtifact && !base.isCreature) {
+            artifact.effects.push({ addTypes: ['Creature'], loseAll: true, setPt: { mv: true }, until: 'eot', ts: songTs });
+            artifact._chr = null;
+          }
+        }
         o._lastChangeling = !!(lc && lc.keywords && [...lc.keywords].some(k => String(k).toLowerCase() === 'changeling'));
         // Sarkhan, Soul Aflame: "become a copy of it" after it has gone — its copiable values as it last was
         o._lkiCard = { card: o.card, face: o.face || 0 };
@@ -63507,13 +63687,8 @@ MTG.setGameSpeed = function (id) {
       /* commander replacement effect (CR 903.9). Exiled to meld, a commander is back on the battlefield, melded,
          before the state-based action that would send it to the command zone (CR 903.9a) is ever checked. */
       // (Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — on its way to the graveyard first, CR 903.9a)
-      let cmdDied = false;
-      if (o.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(toZone) && from === 'battlefield' && !opts.meld) {
-        if (MTG.settings.commanderToZone !== false) {
-          cmdDied = toZone === 'graveyard' && !!(o.analysis() || {}).isCreature;
-          toZone = 'command';
-        }
-      }
+      const cmdDied = o.isCommander && from === 'battlefield' && toZone === 'graveyard' &&
+        !!(o.analysis() || {}).isCreature && !opts.meld;
       /* Oathbreaker: a Signature Spell that would go anywhere but the stack
          goes back to the command zone instead: resolved, countered, exiled
          or returned to a hand, and with no choice about it. */
@@ -63521,10 +63696,16 @@ MTG.setGameSpeed = function (id) {
         toZone = 'command';
         if (from === 'stack') this.logEvent('rules', `${o.name} returns to the command zone.`);
       }
+      if (o.isCommander && MTG.settings.commanderToZone !== false &&
+          ['graveyard', 'exile', 'hand', 'library'].includes(toZone) && from !== toZone) {
+        o._cmdChoiceZone = toZone;
+      }
       if (from === 'battlefield' && toZone !== 'battlefield') {
         const wasA = o._lkiAnalysis || o.analysis();
         const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         h.permanentsLeft++;
+        if (wasA && wasA.isArtifact && toZone === 'graveyard')
+          h.artifactsToGraveyard = (h.artifactsToGraveyard || 0) + 1;
         // void (Alpharael, Stonechosen): "if a nonland permanent left the battlefield this turn"
         if (!(wasA && wasA.isLand)) h.nonlandLeft = (h.nonlandLeft || 0) + 1;
         // The Lady of Otaria: "a land you controlled was put into a graveyard from the battlefield this turn" (landToGyBy)
@@ -63588,8 +63769,6 @@ MTG.setGameSpeed = function (id) {
       if (toZone === 'battlefield') o.enteredFrom = from;
       /* A commander put into a graveyard from anywhere else — discarded, milled (from the battlefield it went home
          instead, above): its owner may put it into the command zone, a state-based action (CR 903.9a: _commandersHome) */
-      if (toZone === 'graveyard' && from !== 'graveyard' && o.isCommander) o._cmdToGrave = true;
-      else if (o._cmdToGrave) o._cmdToGrave = false;
 
       // reset per-zone state
       /* Who controlled it as it left matters to anything watching ("a
@@ -63620,7 +63799,7 @@ MTG.setGameSpeed = function (id) {
         if (toZone !== 'stack' && from === 'stack' && o.card.layout === 'modal_dfc') { o.face = 0; o._chr = null; }
         // a Room's doors lock again as it leaves (CR 709.5d)
         if (from === 'battlefield' && o.card.layout === 'split') o.face = 0;
-        o._diedCounters = Object.assign({}, o.counters);
+        if (!commanderChoiceMove) o._diedCounters = Object.assign({}, o.counters);
         // Garna, Desculpting Blast: "if it was attacking", asked after it has gone
         o._wasAttacking = from === 'battlefield' && !!o.attacking;
         // Baeloth Barrityl, Entertainer: "a goaded attacking or blocking creature dies" — as it left (wasGoaded, wasInCombat)
@@ -63806,6 +63985,7 @@ MTG.setGameSpeed = function (id) {
             }
           }
           this._fire('permDies', null, { object: o, objController: lastCtrl });
+          if (cmdDied) this._fire('commanderDies', null, { object: o, objController: lastCtrl });
           if (comesBack) {
             this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id,
               controller: comesBack.retBy != null ? comesBack.retBy : comesBack.retCtl != null ? comesBack.retCtl : lastCtrl,
@@ -63832,7 +64012,6 @@ MTG.setGameSpeed = function (id) {
       }
       else if (toZone === 'command') {
         this.zones[o.owner].command.push(o);
-        if (cmdDied) this._fire('commanderDies', null, { object: o, objController: lastCtrl });
       }
       else if (toZone === 'library') {
         const z = this.zones[o.owner].library;
@@ -65016,6 +65195,8 @@ MTG.setGameSpeed = function (id) {
           if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
           if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
+          if (ab.attacksYourOpponents && !(data.attackers || []).some(x => x && this.player(x.attacking) &&
+              this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Squall, Gunblade Duelist: "if any of those creatures have power or toughness equal to the chosen number" (attackersHerePtChosen)
           if (ab.attackersHerePtChosen && !(o.chosenNumber != null && (data.attackers || []).some(x => x && (this.powerOf(x) === o.chosenNumber || this.toughnessOf(x) === o.chosenNumber)))) continue;
           /* Firkraag, Cunning Instigator; Meriadoc Brandybuck; Gornog, the Red Reaper: "one or more Dragons you control attack an
@@ -66949,6 +67130,8 @@ MTG.setGameSpeed = function (id) {
         for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) fn(o); } }
       };
       const n = (v) => {
+        if (v && typeof v === 'object' && v.artifactsToGraveyardThisTurn)
+          return ((this.turnHistory || {}).artifactsToGraveyard || 0) * (v.mult || 1);
         // "+1/+0 for each …": nothing times anything is nothing (not the "|| 1" the counts below fall back on)
         if (v && typeof v === 'object' && v.mult === 0 && !v.plus) return 0;
         // Call the Coppercoats: the creatures the targeted players control
@@ -68581,6 +68764,16 @@ MTG.setGameSpeed = function (id) {
           }
           break;
         }
+        case 'destroyCounteredSource': {
+          const source = this._counteredSrc && this.obj(this._counteredSrc);
+          this._counteredSrc = null;
+          if (source && source.zone === 'battlefield' && !this.hasKw(source, 'indestructible') &&
+              !this._totemArmor(source) && !this._regenerated(source)) {
+            this._noteDestroying(source);
+            this.moveObject(source, 'graveyard');
+          }
+          break;
+        }
         /* "You may tap or untap target permanent" (Twiddle, Sewer-veillance Cam): whoever controls the
            effect decides which, as it resolves. A bot taps someone else's
            and untaps its own. */
@@ -68936,8 +69129,6 @@ MTG.setGameSpeed = function (id) {
            hand, anything else gives a +1/+1 counter and you say whether it
            stays on top. */
         case 'explore': {
-          const z = this.zones[ctx.controller];
-          if (!z || !z.library.length) break;
           // "target creature you control explores" (a Map): that one, not the source
           // (Seasoned Dungeoneer: "… target attacking Cleric … It explores." — the one the sentence before aimed at: ofTarget)
           const t0 = (e.targets && e.targets.length) || e.ofTarget ? targets.find(t => t.kind === 'object') : null;
@@ -68945,6 +69136,16 @@ MTG.setGameSpeed = function (id) {
           // (Hakbal of the Surging Soul: each Merfolk, named by id — exploreEach)
           const who = e.objId ? this.obj(e.objId) : t0 ? this.obj(t0.id) : src;
           if ((t0 || e.objId) && !(who && who.zone === 'battlefield')) break;
+          if (!e._exploreRepeated) {
+            const tracker = who && this.battlefield.some(x => x.controller === who.controller && !x.phasedOut && this._staticOp(x, 'doubleExplore'));
+            const repeats = Math.max(1, Number(e.repeat) || 1) * (tracker ? 2 : 1);
+            if (repeats > 1) {
+              this._spliceNext(Array.from({ length: repeats }, () => Object.assign({}, e, { repeat: 1, _exploreRepeated: true })));
+              break;
+            }
+          }
+          const z = this.zones[ctx.controller];
+          if (!z || !z.library.length) break;
           const top = z.library[0];
           const ta = top.analysis();
           // Wildgrowth Walker: "whenever a creature you control explores" (Nicanzil, Current Conductor: "explores a land card" — exploredLand)
@@ -71595,6 +71796,17 @@ MTG.setGameSpeed = function (id) {
               taken = [taken[0]].concat(taken.slice(1).filter(c => typesOf(c).some(t => first.includes(t))));
             }
           }
+          if (e.randomOneIfDistinctNames) {
+            if (taken.length) {
+              const revealed = taken.slice();
+              this._know(revealed, '*');
+              this.logEvent('reveal', `${seeker.name} reveals ${revealed.map(c => c.name).join(', ')}.`);
+              if (revealed.length === 3 && new Set(revealed.map(c => c.name)).size === 3) {
+                taken = [revealed[this.rng.int(revealed.length)]];
+                this.logEvent('rules', `${taken[0].name} is chosen at random.`);
+              } else taken = [];
+            }
+          }
           const dest = e.to || 'hand';
           /* Cultivate: one of them onto the battlefield, the other into
              your hand — and which is which is the searcher's call. */
@@ -71665,7 +71877,7 @@ MTG.setGameSpeed = function (id) {
             break;
           }
           // "Search your library for a card, reveal it, put it into your hand": known there to everybody (text: as read)
-          if (taken.length && (e.reveal || /\breveal/i.test(e.text || ''))) this._know(taken, '*');
+          if (taken.length && !e.randomOneIfDistinctNames && (e.reveal || /\breveal/i.test(e.text || ''))) this._know(taken, '*');
           // (Mishra, Artificer Prodigy: "If you search your library this way, shuffle." — shuffleIfFromLibrary)
           const fromLib = taken.some(c => c.zone === 'library');
           for (const c of taken) {
@@ -77061,6 +77273,10 @@ MTG.setGameSpeed = function (id) {
               const theirs = tp ? this._cardTypesOf(tp) : [];
               if (!this._cardTypesOf(o).some(x => theirs.includes(x))) return false;
             }
+            if (e.sharesTypeWithAttached) {
+              const host = src && src.attachedTo && this.obj(src.attachedTo);
+              if (!host || !this._shareCreatureType(o, host)) return false;
+            }
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
             return this._matchesFilter(o, e.filter);
@@ -79880,11 +80096,12 @@ MTG.setGameSpeed = function (id) {
         }
         case 'impulse': {
           const cnt = nVar(e.n);
+          this._lastExiledList = [];
+          this._lastExiled = null;
           if (!cnt) break;
           // "You may play them": for as long as they stay exiled
           const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(ctx.controller);
           const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : e.whose === 'target' ? (firstPlayer() || me) : me;
-          this._lastExiledList = [];
           for (let i = 0; i < cnt; i++) {
             const o = this.zones[whose.id].library.shift();
             if (!o) break;
@@ -79904,6 +80121,34 @@ MTG.setGameSpeed = function (id) {
           // (Daxos of Meletis, Elminster: "you gain life equal to that card's mana value" — the one card exiled: impulseNotes)
           if (this._lastExiledList.length === 1) this._noteLastAffected([{ kind: 'object', id: this._lastExiledList[0] }]);
           this.logEvent('exile', `${me.name} exiles the top ${cnt} card${cnt === 1 ? '' : 's'}${e.play ? ' and may play ' + (cnt === 1 ? 'it' : 'them') : ''}.`);
+          break;
+        }
+        case 'putAmongExiled': {
+          const pool = (this._lastExiledList || []).map(id => this.obj(id))
+            .filter(o => o && o.zone === 'exile' && this._cardFitsWords(o, e.filter || 'creature'));
+          if (!pool.length) break;
+          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: !!e.optional,
+            cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
+            prompt: `${ctx.name || 'Effect'}: you may put a creature card exiled this way onto the battlefield.` }, 'putExiled');
+          if (picked === SUSPEND) return SUSPEND;
+          const o = pool.find(x => x.id === (picked || [])[0]);
+          if (!o) break;
+          this.moveObject(o, e.to || 'battlefield', { controller: ctx.controller });
+          if (o.zone === 'battlefield') {
+            this._lastPut = o.id;
+            this._noteLastAffected([{ kind: 'object', id: o.id }]);
+            ctx.resolvedTargets = [{ kind: 'object', id: o.id }];
+          }
+          break;
+        }
+        case 'changeLandTypeWhileSource': {
+          for (const t of targets) {
+            const land = t.kind === 'object' && this.obj(t.id);
+            if (!land || land.zone !== 'battlefield' || !(land.analysis() || {}).isLand || !src || src.zone !== 'battlefield') continue;
+            land.effects.push({ setSubtypes: [e.type || 'Island'], whileSource: src.id, whileSourceTs: src.ts });
+            land._chr = null;
+          }
+          this.bumpBoard();
           break;
         }
 
@@ -85369,6 +85614,7 @@ MTG.setGameSpeed = function (id) {
         if (t === 'creature' && !inLayers) return !!this.characteristics(o).isCreature;
         return (oa.types || []).some(x => x.toLowerCase() === t) || (oa.subtypes || []).some(x => x.toLowerCase() === t);
       };
+      if (sc.noncreature && isType('creature')) return false;
       const want = sc.what || 'creature';
       if (sc.anyOf ? !sc.anyOf.some(isType) : !isType(want)) return false;
       if (sc.notType && sc.notType.some(isType)) return false;
@@ -86832,21 +87078,24 @@ MTG.setGameSpeed = function (id) {
     }
 
     /* ---------- state-based actions (CR 704) ---------- */
-    /** CR 903.9a: "If a commander is in a graveyard … and that object was put into that zone since the last time
-        state-based actions were checked, its owner may put it into the command zone." — yes, as the setting says
-        (commanderToZone, the same answer as for a commander leaving the battlefield). True when one went. */
+    /** A commander owner may move their commander from a destination zone to the command zone. */
     _commandersHome() {
-      let moved = false;
+      let asked = false;
       for (const p of this.players) {
-        for (const c of ((this.zones[p.id] || {}).graveyard || []).slice()) {
-          if (!c._cmdToGrave) continue;
-          c._cmdToGrave = false;
-          if (!c.isCommander || MTG.settings.commanderToZone === false) continue;
-          this.moveObject(c, 'command');
-          if (c.zone === 'command') { this.logEvent('rules', `${c.name} goes from ${p.name}'s graveyard to the command zone.`); moved = true; }
+        const z = this.zones[p.id] || {};
+        for (const zone of ['graveyard', 'exile', 'hand', 'library']) {
+          for (const c of (z[zone] || []).slice()) {
+            if (c._cmdChoiceZone !== zone) continue;
+            c._cmdChoiceZone = null;
+            if (!c.isCommander || MTG.settings.commanderToZone === false) continue;
+            this.queueChoice({ type: 'confirm', playerId: c.owner, purpose: 'commanderZone', objId: c.id,
+              zone, yesLabel: 'Command zone', noLabel: 'Keep it here',
+              prompt: `Put ${c.name} into the command zone instead of its ${zone}?` });
+            asked = true;
+          }
         }
       }
-      return moved;
+      return asked;
     }
     checkStateBasedActions() {
       this._unattachWatch();
@@ -87940,6 +88189,14 @@ MTG.setGameSpeed = function (id) {
         /* "…you may pay 2 life. If you don't, it enters tapped." The land is
            already on the table, tapped; paying stands it up. */
         case 'confirm': {
+          if (ch.purpose === 'commanderZone') {
+            const c = this.obj(ch.objId);
+            if (c && c.isCommander && c.owner === playerId && c.zone === ch.zone && data && data.yes) {
+              this.moveObject(c, 'command', { commanderChoice: true });
+              if (c.zone === 'command') this.logEvent('rules', `${c.name} goes from ${this.player(playerId).name}'s ${ch.zone} to the command zone.`);
+            }
+            break;
+          }
           /* "Sacrifice 3 Treasures to cast Lightning Bolt?" — yes: cast again, with leave to; no: nothing is done,
              and the question it was asked in front of (declaring attackers) comes back (_askSacMana) */
           if (ch.purpose === 'sacMana' && ch.redo) {
@@ -89004,6 +89261,11 @@ MTG.setGameSpeed = function (id) {
               !(spec.controller === 'opponent' && st.controller === controllerId)))
           // Wyll's Reversal: "with one or more targets" (withTargets)
           .filter(st => !spec.withTargets || (st.targets || []).length > 0)
+          .filter(st => !spec.targetsPermanentYouControl || (st.kind === 'spell' && (st.targets || []).some(t => {
+            const target = t && t.kind === 'object' && this.obj(t.id);
+            return target && target.zone === 'battlefield' && target.controller === controllerId &&
+              (target.analysis() || {}).isPermanent;
+          })))
           .map(st => ({ kind: 'stack', id: st.id, name: st.name }));
       }
       if (spec.type === 'spellOrPermanent') {
@@ -90308,6 +90570,43 @@ MTG.setGameSpeed = function (id) {
       return out;
     }
 
+    /** Mana symbols added to or removed from a card's ordinary casting cost. */
+    _castCostChanges(o, pid) {
+      const a = o.analysis();
+      if (!a || !a.manaCost) return null;
+      const base = a.manaCost;
+      const less = [];
+      const generic = this._commanderTax(o).mana + this._costDelta(o, pid, less) +
+        (o.effects || []).reduce((n, e) => n + ((e && e.perpetual && e.costDelta) || 0), 0);
+      let adjusted = this._addGeneric(base, generic) + this._costExtraSymbols(o, pid);
+      if (less.length) adjusted = this._lessColored(adjusted, less);
+
+      const counts = (cost) => {
+        const out = new Map();
+        for (const symbol of MANA.parse(cost)) out.set(symbol, (out.get(symbol) || 0) + 1);
+        return out;
+      };
+      const original = counts(base), current = counts(adjusted), changes = [];
+      const genericCount = (map) => {
+        let n = 0;
+        for (const [symbol, count] of map) if (/^\d+$/.test(symbol)) n += parseInt(symbol, 10) * count;
+        return n;
+      };
+      for (const [symbol, count] of original) {
+        if (/^\d+$/.test(symbol)) continue;
+        const removed = Math.max(0, count - (current.get(symbol) || 0));
+        for (let i = 0; i < removed; i++) changes.push({ sign: '-', symbol });
+      }
+      for (const [symbol, count] of current) {
+        if (/^\d+$/.test(symbol)) continue;
+        const added = Math.max(0, count - (original.get(symbol) || 0));
+        for (let i = 0; i < added; i++) changes.push({ sign: '+', symbol });
+      }
+      const genericChange = genericCount(current) - genericCount(original);
+      if (genericChange) changes.unshift({ sign: genericChange < 0 ? '-' : '+', symbol: String(Math.abs(genericChange)) });
+      return changes.length ? changes : null;
+    }
+
     /** A spell's or permanent's rules text now, when a layer-3 effect has changed it (CR 612); undefined otherwise. */
     _textNowView(o) {
       if (!o || !(o.zone === 'battlefield' || o.zone === 'stack')) return undefined;
@@ -90356,6 +90655,8 @@ MTG.setGameSpeed = function (id) {
         owner: o.owner, controller: o.controller,
         // (a card exiled face down that this player may not see shows its back)
         zone: o.zone, tapped: o.tapped, faceDown: o.faceDown || (o.zone === 'exile' && !!o.faceDownExile && secret(o)), face: o.face,
+        costAdjustments: !secret(o) && o.owner === playerId && (o.zone === 'hand' || o.zone === 'command')
+          ? this._castCostChanges(o, playerId) : null,
         // Yedora, Grave Gardener: face down as a Forest land, which is no secret (said only of such a permanent)
         faceDownLand: o.faceDown && o.faceDownLand && o.zone === 'battlefield' ? o.faceDownLand : undefined,
         /* what turning it face up costs, to the one who may (Kozilek, the Broken Reality: a manifested creature
@@ -91068,8 +91369,6 @@ MTG.setGameSpeed = function (id) {
     // what an effect returns while it waits on a question (src/06f-planechase.js asks as the engine does)
     SUSPEND };
 })(window.MTG);
-
-
 /* ===== 06a-choice.js ===== */
 /* ============================================================
    06a-choice.js - one way to ask any question
@@ -129166,20 +129465,28 @@ Sideboard
       n.classList.toggle('token', !!o.isToken);
       // an Oathbreaker's Signature Spell is framed in the command zone as its Oathbreaker is
       n.classList.toggle('is-cmd', !!(o.isCommander || o.isSignature));
-      /* the game runs nearly every card by itself, so that goes without saying: only a card that needs a hand is
-         marked (below), and its label says so too */
-      const byHand = !hidden && !!UI.autoInfo && !UI.autoInfo(o.card).auto;
+      /* Use the same automation status and badge shown in the deck builder. */
+      const autoInfo = !hidden && UI.autoInfo ? UI.autoInfo(o.card) : null;
+      const byHand = !!(autoInfo && !autoInfo.auto);
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o) + (byHand ? ', needs a hand' : ''));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickMark ? 1 : 0, byHand ? 1 : 0, o.textNow || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), JSON.stringify(o.costAdjustments || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickMark ? 1 : 0, autoInfo ? (autoInfo.auto ? 'auto' : 'manual') : '', o.textNow || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
       if (hidden) return;
-      // a card the game can't run all of: the hand, bottom left (UI.autoBadge); the deck builder shows the tick too
-      const auto = byHand && UI.autoBadge ? UI.autoBadge(o.card, { corner: true }) : null;
+      // The existing badge distinguishes fully automated cards from those that need a hand.
+      const auto = autoInfo && UI.autoBadge ? UI.autoBadge(o.card, { corner: true }) : null;
       if (auto) { auto.classList.add('cv-mark', 'cv-auto'); n.appendChild(auto); }
+      if (o.costAdjustments && o.costAdjustments.length) {
+        const names = o.costAdjustments.map(x => `${x.sign === '-' ? 'reduced by' : 'increased by'} {${x.symbol}}`);
+        n.appendChild(el('div', { class: 'cv-mark cv-cost-delta', title: 'Casting cost ' + names.join(', '), 'aria-label': 'Casting cost ' + names.join(', ') },
+          o.costAdjustments.map(x => el('span', { class: x.sign === '-' ? 'down' : 'up' }, [
+            el('b', { text: x.sign }),
+            el('span', { html: MTG.mana.html('{' + x.symbol + '}') }),
+          ]))));
+      }
       // Alchemy: a perpetual change shows wherever the card is, in hand too
       if (o.perpetual) {
         const d = perpetualWords(o.perpetual);
