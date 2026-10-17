@@ -30,7 +30,7 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 4;
+const VERSION = 5;
 const PREFIX = 'mtg-table-art-';                 // every cache this app has ever owned
 const NS = PREFIX + 'v1-';
 const PINNED = NS + 'pinned';
@@ -335,7 +335,29 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
   /* ---- the app's page ---- */
   // one copy, by the folder's address: "/" and "/index.html", with or without ?sw, are the same page
   const pageKey = () => self.registration.scope;
-  const goodPage = (res) => !!res && res.ok && res.type === 'basic' && !res.redirected && /text\/html/i.test(res.headers.get('content-type') || '');
+  const goodPage = (res) => !!res && res.ok && (res.type === 'basic' || res.headers.get('X-MTG-Table-Augmented') === '1') && !res.redirected && /text\/html/i.test(res.headers.get('content-type') || '');
+  const automationURL = () => new URL('mtg-table-play-automation.js', self.registration.scope).href;
+  let automationSource = null;
+  async function augmentPage(res) {
+    if (!goodPage(res)) return res;
+    let html;
+    try { html = await res.clone().text(); } catch (e) { return res; }
+    if (html.includes('id="mtg-table-play-automation-inline"')) return res;
+    try {
+      if (automationSource == null) {
+        const patch = await fetch(automationURL(), { credentials: 'same-origin', cache: 'no-cache' });
+        if (!patch.ok) return res;
+        automationSource = await patch.text();
+      }
+      const safe = automationSource.replace(/<\/script/gi, '<\\/script');
+      const tag = '<script id="mtg-table-play-automation-inline">' + safe + '</script>\n';
+      const augmented = /<\/body\s*>/i.test(html) ? html.replace(/<\/body\s*>/i, tag + '</body>') : html + tag;
+      const headers = new Headers(res.headers);
+      for (const h of ['content-length', 'content-encoding', 'etag', 'content-md5']) headers.delete(h);
+      headers.set('X-MTG-Table-Augmented', '1');
+      return new Response(augmented, { status: res.status, statusText: res.statusText, headers });
+    } catch (e) { return res; }
+  }
   async function keepPage(res) {
     if (retired || !goodPage(res)) return;
     await (await caches.open(APP)).put(pageKey(), res);
@@ -348,9 +370,12 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
    */
   async function servePage(event) {
     const req = event.request;
-    const net = fetch(req).then((res) => {
-      if (goodPage(res)) { const copy = res.clone(); queue(event, () => keepPage(copy)); }
-      return res;
+    const net = fetch(req).then(async (res) => {
+      if (!goodPage(res)) return res;
+      const page = await augmentPage(res);
+      const copy = page.clone();
+      queue(event, () => keepPage(copy));
+      return page;
     });
     const first = await Promise.race([
       net.then((r) => ({ r }), () => ({ failed: true })),
@@ -363,7 +388,7 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
   }
   /** The page as installed, so the first launch without a connection already has it. */
   async function precachePage() {
-    try { await keepPage(await fetch(pageKey(), { credentials: 'same-origin' })); } catch (e) { /* the next page load keeps it */ }
+    try { await keepPage(await augmentPage(await fetch(pageKey(), { credentials: 'same-origin' }))); } catch (e) { /* the next page load keeps it */ }
   }
 
   async function precachePinned() {
