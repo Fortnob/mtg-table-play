@@ -19342,9 +19342,9 @@
     // Jon Irenicus, Shattered One: "Whenever a creature you own but don't control attacks," (owned, who opponent)
     { re: /^Whenever a creature you own but don'?t control attacks,? /i, event: 'permAttacks', filt: () => ({ words: 'creature', owned: true, who: 'opponent' }) },
     { re: /^Whenever a commander you control enters,? /i, event: 'permEnters', filt: () => ({ commander: 'control' }) },
-    /* Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — on its way to the command zone
-       (commanderDies), or into the graveyard when it stays there */
-    { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', also: 'permDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
+    /* Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — the commanderDies event is fired as
+       the creature enters the graveyard, before its owner chooses whether to move it to the command zone. */
+    { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
     { re: /^Whenever your commander attacks,? /i, event: 'permAttacks', filt: () => ({ commander: true }) },
     // Jocasta, Automaton Avenger: "Whenever your commander deals combat damage to a player"
     { re: /^Whenever your commander deals combat damage to a player,? /i, event: 'permCombatDamage', filt: () => ({ commander: true }) },
@@ -27747,5 +27747,4 @@
     },
   };
 })(window.MTG);
-
 

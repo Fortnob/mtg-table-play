@@ -587,6 +587,140 @@
         text: "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card.",
         effects: [{ op: 'braids' }] }],
     },
+    "anzrag's rampage": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Destroy all artifacts you don’t control, then exile the top X cards of your library, where X is the number of artifacts that were put into graveyards from the battlefield this turn. You may put a creature card exiled this way onto the battlefield. It gains haste. Return it to your hand at the beginning of the next end step.',
+        effects: [
+          { op: 'destroyAll', scope: { who: 'opponents', what: 'artifact' } },
+          { op: 'impulse', n: { artifactsToGraveyardThisTurn: true }, play: false },
+          { op: 'putAmongExiled', filter: 'creature', to: 'battlefield', optional: true },
+          { op: 'grantLast', keywords: ['Haste'] },
+          { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it to its owner’s hand', effects: [{ op: 'returnThatToHand' }] },
+        ] }],
+    },
+    "avoid fate": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Counter target instant or Aura spell that targets a permanent you control.',
+        effects: [{ op: 'counterSpell', targets: [{ type: 'spell', filter: 'instant or aura', targetsPermanentYouControl: true }] }] }],
+    },
+    "party dude": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true,
+          text: 'When this Class enters, each player creates a Food token.',
+          effects: [{ op: 'createNamedToken', token: 'Food', n: 1, who: 'each' }] },
+        { kind: 'activated', auto: true, sorcerySpeed: true, levelCond: { kind: 'levelRange', min: 0, max: 0 },
+          cost: { mana: '{1}{G}', tap: false, other: [] }, text: '{1}{G}: Level 2',
+          effects: [{ op: 'classLevel', to: 2 }] },
+        { kind: 'triggered', event: 'permDies', auto: true, condition: { kind: 'levelRange', min: 1 },
+          objFilter: { who: 'opponent', words: 'artifact' },
+          text: 'Whenever an artifact an opponent controls is put into a graveyard from the battlefield, draw a card.',
+          effects: [{ op: 'draw', n: 1, who: 'you' }] },
+        { kind: 'activated', auto: true, sorcerySpeed: true, levelCond: { kind: 'levelRange', min: 1, max: 1 },
+          cost: { mana: '{4}{G}', tap: false, other: [] }, text: '{4}{G}: Level 3',
+          effects: [{ op: 'classLevel', to: 3 }] },
+        { kind: 'triggered', event: 'anyPlayerAttacks', auto: true, attacksYourOpponents: true,
+          text: 'Whenever one or more of your opponents are attacked, up to one target attacking creature gets +X/+X until end of turn, where X is the number of cards in your hand.',
+          effects: [{ op: 'pump', targets: [{ type: 'creature', attacking: true, upTo: true }],
+            duration: 'eot', p: { cardsInHand: 'you' }, t: { cardsInHand: 'you' } }],
+          condition: { kind: 'levelRange', min: 2 } },
+      ],
+    },
+    "signal the clans": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Search your library for three creature cards and reveal them. If you reveal three cards with different names, choose one of them at random and put that card into your hand. Shuffle the rest into your library.',
+        effects: [{ op: 'tutor', n: 3, filter: 'creature', to: 'hand', reveal: true, randomOneIfDistinctNames: true }] }],
+    },
+    "green slime": {
+      keepKeywords: true,
+      abilities: [{ kind: 'triggered', event: 'etb', self: true, auto: true,
+        text: 'When this creature enters, counter target activated or triggered ability from an artifact or enchantment source. If a permanent’s ability is countered this way, destroy that permanent.',
+        effects: [
+          { op: 'counterSpell', targets: [{ type: 'spell', abilities: true, sourceWords: 'artifact or enchantment' }] },
+          { op: 'destroyCounteredSource' },
+        ] }],
+    },
+    "titania's song": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'Each noncreature artifact loses all abilities and becomes an artifact creature with power and toughness each equal to its mana value. If this enchantment leaves the battlefield, this effect continues until end of turn.',
+        effects: [
+          { op: 'titaniaSong' },
+          { op: 'continuous', layer: 4, scope: { who: 'all', what: 'artifact', noncreature: true }, addTypes: ['Creature'] },
+          { op: 'continuous', layer: 6, scope: { who: 'all', what: 'artifact', noncreature: true }, loseAll: true },
+          { op: 'continuous', layer: 7, scope: { who: 'all', what: 'artifact', noncreature: true }, setPt: { mv: true } },
+        ] }],
+    },
+    "structural assault": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Destroy all artifacts, then Structural Assault deals damage to each creature equal to the number of artifacts that were put into graveyards from the battlefield this turn.',
+        effects: [
+          { op: 'destroyAll', what: 'artifact' },
+          { op: 'damage', n: { artifactsToGraveyardThisTurn: true }, each: 'creature' },
+        ] }],
+    },
+    "collected company": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Look at the top six cards of your library. Put up to two creature cards with mana value 3 or less from among them onto the battlefield. Put the rest on the bottom of your library in any order.',
+        effects: [
+          { op: 'lookAt', n: 6, keep: 0 },
+          { op: 'takeFromLooked', n: 2, filter: 'creature', maxMv: 3, to: 'battlefield', optional: true },
+          { op: 'restToBottom', random: false },
+        ] }],
+    },
+    "topography tracker": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true,
+          text: 'When this creature enters, create a Map token.',
+          effects: [{ op: 'createNamedToken', token: 'Map', n: 1 }] },
+        { kind: 'static', auto: true,
+          text: 'If a creature you control would explore, instead it explores, then it explores again.',
+          effects: [{ op: 'doubleExplore' }] },
+      ],
+    },
+    "call to the kindred": {
+      abilities: [
+        { kind: 'static', auto: true, text: 'Enchant creature.', effects: [{ op: 'enchant', filter: 'creature' }] },
+        { kind: 'triggered', event: 'yourUpkeep', auto: true,
+          text: 'At the beginning of your upkeep, you may look at the top five cards of your library. If you do, you may put a creature card that shares a creature type with enchanted creature from among them onto the battlefield, then you put the rest of those cards on the bottom of your library in any order.',
+          effects: [{ op: 'may', prompt: 'Look at the top five cards of your library?',
+            then: [
+              { op: 'lookAt', n: 5, keep: 0 },
+              { op: 'takeFromLooked', n: 1, filter: 'creature', sharesTypeWithAttached: true, to: 'battlefield', optional: true },
+              { op: 'restToBottom', random: false },
+            ] }] },
+      ],
+    },
+    "tide shaper": {
+      keepKeywords: true,
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true, condition: { kind: 'kicked', n: 1 },
+          text: 'When this creature enters, if it was kicked, target land becomes an Island for as long as this creature remains on the battlefield.',
+          effects: [{ op: 'changeLandTypeWhileSource', type: 'Island', targets: [{ type: 'land' }] }] },
+        { kind: 'static', auto: true,
+          text: 'This creature gets +1/+1 as long as an opponent controls an Island.',
+          effects: [{ op: 'continuous', layer: 7, scope: { self: true, what: 'creature' },
+            cond: { kind: 'control', what: 'island', n: 1, who: 'opponents' }, pt: { p: 1, t: 1 } }] },
+      ],
+    },
+    "deeproot historian": {
+      abilities: [{ kind: 'static', auto: true,
+        text: 'Merfolk and Druid cards in your graveyard have retrace.',
+        effects: [{ op: 'grantRetrace', words: ['Merfolk card', 'Druid card'] }] }],
+    },
+    "over the edge": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Choose one — Destroy target artifact or enchantment; or target creature you control explores, then it explores again.',
+        effects: [{ op: 'modal', count: 1, repeatable: false, modes: [
+          { label: 'Destroy target artifact or enchantment', auto: true,
+            effects: [{ op: 'destroy', targets: [{ type: 'permanent', anyOf: ['artifact', 'enchantment'] }] }] },
+          { label: 'Target creature you control explores, then it explores again', auto: true,
+            effects: [{ op: 'explore', repeat: 2, targets: [{ type: 'creature', controller: 'you' }] }] },
+        ] }] }],
+    },
+    "restore": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: 'Put target land card from a graveyard onto the battlefield under your control.',
+        effects: [{ op: 'reanimate', targets: [{ type: 'land', filter: 'land card', zone: 'graveyard' }] }] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */
@@ -606,5 +740,3 @@
     count() { return Object.keys(SCRIPTS).length; },
   };
 })(window.MTG);
-
-

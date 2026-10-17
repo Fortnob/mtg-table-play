@@ -184,6 +184,7 @@ module.exports = (test) => {
     const cmd = T.put('A', 'Grizzly Bears', 'command');
     cmd.isCommander = true;
     const beacon = T.bf('A', 'Command Beacon');
+    T.answer('confirm', { yes: false });
     T.activate('A', beacon, 1);
     t.zone(cmd, 'hand');
   });

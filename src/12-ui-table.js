@@ -721,20 +721,28 @@
       n.classList.toggle('token', !!o.isToken);
       // an Oathbreaker's Signature Spell is framed in the command zone as its Oathbreaker is
       n.classList.toggle('is-cmd', !!(o.isCommander || o.isSignature));
-      /* the game runs nearly every card by itself, so that goes without saying: only a card that needs a hand is
-         marked (below), and its label says so too */
-      const byHand = !hidden && !!UI.autoInfo && !UI.autoInfo(o.card).auto;
+      /* Use the same automation status and badge shown in the deck builder. */
+      const autoInfo = !hidden && UI.autoInfo ? UI.autoInfo(o.card) : null;
+      const byHand = !!(autoInfo && !autoInfo.auto);
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o) + (byHand ? ', needs a hand' : ''));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickMark ? 1 : 0, byHand ? 1 : 0, o.textNow || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), JSON.stringify(o.costAdjustments || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickMark ? 1 : 0, autoInfo ? (autoInfo.auto ? 'auto' : 'manual') : '', o.textNow || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
       if (hidden) return;
-      // a card the game can't run all of: the hand, bottom left (UI.autoBadge); the deck builder shows the tick too
-      const auto = byHand && UI.autoBadge ? UI.autoBadge(o.card, { corner: true }) : null;
+      // The existing badge distinguishes fully automated cards from those that need a hand.
+      const auto = autoInfo && UI.autoBadge ? UI.autoBadge(o.card, { corner: true }) : null;
       if (auto) { auto.classList.add('cv-mark', 'cv-auto'); n.appendChild(auto); }
+      if (o.costAdjustments && o.costAdjustments.length) {
+        const names = o.costAdjustments.map(x => `${x.sign === '-' ? 'reduced by' : 'increased by'} {${x.symbol}}`);
+        n.appendChild(el('div', { class: 'cv-mark cv-cost-delta', title: 'Casting cost ' + names.join(', '), 'aria-label': 'Casting cost ' + names.join(', ') },
+          o.costAdjustments.map(x => el('span', { class: x.sign === '-' ? 'down' : 'up' }, [
+            el('b', { text: x.sign }),
+            el('span', { html: MTG.mana.html('{' + x.symbol + '}') }),
+          ]))));
+      }
       // Alchemy: a perpetual change shows wherever the card is, in hand too
       if (o.perpetual) {
         const d = perpetualWords(o.perpetual);

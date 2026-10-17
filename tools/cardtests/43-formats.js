@@ -205,6 +205,8 @@ module.exports = (test) => {
     T.mana('A', 'RR2');
     T.cast('A', walker);
     T.g.moveObject(walker, 'graveyard');
+    T.g.checkStateBasedActions();
+    T.settle();
     t.zone(walker, 'command', 'the Oathbreaker goes home as a commander does');
     T.mana('A', 'R');
     t.no(T.g.canCast('A', sig.id).ok, 'and the spell cannot be cast without it');

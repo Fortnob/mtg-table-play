@@ -29953,7 +29953,8 @@ module.exports = (test) => {
     M.activate('A', tev, 1);
     t.ok(bear.zone !== 'battlefield', 'Tevesh Szat: the Grizzly Bears sacrificed');
     t.eq(g.zones.A.hand.length, h0 + 3, 'Tevesh Szat: a commander, three cards');
-    t.eq(M.asked.slice(a0).filter(ch => ch.type === 'confirm').length, 0, 'Tevesh Szat: one question, not a yes and then a pick');
+    t.zone(bear, 'command', 'Tevesh Szat: the commander owner chooses its destination');
+    t.eq(M.asked.slice(a0).filter(ch => ch.purpose === 'commanderZone').length, 1, 'Tevesh Szat: its owner gets the Commander destination choice');
     // next turn: the Llanowar Elves, not a commander — two
     M.nextTurn('A');
     const h1 = g.zones.A.hand.length;
@@ -37069,8 +37070,10 @@ module.exports = (test) => {
     const cmd = M.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 3, 'charge': 4 } }); cmd.isCommander = true;
     const elf = M.bf('A', 'Llanowar Elves');
     M.answer('pickTarget', (ch) => ({ targets: [((ch.options || [])[0] || []).find(x => x.id === elf.id)].filter(Boolean) }));
-    M.mana('A', 'U'); M.cast('A', M.hand('A', 'Unsummon'), { targets: [cmd] });
-    t.zone(cmd, 'command', 'Reyhan: returned to hand, the commander goes to the command zone');
+    M.g.moveObject(cmd, 'graveyard');
+    M.g.checkStateBasedActions();
+    M.resolve();
+    t.zone(cmd, 'command', 'Reyhan: the commander dies, then its owner chooses the command zone');
     t.eq(elf.counters['+1/+1'], 3, 'Reyhan: three +1/+1 counters, the charge counters not');
     const bear = M.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
     let asked = 0;

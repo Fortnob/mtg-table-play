@@ -201,6 +201,14 @@
   font-size: max(8px, calc(var(--w, 100px) * .095)); }
 .cv-mark.cv-auto svg { width: 72%; height: 72%; }
 .cv.tapped .cv-mark.cv-auto { left: -16%; bottom: 16%; }
+.cv-cost-delta { right: 2%; top: 14%; display: flex; flex-direction: column; gap: 1px; padding: 2px;
+  border-radius: 4px; background: rgba(12,14,20,.88); box-shadow: 0 1px 4px rgba(0,0,0,.65);
+  font: 800 max(8px, calc(var(--w) * .105))/1 var(--font); }
+.cv-cost-delta > span { display: flex; align-items: center; gap: 1px; }
+.cv-cost-delta > span.down { color: #84e1a1; }
+.cv-cost-delta > span.up { color: #ff9a88; }
+.cv-cost-delta .pip { width: max(10px, calc(var(--w) * .12)); height: max(10px, calc(var(--w) * .12));
+  margin: 0; font-size: max(7px, calc(var(--w) * .075)); }
 .cv-chips { left: -4%; top: 8%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 /* its keywords at a glance (12i-ui-keywords.js): small symbols down the right edge */
 .cv-kws { right: -7%; top: 7%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
