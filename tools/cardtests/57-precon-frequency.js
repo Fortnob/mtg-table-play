@@ -153,4 +153,24 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, a0 + 3, 'its controller draws three');
     t.eq(T.zone('B', 'hand').length, b0 + 3, 'the damaged player draws three');
   });
+
+  test('Precon automation: Hate Mirage copies up to two opposing creatures with haste until end step', (mk, t) => {
+    t.auto('Hate Mirage');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const giant = T.bf('C', 'Hill Giant');
+    const own = T.bf('A', 'Llanowar Elves');
+    const spell = T.hand('A', 'Hate Mirage');
+    T.mana('A', '2RR');
+    T.cast('A', spell, { targets: [bear, giant] });
+    const copies = T.bfOf('A').filter(o => o.isToken);
+    t.eq(copies.length, 2, 'makes one copy for each selected creature');
+    t.ok(copies.some(o => o.name === 'Grizzly Bears') && copies.some(o => o.name === 'Hill Giant'),
+      'the copies match their respective targets');
+    t.ok(copies.every(o => T.g.hasKw(o, 'haste')), 'both copies gain haste');
+    t.no(copies.some(o => o.id === own.id), 'does not copy a creature controlled by its caster');
+    T.toMain('A', 'end');
+    t.ok(copies.every(o => o.zone === 'exile'), 'exiles both tokens at the beginning of the next end step');
+  });
 };

@@ -789,6 +789,16 @@
           { op: 'draw', n: 'triggerAmount', who: 'triggerPlayer' },
         ] }],
     },
+    "hate mirage": {
+      abilities: [{ kind: 'spell', auto: true,
+        text: "Choose up to two target creatures you don't control. For each of those creatures, create a token that's a copy of that creature. Those tokens gain haste. Exile them at the beginning of the next end step.",
+        effects: [
+          { op: 'copyPermanent', eachTarget: true, grant: ['Haste'],
+            targets: [{ type: 'creature', controller: 'opponent', multi: { count: 2, min: 0, max: 2 } }] },
+          { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Exile the tokens',
+            effects: [{ op: 'exile', scope: 'thatObject' }] },
+        ] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */
