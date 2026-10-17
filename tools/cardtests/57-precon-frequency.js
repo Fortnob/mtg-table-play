@@ -127,4 +127,30 @@ module.exports = (test) => {
     t.ok(dragons.every(o => T.g.powerOf(o) === 5 && T.g.toughnessOf(o) === 5 &&
       (o.analysis().colors || []).includes('R') && T.g.hasKw(o, 'flying')), 'creates red 5/5 Dragons with flying');
   });
+
+  test("Precon automation: Loreseeker's Stone draws only when its controller has no cards in hand", (mk, t) => {
+    t.auto("Loreseeker's Stone");
+    const T = mk();
+    T.toMain('A');
+    const stone = T.bf('A', "Loreseeker's Stone");
+    T.hand('A', 'Island');
+    T.mana('A', '3');
+    t.no(T.g.activateAbility('A', stone.id, 0, { auto: true }), 'the ability cannot be activated with a card in hand');
+    const held = T.zone('A', 'hand')[0];
+    T.g.moveObject(held, 'graveyard');
+    const h0 = T.zone('A', 'hand').length;
+    T.activate('A', stone, 0);
+    t.eq(T.zone('A', 'hand').length, h0 + 3, 'draws three cards once the hand is empty');
+  });
+
+  test('Precon automation: Diviner Spirit has both players draw its combat damage amount', (mk, t) => {
+    t.auto('Diviner Spirit');
+    const T = mk();
+    const spirit = T.bf('A', 'Diviner Spirit');
+    const a0 = T.zone('A', 'hand').length, b0 = T.zone('B', 'hand').length;
+    T.g._fire('combatDamageToPlayer', 'A', { source: spirit, amount: 3, player: 'B' });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, a0 + 3, 'its controller draws three');
+    t.eq(T.zone('B', 'hand').length, b0 + 3, 'the damaged player draws three');
+  });
 };

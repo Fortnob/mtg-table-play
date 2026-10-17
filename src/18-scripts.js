@@ -776,6 +776,19 @@
         effects: [{ op: 'createToken', n: { creaturesTargetPlayerControls: true }, pt: '5/5',
           subtypes: 'Dragon', colorWords: ['red'], keywords: ['Flying'], targets: [{ type: 'player', opponent: true }] }] }],
     },
+    "loreseeker's stone": {
+      abilities: [{ kind: 'activated', auto: true, cost: { mana: '{3}', tap: true, other: [] },
+        text: '{3}, {T}: Draw three cards. Activate this ability only if you have no cards in hand.',
+        only: { cond: { kind: 'emptyHand' } }, effects: [{ op: 'draw', n: 3, who: 'you' }] }],
+    },
+    "diviner spirit": {
+      abilities: [{ kind: 'triggered', event: 'combatDamageToPlayer', self: true, auto: true,
+        text: 'Whenever this creature deals combat damage to a player, you and that player each draw that many cards.',
+        effects: [
+          { op: 'draw', n: 'triggerAmount', who: 'you' },
+          { op: 'draw', n: 'triggerAmount', who: 'triggerPlayer' },
+        ] }],
+    },
   };
 
   /* ---------------- lookup ---------------- */

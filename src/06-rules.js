@@ -17056,6 +17056,7 @@
       const h = this.turnHistory || {};
       const at = (have) => cond.cmp === 'atMost' ? have <= cond.n : have >= cond.n;
       switch (cond.kind) {
+        case 'emptyHand': return !!me && !((this.zones[me.id] || {}).hand || []).length;
         // Gathering Place: "if this land entered this turn or if you control a basic land"
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
         // Cache Grab: "returned a Squirrel card to your hand this way" — a card this resolution put into the hand
