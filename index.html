@@ -105112,7 +105112,7 @@ MTG.setGameSpeed = function (id) {
   function createHub(o) {
     const hub = new MTG.Emitter();
     const T = Object.assign({
-      sweep: 120000,        // how often friends not connected are tried again
+      sweep: 15000,         // how often friends not connected are tried again
       stagger: 250,         // between one attempt and the next, in a sweep
       attempt: 15000,       // how long a connection may take to open
       ping: 20000,          // a word down every line this often
