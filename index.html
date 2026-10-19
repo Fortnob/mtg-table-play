@@ -117459,6 +117459,30 @@ MTG.setGameSpeed = function (id) {
     });
     return d ? { h: state.sleeves.anim.h, type: 'image/gif', d } : null;
   }
+  /** Your GIF as the backup file holds it: { v, type, d } (d: base64), or null. */
+  async function animBackup() {
+    load();
+    if (!state.sleeves.anim) return null;
+    const rec = await media('get', ANIM_KEY);
+    if (!rec || !rec.buf) return null;
+    const d = await new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result || '').split(',')[1] || '');
+      fr.onerror = () => res('');
+      fr.readAsDataURL(new Blob([rec.buf], { type: rec.type || 'image/gif' }));
+    });
+    return d ? { v: rec.v, type: rec.type || 'image/gif', d } : null;
+  }
+  /** Put a GIF from a backup file ({ v, type, d }) back where it is kept; null clears it. */
+  async function animRestore(b) {
+    try {
+      if (!b || typeof b.d !== 'string' || !b.d) return media('del', ANIM_KEY);
+      const bin = atob(b.d);
+      const buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return await media('put', ANIM_KEY, { buf: buf.buffer, type: 'image/gif', v: b.v });
+    } catch (e) { return false; }
+  }
   /**
    * Your own sleeve's picture: a card-shaped JPEG data URL, and with it,
    * for a GIF, the file itself ({ buf, type, crop }) to keep it moving.
@@ -117634,7 +117658,7 @@ MTG.setGameSpeed = function (id) {
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     ONE_RING, SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
-    digestHex, animPayload, VINTAGE_RATE,
+    digestHex, animPayload, animBackup, animRestore, VINTAGE_RATE,
     /** Your GIF's name between players, or null. */
     ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
     /** Your moving sleeve, on this device: { anim, crop }, or nothing. */
@@ -142882,8 +142906,11 @@ Sideboard
     }
     return { app: 'mtg-table', kind: 'profile', v: 1, at: new Date().toISOString(), data };
   };
-  App.exportProfile = function () {
-    const blob = new Blob([JSON.stringify(App.profileDoc(), null, 0)], { type: 'application/json' });
+  App.exportProfile = async function () {
+    const doc = App.profileDoc();
+    // a GIF sleeve lives in IndexedDB, not localStorage: it goes in the file as base64
+    try { const gif = await MTG.economy.animBackup(); if (gif) doc.media = { sleeveAnim: gif }; } catch (e) { /* the rest is still saved */ }
+    const blob = new Blob([JSON.stringify(doc, null, 0)], { type: 'application/json' });
     const a = el('a', { href: URL.createObjectURL(blob), download: `mtg-table-profile-${new Date().toISOString().slice(0, 10)}.json` });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -142913,6 +142940,7 @@ Sideboard
   App.loadProfileDoc = async function (doc, opts) {
     opts = opts || {};
     if (!doc || doc.app !== 'mtg-table' || doc.kind !== 'profile' || !doc.data || typeof doc.data !== 'object') { UI.error('That file is not an MTG Table profile backup.'); return false; }
+    if (typeof doc.v === 'number' && doc.v > 1) { UI.error('That backup was made by a newer version of MTG Table. Reload this page to update, then try again.'); return false; }
     const keys = Object.keys(doc.data).filter(k => k.startsWith('mtgtable.') && !BACKUP_SKIP.test(k) && typeof doc.data[k] === 'string');
     const eco = (() => { try { return JSON.parse(doc.data['mtgtable.economy'] || 'null'); } catch (e) { return null; } })();
     const what = eco ? `${(eco.shards || 0).toLocaleString()} Shards, ${Object.keys(eco.col || {}).length} different cards, ${(eco.packs || []).length} packs` : 'its settings and decks';
@@ -142924,6 +142952,7 @@ Sideboard
       if (k && k.startsWith('mtgtable.') && !BACKUP_SKIP.test(k)) localStorage.removeItem(k);
     }
     for (const k of keys) { try { localStorage.setItem(k, doc.data[k]); } catch (e) { /* full */ } }
+    try { await MTG.economy.animRestore(doc.media && doc.media.sleeveAnim); } catch (e) { /* the GIF is the only thing lost */ }
     if (opts.before) { try { await opts.before(); } catch (e) { /* the save is in; the reload still happens */ } }
     UI.ok('Profile loaded. Starting again with it…');
     setTimeout(() => location.reload(), 700);
