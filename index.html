@@ -142767,8 +142767,7 @@ Sideboard
       // a click on the Shards: ten thousand more, like the backquote key, and the Store to spend them in
       UI.shardChip(() => { MTG.economy.grantTest(); navTo('store'); }),
       el('div', { class: 'net-badge', id: 'netBadge' }, [el('span', { class: 'net-dot' }), el('span', { text: 'solo' })]),
-      el('button', { class: 'btn sm ghost icon-btn', html: SVG.sound, title: 'Sound', 'aria-label': 'Sound', onclick: soundMenu }),
-      el('button', { class: 'btn sm ghost icon-btn', html: SVG.gear, title: 'Options', 'aria-label': 'Options', onclick: () => navTo('options') }),
+      el('button', { class: 'btn sm ghost icon-btn', html: SVG.gear, title: 'Settings', 'aria-label': 'Settings', onclick: () => navTo('options') }),
     ]);
 
     screens = {
@@ -144825,7 +144824,7 @@ Sideboard
      which, and the page remembers the last one you looked at. */
   const OPT_SECTIONS = [
     ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['rules', 'House rules'], ['pace', 'Pace'], ['stops', 'Stops'],
-    ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['suggest', 'Suggestions'], ['data', 'Card data'],
+    ['access', 'Accessibility'], ['sound', 'Audio'], ['online', 'Online'], ['suggest', 'Suggestions'], ['data', 'Card data'],
   ];
   const BOT_PACE = MTG.BOT_PACES;
   const ANIM_PACE = [[0.5, 'Fast'], [1, 'Normal'], [1.6, 'Relaxed']];
@@ -144837,7 +144836,7 @@ Sideboard
     s.innerHTML = '';
     sceneBackdrop(s);
     const inner = el('div', { class: 'menu-inner opt-page' + (scroller ? ' again' : '') });
-    inner.appendChild(pageHeader('Options', 'Everything is saved in this browser and applies straight away.', 'home'));
+    inner.appendChild(pageHeader('Settings', 'Everything is saved in this browser and applies straight away.', 'home'));
 
     const S = MTG.settings;
     const set = (k, v) => { MTG.setSetting(k, v); MTG.applyDisplaySettings(); };
@@ -145129,7 +145128,7 @@ Sideboard
     ]));
 
     /* -- sound: the rows are built by the table's sound (src/12f-ui-feel.js) -- */
-    sections.push(group('sound', 'Sound', null, MTG.feel.soundRows()));
+    sections.push(group('sound', 'Audio', null, MTG.feel.soundRows()));
 
     /* -- online -- */
     sections.push(onlineGroup(group));
@@ -147662,13 +147661,6 @@ Sideboard
   }
 
   /* ================= misc dialogs ================= */
-  function soundMenu(e) {
-    UI.modal({
-      title: 'Sound', width: '440px',
-      content: el('div', { class: 'opt-group' }, MTG.feel.soundRows('snd-')),
-    });
-  }
-
   async function confirmLeave() {
     if (App.screen === 'home') return;
     if (!App.session && !net.online) return showScreen('home');
