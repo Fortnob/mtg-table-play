@@ -7772,11 +7772,12 @@ html[data-play="1"] .friends-chip { display: none; }
   background: rgba(16, 18, 26, .96); border: 1px solid rgba(243, 221, 150, .3); box-shadow: 0 14px 34px rgba(0,0,0,.6); animation: poIn .15s ease-out; }
 .emote-opt { padding: 7px 12px; border-radius: 99px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05); color: #eee6d4; cursor: pointer; font: 600 13px var(--font); white-space: nowrap; }
 .emote-opt:hover { background: rgba(243, 221, 150, .16); border-color: rgba(243, 221, 150, .45); }
-.emote-bubble { position: fixed; z-index: 7000; translate: -50% -100%; padding: 8px 14px; border-radius: 14px; pointer-events: none;
-  background: #f6efdc; color: #1c1508; font: 700 14px/1.2 var(--font); box-shadow: 0 8px 22px rgba(0,0,0,.5); animation: bubbleIn .3s cubic-bezier(.3, 1.6, .5, 1); }
-.emote-bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent; border-bottom: 0; border-top-color: #f6efdc; }
-.emote-bubble.below { translate: -50% 0; }
-.emote-bubble.below::after { bottom: auto; top: -6px; border-top: 0; border-bottom: 6px solid #f6efdc; }
+.emote-bubble { position: fixed; z-index: 7000; display: flex; align-items: center; gap: 7px; max-width: 172px; min-height: 38px; box-sizing: border-box;
+  padding: 5px 10px 5px 5px; border-radius: 22px; pointer-events: none; overflow: hidden;
+  background: rgba(246,239,220,.96); color: #1c1508; font: 700 12px/1.15 var(--font); box-shadow: 0 4px 14px rgba(0,0,0,.36);
+  animation: bubbleIn .2s cubic-bezier(.3, 1.4, .5, 1); }
+.emote-avatar { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 35% 30%, #737f90, #28303b); background-position: center; background-size: cover; color: #fff; font-size: 11px; }
 .emote-bubble.out { transition: opacity .4s, transform .4s; opacity: 0; transform: translateY(-6px); }
 @keyframes bubbleIn { from { opacity: 0; transform: scale(.6); } }
 @media (prefers-reduced-motion: reduce) { .cs-gilded::after, .cs-prismatic::after, .cs-shadow::after, .cs-celestial::after { animation: none !important; } }
@@ -8336,6 +8337,7 @@ const defaultSettings = {
   confirmAttacks: true,
   showPhaseBar: true,
   animateDraws: true,
+  uniqueArtOnly: false,
   artPreferences: {},
   cardScripts: {},           // cards the player has written out themselves            // oracle_id -> scryfall print id
   preferredSetForImport: '',
@@ -8871,7 +8873,6 @@ MTG.setGameSpeed = function (id) {
   MTG.settings.animSpeed = g[2];
   MTG.setSetting('botSpeed', g[3]);
 };
-
 /* ===== 01-audio.js ===== */
 /* ============================================================
    01-audio.js — the table's sound
@@ -13346,6 +13347,57 @@ MTG.setGameSpeed = function (id) {
   const VOICE_TOKEN = { op: 'createToken', n: 1, pt: '0/0', colorWords: ['green', 'white'], subtypes: 'Elemental', keywords: [],
     grantedText: "This creature's power and toughness are each equal to the number of creatures you control." };
   const SCRIPTS = {
+    "flayer of the hatebound": {
+      keepKeywords: true,
+      abilities: [
+        { kind: 'triggered', event: 'etb', anyonesCreature: true, entersFromOwnGraveyardOnly: true,
+          objFilter: { words: 'creature' }, auto: true,
+          text: 'Whenever this creature or another creature enters from your graveyard, that creature deals damage equal to its power to any target.',
+          effects: [{ op: 'damage', n: { ofTrigger: 'power' }, fromTrigger: true, targets: [{ type: 'any' }] }] },
+      ],
+    },
+    "progenitor's icon": {
+      abilities: [
+        { kind: 'static', auto: true, text: 'As this artifact enters, choose a creature type.',
+          effects: [{ op: 'chooseTypeOnEnter' }] },
+        { kind: 'activated', auto: true, cost: { mana: '', tap: true, other: [] },
+          text: '{T}: The next spell of the chosen type you cast this turn can be cast as though it had flash.',
+          effects: [{ op: 'grantFlashChosenTypeThisTurn' }] },
+        { kind: 'mana', auto: true, cost: { mana: '', tap: true, other: [] },
+          text: '{T}: Add one mana of any color.', effects: [{ op: 'addManaAny', amount: 1 }] },
+      ],
+    },
+    "master warcraft": {
+      abilities: [
+        { kind: 'static', auto: true, text: 'Cast this spell only before attackers are declared.',
+          effects: [{ op: 'noop', castWindow: { before: 'declareAttackers' } }] },
+        { kind: 'spell', auto: true,
+          text: 'You choose which creatures attack this turn. You choose which creatures block this turn and how those creatures block.',
+          effects: [{ op: 'controlCombatChoices' }] },
+      ],
+    },
+    "verge rangers": {
+      keepKeywords: true,
+      abilities: [
+        { kind: 'static', auto: true, text: 'You may look at the top card of your library any time.',
+          effects: [{ op: 'peekTop' }] },
+        { kind: 'static', auto: true,
+          text: 'As long as an opponent controls more lands than you, you may play lands from the top of your library.',
+          effects: [{ op: 'playFromTop', what: 'land', moreLandsThanOpponent: true }] },
+      ],
+    },
+    "gallifrey council chamber": {
+      abilities: [
+        { kind: 'triggered', event: 'etb', self: true, auto: true, text: 'When this land enters, surveil 1.',
+          effects: [{ op: 'surveil', n: 1 }] },
+        { kind: 'mana', auto: true, cost: { mana: '', tap: true, other: [] }, text: '{T}: Add {C}.',
+          effects: [{ op: 'addMana', symbols: ['C'] }] },
+        { kind: 'mana', auto: true, cost: { mana: '', tap: true, other: [] },
+          spendOnly: { words: 'Time Lord or Alien', abilitiesOf: 'Time Lord or Alien' },
+          text: '{T}: Add one mana of any color. Spend this mana only to cast a Time Lord or Alien spell or activate an ability of a Time Lord or Alien.',
+          effects: [{ op: 'addManaAny', amount: 1 }] },
+      ],
+    },
     /* --- cards whose text counts something the parser has no word for --- */
     "dark confidant": {
       abilities: [{
@@ -49838,6 +49890,8 @@ MTG.setGameSpeed = function (id) {
     }
     _flashFor(playerId, o) {
       const p = this.player(playerId);
+      if (p && p.flashTypeGrant && p.flashTypeGrant.turn === this.turn &&
+          this._hasCreatureType(o, p.flashTypeGrant.type)) return true;
       if (p && p.flashTurn === this.turn && (!p.flashTurnFilter || this._cardFitsWords(o, p.flashTurnFilter))) return true;
       // Teferi, Time Raveler +1: until your next turn
       const fu = p && p.flashUntil;
@@ -49880,6 +49934,11 @@ MTG.setGameSpeed = function (id) {
         }
       }
       return false;
+    }
+
+    _consumeFlashTypeGrant(playerId, o) {
+      const p = this.player(playerId), grant = p && p.flashTypeGrant;
+      if (grant && grant.turn === this.turn && this._hasCreatureType(o, grant.type)) p.flashTypeGrant = null;
     }
 
     /**
@@ -49955,6 +50014,12 @@ MTG.setGameSpeed = function (id) {
             // Coram, the Undertaker: "a land and a spell" — each once a turn (oncePerKind)
             if (ef.oncePerKind && kind !== 'any' && src._playFromKinds && src._playFromKinds.turn === this.turn && src._playFromKinds[kind]) continue;
             if (ef.filter && !this._cardFitsWords(o, ef.filter)) continue;
+            if (ef.moreLandsThanOpponent) {
+              const lands = (pid) => this.battlefield.filter(x => x.controller === pid && !x.phasedOut &&
+                this._cardFitsWords(x, 'land')).length;
+              const yours = lands(playerId);
+              if (!this.opponentsOf(playerId).some(q => lands(q.id) > yours)) continue;
+            }
             // Crystal Skull: one filter for the lands, another for the spells
             const kf = kind === 'land' ? ef.landFilter : ef.spellFilter;
             if (kf && !this._cardFitsWords(o, kf)) continue;
@@ -53212,6 +53277,7 @@ MTG.setGameSpeed = function (id) {
 
       // (Riku of Many Paths: "the number of times you chose a mode for that spell" — modesChosen)
       const castData = Object.assign({ spell: item, object: o, stackId: item.id, playerId }, md ? { modesChosen: md.picks.length } : {});
+      this._consumeFlashTypeGrant(playerId, o);
       // void (Alpharael, Stonechosen): "or a spell was warped this turn" — cast for its warp cost
       if (item.via === 'warp') { const hw = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); hw.warped = true; }
       this._fire('youCastSpell', playerId, castData);
@@ -57846,8 +57912,11 @@ MTG.setGameSpeed = function (id) {
         this._advanceStep();
         return;
       }
+      const control = this.combatChoiceControl && this.combatChoiceControl.turn === this.turn &&
+        this.player(this.combatChoiceControl.playerId);
+      const chooser = control && !control.hasLost ? control.id : ap.id;
       this.pendingChoice = {
-        type: 'declareAttackers', playerId: ap.id,
+        type: 'declareAttackers', playerId: chooser, attackingPlayer: ap.id,
         candidates: possible.map(o => o.id),
         defenders: this._legalDefenders(ap.id),
         prompt: 'Declare attackers.',
@@ -57986,11 +58055,14 @@ MTG.setGameSpeed = function (id) {
     declareAttackers(playerId, declarations, opts) {
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareAttackers' || ch.playerId !== playerId) return this.fail('Not declaring attackers.');
+      const choicePlayerId = playerId;
+      playerId = ch.attackingPlayer || playerId;
       declarations = declarations || [];
       // (an attack that costs mana — Ghostly Prison — paid with a Treasure only with a yes: _sacGated)
       if (this._sacGateWanted(playerId, opts)) {
         const decl = declarations;
-        return this._sacGated(playerId, { kind: 'attack', declarations: JSON.parse(JSON.stringify(decl)), opts: opts || {} }, () => this.declareAttackers(playerId, decl, opts));
+        return this._sacGated(choicePlayerId, { kind: 'attack', declarations: JSON.parse(JSON.stringify(decl)), opts: opts || {} },
+          () => this.declareAttackers(choicePlayerId, decl, opts));
       }
       /* "can't attack alone" (CR 506.5): a lone attacker that can't stays
          at home, and nobody attacks */
@@ -58035,7 +58107,7 @@ MTG.setGameSpeed = function (id) {
           let seen = 0;
           const before = declarations.length;
           // a person is told and declares again; a bot's extra attackers stay home
-          if (!(this.player(playerId) || {}).isBot && declarations.filter(hits).length > (lim.n || 1))
+          if (!(this.player(choicePlayerId) || {}).isBot && declarations.filter(hits).length > (lim.n || 1))
             return this.fail(`${s0.name}: no more than ${lim.n || 1} creature${(lim.n || 1) === 1 ? '' : 's'} can attack${what ? ' ' + what : ''} each combat.`);
           declarations = declarations.filter(d => !hits(d) || ++seen <= (lim.n || 1));
           if (declarations.length < before) this.logEvent('rules', `${s0.name}: no more than ${lim.n || 1} attacking${what ? ' ' + what : ''}.`);
@@ -58055,7 +58127,7 @@ MTG.setGameSpeed = function (id) {
           const o = this.obj(d.attackerId);
           const why = this._cantAttackYou(o, d.defenderId);
           if (!why) { kept.push(d); continue; }
-          if (!(this.player(playerId) || {}).isBot) return this.fail(`${o.name} can't attack ${why.who}${why.src ? ` (${why.src.name})` : ''}.`);
+          if (!(this.player(choicePlayerId) || {}).isBot) return this.fail(`${o.name} can't attack ${why.who}${why.src ? ` (${why.src.name})` : ''}.`);
           // (Alexios, Deimos of Kosmos: a bot's compelled attacker goes at someone it may attack instead)
           const elsewhere = this.mustAttack(o) && ch.defenders.find(x => !this._cantAttackYou(o, x.id));
           if (elsewhere) { kept.push(Object.assign({}, d, { defenderId: elsewhere.id })); continue; }
@@ -58125,7 +58197,7 @@ MTG.setGameSpeed = function (id) {
           if (must && most) {
             const d = declarations.find(x => x.attackerId === id);
             if (!ableMost.includes(d.defenderId)) {
-              if ((this.player(playerId) || {}).isBot) d.defenderId = ableMost[0];
+              if ((this.player(choicePlayerId) || {}).isBot) d.defenderId = ableMost[0];
               else return this.fail(`${o.name} attacks an opponent with the most life (${ableMost.map(pid => this.player(pid).name).join(' or ')}) if able.`);
             }
           }
@@ -58136,7 +58208,7 @@ MTG.setGameSpeed = function (id) {
             const d = declarations.find(x => x.attackerId === id);
             const others = this.opponentsOf(playerId).filter(q => !q.hasLost && !goaders.includes(q.id) && !this._cantAttackYou(o, q.id));
             if (d && others.length && !others.some(q => q.id === d.defenderId)) {
-              if ((this.player(playerId) || {}).isBot) d.defenderId = others[0].id;
+              if ((this.player(choicePlayerId) || {}).isBot) d.defenderId = others[0].id;
               else return this.fail(`${o.name} is goaded: it attacks a player other than ${goaders.map(g => (this.player(g) || {}).name || 'the one who goaded it').join(' or ')} if it can.`);
             }
           }
@@ -58146,7 +58218,7 @@ MTG.setGameSpeed = function (id) {
           if (pwId && ch.defenders.some(x => x.id === pwId)) {
             const d = declarations.find(x => x.attackerId === id);
             if (d && d.defenderId !== pwId) {
-              if ((this.player(playerId) || {}).isBot) d.defenderId = pwId;
+              if ((this.player(choicePlayerId) || {}).isBot) d.defenderId = pwId;
               else return this.fail(`${o.name} attacks ${this.obj(pwId).name} if able.`);
             }
           }
@@ -58169,7 +58241,7 @@ MTG.setGameSpeed = function (id) {
         if (ds.length < 2) continue;
         const why = this._bandProblem(ds.map(d => this.obj(d.attackerId)).filter(Boolean), ds);
         if (why) {
-          if (!(this.player(playerId) || {}).isBot) return this.fail(why);
+          if (!(this.player(choicePlayerId) || {}).isBot) return this.fail(why);
           bands.delete(k);
         }
       }
@@ -58179,7 +58251,7 @@ MTG.setGameSpeed = function (id) {
          before anything of the attack happens (_enlistWait, purpose 'enlist') */
       {
         const used = new Set();
-        const isBot = !!(this.player(playerId) || {}).isBot;
+        const isBot = !!(this.player(choicePlayerId) || {}).isBot;
         for (const d of declarations) {
           if (d.enlist == null) continue;
           const o = this.obj(d.attackerId);
@@ -58199,7 +58271,7 @@ MTG.setGameSpeed = function (id) {
           if (!pool.length) { d.enlist = null; continue; }
           this._enlistWait = { declarations: JSON.parse(JSON.stringify(declarations)), attackerId: o.id, choice: ch,
             opts: Object.assign(JSON.parse(JSON.stringify(opts || {})), { attackCostsPaid: true }) };
-          this.pendingChoice = MTG.choice.normalize({ type: 'choose', playerId, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
+          this.pendingChoice = MTG.choice.normalize({ type: 'choose', playerId: choicePlayerId, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 0, max: 1, optional: true, sourceId: o.id, sourceName: o.name, sourceCard: o.card,
             prompt: `${o.name} attacks: enlist? You may tap a creature you control that isn't attacking. If you do, ${o.name} gets +X/+0 until end of turn, where X is that creature's power.` });
           this.emit('choice', this.pendingChoice);
@@ -58830,7 +58902,9 @@ MTG.setGameSpeed = function (id) {
       if (!candidates.length) { this._askNextBlocker(); return; }
       /* Odric, Master Tactician: "you choose which creatures block this combat and how those creatures block" — the
          question is put to that player, about the defending player's creatures (chooseBlocksCombat) */
-      const by = this.combat.blockChooser && this.player(this.combat.blockChooser);
+      const control = this.combatChoiceControl && this.combatChoiceControl.turn === this.turn &&
+        this.player(this.combatChoiceControl.playerId);
+      const by = this.combat.blockChooser ? this.player(this.combat.blockChooser) : control;
       const chooser = by && !by.hasLost && by.id !== pid ? by.id : pid;
       this.pendingChoice = Object.assign({
         type: 'declareBlockers', playerId: chooser,
@@ -63711,7 +63785,7 @@ MTG.setGameSpeed = function (id) {
         // replacement effects (counters it enters with, riot) and evolve
         this._onEnter(o);
         this.emit('sfx', o.isToken ? 'token' : 'play_card', { player: o.controller });
-        this._fireEnters(o);
+        this._fireEnters(o, from);
       } else if (toZone === 'graveyard') {
         if (!vanishes) this.zones[o.owner].graveyard.push(o);
         if (from === 'battlefield') {
@@ -63884,7 +63958,7 @@ MTG.setGameSpeed = function (id) {
         effects: [{ op: 'soulbondPair', objId: o.id, own: mine }],
       });
     }
-    _fireEnters(o) {
+    _fireEnters(o, fromZone) {
       const a = o.analysis();
       // Oath of Liliana, Raging Battle Mouse: what entered under whose control this turn
       if (a) {
@@ -63906,7 +63980,7 @@ MTG.setGameSpeed = function (id) {
         this.bumpBoard();
       }
       this._soulbondOnEnter(o);
-      this._fire('etb', o.controller, { object: o, source: o });
+      this._fire('etb', o.controller, { object: o, source: o, fromZone: fromZone || null });
       if (a && a.isCreature) {
         this._fire('anyCreatureEtb', o.controller, { object: o });
         this._fire('yourCreatureEtb', o.controller, { object: o });
@@ -64534,6 +64608,9 @@ MTG.setGameSpeed = function (id) {
           if (ab.event === 'chosenPlayerLoses' && !(o.chosenOpponent && data.player === o.chosenOpponent)) continue;
           if (ab.self && data.source && data.source.id !== o.id) continue;
           if (ab.self && !data.source) continue;
+          // Flayer of the Hatebound: the entering creature must be from this trigger source's controller's graveyard.
+          if (ab.entersFromOwnGraveyardOnly &&
+              (event !== 'etb' || data.fromZone !== 'graveyard' || !data.object || data.object.owner !== o.controller)) continue;
           // Sosuke, Son of Seshiro: "a Warrior you control deals combat damage" — the source one of this player's, of that type (dmgSourceYourType)
           if (ab.dmgSourceYourType && !(data.source && data.source.controller === o.controller && this._hasCreatureType(data.source, ab.dmgSourceYourType))) continue;
           // Spider-Slayer, Hatred Honed: "deals damage to a Spider" — the creature hit of that type (hitType)
@@ -78425,6 +78502,12 @@ MTG.setGameSpeed = function (id) {
           me.flashTurnFilter = e.filter || null;
           this.logEvent('rules', `${me.name} may cast spells as though they had flash this turn.`);
           break;
+        case 'grantFlashChosenTypeThisTurn':
+          if (src && src.chosenType) {
+            me.flashTypeGrant = { turn: this.turn, type: src.chosenType };
+            this.logEvent('rules', `${me.name}'s next ${src.chosenType} spell this turn may be cast as though it had flash.`);
+          }
+          break;
         case 'flashGrant':
         case 'shuffleInsteadOfGrave':
           break;   // standing rules, read where they matter
@@ -81225,6 +81308,10 @@ MTG.setGameSpeed = function (id) {
           this.logEvent('rules', `${me.name} chooses which creatures block this combat, and how.`);
           break;
         }
+        case 'controlCombatChoices':
+          this.combatChoiceControl = { turn: this.turn, playerId: ctx.controller };
+          this.logEvent('rules', `${me.name} chooses which creatures attack and block this turn.`);
+          break;
         // "…this turn, exile that card instead": a replacement that lasts until the turn ends
         case 'floatingReplace': {
           /* Lightning, Army of One: "until your next turn, if a source would deal damage to that player or a permanent
@@ -85795,6 +85882,7 @@ MTG.setGameSpeed = function (id) {
       this.stack.push(item);
       this.stormCount++;
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
+      this._consumeFlashTypeGrant(playerId, o);
       // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       // The Twelfth Doctor: how many spells this player has cast from anywhere other than their hand this turn
@@ -100213,7 +100301,7 @@ MTG.setGameSpeed = function (id) {
             }
           }
           if (plan.length) this._did('attack', null, `attacks with ${plan.length}`);
-          plan = this._withEnlist(plan);
+          plan = this._withEnlist(plan, ch.attackingPlayer || this.pid);
           if (g.declareAttackers(this.pid, plan)) return true;
           const compelled = ch.candidates.map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
             .map(o => ({ attackerId: o.id, defenderId: g._mustAttackPlayerOf(o) || (plan[0] || {}).defenderId || ch.defenders[0].id }));
@@ -100793,13 +100881,13 @@ MTG.setGameSpeed = function (id) {
      * Enlist, decided with the attack (CR 702.154): for each attacker with enlist, the strongest creature staying
      * home if it adds 2 or more (the biggest, then the next) — or none, said so (enlist: null).
      */
-    _withEnlist(plan) {
+    _withEnlist(plan, playerId) {
       const g = this.game;
       if (!g.enlistCandidates || !plan.some(d => g.hasKw(g.obj(d.attackerId), 'enlist'))) return plan;
       const used = new Set();
       return plan.map(d => {
         if (!g.hasKw(g.obj(d.attackerId), 'enlist')) return d;
-        const best = g.enlistCandidates(this.pid, plan, used).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
+        const best = g.enlistCandidates(playerId || this.pid, plan, used).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
         const ok = best && g.powerOf(best) >= 2;
         if (ok) used.add(best.id);
         return Object.assign({}, d, { enlist: ok ? best.id : null });
@@ -102894,7 +102982,8 @@ MTG.setGameSpeed = function (id) {
 
     chooseAttacks(ch) {
       const g = this.game;
-      const opps = this.opponents();
+      const attacker = g.player(ch.attackingPlayer || this.pid) || this.me;
+      const opps = attacker ? g.opponentsOf(attacker.id) : this.opponents();
       if (!opps.length) return [];
       const myAttackers = ch.candidates.map(id => g.obj(id)).filter(Boolean);
       const blockersOf = (pid) => g.battlefield.filter(o => o.controller === pid && !o.tapped && this._isCreature(o));
@@ -102913,7 +103002,7 @@ MTG.setGameSpeed = function (id) {
          is cut short: a copy is one of dozens, and a rough read is plenty. */
       const rough = this.game.isScratch && myAttackers.length > 8;
       if (opps.length === 1) target = opps[0];
-      else if (rough) target = legalDef.has((this.mainOpponent() || {}).id) ? this.mainOpponent() : opps[0];
+      else if (rough) target = opps.find(p => legalDef.has(p.id)) || opps[0];
       else if (!this.sharp()) {
         target = opps.filter(p => legalDef.has(p.id))
           .sort((a, b) => blockersOf(a.id).length - blockersOf(b.id).length || this._leaderScore(b) - this._leaderScore(a))[0] || opps[0];
@@ -102978,7 +103067,7 @@ MTG.setGameSpeed = function (id) {
         let set = r.set;
         const myClock = totalPower > 0 ? Math.ceil(target.life / totalPower) : 99;
         const theirPower = U.sum(g.battlefield.filter(o => o.controller === target.id && this._isCreature(o)).map(o => g.powerOf(o)));
-        const theirClock = theirPower > 0 ? Math.ceil(this.me.life / theirPower) : 99;
+        const theirClock = theirPower > 0 ? Math.ceil(attacker.life / theirPower) : 99;
         /* A shade below zero is still worth doing when we are the ones
            ahead: trades that look level on the board are not level on the
            clock. Behind, they are exactly as bad as they look. */
@@ -102998,7 +103087,7 @@ MTG.setGameSpeed = function (id) {
       const out = [];
       const myClock = totalPower > 0 ? Math.ceil(target.life / totalPower) : 99;
       const theirPower = U.sum(g.battlefield.filter(o => o.controller === target.id && this._isCreature(o)).map(o => g.powerOf(o)));
-      const theirClock = theirPower > 0 ? Math.ceil(this.me.life / theirPower) : 99;
+      const theirClock = theirPower > 0 ? Math.ceil(attacker.life / theirPower) : 99;
       const desperate = theirClock <= 2;
       let unblocked = Math.max(0, myAttackers.length - theirBlockers.length);
       const ordered = myAttackers.slice().sort((a, b) => g.powerOf(b) - g.powerOf(a));
@@ -103856,7 +103945,6 @@ MTG.setGameSpeed = function (id) {
     },
   };
 })(window.MTG);
-
 /* ===== 20-starters.js ===== */
 /* ============================================================
    20-starters.js - starter decks
@@ -111328,7 +111416,7 @@ MTG.setGameSpeed = function (id) {
 
       const current = (MTG.settings.artPreferences || {})[card.oracle_id] || card.id;
       let query = '';
-      let onlyArtVariants = false;
+      let onlyArtVariants = !!MTG.settings.uniqueArtOnly;
       let onlyVintage = false;
       // the old frame, from Alpha to Scourge and the retro reprints since
       const vintage = (p) => p.frame === '1993' || p.frame === '1997';
@@ -111336,7 +111424,11 @@ MTG.setGameSpeed = function (id) {
       const search = el('input', { type: 'search', placeholder: 'Filter by set, artist or collector number…', style: { maxWidth: '320px' } });
       search.addEventListener('input', U.debounce(() => { query = search.value.toLowerCase(); render(); }, 150));
       const uniqueArt = el('label', { class: 'row small', style: { gap: '5px' } }, [
-        el('input', { type: 'checkbox', style: { width: 'auto' }, onchange: (e) => { onlyArtVariants = e.target.checked; render(); } }),
+        el('input', { type: 'checkbox', checked: onlyArtVariants, style: { width: 'auto' }, onchange: (e) => {
+          onlyArtVariants = e.target.checked;
+          MTG.setSetting('uniqueArtOnly', onlyArtVariants);
+          render();
+        } }),
         el('span', { text: 'Unique art only' }),
       ]);
       const vintageOnly = el('label', { class: 'row small', style: { gap: '5px' } }, [
@@ -111848,7 +111940,6 @@ MTG.setGameSpeed = function (id) {
     });
   };
 })(window.MTG);
-
 
 /* ===== 10k-facefocus.js ===== */
 /* ============================================================
@@ -121497,16 +121588,24 @@ MTG.setGameSpeed = function (id) {
   UI.EMOTES = EMOTES;
   let lastEmote = 0;
   /** A speech bubble by a player's portrait for a moment. */
-  UI.showEmote = function (pid, id) {
+  UI.showEmote = function (pid, id, table) {
     const em = EMOTES.find(e => e.id === id);
     if (!em) return;
-    const orbs = [...document.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(pid))}"]`)];
-    const orb = orbs.sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0];
+    const orb = table && table.orbFor ? table.orbFor(pid)
+      : [...document.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(pid))}"]`)]
+        .sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0];
     if (!orb) return;
     const r = orb.getBoundingClientRect();
-    const below = r.top < 140;
-    const b = el('div', { class: 'emote-bubble' + (below ? ' below' : ''), text: em.text,
-      style: { left: (r.left + r.width / 2) + 'px', top: (below ? r.bottom + 10 : r.top - 10) + 'px' } });
+    const art = orb.querySelector('.orb-art');
+    const b = el('div', { class: 'emote-bubble', role: 'status', dataset: { player: pid } }, [
+      el('span', { class: 'emote-avatar', 'aria-hidden': 'true',
+        style: { backgroundImage: art && art.style.backgroundImage || '' }, text: art && art.textContent || '?' }),
+      el('span', { text: em.text }),
+    ]);
+    const x = Math.max(8, Math.min(window.innerWidth - 188, r.left < window.innerWidth / 2 ? r.right + 8 : r.left - 180));
+    const y = Math.max(8, Math.min(window.innerHeight - 54, r.top + r.height / 2 - 22));
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
     document.body.appendChild(b);
     MTG.sfx('chat');
     setTimeout(() => b.classList.add('out'), 2600);
@@ -122232,7 +122331,7 @@ MTG.setGameSpeed = function (id) {
     out.xp = o.won ? XP.win : XP.play;
     out.levels = addXp(out.xp);
     // ranked
-    if (o.ranked) out.ranked = rankResult(!!o.won, typeof o.ranked === 'string' ? o.ranked : 'standard');
+    if (o.ranked) out.ranked = rankResult(!!o.won, typeof o.ranked === 'string' ? o.ranked : 'standard', o.performance);
     out.achievements = checkAchievements();
     save('game');
     return out;
@@ -122267,15 +122366,19 @@ MTG.setGameSpeed = function (id) {
   }
 
   /* ---------------- ranked ---------------- */
-  /** A ranked game's result: up a step for a win (two in the low tiers), down one for a loss above Bronze. */
-  function rankResult(won, ladderId) {
+  /** A ranked game's result: decisive wins compound after a short winning streak. */
+  function rankResult(won, ladderId, performance) {
     const L = ladderOf(ladderId);
     const r = state[L.key];
     const before = { tier: r.tier, div: r.div, step: r.step };
+    const strongWin = !!won && performance && (performance.turns <= 8 ||
+      performance.margin >= Math.max(10, performance.startingLife / 2));
+    r.strongWinStreak = strongWin ? (Number(r.strongWinStreak) || 0) + 1 : 0;
+    const bonus = strongWin && r.strongWinStreak >= 3 ? 1 : 0;
     if (r.tier === 'Mythic') {
-      r.step = Math.max(0, r.step + (won ? 1 : -1));
+      r.step = Math.max(0, r.step + (won ? 1 + bonus : -1));
     } else if (won) {
-      r.step += TIERS.indexOf(r.tier) <= 1 ? 2 : 1;
+      r.step += (TIERS.indexOf(r.tier) <= 1 ? 2 : 1) + bonus;
       while (r.step >= STEPS && r.tier !== 'Mythic') {
         r.step -= STEPS;
         if (r.div > 1) r.div--;
@@ -122289,7 +122392,8 @@ MTG.setGameSpeed = function (id) {
       // no falling below a tier once reached
       r.step = Math.max(0, r.step - 1);
     }
-    return { ladder: L.id, ladderName: L.name, before, after: { tier: r.tier, div: r.div, step: r.step } };
+    return { ladder: L.id, ladderName: L.name, before, after: { tier: r.tier, div: r.div, step: r.step },
+      strongWinStreak: r.strongWinStreak, bonus };
   }
   const rankLabel = (r) => r.tier === 'Mythic' ? `Mythic` : `${r.tier} ${r.div}`;
   /** Where the next rank is: how many wins, and its name; null at Mythic. */
@@ -125507,7 +125611,7 @@ MTG.setGameSpeed = function (id) {
     /** How a deck's picture is chosen (UI.keyCard); a picture worked out the old way is worked out again. 2: no legendary creature for a deck with no commander. */
     ART_V: 2,
     /** How the formats a deck is legal in are worked out (legalIn); a deck worked out the old way, or never, is worked out again. 2: a joke or playtest card is legal nowhere. */
-    LEGAL_V: 2,
+    LEGAL_V: 3,
     /**
      * Every format the deck can be played in as it is: its cards, its size
      * and its commanders all as that format asks (MTG.formats.validate). A
@@ -125546,6 +125650,9 @@ MTG.setGameSpeed = function (id) {
       const meta = {
         id: deck.id, name: deck.name, format,
         size: U.sum(deck.main.map(e => e.qty)) + (deck.commanders || []).length,
+        mainSize: U.sum(deck.main.map(e => e.qty)),
+        commanderCount: (deck.commanders || []).length,
+        hasYorion: !!(deck.companion && U.normName(deck.companion.name).startsWith('yorion')),
         commander: (deck.commanders || []).map(c => c.name).join(' + ') || null,
         identity: MTG.mana.COLORS.filter(c => idColors.has(c)),
         source: slim.source,
@@ -125671,15 +125778,22 @@ MTG.setGameSpeed = function (id) {
       MTG.store.del('deck.' + id);
       decks._writeIndex(decks.index().filter(d => d.id !== id));
     },
-    forFormat(fmtId) {
-      const fmt = MTG.formats.get(fmtId);
+    forFormat(fmtId, rules) {
+      const fmt = typeof fmtId === 'object' && fmtId ? fmtId : MTG.formats.effective(fmtId, rules);
+      const id = fmt && fmt.id;
+      if (!fmt) return [];
+      const base = MTG.formats.get(id);
+      const customSize = fmt.deckMin !== base.deckMin || fmt.deckMax !== base.deckMax || !!fmt.exactSize !== !!base.exactSize;
       return decks.index().filter(d => {
-        if (d.format === fmtId) return true;
-        // legal there as it is, whatever it was saved as: a Standard deck plays in Pioneer while every card is legal there
-        if ((d.legalIn || []).includes(fmtId)) return true;
-        // a commander list plays in either Commander or Commander Draft (Brawl and Oathbreaker decks are their own shape)
-        if (fmt && fmt.commander && ['commander', 'cmdrdraft'].includes(fmtId)) return ['commander', 'cmdrdraft'].includes(d.format);
-        return false;
+        const size = fmt.commander ? d.size : (d.mainSize == null ? Math.max(0, d.size - (d.commanderCount || (d.commander ? 1 : 0))) : d.mainSize);
+        const min = (fmt.deckMin || 0) + (d.hasYorion ? 20 : 0);
+        const max = fmt.deckMax == null ? null : fmt.deckMax + (d.hasYorion ? 20 : 0);
+        const sizeLegal = fmt.exactSize ? size === min : size >= min && (max == null || size <= max);
+        if (!sizeLegal) return false;
+        if ((d.legalIn || []).includes(id)) return true;
+        // A custom size can make a deck legal that the format's default size excludes;
+        // the full deck is revalidated against the active rules before it can be used.
+        return customSize;
       }).sort((a, b) => b.updatedAt - a.updatedAt);
     },
   };
@@ -127896,10 +128010,12 @@ Sideboard
   };
 
   /* ---------------- deck picker ---------------- */
-  UI.pickDeck = function (formatId, onPick) {
+  UI.pickDeck = function (formatId, onPick, rules) {
+    const fmt = rules && rules.id === formatId ? rules : MTG.formats.effective(formatId, rules);
+    if (!fmt) return UI.error('Unknown format: ' + formatId);
     const list = el('div', { class: 'pick-deck-list' });
     const m = UI.modal({
-      title: 'Choose a deck — ' + MTG.formats.get(formatId).name,
+      title: 'Choose a deck — ' + fmt.name,
       width: '680px',
       content: list,
       buttons: [
@@ -127909,7 +128025,7 @@ Sideboard
     });
     function render() {
       list.innerHTML = '';
-      const found = MTG.decks.forFormat(formatId);
+      const found = MTG.decks.forFormat(fmt);
       const starters = MTG.starters ? MTG.starters.forFormat(formatId) : [];
       let details = null;
       if (!found.length) {
@@ -127924,7 +128040,13 @@ Sideboard
           UI.starterCover(s).then((c) => { if (c) UI.setArt(art, c); }).catch(() => {});
           const use = async () => {
             const busy = UI.busy('Loading deck', 'Finding the cards…');
-            try { const d = await MTG.starters.build(s.id); busy.close(); m.close(); onPick(d); }
+            try {
+              const d = await MTG.starters.build(s.id);
+              const v = MTG.formats.validate(d, fmt);
+              busy.close();
+              if (!v.ok) return UI.error(v.errors[0]);
+              m.close(); onPick(d);
+            }
             catch (e) { busy.close(); UI.error(e.message || String(e)); }
           };
           return el('div', { class: 'pick-deck starter' }, [
@@ -127952,6 +128074,8 @@ Sideboard
           const full = await MTG.decks.load(d.id);
           busy.close();
           if (!full) return UI.error('That deck could not be loaded.');
+          const validity = MTG.formats.validate(full, fmt);
+          if (!validity.ok) return UI.error(validity.errors[0]);
           // cards that need a hand are said before the game, not found during it
           const go = await UI.checkAutomation(full, {
             onEdit: (dk) => UI.deckBuilder(dk, { onSave: () => render() }),
@@ -127996,7 +128120,6 @@ Sideboard
     return m;
   };
 })(window.MTG);
-
 /* ===== 11b-ui-playtest.js ===== */
 /* ============================================================
    11b-ui-playtest.js - trying a deck out: what the player sees
@@ -134791,6 +134914,11 @@ Sideboard
             deck: deck && deck.name, commander: deck && deck.commanders && deck.commanders[0] ? deck.commanders[0].name : null,
             // which ladder: 'standard' or 'commander'
             ranked: sess && sess.mode && sess.mode.ranked ? (sess.mode.ladder || 'standard') : null,
+            performance: {
+              turns: Number(v.turn) || 0,
+              margin: (this.me.life || 0) - Math.max(0, ...v.players.filter(p => p.id !== this.meId).map(p => Number(p.life) || 0)),
+              startingLife: Number((sess && sess.fmt && sess.fmt.startingLife) || 20),
+            },
           });
           if (MTG.app && MTG.app.onGameRecorded) MTG.app.onGameRecorded(won, this._progress);
           // the result screen, drawn again with all of it (an event's record, a challenge solved)
@@ -135863,9 +135991,11 @@ Sideboard
       if (!guest && !v.replay) buttons.unshift({ label: 'Back to menu', fn: () => MTG.app.leaveGame() });
       // in an event: its record, and the next match (or the prize) in place of a rematch
       const evInfo = !watched && MTG.app && MTG.app.eventInfo ? MTG.app.eventInfo() : null;
-      if (evInfo) {
+      const rankedInfo = !watched && MTG.app && MTG.app.rankedInfo ? MTG.app.rankedInfo() : null;
+      const postInfo = evInfo || rankedInfo;
+      if (postInfo) {
         const i = buttons.findIndex(b => /Rematch|New match|Play game/.test(b.label));
-        const next = { label: evInfo.next.label, cls: 'primary', fn: evInfo.next.fn };
+        const next = { label: postInfo.next.label, cls: 'primary', fn: postInfo.next.fn };
         if (i >= 0) buttons[i] = next; else buttons.push(next);
       }
       // a tutorial: the next one in place of a rematch, or the way back after the last (src/14b-lessons.js)
@@ -135874,12 +136004,26 @@ Sideboard
         const i = buttons.findIndex(b => /Rematch|New match|Play game/.test(b.label));
         if (i >= 0) buttons.splice(i, 1, ...tut); else buttons.push(...tut);
       }
+      let rewardButton = null, offRewardRefresh = () => {};
+      const refreshRewardButton = () => {
+        const count = MTG.progress.inboxCount();
+        if (!count) {
+          if (rewardButton) rewardButton.remove();
+          offRewardRefresh();
+        } else if (rewardButton) rewardButton.textContent = `Rewards to claim (${count})`;
+      };
+      if (!watched && this._progress && MTG.progress.inboxCount()) {
+        rewardButton = el('button', { type: 'button', class: 'btn xs',
+          text: `Rewards to claim (${MTG.progress.inboxCount()})`,
+          onclick: () => UI.openInbox() });
+        offRewardRefresh = MTG.bus.on('progress:changed', refreshRewardButton);
+      }
       buttons.unshift({ label: 'Look at the board', fn: () => { this.decision.classList.add('peek'); setTimeout(() => this.decision.classList.remove('peek'), 4000); } });
       const body = el('div', { class: 'over-body' }, [
         el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
         el('div', { class: 'over-sub', text: draw ? 'Nobody is left standing.' : won && !watched ? `Turn ${v.turn}` : `${names.join(' & ')} win${names.length > 1 ? '' : 's'} on turn ${v.turn}` }),
         guest ? el('div', { class: 'over-note', text: 'If the host starts another game, it opens here.' }) : null,
-        evInfo ? el('div', { class: 'over-event', text: evInfo.line }) : null,
+        postInfo ? el('div', { class: 'over-event', text: postInfo.line }) : null,
         // what the game paid
         this._reward && !watched ? el('div', { class: 'over-reward' }, [
           el('div', { class: 'or-total', html: (UI.shardIcon ? UI.shardIcon() : '') + `<b>+${this._reward.total.toLocaleString()}</b> Shards` }),
@@ -135894,7 +136038,7 @@ Sideboard
             el('span', { text: `${this._progress.ranked.ladderName || 'Ranked'}: ${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }),
           ].filter(Boolean)) : null,
           this._progress.weekly ? el('span', { class: 'op-weekly', text: `Weekly win ${this._progress.weekly.wins} of 15` }) : null,
-          (MTG.progress.inboxCount() ? el('button', { type: 'button', class: 'btn xs', text: `Rewards to claim (${MTG.progress.inboxCount()})`, onclick: () => UI.openInbox() }) : null),
+          rewardButton,
         ].filter(Boolean)) : null,
         m ? el('div', { class: 'over-match' }, [
           el('div', { class: 'tiny', text: m.label }),
@@ -139770,7 +139914,7 @@ Sideboard
     if (me && !me.deck && sess.fmt.kind !== 'limited') {
       UI.toast('Choose a deck for the rematch.');
       const deck = await new Promise((res) => {
-        const m = UI.pickDeck(sess.formatId, res);
+        const m = UI.pickDeck(sess.formatId, res, sess.fmt);
         // closed without a choice is no rematch (a choice closes the window first, then answers)
         m._onClose = () => setTimeout(() => res(null), 0);
       });
@@ -142400,17 +142544,17 @@ Sideboard
     const t = App.table;
     if (!t) return;
     if (net.online) { net.chat(App.myName, '::emote:' + id); return; }
-    UI.showEmote(t.ownId || t.meId, id);
+    UI.showEmote(t.ownId || t.meId, id, t);
     const bot = App.session && App.session.roster.find(r => r.kind === 'bot');
     const reply = { hello: 'hello', luck: 'luck', gg: 'gg', nice: 'thanks', thanks: 'nice', oops: 'wow' }[id];
-    if (bot && reply && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, reply), 1100 + Math.random() * 900);
+    if (bot && reply && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, reply, t), 1100 + Math.random() * 900);
   };
   /** An emote someone sent, by name: shown by their portrait. */
   App.emoteFrom = function (fromName, id) {
     const t = App.table;
     if (!t || !t.view) return;
     const p = (t.view.players || []).find(x => x.name === fromName);
-    if (p) UI.showEmote(p.id, id);
+    if (p) UI.showEmote(p.id, id, t);
   };
 
   /**
@@ -142678,7 +142822,8 @@ Sideboard
     UI.pickDeck(ladder, async (deck) => {
       if (!deck) return;
       if (!await App.collectionAllows(deck)) return;
-      App.quickGame({ formatId: ladder, deck, difficulty: MTG.progress.RANK_DIFFICULTY[tier] || 5, opponents: 1, mode: { ranked: true, ladder } });
+      const difficulty = MTG.progress.RANK_DIFFICULTY[tier] || 5;
+      App.quickGame({ formatId: ladder, deck, difficulty, opponents: 1, mode: { ranked: true, ladder, difficulty, matchNo: 1 } });
     });
   };
 
@@ -142834,7 +142979,7 @@ Sideboard
   App.onGameRecorded = function (won) {
     const sess = App.session;
     const bot = sess && sess.roster && sess.roster.find(r => r.kind === 'bot');
-    if (bot && !net.online && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, 'gg'), 2200);
+    if (bot && !net.online && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, 'gg', App.table), 2200);
     const m = sess && sess.mode;
     if (!m) return;
     if (m.event === 'draft') {
@@ -142886,6 +143031,31 @@ Sideboard
     const solved = !!(MTG.progress.state.puzzles || {})[m.challenge];
     return { line: def ? `Challenge: ${def.title}` + (solved ? ' · solved' : '') : 'Challenge',
       next: { label: solved ? 'More challenges' : 'Try again', fn: () => { if (solved) { App.leaveGame(); setTimeout(() => App.openChallenges(), 300); } else App.startChallenge(m.challenge); } } };
+  };
+
+  App.rankedInfo = function () {
+    const sess = App.session;
+    const m = sess && sess.mode;
+    if (!m || !m.ranked) return null;
+    return {
+      line: `Ranked match ${m.matchNo || 1} · opponent difficulty ${m.difficulty || 5}`,
+      next: { label: 'Next match', fn: () => App.nextRankedMatch() },
+    };
+  };
+
+  App.nextRankedMatch = function () {
+    const sess = App.session;
+    const mode = sess && sess.mode;
+    const me = sess && sess.seat('me');
+    if (!sess || !mode || !mode.ranked || !me || !me.deck) return;
+    const previous = sess.roster.find(r => r.kind === 'bot');
+    const difficulty = Math.min(10, (Number(mode.difficulty) || 5) + 1);
+    mode.difficulty = difficulty;
+    mode.matchNo = (Number(mode.matchNo) || 1) + 1;
+    sess.roster = [me];
+    sess.addBot(difficulty, '', randomName([App.myName, previous && previous.name].filter(Boolean)));
+    sess.match = null;
+    sess.startGame();
   };
 
   /** The next match of an event: another bot from the pod, or the next, stronger one. */
@@ -145466,7 +145636,7 @@ Sideboard
     }
     if (r.kind === 'local' && !limited) {
       tools.push(el('button', { class: 'btn xs' + (r.deck ? '' : ' primary'), text: r.deck ? 'Change deck' : 'Choose a deck', onclick: () => {
-        UI.pickDeck(sess.formatId, (d) => { r.deck = d; r.deckValid = MTG.formats.validate(d, sess.fmt); renderLobby(); });
+        UI.pickDeck(sess.formatId, (d) => { r.deck = d; r.deckValid = MTG.formats.validate(d, sess.fmt); renderLobby(); }, sess.fmt);
       } }));
       tools.push(el('button', {
         class: 'btn xs ghost', text: 'Sit out',
@@ -146177,7 +146347,7 @@ Sideboard
             net.intent({ kind: 'setDeck', deck: slimDeckForWire(d), name: App.myName });
             if (!v.ok) UI.toast('Sent, but the host’s rules say: ' + v.errors[0], 'err', 6000);
             else UI.ok('Deck sent to the host.');
-          });
+          }, fmt);
         } }),
         el('span', { class: 'small muted', text: 'Waiting for the host to start.' }),
       ]));
