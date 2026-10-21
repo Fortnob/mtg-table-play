@@ -133511,7 +133511,7 @@ Sideboard
           () => MTG.setGameSpeed(nextSpeed(MTG.gameSpeed()))],
         [live.fullControl ? 'Full control: on' : 'Full control: off' + key('(Ctrl)'), () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
         this.isReplay ? null : ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
-        MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
+        MTG.app && MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
         '-',
         // (a finished game has nothing left to save)
         this.isReplay ? ['Stop watching', () => MTG.app.leaveGame({ keepSave: true })] : [this.view.over ? 'Leave the game' : 'Save and leave', () => MTG.app.exitToMenu()],
@@ -138200,9 +138200,12 @@ Sideboard
     },
     {
       id: 'cast', title: 'Cast a creature',
-      text: (t) => (t.autoTap()
-        ? `Glowing cards can be played now. ${press()} this creature to cast it; the game taps your lands to pay its cost, in its top right corner.`
-        : `${press()} this creature to cast it. Its cost, in its top right corner, is paid from your mana pool.`),
+      text: (t) => {
+        const cast = MTG.settings.confirmCast !== false ? `${press()} this creature to look at it, then ${press().toLowerCase()} it again to cast it` : `${press()} this creature to cast it`;
+        return t.autoTap()
+          ? `Glowing cards can be played now. ${cast}; the game taps your lands to pay its cost, in its top right corner.`
+          : `${cast}. Its cost, in its top right corner, is paid from your mana pool.`;
+      },
       when: (t, v) => myMain(t, v) && !t.paying && !!castableCreature(t, v),
       at: (t, v) => castableCreature(t, v),
       done: (t, v) => v.battlefield.some(o => o.controller === t.meId && o.power != null),
@@ -145635,7 +145638,7 @@ Sideboard
    * app comes back to the front, and at most every ten minutes after that;
    * the player is told once and asked, never reloaded in the middle of a game.
    */
-  MTG.buildId = '1f695d21e46a';
+  MTG.buildId = 'a8c2d642e871';
   function watchForUpdate() {
     if (!/^[0-9a-f]{12}$/.test(MTG.buildId) || navigator.webdriver || !window.fetch) return;
     let last = 0, told = false;
