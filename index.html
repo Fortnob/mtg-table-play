@@ -131227,7 +131227,7 @@ Sideboard
       const live = this.live || v;
       if (act.secondary) {
         const sb = small(act.secondary.label, act.secondary.title || '', (e) => (e && e.shiftKey && act.secondary.shiftFn ? act.secondary.shiftFn : act.secondary.fn)(), 'alt');
-        if (act.secondary.shifted) this.shiftLabel(sb, { label: act.secondary.label, title: act.secondary.title || '' }, act.secondary.shifted);
+        if (act.secondary.shifted) /** @type {any} */ (this).shiftLabel(sb, { label: act.secondary.label, title: act.secondary.title || '' }, act.secondary.shifted);
         d._row.appendChild(sb);
       }
       if (this.undoShown(live)) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
@@ -132302,7 +132302,7 @@ Sideboard
       const faces = o.card.card_faces;
       // the reason the engine gives is the front's: none means it can be cast as well
       const castable = !this.whyNot(o.id);
-      /** @type {Array<[string, () => void]>} */
+      /** @type {Array<[string, () => void, boolean?]>} */
       const items = [
         [`Cast ${faces[0].name}`, () => this.beginCast(o, a), !castable],
         [`Play ${faces[1].name} as a land`, () => { MTG.sfx('ui_play'); this.send({ kind: 'playLand', objId: o.id, face: 1 }); }],
@@ -133674,7 +133674,7 @@ Sideboard
     /** A banner for the local player once they are out of the game while the others play on. */
     paintDefeat(v, me) {
       const show = !!(me && me.hasLost && !v.over);
-      if (this._defeatFor !== (show ? v.turn + ':' + me.id : null) && !show) this._defeatDismissed = false;
+      if (!show) this._defeatDismissed = false;
       if (!show) { if (this.defeatBox) this.defeatBox.style.display = 'none'; return; }
       if (!this.defeatBox) {
         this.defeatBox = el('div', { class: 'defeat-box', role: 'alert' });
@@ -145179,7 +145179,7 @@ Sideboard
     }
 
     function draw() {
-      const sorter = (DECK_SORTS.find(x => x[0] === sortKey) || DECK_SORTS[0])[2];
+      const sorter = /** @type {(a: any, b: any) => number} */ ((DECK_SORTS.find(x => x[0] === sortKey) || DECK_SORTS[0])[2]);
       let list = all.filter(d => formatFilter === 'all' || d.format === formatFilter);
       if (query) {
         list = list.filter(d =>
@@ -145638,7 +145638,7 @@ Sideboard
    * app comes back to the front, and at most every ten minutes after that;
    * the player is told once and asked, never reloaded in the middle of a game.
    */
-  MTG.buildId = 'a8c2d642e871';
+  MTG.buildId = '6dcc70dfd229';
   function watchForUpdate() {
     if (!/^[0-9a-f]{12}$/.test(MTG.buildId) || navigator.webdriver || !window.fetch) return;
     let last = 0, told = false;
