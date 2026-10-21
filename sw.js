@@ -10,8 +10,11 @@
    And the app's page, so a home-screen app opens with no connection:
    always asked of the network first, so an update arrives as it always
    has, and the copy kept here only when the network cannot answer or
-   takes too long. Nothing else passes through here: not Scryfall's card
-   data, not anything sent.
+   takes too long. The files the page loads from assets/ are named for
+   what is in them, so one kept here is never out of date: it is used as
+   it is, and only a file new to this build is downloaded. Those the kept
+   page (and the one before it) no longer name go. Nothing else passes
+   through here: not Scryfall's card data, not anything sent.
 
    Pictures are kept in "generations" of about 24 MB, at most eight of
    them and never more than a fifth of what the browser allows. When the
@@ -30,7 +33,7 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 5;
+const VERSION = 6;
 const PREFIX = 'mtg-table-art-';                 // every cache this app has ever owned
 const NS = PREFIX + 'v1-';
 const PINNED = NS + 'pinned';
@@ -78,7 +81,28 @@ function isAppPage(url, method, mode, scope) {
   return u.origin === s.origin && (u.pathname === s.pathname || u.pathname === s.pathname + 'index.html');
 }
 
-if (typeof module === 'object' && module.exports) module.exports = { shouldHandle, isAppPage, PINNED_URLS, CARD_BACK, NS, PREFIX, OFF, APP, VERSION };
+// a file of the app, named for what is in it: assets/06-rules.1a2b3c4d.js
+const ASSET_NAME = /^[\w.-]+\.[0-9a-f]{8}\.(js|css)$/;
+
+/** Whether a request is one of the app's own files in assets/ beside the page. */
+function isAppAsset(url, method, scope) {
+  if (method !== 'GET') return false;
+  let u, s;
+  try { u = new URL(url); s = new URL(scope); } catch (e) { return false; }
+  if (u.origin !== s.origin || !u.pathname.startsWith(s.pathname + 'assets/')) return false;
+  return ASSET_NAME.test(u.pathname.slice(s.pathname.length + 'assets/'.length));
+}
+
+/** The addresses of the files a page loads from assets/, read from its HTML. */
+function assetsIn(html, base) {
+  const out = [];
+  for (const m of String(html || '').matchAll(/\b(?:src|href)="(assets\/[^"?#]+)"/g)) {
+    try { out.push(new URL(m[1], base).href); } catch (e) { /* not an address */ }
+  }
+  return out;
+}
+
+if (typeof module === 'object' && module.exports) module.exports = { shouldHandle, isAppPage, isAppAsset, assetsIn, PINNED_URLS, CARD_BACK, NS, PREFIX, OFF, APP, VERSION };
 
 if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWorkerGlobalScope) {
   let st = null;                    // { gens: [names, oldest first], meta: { name: { n, bytes, approx } }, maxGens }
@@ -337,9 +361,40 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
   // one copy, by the folder's address: "/" and "/index.html", with or without ?sw, are the same page
   const pageKey = () => self.registration.scope;
   const goodPage = (res) => !!res && res.ok && res.type === 'basic' && !res.redirected && /text\/html/i.test(res.headers.get('content-type') || '');
+  /**
+   * Keep a page, and of the files kept from assets/ only those it or the
+   * page it replaces names: a page the network was too slow to bring may
+   * still be opened from the older copy. Resolves to the files it names.
+   */
   async function keepPage(res) {
-    if (retired || !goodPage(res)) return;
-    await (await caches.open(APP)).put(pageKey(), res);
+    if (retired || !goodPage(res)) return [];
+    const c = await caches.open(APP);
+    let html = '', before = '';
+    try { html = await res.clone().text(); } catch (e) { html = ''; }
+    try { const old = await c.match(pageKey()); if (old) before = await old.text(); } catch (e) { before = ''; }
+    await c.put(pageKey(), res);
+    const wanted = assetsIn(html, pageKey());
+    // a page that names none (cut short, or something else at that address) prunes nothing
+    if (!wanted.length) return wanted;
+    const keep = new Set(wanted.concat(assetsIn(before, pageKey())));
+    for (const req of await c.keys()) {
+      if (isAppAsset(req.url, 'GET', self.registration.scope) && !keep.has(req.url)) await c.delete(req).catch(() => {});
+    }
+    return wanted;
+  }
+  const goodAsset = (res) => !!res && res.ok && res.type === 'basic' && !res.redirected;
+  /** One of the app's files: the copy kept here, which is never out of date; otherwise the network's, kept. */
+  async function serveAsset(event) {
+    const req = event.request;
+    const key = req.url.split(/[?#]/)[0];
+    const kept = await caches.match(key, { cacheName: APP }).catch(() => null);
+    if (kept) return kept;
+    const res = await fetch(req);
+    if (goodAsset(res) && !retired) {
+      const copy = res.clone();
+      queue(event, async () => { if (!retired) await (await caches.open(APP)).put(key, copy); });
+    }
+    return res;
   }
   /**
    * The network first, so an update is never held back; the copy kept here
@@ -362,9 +417,18 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
     if (kept) return kept;
     return net;
   }
-  /** The page as installed, so the first launch without a connection already has it. */
+  /** The page as installed, and the files it loads, so the first launch without a connection already has them. */
   async function precachePage() {
-    try { await keepPage(await fetch(pageKey(), { credentials: 'same-origin' })); } catch (e) { /* the next page load keeps it */ }
+    try {
+      const files = await keepPage(await fetch(pageKey(), { credentials: 'same-origin' }));
+      const c = await caches.open(APP);
+      // the page has just loaded these, so they mostly come from the browser's own cache
+      await Promise.allSettled(files.map(async (u) => {
+        if (await c.match(u)) return;
+        const res = await fetch(u, { credentials: 'same-origin' });
+        if (goodAsset(res) && !retired) await c.put(u, res);
+      }));
+    } catch (e) { /* the next page load keeps it */ }
   }
 
   async function precachePinned() {
@@ -395,6 +459,10 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
     if (retired) return;
     if (isAppPage(r.url, r.method, r.mode, self.registration.scope)) {
       event.respondWith(isOff().then(off => (off ? fetch(r) : servePage(event))).catch(() => fetch(r)));
+      return;
+    }
+    if (isAppAsset(r.url, r.method, self.registration.scope)) {
+      event.respondWith(isOff().then(off => (off ? fetch(r) : serveAsset(event))).catch(() => fetch(r)));
       return;
     }
     if (!shouldHandle(r.url, r.method, r.mode, r.headers.has('range'))) return;
