@@ -795,7 +795,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 }
 
 /* ---------- toasts ---------- */
-#toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 600; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
+#toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(92 * var(--vw)); z-index: 600; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 .toast {
   background: rgba(31,37,48,.92); border: 1px solid var(--line-2); border-radius: 999px;
   padding: 9px 17px; box-shadow: var(--edge), var(--shadow); font-size: 13px;
@@ -145638,7 +145638,7 @@ Sideboard
    * app comes back to the front, and at most every ten minutes after that;
    * the player is told once and asked, never reloaded in the middle of a game.
    */
-  MTG.buildId = '6dcc70dfd229';
+  MTG.buildId = '121c370f628d';
   function watchForUpdate() {
     if (!/^[0-9a-f]{12}$/.test(MTG.buildId) || navigator.webdriver || !window.fetch) return;
     let last = 0, told = false;
