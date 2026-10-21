@@ -2188,7 +2188,8 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .cv.targetable .cv-body { box-shadow: 0 0 0 2px var(--aim), 0 0 20px 5px rgba(255,201,77,.55), 0 6px 14px rgba(0,0,0,.5);
   animation: aimGlow 1.1s ease-in-out infinite; }
 @keyframes aimGlow { 50% { box-shadow: 0 0 0 3px var(--aim), 0 0 30px 9px rgba(255,201,77,.35), 0 6px 14px rgba(0,0,0,.5); } }
-.cv.candidate .cv-body { box-shadow: 0 0 0 2px rgba(255,255,255,.6), 0 0 14px rgba(255,255,255,.22), 0 6px 14px rgba(0,0,0,.5); }
+/* (a creature that could block or attack: the blue of a card you can play, which a white-bordered card shows too) */
+.cv.candidate .cv-body { box-shadow: 0 0 0 2px var(--play), 0 0 14px 3px rgba(99,211,255,.45), 0 6px 14px rgba(0,0,0,.5); }
 .cv.chosen .cv-body { box-shadow: 0 0 0 3px var(--aim), 0 0 26px 6px rgba(255,201,77,.6), 0 6px 14px rgba(0,0,0,.5); }
 /* tapping lands by hand: the spell waiting for its mana, and the lands that could pay for it */
 .cv.paying .cv-body { box-shadow: 0 0 0 3px var(--gold-hi), 0 0 24px 6px rgba(246,220,140,.5), 0 6px 14px rgba(0,0,0,.5); }
@@ -2768,7 +2769,8 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 
 .decision-host { position: absolute; inset: 0; z-index: 70; display: none; place-items: center; pointer-events: none;
   transition: opacity .3s; }
-.decision-host.on { display: grid; }
+/* (one row the height of the table, so a panel's "max-height: 96%" is of that and not of the panel itself) */
+.decision-host.on { display: grid; grid-template-rows: minmax(0, 100%); }
 .decision-host.on::before { content: ''; position: absolute; inset: 0; background: rgba(4,6,10,.38); pointer-events: none; }
 .decision-host.full::before { background: rgba(4,6,10,.72); backdrop-filter: blur(3px); }
 .decision-host.peek { opacity: 0; }
@@ -3115,6 +3117,10 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 6px); bottom: calc(var(--dock-h, 200px) + var(--hand-peek) + 6px + 8px); }
 /* (the question asked up top, under the opponent's nameplate: the stack starts below it) */
 :root[data-phone] .arena:has(.arena-banner.on) .stack-col { top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 4px + var(--banner-h, 0px) + 6px); }
+/* aiming at a permanent, the column lies over the board: what on it is no target fades, and a tap goes through it to
+   the creature under it (a spell on the stack that can be aimed at stays as it is) */
+:root[data-phone] .arena:has(.seat-field .cv.targetable) .stack-col > :not(.targetable):not(:has(.targetable)),
+:root[data-phone] .arena:has(.seat-field .cv.targetable) .stack-col::before { opacity: .22; pointer-events: none; }
 :root[data-phone] .stack-item > .cv { --w: 56px; }
 :root[data-phone] .stack-item.top > .cv { --w: 76px; }
 /* a triggered ability on a phone's stack: its art and name on one line, its whole text under them across the column */
@@ -3412,6 +3418,8 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 :root[data-phone] .arena::after { box-shadow: inset 0 0 70px 16px rgba(0,0,0,.7); }
 :root[data-phone] .arena-banner, :root[data-phone] .decision-host.full::before,
 :root[data-phone] .arena-tip, :root[data-phone] .stack-cap { backdrop-filter: none; }
+/* with no blur, a darker veil: the cards under the game-over panel's table would show through its numbers */
+:root[data-phone] .decision-host.full::before { background: rgba(4,6,10,.9); }
 :root[data-phone] .arrow-glow { filter: none; opacity: .18; }
 /* a seat's field is laid out on its own: what moves in it does not reflow the table */
 :root[data-phone] .seat-field { contain: layout style; }
@@ -5488,6 +5496,20 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .search-db-note { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; font-size: 12px; color: var(--ink-2);
   border: 1px dashed rgba(212, 175, 71, .35); background: rgba(212, 175, 71, .06); }
 .search-db-slot:empty { display: none; }
+/* a phone's filters, folded under the search box (src/11-ui-deck.js): "Filters and sorting", and the count beside it */
+.search-fold-row { display: flex; align-items: flex-start; gap: 10px; }
+.search-fold-row > .search-fold { flex: 1 1 auto; min-width: 0; }
+.search-fold-row > :not(.search-fold) { flex: none; padding-top: 7px; font-size: 12px; color: var(--ink-2); }
+.search-fold > summary { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; cursor: pointer; list-style: none;
+  font: 600 12px/1.2 var(--font); color: var(--ink-2); border: 1px solid var(--line, rgba(255,255,255,.14)); }
+.search-fold > summary::-webkit-details-marker { display: none; }
+.search-fold > summary::after { content: ''; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; rotate: 45deg; translate: 0 -2px; transition: rotate .15s; }
+.search-fold[open] > summary::after { rotate: 225deg; translate: 0 2px; }
+.search-fold[open] > summary { margin-bottom: 10px; }
+.search-fold > .search-chips { margin-bottom: 10px; }
+.search-fold .search-filters { gap: 4px 14px; }
+.search-fold .inline-check { min-height: 32px; }
+:root[data-phone] .search-db-note { font-size: 11.5px; line-height: 1.35; padding: 6px 10px; gap: 8px; }
 
 /* each line of the list: minus and plus, shown on hover (always, by touch) */
 .deck-entry .qty-ctl { flex: none; display: inline-flex; gap: 3px; opacity: 0; transition: opacity var(--fast); }
@@ -6199,14 +6221,20 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-grid.settled .po-card, .po-grid.many.settled .po-card { transition: transform .22s ease-out, filter .2s, opacity .2s; }
 /* skipped: the haul is simply there, nothing flying in or turning over */
 .po-grid.instant .po-card, .po-grid.instant .po-card * { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
-/* hovered, a turned card comes up to be read */
-.po-grid.dealt .po-card.flipped:hover { transform: scale(1.28); z-index: 30; transition-delay: 0s; cursor: zoom-in; }
-.po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.4); }
+/* hovered, a turned card comes up to be read (with a pointer only: a phone keeps "hover" where it was tapped, and a
+   tap holds the card up anyway) */
+@media (hover: hover) {
+  .po-grid.dealt .po-card.flipped:hover { transform: scale(1.28); z-index: 30; transition-delay: 0s; cursor: zoom-in; }
+  .po-grid.many.dealt .po-card.flipped:hover { transform: scale(1.4); }
+}
 /* hurried by a click: dealt and turned at six times the pace */
 .po-grid.hurry .po-card { transition-duration: .12s !important; transition-delay: 0s !important; }
 .po-grid.hurry .po-inner { transition-duration: .15s !important; }
 /* opening takes the whole screen: its title clear of a phone's status bar */
 .pack-open:not(.shelf) .po-head { padding-top: calc(22px + env(safe-area-inset-top, 0px)); }
+/* (on a phone, the set's name keeps clear of the Close button in the corner) */
+:root[data-phone] .pack-open:not(.shelf) .po-head { padding-left: 72px; padding-right: 72px; }
+:root[data-phone] .pack-open:not(.shelf) .po-title { font-size: 22px; }
 .po-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3, .7, .25, 1.15); }
 .po-card.flipped .po-inner { transform: rotateY(180deg); }
 .po-back, .po-front { position: absolute; inset: 0; border-radius: 4.8% / 3.5%; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
@@ -6753,6 +6781,10 @@ html[data-play="1"] .hoard-chip { display: none; }
 .po-stage.one { overflow-y: auto; place-content: safe center; }
 .po-grid:not(.many) .po-card { --w: clamp(64px, min(10.5vw, calc(88vw / var(--cols, 7) - 16px),
   calc((100 * var(--vh, 1vh) - 250px) / var(--rows, 2) / 1.42 - 14px)), 200px); }
+/* a phone's pack, four across: as wide as the screen and its rows allow, not a tenth of the width */
+:root[data-phone] .po-grid:not(.many) { gap: 24px 10px; }
+:root[data-phone] .po-grid:not(.many) .po-card { --w: clamp(56px, min(calc(92vw / var(--cols, 4) - 10px),
+  calc((100 * var(--vh, 1vh) - 230px) / var(--rows, 4) / 1.42 - 24px)), 130px); }
 
 /* a card in its vintage printing, as it is turned over and in the art picker */
 .po-bonus.serial { color: #2a1a00; border-color: #ffe9a8; background: linear-gradient(100deg, #f6c94c, #fff1b8 45%, #e2a72a);
