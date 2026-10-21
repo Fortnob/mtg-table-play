@@ -56,7 +56,8 @@ const RELOAD_HOSTS = new Set(['backs.scryfall.io', 'svgs.scryfall.io']);
 const CARD_PATH = /^\/(small|normal|large|art_crop|border_crop)\//;
 // kept from the start and never trimmed: the back of every card, and every symbol symbols.css draws
 const CARD_BACK = 'https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
-const SYMBOLS = ['T', 'Q', 'C'].concat(Array.from({ length: 21 }, (_, i) => String(i)), ['X', 'Y', 'Z']);
+const SYMBOLS = ['T', 'Q', 'C'].concat(Array.from({ length: 21 }, (_, i) => String(i)), ['X', 'Y', 'Z'],
+  ['WU', 'WB', 'UB', 'UR', 'BR', 'BG', 'RG', 'RW', 'GW', 'GU'], ['2W', '2U', '2B', '2R', '2G'], ['WP', 'UP', 'BP', 'RP', 'GP']);
 const PINNED_URLS = [CARD_BACK].concat(SYMBOLS.map(s => 'https://svgs.scryfall.io/card-symbols/' + s + '.svg'));
 
 /** Whether a request is a card picture this worker keeps: a plain GET of one of the three image hosts. */
