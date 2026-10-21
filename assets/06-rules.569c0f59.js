@@ -2864,6 +2864,15 @@
           if (!had) o.paradigmBy = item.controller;
           this.logEvent('rules', `${item.name} is exiled (paradigm).`);
         }
+        else if (item.omen && !item.countered && !item.isCopy) {
+          // an Omen: shuffled into its owner's library as it resolves, instead of going anywhere else
+          const o = item.obj;
+          this.moveObject(o, 'library');
+          o.face = 0; o._chr = null;
+          const lib = (this.zones[o.owner] || {}).library;
+          if (lib) this.rng.shuffle(lib);
+          this.logEvent('rules', `${item.name} is shuffled into its owner's library.`);
+        }
         else if (item.adventure && !item.countered && !item.isCopy) {
           // "on an adventure": exiled, and its owner may cast the creature from there (CR 715.4)
           this.moveObject(item.obj, 'exile');
@@ -4675,7 +4684,9 @@
         if (tc.objWords) {
           const pool = targets == null ? this.battlefield.filter(x => !x.phasedOut)
             : targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && x.zone === 'battlefield');
-          if (pool.some(x => this.characteristics(x).isCreature && this._cardFitsWords(x, tc.objWords))) cost = this._addGeneric(cost || '', Number(sc.amount) || 0);
+          // (Savage Stomp: "a Dinosaur you control" — yours; Titanic Brawl: "with a +1/+1 counter on it" — withCounter)
+          if (pool.some(x => this.characteristics(x).isCreature && this._cardFitsWords(x, tc.objWords) && (!tc.yours || x.controller === pid) &&
+              (!tc.withCounter || (Number(x.counters[tc.withCounter]) || 0) > 0))) cost = this._addGeneric(cost || '', Number(sc.amount) || 0);
           continue;
         }
         const hit = (targets == null ? this.stack.map(s => ({ kind: 'stack', id: s.id })) : targets).some(t => {
@@ -9406,7 +9417,11 @@
         via: via ? via.via : null, viaAfter: via ? via.after : null,
       };
       // an adventure: exiled as it resolves, and the creature castable from there
-      if (this._adventure(o) && (o.face || 0) === 1) item.adventure = true;
+      // (an Omen, which shares the layout, is shuffled away instead: omen)
+      if (this._adventure(o) && (o.face || 0) === 1) {
+        if (/\bOmen\b/.test(String((o.card.card_faces[1] || {}).type_line || ''))) item.omen = true;
+        else item.adventure = true;
+      }
       // fused: the right half's words after the left's
       if (fused && item.effects) {
         item.effects = item.effects.concat(this._cardSpellEffects(MTG.oracle.analyze(o.card, 1)));
@@ -30268,7 +30283,7 @@
              is attacking (Ilharg's way) */
           const how = { holds: e.holdExiled ? [source.id] : null, grant: e.grant && e.grant.length ? e.grant : null, tapped: !!e.tapped,
             attackingDef: e.attacking ? (e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id || null) : null,
-            attachToId: e.attachToId || null };
+            attachToId: e.attachToId || null, plusCounters: e.plusCounters || 0 };
           // (Isle of Vesuva, a plane: "its controller creates a token that's a copy of that creature" — toSourceController)
           // (Saw in Half: "its controller" — as it left the battlefield, _leftController)
           const srcCtl = source.zone === 'battlefield' ? source.controller : (source._leftController || source.controller);
@@ -35581,6 +35596,8 @@
           if (e.creatureCounters && (src.analysis() || {}).isCreature) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + e.creatureCounters;
           // Altered Ego: "except it enters with X additional +1/+1 counters on it" — the X paid (xCounters)
           if (e.xCounters && (Number(src.chosenX) || 0) > 0) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + Number(src.chosenX);
+          // Undercover Operative: "a shield counter on it if you control that creature" (shieldIfYours)
+          if (e.shieldIfYours && pick.zone === 'battlefield' && pick.controller === ctx.controller) src.counters.shield = (Number(src.counters.shield) || 0) + 1;
           if (other) {
             const pw = Math.max(0, this.powerOf(other));
             this.moveObject(pick, 'exile'); this.moveObject(other, 'exile');
@@ -43215,6 +43232,8 @@
       if (how.grant) copy.effects.push({ keywords: how.grant.slice(), until: null });
       // Skyclave Relic: "two tapped tokens"
       if (how.tapped) copy.tapped = true;
+      // Littjara Mirrorlake: "it enters with an additional +1/+1 counter on it" (plusCounters)
+      if (how.plusCounters) copy.counters['+1/+1'] = (Number(copy.counters['+1/+1']) || 0) + how.plusCounters;
       // (attacking, during combat; never declared, so nothing "whenever attacks" sees it)
       if (how.attackingDef && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
         copy.attacking = how.attackingDef; this.combat.attackers.push(copy.id);

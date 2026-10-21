@@ -209,7 +209,8 @@
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway|Amplify)\s+\d+$/i,
     // parameterised keywords with a cost
-    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Commander ninjutsu|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
+    // (Lightfoot Rogue: "Sneak Attack — Whenever …" is an ability word, not sneak)
+    /^(?!Sneak Attack\b)(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Commander ninjutsu|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
   ];
 
   function splitKeywordLine(line) {
@@ -980,6 +981,8 @@
       }
       // Altered Ego: "it enters with X additional +1/+1 counters on it" — the X it was cast with (xCounters)
       else if ((c = ex.match(/^it enters with X additional \+1\/\+1 counters on it/i))) e.xCounters = true;
+      // Undercover Operative: "it enters with a shield counter on it if you control that creature" (shieldIfYours)
+      else if ((c = ex.match(/^it enters with a shield counter on it if you control that creature/i))) e.shieldIfYours = true;
       // Sakashima of a Thousand Faces: "it has CARDNAME's other abilities"
       else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
       // Thespian's Stage, Irma, Part-Time Mutant: "it has this ability", "she has this ability"
@@ -992,7 +995,8 @@
       else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
       // (Muddle, the Ever-Changing: "except it has myriad")
       // (Absorbing Man: "he has vigilance")
-      else if ((c = ex.match(/^(?:(?:it|he|she) )?has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad)(?=,? and |$)/i)))
+      // (Omni-Changeling: "except it has changeling")
+      else if ((c = ex.match(/^(?:(?:it|he|she) )?has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad|changeling)(?=,? and |$)/i)))
         (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
       else return false;
       ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
@@ -9479,6 +9483,19 @@
     // Nuclear Fallout: "Each creature gets twice -X/-X until end of turn." — -2X/-2X (xTimes)
     { re: /^Each creature gets twice -X\/-X until end of turn\.?$/i,
       make: () => ({ op: 'pump', p: { xTimes: -2 }, t: { xTimes: -2 }, duration: 'eot', scope: { who: 'all', what: 'creature' } }) },
+    // Exude Toxin: "Each non-Dragon creature gets -X/-X until end of turn." — every creature but that type (notSubtypes)
+    { re: /^Each non-([A-Z][a-z]+) creature gets ([+-][\dX]+\/[+-][\dX]+) until end of turn\.?$/,
+      make: (m) => {
+        const e = parseEffectSentence('Each creature gets ' + m[2] + ' until end of turn.');
+        return e && e.op === 'pump' && e.scope && e.scope.who === 'all'
+          ? Object.assign({}, e, { scope: Object.assign({}, e.scope, { notSubtypes: [m[1].toLowerCase()] }) }) : null;
+      } },
+    // Turn Stones: "For each opponent, you create a 1/1 black and green Pest creature token with …" — one for each (opponents)
+    { re: /^For each opponent, you create (an? [^]+? token(?: with [^]+)?)\.?$/,
+      make: (m) => {
+        const tok = parseTokenSentence('Create ' + m[1] + '.');
+        return tok && (tok.op === 'createToken' || tok.op === 'createNamedToken') && tok.n === 1 ? Object.assign({}, tok, { n: { opponents: true, mult: 1 } }) : null;
+      } },
     /* Paladin Class: "until end of turn, target attacking creature gets +1/+1 for each other attacking creature and gains double
        strike" — every attacker but it, counted as it resolves */
     { re: /^until end of turn, target attacking creature gets \+(\d+)\/\+(\d+) for each other attacking creature and gains ([a-z ]+?)\.?$/i,
@@ -10286,7 +10303,8 @@
        except it's a 4/4 black Zombie." */
     /* (Hashaton, Scarab's Fist: "create a tapped token that's a copy of that card" — the card discarded, when
        nothing was exiled as this resolved: orTrigger) */
-    { re: /^Create a (tapped )?token that'?s a copy of (it|that card|that creature|target [a-z ]+?), except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green|colorless) ([A-Z][a-z]+)\.?$/,
+    // (Croaking Counterpart: "target non-Frog creature, except it's a 1/1 green Frog")
+    { re: /^Create a (tapped )?token that'?s a copy of (it|that card|that creature|target (?:non-[A-Z][a-z]+ )?[a-z ]+?), except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green|colorless) ([A-Z][a-z]+)\.?$/,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[3] + '/' + m[4], setColor: m[5], setType: m[6] },
         /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])] } : { scope: 'lastTarget' }, /^that card$/i.test(m[2]) ? { orTrigger: true } : {},
         m[1] ? { tapped: true } : {}) },
@@ -10429,6 +10447,9 @@
     // Mirror Room: "create a token that's a copy of target creature you control, except it's a Reflection in addition to its other creature types."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addSubtypes: [m[2]], targets: [spec] } : null; } },
+    // Littjara Mirrorlake: "Create a token that's a copy of target creature you control, except it enters with an additional +1/+1 counter on it." (plusCounters)
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it enters with (an|one|two|three) additional \+1\/\+1 counters? on it\.?$/i,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], plusCounters: /^an$/i.test(m[2]) ? 1 : num(m[2]), targets: [spec] } : null; } },
     // Adagia, Windswept Bastion: "Create a token that's a copy of target artifact or enchantment you control, except it's legendary."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
@@ -12885,9 +12906,10 @@
         if (m[1] && (!copyExceptions(m[1], e) || e.keepThis || e.keepOwn)) return null;
         return [e];
       } },
-    { re: /^You may have CARDNAME enter as a copy of any creature card in a graveyard(?:, except (.+?))?\. When you do, exile that card\.?$/,
+    // (Body Double: "…any creature card in a graveyard." — the card left where it is)
+    { re: /^You may have (?:CARDNAME|this creature) enter as a copy of any creature card in a graveyard(?:, except (.+?))?(\. When you do, exile that card)?\.?$/,
       make: (m) => {
-        const e = { op: 'etbAsCopy', what: 'creature', fromGraveyard: true, exileCopied: true };
+        const e = Object.assign({ op: 'etbAsCopy', what: 'creature', fromGraveyard: true }, m[2] ? { exileCopied: true } : {});
         if (m[1] && (!copyExceptions(m[1], e) || e.keepThis || e.keepOwn)) return null;
         return [e];
       } },
@@ -15630,6 +15652,15 @@
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn if it'?s attacking one of your opponents\. Otherwise, its controller loses (\d+) life\.?$/i,
       make: (m) => [{ op: 'ifCond', cond: { kind: 'trigAttackingYourOpp' }, then: [{ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'triggerObject' }],
         otherwise: [{ op: 'loseLife', who: 'triggerObjController', n: +m[3] }] }] },
+    /* Flush Out: "Discard a card. If you do, draw two cards." — paid when it can be, with no question asked (noAsk);
+       with nothing to pay, nothing else happens */
+    // (Foul Rebirth: "Sacrifice a non-Demon creature. If you do, create …" — the same with a sacrifice)
+    { re: /^(?:Discard a card|Sacrifice an? ((?:non-[A-Z][a-z]+ )?(?:creature|artifact|enchantment|land|permanent)))\. If you do, ([^]+)$/,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+        if (!rest.auto || !rest.effects.length) return null;
+        return [{ op: 'mayPay', noAsk: true, pay: m[1] ? { sacrifice: { n: 1, filter: m[1] } } : { discard: 1, filter: 'card' }, then: rest.effects }];
+      } },
   ];
 
   /** Split an ability's effect text into sentences and parse each. */
@@ -16158,6 +16189,11 @@
     // Price of Fame: "This spell costs {2} less to cast if it targets a legendary creature." (targetCond objWords)
     m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} less to cast if it targets an? (legendary) creature$/i);
     if (m) return { amount: -(+m[1]), targetCond: { objWords: m[2].toLowerCase() + ' creature' } };
+    /* Savage Stomp: "…if it targets a Dinosaur you control"; Titanic Brawl: "…if it targets a creature you control with a
+       +1/+1 counter on it" — yours (yours), and with that counter (withCounter) */
+    m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} less to cast if it targets an? (creature|[A-Z][a-z]+) you control( with an? \+1\/\+1 counter on it)?$/);
+    if (m) return { amount: -(+m[1]), targetCond: Object.assign({ objWords: m[2] === 'creature' ? 'creature' : m[2] + ' creature', yours: true },
+      m[3] ? { withCounter: '+1/+1' } : {}) };
     m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} (less|more) to cast if (.+)$/i);
     if (m) {
       const cond = altCond(m[3]);
@@ -16258,7 +16294,8 @@
       return { discard: { n: num(k[1]), filter: k[2].trim() || 'card' }, optional };
     if (/^discard your hand$/i.test(what)) return { discard: { n: 'all', filter: 'card' }, optional };
     if ((k = what.match(/^pay (X|\d+) life$/i))) return { life: k[1] === 'X' ? 'X' : +k[1], optional };
-    if ((k = what.match(/^exile (a|an|one|two|three|X|\d+) ([a-z ]*?)cards? from your graveyard$/i)))
+    // (Abhorrent Oculus: "exile six cards from your graveyard")
+    if ((k = what.match(/^exile (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) ([a-z ]*?)cards? from your graveyard$/i)))
       return { exile: { what: 'graveyard', n: num(k[1]), filter: k[2].trim() || 'card' }, optional };
     if ((k = what.match(/^return (a|an) ([a-z ]+?) you control to its owner'?s hand$/i)))
       return { returnOwn: { n: 1, filter: k[2].trim() }, optional };
