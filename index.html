@@ -18,12 +18,16 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- If these do not load the stacks in style.css fall back gracefully. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap">
+<!-- If these do not load the stacks in style.css fall back gracefully. Asked for as a print stylesheet and switched on
+     once it has arrived, so the page never waits on Google to draw: on a poor connection the whole app, kept on the device
+     or not, stayed blank until this answered (it says display=swap, so the words were already drawn in the fallback until
+     each font came). Without scripts, the plain link. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap" media="print" onload="this.onload=null;this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap"></noscript>
 <link rel="preconnect" href="https://api.scryfall.com" crossorigin>
 <link rel="preconnect" href="https://cards.scryfall.io" crossorigin>
-<meta name="build" content="9d38c548af01">
-<meta name="frames" content="costs.json:b2401012f8 names.json:21c5ecb195 parts.json:6ee18daac4 phrases.json:ae8b8d6e94">
+<meta name="build" content="9e6115918055">
+<meta name="frames" content="costs.json:80f5676846 names.json:21c5ecb195 parts.json:6ee18daac4 phrases.json:c77207d262">
 <meta name="sounds" content="bead-1:bc9a01b9 bead-2:c8d482db die-1:05bcdc8d die-2:653db14c place-1:1d421ffe place-2:189b4e68 place-3:cf7d5f55 riffle-1:7caf73b9 shove-1:edc94f8d shove-2:0495f1bc slide-1:5feb1d5e slide-2:38987b11 slide-3:f1fd3e3a slide-4:88d4b524">
 <script>
 (function () {
@@ -48,7 +52,7 @@
   }, true);
 })();
 </script>
-<link rel="stylesheet" href="assets/styles.f7ccfcce.css">
+<link rel="stylesheet" href="assets/styles.6748476f.css">
 </head>
 <body>
 <div id="app">
@@ -75,14 +79,14 @@
 <script src="assets/02g-schemes.a54b618d.js"></script>
 <script src="assets/18-scripts.0c949fbd.js"></script>
 <script src="assets/19-cardlib.04ef5c9a.js"></script>
-<script src="assets/03-oracle.883bc833.js"></script>
+<script src="assets/03-oracle.86185be7.js"></script>
 <script src="assets/03a-customcards.64583b4f.js"></script>
 <script src="assets/03b-phrasebook.61eb3aa1.js"></script>
 <script src="assets/03c-cardparts.e082f573.js"></script>
 <script src="assets/04-formats.4232fab1.js"></script>
 <script src="assets/05-decklist.b760d71b.js"></script>
 <script src="assets/05a-decklink.6688ae7e.js"></script>
-<script src="assets/06-rules.faba5861.js"></script>
+<script src="assets/06-rules.c5cacc38.js"></script>
 <script src="assets/06a-choice.3d21af43.js"></script>
 <script src="assets/06b-events.ecef2912.js"></script>
 <script src="assets/06c-replay.8d46c5f8.js"></script>
@@ -93,7 +97,7 @@
 <script src="assets/07-draft.e7f77120.js"></script>
 <script src="assets/07b-sealed.3ae79801.js"></script>
 <script src="assets/07c-jumpstart.b02f70db.js"></script>
-<script src="assets/08-bots.780fcbb8.js"></script>
+<script src="assets/08-bots.32fd6d5c.js"></script>
 <script src="assets/20-starters.361d0e56.js"></script>
 <script src="assets/09-net.2a2b8bfa.js"></script>
 <script src="assets/09b-sync.e2405872.js"></script>
@@ -136,7 +140,7 @@
 <script src="assets/11e-ui-customcards.f859f1c7.js"></script>
 <script src="assets/11f-cardframe.89baea86.js"></script>
 <script src="assets/12-ui-table.9613100a.js"></script>
-<script src="assets/12b-ui-table-fx.84753176.js"></script>
+<script src="assets/12b-ui-table-fx.422540e4.js"></script>
 <script src="assets/12c-ui-table-ask.7ef213f1.js"></script>
 <script src="assets/12d-ui-replay.210f78f7.js"></script>
 <script src="assets/12e-ui-coach.ee324bf7.js"></script>
