@@ -26,8 +26,8 @@
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap"></noscript>
 <link rel="preconnect" href="https://api.scryfall.com" crossorigin>
 <link rel="preconnect" href="https://cards.scryfall.io" crossorigin>
-<meta name="build" content="dbffed0b18d1">
-<meta name="frames" content="costs.json:935511fe70 names.json:21c5ecb195 parts.json:6ee18daac4 phrases.json:f4df6115bb">
+<meta name="build" content="bc7a5d63de38">
+<meta name="frames" content="costs.json:7f705798c9 names.json:21c5ecb195 parts.json:6ee18daac4 phrases.json:6435fc9d0c">
 <meta name="sounds" content="bead-1:bc9a01b9 bead-2:c8d482db die-1:05bcdc8d die-2:653db14c place-1:1d421ffe place-2:189b4e68 place-3:cf7d5f55 riffle-1:7caf73b9 shove-1:edc94f8d shove-2:0495f1bc slide-1:5feb1d5e slide-2:38987b11 slide-3:f1fd3e3a slide-4:88d4b524">
 <script>
 (function () {
@@ -52,7 +52,7 @@
   }, true);
 })();
 </script>
-<link rel="stylesheet" href="assets/styles.a43a4ebc.css">
+<link rel="stylesheet" href="assets/styles.d802bc22.css">
 </head>
 <body>
 <div id="app">
@@ -65,12 +65,14 @@
 </div>
 <div id="toasts"></div>
 
-<!-- WebRTC signalling helper. If it cannot load, solo and bot games still work. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- WebRTC signalling helper. If it cannot load, solo and bot games still work. It loads beside the page (async), not
+     ahead of it: a slow cdnjs used to hold every script of the app's behind it. Who needs it waits for it
+     (MTG.net.whenPeer, src/09-net.js); the two marks say how it went for anyone asking after it has. -->
+<script id="peerjs" async src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" onload="window.__peerjs='loaded'" onerror="window.__peerjs='failed'"></script>
 
 <script src="assets/00-core.cfe23a22.js"></script>
 <script src="assets/01-audio.ad0f14b6.js"></script>
-<script src="assets/02-scryfall.96d3d18f.js"></script>
+<script src="assets/02-scryfall.3e58e620.js"></script>
 <script src="assets/02a-carddb.fcd2c78a.js"></script>
 <script src="assets/02b-cardlang.0ffaec5e.js"></script>
 <script src="assets/02d-oldprints.b8f6f385.js"></script>
@@ -79,14 +81,14 @@
 <script src="assets/02g-schemes.a54b618d.js"></script>
 <script src="assets/18-scripts.0c949fbd.js"></script>
 <script src="assets/19-cardlib.04ef5c9a.js"></script>
-<script src="assets/03-oracle.760d093a.js"></script>
+<script src="assets/03-oracle.a323c776.js"></script>
 <script src="assets/03a-customcards.64583b4f.js"></script>
 <script src="assets/03b-phrasebook.61eb3aa1.js"></script>
 <script src="assets/03c-cardparts.e082f573.js"></script>
 <script src="assets/04-formats.4232fab1.js"></script>
 <script src="assets/05-decklist.b760d71b.js"></script>
 <script src="assets/05a-decklink.6688ae7e.js"></script>
-<script src="assets/06-rules.caa88656.js"></script>
+<script src="assets/06-rules.ca0df2be.js"></script>
 <script src="assets/06a-choice.3d21af43.js"></script>
 <script src="assets/06b-events.ecef2912.js"></script>
 <script src="assets/06c-replay.8d46c5f8.js"></script>
@@ -94,14 +96,14 @@
 <script src="assets/06e-clock.84c51da8.js"></script>
 <script src="assets/06f-planechase.940ee8f5.js"></script>
 <script src="assets/06g-archenemy.f4c02aba.js"></script>
-<script src="assets/07-draft.e7f77120.js"></script>
+<script src="assets/07-draft.85dd7e4f.js"></script>
 <script src="assets/07b-sealed.3ae79801.js"></script>
 <script src="assets/07c-jumpstart.b02f70db.js"></script>
-<script src="assets/08-bots.32fd6d5c.js"></script>
+<script src="assets/08-bots.c6659e05.js"></script>
 <script src="assets/20-starters.361d0e56.js"></script>
-<script src="assets/09-net.2a2b8bfa.js"></script>
+<script src="assets/09-net.a3a5a320.js"></script>
 <script src="assets/09b-sync.e2405872.js"></script>
-<script src="assets/09c-friends.911bb24f.js"></script>
+<script src="assets/09c-friends.d1645bcd.js"></script>
 <script src="assets/09d-trade.c71e3df7.js"></script>
 <script src="assets/09e-move.2b0f3de4.js"></script>
 <script src="assets/09f-tourney.08d892a9.js"></script>
@@ -125,26 +127,26 @@
 <script src="assets/10d4-precons.040af928.js"></script>
 <script src="assets/10d-ui-store.e88fed12.js"></script>
 <script src="assets/10e-progress.1145a715.js"></script>
-<script src="assets/10f-ui-progress.1ddaab07.js"></script>
+<script src="assets/10f-ui-progress.a430179b.js"></script>
 <script src="assets/10g-history.f805ecd8.js"></script>
 <script src="assets/10g-rulings.e589c960.js"></script>
-<script src="assets/10g-ui-social.c33d36cb.js"></script>
+<script src="assets/10g-ui-social.1c0887ce.js"></script>
 <script src="assets/10m-alerts.98d5857c.js"></script>
 <script src="assets/10h-ui-history.9132462c.js"></script>
 <script src="assets/10h-ui-trade.a657f1b4.js"></script>
-<script src="assets/10i-ui-tourney.36f798a4.js"></script>
+<script src="assets/10i-ui-tourney.e1855cdd.js"></script>
 <script src="assets/11-ui-deck.0cb43851.js"></script>
 <script src="assets/11b-ui-playtest.87ac8f98.js"></script>
 <script src="assets/11c-ui-decklink.db689ee0.js"></script>
 <script src="assets/11d-ui-planar.f92972c1.js"></script>
 <script src="assets/11e-ui-customcards.f859f1c7.js"></script>
 <script src="assets/11f-cardframe.89baea86.js"></script>
-<script src="assets/12-ui-table.5739d231.js"></script>
-<script src="assets/12b-ui-table-fx.422540e4.js"></script>
+<script src="assets/12-ui-table.816fde42.js"></script>
+<script src="assets/12b-ui-table-fx.d1b1a8f6.js"></script>
 <script src="assets/12c-ui-table-ask.5843a164.js"></script>
 <script src="assets/12d-ui-replay.210f78f7.js"></script>
 <script src="assets/12e-ui-coach.ee324bf7.js"></script>
-<script src="assets/12f-ui-feel.f6650cc5.js"></script>
+<script src="assets/12f-ui-feel.64573a44.js"></script>
 <script src="assets/12g-ui-clock.2f421878.js"></script>
 <script src="assets/12g-ui-table-access.88a3116e.js"></script>
 <script src="assets/12i-ui-keywords.eef2f744.js"></script>
@@ -154,7 +156,7 @@
 <script src="assets/13-ui-draft.03849ac6.js"></script>
 <script src="assets/13b-ui-sealed.539dd938.js"></script>
 <script src="assets/17-ui-advisor.5d056f4b.js"></script>
-<script src="assets/14-app.cf8c38f1.js"></script>
+<script src="assets/14-app.f0163754.js"></script>
 <script src="assets/14b-lessons.89bcb5b3.js"></script>
 </body>
 </html>
