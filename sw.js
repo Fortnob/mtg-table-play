@@ -13,8 +13,11 @@
    takes too long. The files the page loads from assets/ are named for
    what is in them, so one kept here is never out of date: it is used as
    it is, and only a file new to this build is downloaded. Those the kept
-   page (and the one before it) no longer name go. Nothing else passes
-   through here: not Scryfall's card data, not anything sent.
+   page (and the one before it) no longer name go. The table's few recorded
+   sounds (frames/snd-*.mp3, asked for by a hash of what is in them) are
+   kept the same way, so a game opened with no connection still has them.
+   Nothing else passes through here: not Scryfall's card data, not
+   anything sent.
 
    Pictures are kept in "generations" of about 24 MB, at most eight of
    them and never more than a fifth of what the browser allows. When the
@@ -33,7 +36,7 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 6;
+const VERSION = 7;
 const PREFIX = 'mtg-table-art-';                 // every cache this app has ever owned
 const NS = PREFIX + 'v1-';
 const PINNED = NS + 'pinned';
@@ -93,6 +96,18 @@ function isAppAsset(url, method, scope) {
   return ASSET_NAME.test(u.pathname.slice(s.pathname.length + 'assets/'.length));
 }
 
+// a recorded sound of the table's, asked for by a hash of the file: frames/snd-slide-1.mp3?v=1a2b3c4d (src/01-audio.js)
+const SOUND_NAME = /^snd-[\w-]+\.mp3$/;
+
+/** Whether a request is one of the table's recorded sounds beside the page, named with its version (so a copy kept is never out of date). */
+function isAppSound(url, method, scope) {
+  if (method !== 'GET') return false;
+  let u, s;
+  try { u = new URL(url); s = new URL(scope); } catch (e) { return false; }
+  if (u.origin !== s.origin || !u.pathname.startsWith(s.pathname + 'frames/')) return false;
+  return SOUND_NAME.test(u.pathname.slice(s.pathname.length + 'frames/'.length)) && /^\?v=[0-9a-f]{8}$/.test(u.search);
+}
+
 /** The addresses of the files a page loads from assets/, read from its HTML. */
 function assetsIn(html, base) {
   const out = [];
@@ -102,7 +117,7 @@ function assetsIn(html, base) {
   return out;
 }
 
-if (typeof module === 'object' && module.exports) module.exports = { shouldHandle, isAppPage, isAppAsset, assetsIn, PINNED_URLS, CARD_BACK, NS, PREFIX, OFF, APP, VERSION };
+if (typeof module === 'object' && module.exports) module.exports = { shouldHandle, isAppPage, isAppAsset, isAppSound, assetsIn, PINNED_URLS, CARD_BACK, NS, PREFIX, OFF, APP, VERSION };
 
 if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWorkerGlobalScope) {
   let st = null;                    // { gens: [names, oldest first], meta: { name: { n, bytes, approx } }, maxGens }
@@ -396,6 +411,25 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
     }
     return res;
   }
+  /** One of the table's recorded sounds: the copy kept here under this version; otherwise the network's, kept in place of any older version of it. */
+  async function serveSound(event) {
+    const req = event.request;
+    const key = req.url.split('#')[0];
+    const kept = await caches.match(key, { cacheName: APP }).catch(() => null);
+    if (kept) return kept;
+    const res = await fetch(req);
+    if (goodAsset(res) && !retired) {
+      const copy = res.clone();
+      queue(event, async () => {
+        if (retired) return;
+        const c = await caches.open(APP);
+        const path = key.split('?')[0];
+        for (const old of await c.keys()) if (old.url.split('?')[0] === path && old.url !== key) await c.delete(old).catch(() => {});
+        await c.put(key, copy);
+      });
+    }
+    return res;
+  }
   /**
    * The network first, so an update is never held back; the copy kept here
    * when there is no connection or it has not answered in PAGE_MS (the
@@ -463,6 +497,10 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
     }
     if (isAppAsset(r.url, r.method, self.registration.scope)) {
       event.respondWith(isOff().then(off => (off ? fetch(r) : serveAsset(event))).catch(() => fetch(r)));
+      return;
+    }
+    if (!r.headers.has('range') && isAppSound(r.url, r.method, self.registration.scope)) {
+      event.respondWith(isOff().then(off => (off ? fetch(r) : serveSound(event))).catch(() => fetch(r)));
       return;
     }
     if (!shouldHandle(r.url, r.method, r.mode, r.headers.has('range'))) return;
